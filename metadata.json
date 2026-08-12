@@ -1,0 +1,6 @@
+{
+  "name": "LBHUB",
+  "description": "Sistema de elite para monitoramento de performance, controle de carga e prontidão diária. Inclui análise por IA para periodização de treinos, controle estruturado de lesões e interfaces exclusivas.",
+  "requestFramePermissions": ["notifications", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
