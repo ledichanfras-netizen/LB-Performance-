@@ -10130,9 +10130,9 @@ const CmjReport: FC<{
           </div>
         )}
       </div>
-      <div className="flex items-baseline gap-1 mt-auto">
+      <div className="flex items-baseline gap-1.5 mt-auto">
         <span className="text-xl font-black text-slate-950 italic tracking-tight">
-          {value || 0}
+          {value !== undefined && value !== null && !isNaN(Number(value)) ? value : 0}
         </span>
         <span className="text-[10px] font-black text-slate-400 uppercase italic">
           {unit}
@@ -17104,33 +17104,33 @@ const AssessmentForm: FC<{
                 <Field
                   label="Peso (kg)"
                   value={formData.weight}
-                  onChange={(v) => updateField("weight", parseFloat(v))}
+                  onChange={(v) => updateField("weight", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
                 />
               </div>
               <Field
                 label="Altura (mm)"
                 value={formData.height !== undefined ? Math.round(formData.height * 10) : ""}
-                onChange={(v) => updateField("height", parseFloat(v) / 10)}
+                onChange={(v) => updateField("height", isNaN(parseFloat(v)) ? 0 : parseFloat(v) / 10)}
               />
               <Field
                 label="Força Média (N)"
                 value={formData.averageForce}
-                onChange={(v) => updateField("averageForce", parseFloat(v))}
+                onChange={(v) => updateField("averageForce", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
               />
               <Field
                 label="Potência Média (w)"
                 value={formData.power}
-                onChange={(v) => updateField("power", parseFloat(v))}
+                onChange={(v) => updateField("power", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
               />
               <Field
                 label="Tempo de Voo (ms)"
                 value={formData.flightTime}
-                onChange={(v) => updateField("flightTime", parseFloat(v))}
+                onChange={(v) => updateField("flightTime", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
               />
               <Field
                 label="Profundidade do Agachamento (cm)"
                 value={formData.depth}
-                onChange={(v) => updateField("depth", parseFloat(v))}
+                onChange={(v) => updateField("depth", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
               />
             </>
           )}

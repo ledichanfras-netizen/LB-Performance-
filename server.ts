@@ -905,7 +905,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
             ...c, 
             flightTime: c.flight_time,
             rsi: c.rsi,
-            weight: c.weight
+            weight: c.weight,
+            averageForce: c.average_force ?? c.averageForce ?? 0
         })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
         dropJump: (() => {
           const dbDj = (dropJumpByAth[a.id] || []).map((dj: any) => ({
@@ -1665,8 +1666,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         for (const asm of cmj) {
           if (!asm.id) asm.id = `cmj-${Date.now()}-${Math.random()}`;
           await client.query(
-            'INSERT INTO cmj (id, athlete_id, date, height, power, depth, rsi, flight_time, weight, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO UPDATE SET date = $3, height = $4, power = $5, depth = $6, rsi = $7, flight_time = $8, weight = $9, observations = $10', 
-            [asm.id, athlete.id, asm.date, asm.height ?? 0, asm.power ?? 0, asm.depth ?? 0, asm.rsi ?? 0, asm.flightTime ?? 0, asm.weight ?? 0, asm.observations || '']
+            'INSERT INTO cmj (id, athlete_id, date, height, power, depth, rsi, flight_time, weight, average_force, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO UPDATE SET date = $3, height = $4, power = $5, depth = $6, rsi = $7, flight_time = $8, weight = $9, average_force = $10, observations = $11', 
+            [asm.id, athlete.id, asm.date, asm.height ?? 0, asm.power ?? 0, asm.depth ?? 0, asm.rsi ?? 0, asm.flightTime ?? 0, asm.weight ?? 0, asm.averageForce ?? 0, asm.observations || '']
           );
         }
 
@@ -2716,6 +2717,7 @@ async function runSetup(retries = 1) {
         rsi REAL, 
         flight_time REAL, 
         weight REAL,
+        average_force REAL,
         observations TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
@@ -2726,6 +2728,7 @@ async function runSetup(retries = 1) {
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS flight_time REAL;`);
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS observations TEXT;`);
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS weight REAL;`);
+    await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS average_force REAL;`);
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS vo2max (
