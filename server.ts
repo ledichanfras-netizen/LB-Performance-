@@ -653,7 +653,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
                 .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
               isometricStrength: (strengthMap.get(a.id) || []).map((s: any) => ({ ...s, halfSquatKgf: s.half_squat_kgf, quadricepsR: s.quadriceps_r, quadricepsL: s.quadriceps_l, hamstringsR: s.hamstrings_r, hamstringsL: s.hamstrings_l, iqRatioR: s.iq_ratio_r, iqRatioL: s.iq_ratio_l }))
                 .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              cmj: (cmjMap.get(a.id) || []).map((c: any) => ({ ...c, rsi: c.rsi, flightTime: c.flight_time, weight: c.weight }))
+              cmj: (cmjMap.get(a.id) || []).map((c: any) => ({ ...c, rsi: c.rsi, flightTime: c.flight_time, weight: c.weight, averageForce: c.average_force ?? c.averageForce ?? 0 }))
                 .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
               dropJump: (() => {
                 const dbDj = (dropJumpMap.get(a.id) || []).map((dj: any) => ({
@@ -1379,7 +1379,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
             if (strUpErr) throw strUpErr;
           }
           if (cmj?.length > 0) {
-            const { error: cmjUpErr } = await supabase.from('cmj').upsert(cmj.map((c: any) => ({
+            const cmjPayload = cmj.map((c: any) => ({
               id: c.id || `cmj-${Date.now()}-${Math.random()}`,
               date: c.date,
               height: c.height ?? 0,
@@ -1388,10 +1388,17 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
               rsi: c.rsi ?? 0,
               flight_time: c.flightTime ?? 0,
               weight: c.weight ?? 0,
+              average_force: c.averageForce ?? 0,
               observations: c.observations || '',
               athlete_id: athlete.id
-            })));
-            if (cmjUpErr) throw cmjUpErr;
+            }));
+            const { error: cmjUpErr } = await supabase.from('cmj').upsert(cmjPayload);
+            if (cmjUpErr) {
+              console.warn("[API] Falha ao upsert CMJ com average_force no Supabase, tentando sem a coluna:", cmjUpErr.message);
+              const fallbackPayload = cmjPayload.map(({ average_force, ...rest }: any) => rest);
+              const { error: fallbackErr } = await supabase.from('cmj').upsert(fallbackPayload);
+              if (fallbackErr) throw fallbackErr;
+            }
           }
           if (vo2max?.length > 0) {
             const { error: vo2UpErr } = await supabase.from('vo2max').upsert(vo2max.map((v: any) => ({
