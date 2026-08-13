@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
-import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString } from './utils';
+import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId } from './utils';
 import { ENRICHED_LIBRARY } from './data/exercises';
 import toast from 'react-hot-toast';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -31,7 +31,7 @@ const safeLocalStorage = {
 };
 
 // Resilient fetch helper that automatically retries when network errors occur (such as during backend restarts)
-async function resilientFetch(url: string, options: RequestInit = {}, retries = 2, delayMs = 1000): Promise<Response> {
+async function resilientFetch(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
   let attempt = 1;
   while (attempt <= retries) {
     try {
@@ -354,23 +354,6 @@ export const useAthletes = (token?: string | null) => {
         return;
       }
 
-      if (isSilent && token) {
-        try {
-          const checkRes = await resilientFetch('/api/sync-check', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }, 1, 500);
-          if (checkRes.ok) {
-            const { lastUpdated } = await checkRes.json();
-            if (lastUpdated && lastSyncTimeRef.current && lastUpdated <= lastSyncTimeRef.current) {
-              console.log('[Sync-Check] Nenhuma alteração remota no servidor. Ignorando download pesado.');
-              return;
-            }
-          }
-        } catch (e) {
-          // Se falhar a verificação rápida, prossegue com o carregamento resiliente padrão
-        }
-      }
-
       console.log('Buscando atletas do banco de forma resiliente...');
       const data = await api.loadAthletes(isSilent);
       if (data) {
@@ -398,26 +381,52 @@ export const useAthletes = (token?: string | null) => {
         
         // Prevent accidental data deletion on temporary connection/empty-response quirks
         if (filtered.length === 0 && athletes.length > 0) {
-          console.warn('[Sync] API retornou lista vazia, mantendo dados locais e abortando atualização.');
-          return;
+          console.warn('[Sync] Supabase/API retornou lista vazia de atletas, mas já temos dados na memória. Tentando nova leitura antes de abortar...');
+          const retryData = await api.loadAthletes(isSilent);
+          filtered = (retryData || []).filter(a => !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises');
+
+          if (filtered.length === 0) {
+            console.warn('[Sync] A segunda tentativa também retornou lista vazia. Mantendo dados locais.');
+            if (!isSilent) {
+              toast.error('Sincronização falhou: os dados remotos retornaram vazios. Tente novamente.');
+            }
+            throw new Error('Sincronização falhou: os dados remotos retornaram vazios. Tente novamente.');
+          }
+
+          console.log('[Sync] Segunda tentativa retornou dados válidos. Atualizando estado.');
         }
+
+        // Retrieve local athletes from cache and memory to prevent losing offline/unsynced entries
+        const localCachedAthletes = (() => {
+          try {
+            const cached = safeLocalStorage.getItem('lb_athletes_cache');
+            if (cached) {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+          } catch (e) {}
+          return athletesRef.current;
+        })();
+
+        // Merge remote response safely with local cache/state
+        const mergedAthletes = mergeAthletesWithLocalCache(localCachedAthletes, filtered);
 
         // Detect if new workouts or wellness items arrived from another device during silent background sync
         if (isSilent && athletesRef.current.length > 0) {
           const currentTotalWorkouts = athletesRef.current.reduce((acc, a) => acc + (a.workouts?.length || 0), 0);
-          const newTotalWorkouts = filtered.reduce((acc, a) => acc + (a.workouts?.length || 0), 0);
+          const newTotalWorkouts = mergedAthletes.reduce((acc, a) => acc + (a.workouts?.length || 0), 0);
           const currentTotalWellness = athletesRef.current.reduce((acc, a) => acc + (a.wellness?.length || 0), 0);
-          const newTotalWellness = filtered.reduce((acc, a) => acc + (a.wellness?.length || 0), 0);
+          const newTotalWellness = mergedAthletes.reduce((acc, a) => acc + (a.wellness?.length || 0), 0);
 
           if (newTotalWorkouts > currentTotalWorkouts || newTotalWellness > currentTotalWellness) {
             toast.success("📱 Treino ou Prontidão atualizado por outro dispositivo!", { id: "live-sync-update-toast" });
           }
         }
 
-        setAthletes(filtered);
-        safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(filtered));
+        setAthletes(mergedAthletes);
+        safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(mergedAthletes));
         setLastSyncedAt(new Date());
-        console.log('Dados dos atletas atualizados e cacheados.');
+        console.log('Dados dos atletas atualizados, mesclados e cacheados.');
         lastSyncTimeRef.current = Date.now();
       }
     } catch (err: any) {
@@ -475,12 +484,23 @@ export const useAthletes = (token?: string | null) => {
       }
     };
 
+    // Intelligent sync on user activity (ideal for tablets/mobiles waking up from sleep/stand-by)
+    const handleUserActivity = () => {
+      const now = Date.now();
+      // If the last sync was more than 60 seconds ago, trigger a background sync on interaction
+      if (now - lastSyncTimeRef.current > 60000 && navigator.onLine && !syncingRef.current) {
+        console.log('[Activity-Sync] Interação do usuário detectada após inatividade. Sincronizando dados...');
+        lastSyncTimeRef.current = now; // Update timestamp immediately to prevent concurrent triggers
+        syncDataRef.current(true); // Silent sync
+      }
+    };
+
     window.addEventListener('focus', handleRefocusOrOnline);
     window.addEventListener('online', handleRefocusOrOnline);
     window.addEventListener('pageshow', handleRefocusOrOnline);
     document.addEventListener('visibilitychange', handleRefocusOrOnline);
 
-    // BroadcastChannel para sincronização em tempo real entre abas no mesmo dispositivo
+    // BroadcastChannel for cross-tab/multi-window synchronization on the same device
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -496,19 +516,26 @@ export const useAthletes = (token?: string | null) => {
       console.warn("BroadcastChannel não suportado neste navegador.");
     }
 
-    // Intervalo de verificação periódica inteligente em background (a cada 120 segundos)
+    // Add user interaction listeners to instantly trigger background sync on tablets/mobiles waking up from stand-by
+    window.addEventListener('mousedown', handleUserActivity, { passive: true });
+    window.addEventListener('touchstart', handleUserActivity, { passive: true });
+
+    // Configura um intervalo periódico suave de atualização (polling) em background a cada 30 segundos
     const intervalId = setInterval(() => {
       if (navigator.onLine && document.visibilityState === 'visible' && !syncingRef.current) {
-        console.log('[Interval-Sync] Verificando atualizações no servidor em background...');
-        syncDataRef.current(true); // Silent sync com sync-check prévio
+        console.log('[Interval-Sync] Sincronizando dados de outros dispositivos/IPs em background...');
+        lastSyncTimeRef.current = Date.now();
+        syncDataRef.current(true); // Silent sync
       }
-    }, 120000); // 120 segundos
+    }, 30000); // Executa a cada 30 segundos para manter sincronizado sem sobrecarregar a rede/servidor
 
     return () => {
       window.removeEventListener('focus', handleRefocusOrOnline);
       window.removeEventListener('online', handleRefocusOrOnline);
       window.removeEventListener('pageshow', handleRefocusOrOnline);
       document.removeEventListener('visibilitychange', handleRefocusOrOnline);
+      window.removeEventListener('mousedown', handleUserActivity);
+      window.removeEventListener('touchstart', handleUserActivity);
       if (bc) bc.close();
       clearInterval(intervalId);
     };
@@ -661,6 +688,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteWellness = async (athleteId: string, wellnessId: string) => {
+    recordDeletedItemId(wellnessId);
     setSyncing(true);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
@@ -733,6 +761,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteWorkout = async (athleteId: string, workoutId: string) => {
+    recordDeletedItemId(workoutId);
     setSyncing(true);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
@@ -828,6 +857,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const removeAssessment = async (athleteId: string, type: AssessmentType, assessmentId: string) => {
+    recordDeletedItemId(assessmentId);
     setSyncing(true);
     const updatedAthletes = athletes.map(a => {
       if (a.id === athleteId) {
@@ -885,6 +915,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteAthlete = async (athleteId: string) => {
+    recordDeletedItemId(athleteId);
     setSyncing(true);
     try {
       if (token) {
@@ -1371,6 +1402,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteExternalSession = async (athleteId: string, sessionId: string) => {
+    recordDeletedItemId(sessionId);
     setSyncing(true);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {

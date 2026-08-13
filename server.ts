@@ -256,28 +256,34 @@ async function ensureColumns() {
 }
 
 let isDbConnected = false;
-let lastDataUpdatedAt = Date.now();
 
 pool.on('error', (err) => {
   console.error('Erro inesperado no cliente PostgreSQL inativo:', err?.message || err);
   isDbConnected = false;
 });
 
-// Verificação periódica de conexão suave apenas quando desconectado
+// Verificação periódica de conexão
 setInterval(async () => {
-  if (process.env.DATABASE_URL && !isDbConnected) {
+  if (process.env.DATABASE_URL) {
     try {
       const client = await pool.connect();
       client.release();
-      console.log("Conexão com o banco de dados restabelecida.");
-      isDbConnected = true;
-      await ensureColumns();
+      if (!isDbConnected) {
+        console.log("Conexão com o banco de dados restabelecida.");
+        isDbConnected = true;
+        await ensureColumns();
+      }
     } catch (err: any) {
       const maskedUrl = process.env.DATABASE_URL.substring(0, 15) + "...";
-      console.error(`Tentativa de reconexão com banco falhou. URL: ${maskedUrl} Erro:`, err.message || err);
+      if (isDbConnected) {
+        console.error(`Conexão com o banco de dados perdida. URL: ${maskedUrl} Erro:`, err.message || err);
+        isDbConnected = false;
+      }
     }
+  } else {
+    console.error("DATABASE_URL não configurada no ambiente.");
   }
-}, 60000);
+}, 30000);
 
 // Initial check
 if (process.env.DATABASE_URL) {
@@ -293,22 +299,6 @@ if (process.env.DATABASE_URL) {
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-
-// Ultra-lightweight observability middleware to track API traffic
-let requestStats = { total: 0, syncChecks: 0, lerCalls: 0, salvarCalls: 0, aiCalls: 0, lastReport: Date.now() };
-app.use((req, res, next) => {
-  requestStats.total++;
-  if (req.path.includes('/sync-check')) requestStats.syncChecks++;
-  else if (req.path.includes('/ler')) requestStats.lerCalls++;
-  else if (req.path.includes('/salvar')) requestStats.salvarCalls++;
-  else if (req.path.includes('/ai') || req.path.includes('generate')) requestStats.aiCalls++;
-
-  if (requestStats.total % 100 === 0 || Date.now() - requestStats.lastReport > 3600000) {
-    console.log(`[LB-Performance Traffic Report] Total: ${requestStats.total} | SyncChecks (Leves): ${requestStats.syncChecks} | Ler: ${requestStats.lerCalls} | Salvar: ${requestStats.salvarCalls} | IA: ${requestStats.aiCalls}`);
-    requestStats.lastReport = Date.now();
-  }
-  next();
-});
 
 const apiRouter = express.Router();
 
@@ -506,28 +496,15 @@ apiRouter.post('/auth/login', async (req, res) => {
 });
 
 // API Routes - PROTECTED
-
-// Endpoint ultra-leve para checagem rápida de sincronização
-apiRouter.get('/sync-check', authMiddleware, (req, res) => {
-  res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
-  res.json({ lastUpdated: lastDataUpdatedAt });
-});
-
 apiRouter.get('/ler', authMiddleware, async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  
   const user = (req as any).user;
   const isAthlete = user.role === 'athlete';
   const athleteId = user.athleteId;
-
-  // ETag / 304 Not Modified check para economizar tráfego de dados
-  const currentEtag = `W/"lb-data-${lastDataUpdatedAt}-${isAthlete ? athleteId : 'all'}"`;
-  const clientEtag = req.headers['if-none-match'];
-
-  res.setHeader('ETag', currentEtag);
-  res.setHeader('Cache-Control', 'private, no-cache, must-revalidate');
-
-  if (clientEtag === currentEtag) {
-    return res.status(304).end();
-  }
 
   try {
     const loadFromSupabase = async () => {
@@ -1052,7 +1029,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
           const isArray = Array.isArray(data);
           let attemptData = isArray ? data.map((item: any) => ({ ...item })) : { ...data };
           let lastError;
-          for (let i = 0; i < 2; i++) {
+          for (let i = 0; i < 12; i++) {
             const { error } = await supabase.from(table).upsert(attemptData);
             if (!error) return { error: null };
             lastError = error;
@@ -1773,7 +1750,6 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
     }
 
     await client.query('COMMIT');
-    lastDataUpdatedAt = Date.now();
     console.log('Dados salvos com sucesso!');
     res.json({ message: 'Dados sincronizados com sucesso!' });
   } catch (error: any) {

@@ -1217,7 +1217,6 @@ const EliteHubApp: FC<{
   }, [athletes, selectedId, user]);
 
   const handleGenerateAIModeling = async (skipConfirm = false) => {
-    if (aiModelingLoading) return; // In-flight lock contra cliques múltiplos
     if (user?.role !== "coach") {
       toast.error("Acesso restrito ao treinador.");
       return;
@@ -1246,9 +1245,6 @@ const EliteHubApp: FC<{
       const result = await generateAIModeling(selected);
       if (result) {
         setAiModelingResult(result);
-        try {
-          localStorage.setItem(`lb_ai_modeling_${selected.id}`, JSON.stringify(result));
-        } catch (e) {}
         toast.success("Modelagem de Alta Performance gerada!", { id: toastId });
       } else {
         toast.error(
@@ -1263,17 +1259,6 @@ const EliteHubApp: FC<{
       setAiModelingLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (selected?.id) {
-      try {
-        const cached = localStorage.getItem(`lb_ai_modeling_${selected.id}`);
-        if (cached) {
-          setAiModelingResult(JSON.parse(cached));
-        }
-      } catch (e) {}
-    }
-  }, [selected?.id]);
 
   useEffect(() => {
     if (user?.role === "athlete" && user.athleteId) {
@@ -17427,14 +17412,14 @@ const WellnessForm: FC<{
 }> = ({ onSave, onCancel, role, initialData, isFemale }) => {
   const [data, setData] = useState(() => {
     const base = initialData || {
-      fatigue: 5,
-      sleep: 8,
-      stress: 5,
-      soreness: 5,
-      mood: 5,
-      cognitiveLoad: 3,
+      fatigue: 0,
+      sleep: 0,
+      stress: 0,
+      soreness: 0,
+      mood: 0,
+      cognitiveLoad: 0,
       travelFatigue: 0,
-      sleepQuality: 5,
+      sleepQuality: 0,
     };
     return {
       ...base,
@@ -17449,8 +17434,8 @@ const WellnessForm: FC<{
   const [sleepStartTime, setSleepStartTime] = useState<string>(initialData?.sleepStartTime || "23:00");
   const [wakeUpTime, setWakeUpTime] = useState<string>(initialData?.wakeUpTime || "07:00");
   const [isMatchDay, setIsMatchDay] = useState<boolean>(initialData?.isMatchDay || false);
-  const [emotionalReadiness, setEmotionalReadiness] = useState<number>(initialData?.emotionalReadiness ?? 8);
-  const [psychologicalReadiness, setPsychologicalReadiness] = useState<number>(initialData?.psychologicalReadiness ?? 8);
+  const [emotionalReadiness, setEmotionalReadiness] = useState<number>(initialData?.emotionalReadiness ?? 0);
+  const [psychologicalReadiness, setPsychologicalReadiness] = useState<number>(initialData?.psychologicalReadiness ?? 0);
   const [psychologyNotes, setPsychologyNotes] = useState<string>(initialData?.psychologyNotes || "");
 
   const calculatedSleep = useMemo(() => {
@@ -17573,51 +17558,19 @@ const WellnessForm: FC<{
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-          <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800">
-            <label className="text-[10px] font-black text-slate-500 uppercase block mb-3 px-1 tracking-widest">
-              Coleta Hub (Data)
-            </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-white font-black uppercase italic text-sm outline-none focus:border-brand-primary transition-all shadow-inner"
-            />
-          </div>
-          <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800">
-            <label className="text-[10px] font-black text-slate-500 uppercase block mb-3 px-1 tracking-widest">
-              Total Calculado (Sono)
-            </label>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 shadow-inner">
-              <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="24"
-                value={data.sleep !== undefined && data.sleep !== null ? data.sleep : ""}
-                onChange={(e) => {
-                  const valStr = e.target.value;
-                  const h = valStr === "" ? 0 : Math.min(24, Math.max(0, safeParseFloat(valStr) || 0));
-                  const formatted = formatSleepHours(h);
-                  setData((prev: any) => ({
-                    ...prev,
-                    sleep: h,
-                    sleepHoursFormatted: formatted,
-                    calculatedSleepHours: h,
-                  }));
-                }}
-                onFocus={(e) => e.target.select()}
-                onClick={(e) => (e.target as HTMLInputElement).select()}
-                className="w-full bg-transparent text-white font-black text-center text-sm outline-none"
-                placeholder="Ex: 8"
-              />
-              <span className="text-[10px] font-black text-slate-500 uppercase">horas</span>
-            </div>
-          </div>
+        <div className="bg-slate-950 p-6 rounded-2xl border border-slate-800">
+          <label className="text-[10px] font-black text-slate-500 uppercase block mb-3 px-1 tracking-widest">
+            Coleta Hub (Data do Registro)
+          </label>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-white font-black uppercase italic text-sm outline-none focus:border-brand-primary transition-all shadow-inner"
+          />
         </div>
 
-        {/* CÁLCULO DAS HORAS DE SONO */}
+        {/* CÁLCULO E REGISTRO DAS HORAS DE SONO */}
         <div className="space-y-4 bg-slate-950 p-6 rounded-3xl border border-slate-800">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <label className="text-[11px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
@@ -17652,6 +17605,48 @@ const WellnessForm: FC<{
                 onChange={(e) => handleSleepTimeChange(sleepStartTime, e.target.value)}
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-white font-black text-sm outline-none focus:border-indigo-500 transition-all shadow-inner"
               />
+            </div>
+          </div>
+
+          {/* TOTAL CALCULADO LOGO ABAIXO DOS HORÁRIOS DE REPOUSO */}
+          <div className="pt-3 border-t border-slate-900">
+            <div className="bg-slate-900/90 p-4 rounded-2xl border border-indigo-500/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <label className="text-[10px] font-black text-indigo-300 uppercase block tracking-widest">
+                  Total Calculado de Sono
+                </label>
+                <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">
+                  {calculatedSleep 
+                    ? `Resultado das horas de repouso: ${calculatedSleep.formatted}` 
+                    : "Ajuste os horários acima para calcular ou digite o total manualmente."}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 shadow-inner min-w-[140px] shrink-0">
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="24"
+                  value={data.sleep !== undefined && data.sleep !== null ? data.sleep : ""}
+                  onChange={(e) => {
+                    const valStr = e.target.value;
+                    const h = valStr === "" ? 0 : Math.min(24, Math.max(0, safeParseFloat(valStr) || 0));
+                    const formatted = formatSleepHours(h);
+                    setData((prev: any) => ({
+                      ...prev,
+                      sleep: h,
+                      sleepHoursFormatted: formatted,
+                      calculatedSleepHours: h,
+                    }));
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                  className="w-full bg-transparent text-indigo-300 font-black text-center text-base outline-none"
+                  placeholder="0"
+                />
+                <span className="text-[10px] font-black text-indigo-400/80 uppercase">horas</span>
+              </div>
             </div>
           </div>
         </div>

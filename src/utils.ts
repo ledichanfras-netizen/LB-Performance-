@@ -1,5 +1,5 @@
 
-import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout } from './types';
+import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete } from './types';
 
 export const calculateAge = (dob: string): number => {
   if (!dob) return 0;
@@ -768,4 +768,133 @@ export const isTimeExercise = (ex?: { repsType?: string; reps?: string | number 
   }
   return false;
 };
+
+export const getDeletedItemIds = (): Set<string> => {
+  try {
+    if (typeof localStorage === 'undefined') return new Set();
+    const raw = localStorage.getItem('lb_deleted_item_ids');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set(parsed);
+    }
+  } catch (e) {}
+  return new Set();
+};
+
+export const recordDeletedItemId = (id: string) => {
+  if (!id) return;
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const set = getDeletedItemIds();
+    set.add(id);
+    const arr = Array.from(set).slice(-500);
+    localStorage.setItem('lb_deleted_item_ids', JSON.stringify(arr));
+  } catch (e) {}
+};
+
+export function mergeArrayById<T extends { id: string; date?: string; updatedAt?: string; status?: string }>(
+  localArr: T[] = [],
+  remoteArr: T[] = [],
+  deletedIds: Set<string> = getDeletedItemIds()
+): T[] {
+  const mergedMap = new Map<string, T>();
+
+  // Add remote items if not deleted
+  for (const item of remoteArr) {
+    if (item && item.id && !deletedIds.has(item.id)) {
+      mergedMap.set(item.id, item);
+    }
+  }
+
+  // Merge local items
+  for (const item of localArr) {
+    if (item && item.id && !deletedIds.has(item.id)) {
+      const existing = mergedMap.get(item.id);
+      if (!existing) {
+        // Local item created offline or not yet on server -> keep!
+        mergedMap.set(item.id, item);
+      } else {
+        const localTime = item.updatedAt ? getSafeDateTime(item.updatedAt) : 0;
+        const remoteTime = existing.updatedAt ? getSafeDateTime(existing.updatedAt) : 0;
+
+        if (localTime > remoteTime || (item.status === 'completed' && existing.status !== 'completed')) {
+          mergedMap.set(item.id, item);
+        } else {
+          mergedMap.set(item.id, { ...existing, ...item });
+        }
+      }
+    }
+  }
+
+  return Array.from(mergedMap.values());
+}
+
+export function mergeAthletesWithLocalCache(
+  localAthletes: Athlete[] = [],
+  remoteAthletes: Athlete[] = []
+): Athlete[] {
+  const deletedIds = getDeletedItemIds();
+  const mergedMap = new Map<string, Athlete>();
+
+  // Add remote athletes if not deleted
+  for (const rAth of remoteAthletes) {
+    if (rAth && rAth.id && !deletedIds.has(rAth.id)) {
+      mergedMap.set(rAth.id, rAth);
+    }
+  }
+
+  // Merge local athletes
+  for (const lAth of localAthletes) {
+    if (!lAth || !lAth.id || deletedIds.has(lAth.id)) continue;
+    const rAth = mergedMap.get(lAth.id);
+
+    if (!rAth) {
+      // Local athlete created offline -> keep!
+      mergedMap.set(lAth.id, lAth);
+    } else {
+      // Merge all arrays safely
+      const mergedWellness = mergeArrayById(lAth.wellness || [], rAth.wellness || [], deletedIds)
+        .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date));
+
+      const mergedWorkouts = mergeArrayById(lAth.workouts || [], rAth.workouts || [], deletedIds)
+        .sort((a, b) => getSafeDateTime(b.date || (b as any).updatedAt) - getSafeDateTime(a.date || (a as any).updatedAt));
+
+      const mergedExternalSessions = mergeArrayById(lAth.externalSessions || [], rAth.externalSessions || [], deletedIds)
+        .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date));
+
+      const lAsm = lAth.assessments || { bioimpedance: [], isometricStrength: [], imtp: [], cmj: [], dropJump: [], vo2max: [], speed: [] };
+      const rAsm = rAth.assessments || { bioimpedance: [], isometricStrength: [], imtp: [], cmj: [], dropJump: [], vo2max: [], speed: [] };
+
+      const mergedAssessments = {
+        bioimpedance: mergeArrayById(lAsm.bioimpedance || [], rAsm.bioimpedance || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        isometricStrength: mergeArrayById(lAsm.isometricStrength || [], rAsm.isometricStrength || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        imtp: mergeArrayById(lAsm.imtp || [], rAsm.imtp || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        cmj: mergeArrayById(lAsm.cmj || [], rAsm.cmj || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        dropJump: mergeArrayById(lAsm.dropJump || [], rAsm.dropJump || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        vo2max: mergeArrayById(lAsm.vo2max || [], rAsm.vo2max || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        speed: mergeArrayById(lAsm.speed || [], rAsm.speed || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        postural: mergeArrayById(lAsm.postural || [], rAsm.postural || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+      };
+
+      mergedMap.set(lAth.id, {
+        ...rAth,
+        ...lAth,
+        wellness: mergedWellness,
+        workouts: mergedWorkouts,
+        externalSessions: mergedExternalSessions,
+        assessments: mergedAssessments,
+      });
+    }
+  }
+
+  return Array.from(mergedMap.values());
+}
 
