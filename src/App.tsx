@@ -941,34 +941,44 @@ const EliteHubApp: FC<{
           }
         }
 
-        const lastWellness = (a.wellness || [])[0];
-        if (lastWellness && lastWellness.date && lastWellness.date.startsWith(today)) {
-          if (lastWellness.fatigue >= 8)
+        const hasWorkoutToday = (a.workouts || []).some(
+          (w) => w.date && w.date.startsWith(today) && w.status !== "completed"
+        ) || (a.workouts || []).some(
+          (w) => w.date && w.date.startsWith(today)
+        );
+
+        const todayWellness = (a.wellness || []).find(
+          (w) => w.date && w.date.startsWith(today)
+        );
+
+        if (todayWellness) {
+          if (todayWellness.fatigue >= 8)
             list.push({
               id: `fatigue-${a.id}-${today}`,
-              text: `“${a.name.split(" ")[0]} relatou fadiga crítica”`,
+              text: `“${a.name.split(" ")[0]} relatou fadiga crítica (${todayWellness.fatigue}/10)”`,
               type: "warning" as const,
               athleteId: a.id,
             });
-          if (lastWellness.stress >= 8)
+          if (todayWellness.stress >= 8)
             list.push({
               id: `stress-${a.id}-${today}`,
-              text: `“${a.name.split(" ")[0]} relatou estresse elevado”`,
+              text: `“${a.name.split(" ")[0]} relatou estresse elevado (${todayWellness.stress}/10)”`,
               type: "warning" as const,
               athleteId: a.id,
             });
-          if ((lastWellness.readinessScore || 0) < 50)
+          if ((todayWellness.readinessScore || 0) < 50)
             list.push({
               id: `readiness-${a.id}-${today}`,
-              text: `“${a.name.split(" ")[0]} está com prontidão baixa”`,
+              text: `“${a.name.split(" ")[0]} está com prontidão baixa (${todayWellness.readinessScore || 0}%)”`,
               type: "warning" as const,
               athleteId: a.id,
             });
-        } else {
+        } else if (hasWorkoutToday) {
+          // Apenas notifica prontidão faltante se o atleta tem treino programado para hoje
           list.push({
             id: `missing-wel-${a.id}-${today}`,
-            text: `“${a.name.split(" ")[0]} não preencheu a prontidão”`,
-            type: "info" as const,
+            text: `“${a.name.split(" ")[0]} tem treino hoje e não preencheu a prontidão”`,
+            type: "warning" as const,
             athleteId: a.id,
           });
         }
