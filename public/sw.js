@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lb-performance-v1';
+const CACHE_NAME = 'lb-performance-v2.1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
