@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lb-performance-v2.1';
+const CACHE_NAME = 'lb-performance-v2.2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -21,6 +21,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('[SW] Deletando cache antigo:', cache);
             return caches.delete(cache);
           }
         })
@@ -32,21 +33,23 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Bypass service worker for API calls and non-GET requests
+  // Bypass service worker for API calls, non-GET requests and database endpoints
   if (event.request.method !== 'GET' || url.pathname.startsWith('/api') || url.hostname.includes('supabase.co')) {
     return;
   }
 
-  // Network-first for HTML pages to ensure environment variables and script updates are always fresh
-  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+  // Network-first for HTML navigation so updates are applied immediately
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: 'no-cache' })
         .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
           return response;
         })
-        .catch(() => caches.match(event.request))
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
     );
     return;
   }

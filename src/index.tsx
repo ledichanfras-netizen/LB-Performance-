@@ -11,11 +11,22 @@ if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && process.
     navigator.serviceWorker.register('/sw.js').then(
       (registration) => {
         console.log('SW registrado com sucesso:', registration.scope);
+        // Check for SW update on focus / reload
+        registration.update().catch(() => {});
       },
       (err) => {
         console.log('Erro ao registrar SW:', err);
       }
     );
+  });
+
+  // Reload page when new service worker takes control to get latest changes
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
   });
 }
 
