@@ -31,7 +31,7 @@ const safeLocalStorage = {
 };
 
 // Resilient fetch helper that automatically retries when network errors occur (such as during backend restarts)
-async function resilientFetch(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
+async function resilientFetch(url: string, options: RequestInit = {}, retries = 2, delayMs = 1000): Promise<Response> {
   let attempt = 1;
   while (attempt <= retries) {
     try {
@@ -354,6 +354,23 @@ export const useAthletes = (token?: string | null) => {
         return;
       }
 
+      if (isSilent && token) {
+        try {
+          const checkRes = await resilientFetch('/api/sync-check', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }, 1, 500);
+          if (checkRes.ok) {
+            const { lastUpdated } = await checkRes.json();
+            if (lastUpdated && lastSyncTimeRef.current && lastUpdated <= lastSyncTimeRef.current) {
+              console.log('[Sync-Check] Nenhuma alteração remota no servidor. Ignorando download pesado.');
+              return;
+            }
+          }
+        } catch (e) {
+          // Se falhar a verificação rápida, prossegue com o carregamento resiliente padrão
+        }
+      }
+
       console.log('Buscando atletas do banco de forma resiliente...');
       const data = await api.loadAthletes(isSilent);
       if (data) {
@@ -381,19 +398,8 @@ export const useAthletes = (token?: string | null) => {
         
         // Prevent accidental data deletion on temporary connection/empty-response quirks
         if (filtered.length === 0 && athletes.length > 0) {
-          console.warn('[Sync] Supabase/API retornou lista vazia de atletas, mas já temos dados na memória. Tentando nova leitura antes de abortar...');
-          const retryData = await api.loadAthletes(isSilent);
-          filtered = (retryData || []).filter(a => !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises');
-
-          if (filtered.length === 0) {
-            console.warn('[Sync] A segunda tentativa também retornou lista vazia. Mantendo dados locais.');
-            if (!isSilent) {
-              toast.error('Sincronização falhou: os dados remotos retornaram vazios. Tente novamente.');
-            }
-            throw new Error('Sincronização falhou: os dados remotos retornaram vazios. Tente novamente.');
-          }
-
-          console.log('[Sync] Segunda tentativa retornou dados válidos. Atualizando estado.');
+          console.warn('[Sync] API retornou lista vazia, mantendo dados locais e abortando atualização.');
+          return;
         }
 
         // Detect if new workouts or wellness items arrived from another device during silent background sync
@@ -469,23 +475,12 @@ export const useAthletes = (token?: string | null) => {
       }
     };
 
-    // Intelligent sync on user activity (ideal for tablets/mobiles waking up from sleep/stand-by)
-    const handleUserActivity = () => {
-      const now = Date.now();
-      // If the last sync was more than 60 seconds ago, trigger a background sync on interaction
-      if (now - lastSyncTimeRef.current > 60000 && navigator.onLine && !syncingRef.current) {
-        console.log('[Activity-Sync] Interação do usuário detectada após inatividade. Sincronizando dados...');
-        lastSyncTimeRef.current = now; // Update timestamp immediately to prevent concurrent triggers
-        syncDataRef.current(true); // Silent sync
-      }
-    };
-
     window.addEventListener('focus', handleRefocusOrOnline);
     window.addEventListener('online', handleRefocusOrOnline);
     window.addEventListener('pageshow', handleRefocusOrOnline);
     document.addEventListener('visibilitychange', handleRefocusOrOnline);
 
-    // BroadcastChannel for cross-tab/multi-window synchronization on the same device
+    // BroadcastChannel para sincronização em tempo real entre abas no mesmo dispositivo
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -501,26 +496,19 @@ export const useAthletes = (token?: string | null) => {
       console.warn("BroadcastChannel não suportado neste navegador.");
     }
 
-    // Add user interaction listeners to instantly trigger background sync on tablets/mobiles waking up from stand-by
-    window.addEventListener('mousedown', handleUserActivity, { passive: true });
-    window.addEventListener('touchstart', handleUserActivity, { passive: true });
-
-    // Configura um intervalo periódico suave de atualização (polling) em background a cada 30 segundos
+    // Intervalo de verificação periódica inteligente em background (a cada 120 segundos)
     const intervalId = setInterval(() => {
       if (navigator.onLine && document.visibilityState === 'visible' && !syncingRef.current) {
-        console.log('[Interval-Sync] Sincronizando dados de outros dispositivos/IPs em background...');
-        lastSyncTimeRef.current = Date.now();
-        syncDataRef.current(true); // Silent sync
+        console.log('[Interval-Sync] Verificando atualizações no servidor em background...');
+        syncDataRef.current(true); // Silent sync com sync-check prévio
       }
-    }, 30000); // Executa a cada 30 segundos para manter sincronizado sem sobrecarregar a rede/servidor
+    }, 120000); // 120 segundos
 
     return () => {
       window.removeEventListener('focus', handleRefocusOrOnline);
       window.removeEventListener('online', handleRefocusOrOnline);
       window.removeEventListener('pageshow', handleRefocusOrOnline);
       document.removeEventListener('visibilitychange', handleRefocusOrOnline);
-      window.removeEventListener('mousedown', handleUserActivity);
-      window.removeEventListener('touchstart', handleUserActivity);
       if (bc) bc.close();
       clearInterval(intervalId);
     };

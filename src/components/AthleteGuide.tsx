@@ -113,12 +113,9 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
     };
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("custom-library-synced", handleStorageChange);
-    // Listen to custom local events if available, or just standard intervals
-    const interval = setInterval(handleStorageChange, 2000);
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("custom-library-synced", handleStorageChange);
-      clearInterval(interval);
     };
   }, []);
 

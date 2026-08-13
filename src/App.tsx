@@ -1217,6 +1217,7 @@ const EliteHubApp: FC<{
   }, [athletes, selectedId, user]);
 
   const handleGenerateAIModeling = async (skipConfirm = false) => {
+    if (aiModelingLoading) return; // In-flight lock contra cliques múltiplos
     if (user?.role !== "coach") {
       toast.error("Acesso restrito ao treinador.");
       return;
@@ -1245,6 +1246,9 @@ const EliteHubApp: FC<{
       const result = await generateAIModeling(selected);
       if (result) {
         setAiModelingResult(result);
+        try {
+          localStorage.setItem(`lb_ai_modeling_${selected.id}`, JSON.stringify(result));
+        } catch (e) {}
         toast.success("Modelagem de Alta Performance gerada!", { id: toastId });
       } else {
         toast.error(
@@ -1259,6 +1263,17 @@ const EliteHubApp: FC<{
       setAiModelingLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (selected?.id) {
+      try {
+        const cached = localStorage.getItem(`lb_ai_modeling_${selected.id}`);
+        if (cached) {
+          setAiModelingResult(JSON.parse(cached));
+        }
+      } catch (e) {}
+    }
+  }, [selected?.id]);
 
   useEffect(() => {
     if (user?.role === "athlete" && user.athleteId) {
