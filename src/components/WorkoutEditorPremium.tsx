@@ -134,6 +134,7 @@ export function isExerciseInActiveCategory(
   customLibraryExercises: EnrichedExercise[]
 ): boolean {
   if (activeCategory === "ALL") return true;
+  if (activeCategory === "WITH_VIDEO") return Boolean(item.videoUrl && item.videoUrl.trim());
   if (activeCategory === "FAVORITES") return favorites.includes(item.id);
   if (activeCategory === "RECENTS") return recentAdds.includes(item.id);
   if (activeCategory === "CUSTOM") return customLibraryExercises.some(x => x.id === item.id);
@@ -310,6 +311,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [filterSport, setFilterSport] = useState<string>("ALL");
   const [filterPattern, setFilterPattern] = useState<string>("ALL");
   const [filterLateralType, setFilterLateralType] = useState<string>("ALL");
+  const [filterVideo, setFilterVideo] = useState<string>("ALL");
 
   // AI Search States
   const [isAiSearching, setIsAiSearching] = useState(false);
@@ -859,13 +861,15 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       if (filterSport !== "ALL" && !(item.sports || []).some(s => s.toLowerCase() === filterSport.toLowerCase())) return false;
       if (filterPattern !== "ALL" && item.movementPattern !== filterPattern) return false;
       if (filterLateralType !== "ALL" && item.lateralType !== filterLateralType) return false;
+      if (filterVideo === "WITH_VIDEO" && (!item.videoUrl || !item.videoUrl.trim())) return false;
+      if (filterVideo === "WITHOUT_VIDEO" && Boolean(item.videoUrl && item.videoUrl.trim())) return false;
 
       // 4. AI Search Filter
       if (aiSearchIds && !aiSearchIds.includes(item.id)) return false;
 
       return true;
     });
-  }, [searchQuery, activeCategory, favorites, recentAdds, filterDifficulty, filterQuality, filterEquipment, filterMuscleGroup, filterSport, filterPattern, filterLateralType, aiSearchIds, combinedLibrary, customLibraryExercises]);
+  }, [searchQuery, activeCategory, favorites, recentAdds, filterDifficulty, filterQuality, filterEquipment, filterMuscleGroup, filterSport, filterPattern, filterLateralType, filterVideo, aiSearchIds, combinedLibrary, customLibraryExercises]);
 
   // Unique list of qualities, difficulties, and equipments for filters
   const uniqueQualities = useMemo(() => {
@@ -1332,6 +1336,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 no-scrollbar border-b border-slate-900">
               {[
                 { id: "ALL", label: "TUDO" },
+                { id: "WITH_VIDEO", label: "🎥 Vídeos" },
                 { id: "CUSTOM", label: "Salvos 💾" },
                 { id: "MMII", label: "Membros Inf." },
                 { id: "MMSS", label: "Membros Sup." },
@@ -1371,6 +1376,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     setFilterSport("ALL");
                     setFilterPattern("ALL");
                     setFilterLateralType("ALL");
+                    setFilterVideo("ALL");
                     setSearchQuery("");
                     setAiSearchIds(null);
                     setAiSearchReasoning(null);
@@ -1382,6 +1388,19 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               </div>
 
               <div className="grid grid-cols-2 gap-2.5">
+                {/* Video Filter */}
+                <div className="space-y-1">
+                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Vídeo Anexado</span>
+                  <select
+                    value={filterVideo}
+                    onChange={(e) => setFilterVideo(e.target.value)}
+                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
+                  >
+                    <option value="ALL">TODOS</option>
+                    <option value="WITH_VIDEO">🎥 COM VÍDEO</option>
+                    <option value="WITHOUT_VIDEO">SEM VÍDEO</option>
+                  </select>
+                </div>
                 {/* Difficulty */}
                 <div className="space-y-1">
                   <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Dificuldade</span>

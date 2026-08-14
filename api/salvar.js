@@ -24,11 +24,6 @@ export default async function handler(request, response) {
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS goal VARCHAR(255);');
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS weekly_frequency INTEGER;');
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS is_tournament_mode BOOLEAN;');
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS pain_level INTEGER;').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS reps_type VARCHAR(50);').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS video_url TEXT;').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS image_url TEXT;').catch(() => {});
 
     const athleteIds = (athletes || []).map(a => a.id).filter(Boolean);
     if (athleteIds.length > 0) {
@@ -100,12 +95,9 @@ export default async function handler(request, response) {
             cleanParam(wk.feedback)
           ]
         );
-        const exercisesList = wk.exercises || [];
-        for (let idx = 0; idx < exercisesList.length; idx++) {
-          const ex = exercisesList[idx];
-          const orderIdx = ex.order_index !== undefined ? ex.order_index : idx;
+        for (const ex of (wk.exercises || [])) {
           await client.query(
-            'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, pain_level, reps_type, order_index, video_url, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (id) DO UPDATE SET name = $3, muscle_group = $4, sets = $5, reps = $6, weight = $7, rest = $8, notes = $9, pain_level = $10, reps_type = $11, order_index = $12, video_url = $13, image_url = $14',
+            'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
             [
               cleanParam(ex.id),
               cleanParam(wk.id),
@@ -115,12 +107,7 @@ export default async function handler(request, response) {
               cleanParam(ex.reps),
               cleanParam(ex.weight),
               cleanParam(ex.rest),
-              cleanParam(ex.notes),
-              cleanParam(ex.painLevel !== undefined ? ex.painLevel : ex.pain_level),
-              cleanParam(ex.repsType || ex.reps_type || 'reps'),
-              cleanParam(orderIdx),
-              cleanParam(ex.videoUrl || ex.video_url || null),
-              cleanParam(ex.imageUrl || ex.image_url || null)
+              cleanParam(ex.notes)
             ]
           );
           

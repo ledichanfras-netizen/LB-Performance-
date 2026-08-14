@@ -27,6 +27,7 @@ import {
   Plus,
   Video,
   Play,
+  VideoOff,
   ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -76,6 +77,7 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
   const [libSearch, setLibSearch] = useState("");
   const [libCategory, setLibCategory] = useState<string>("ALL");
   const [libDifficulty, setLibDifficulty] = useState<string>("ALL");
+  const [libVideoFilter, setLibVideoFilter] = useState<"ALL" | "WITH_VIDEO" | "WITHOUT_VIDEO">("ALL");
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
 
   // Load custom library and deleted exercises
@@ -214,6 +216,17 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
     setIsEditorOpen(true);
   };
 
+  // Video Counts
+  const videoCounts = useMemo(() => {
+    let withVideo = 0;
+    let withoutVideo = 0;
+    combinedLibrary.forEach(item => {
+      if (item.videoUrl && item.videoUrl.trim()) withVideo++;
+      else withoutVideo++;
+    });
+    return { withVideo, withoutVideo, total: combinedLibrary.length };
+  }, [combinedLibrary]);
+
   // Filter exercises using combinedLibrary
   const filteredExercises = useMemo(() => {
     return combinedLibrary.filter(item => {
@@ -226,10 +239,14 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
 
       const matchesCategory = libCategory === "ALL" || item.category === libCategory;
       const matchesDifficulty = libDifficulty === "ALL" || item.difficulty === libDifficulty;
+      const matchesVideo = 
+        libVideoFilter === "ALL" ||
+        (libVideoFilter === "WITH_VIDEO" && Boolean(item.videoUrl && item.videoUrl.trim())) ||
+        (libVideoFilter === "WITHOUT_VIDEO" && (!item.videoUrl || !item.videoUrl.trim()));
 
-      return matchesSearch && matchesCategory && matchesDifficulty;
+      return matchesSearch && matchesCategory && matchesDifficulty && matchesVideo;
     });
-  }, [combinedLibrary, libSearch, libCategory, libDifficulty]);
+  }, [combinedLibrary, libSearch, libCategory, libDifficulty, libVideoFilter]);
 
   return (
     <div className="space-y-8 pb-20">
@@ -692,6 +709,49 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
                     }`}
                   >
                     {diff.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px bg-slate-900" />
+
+            {/* Video Attachment Filter */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Play className="w-3.5 h-3.5 text-red-400 fill-red-400" />
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Filtro por Vídeo Demonstrativo</span>
+                </div>
+                {libVideoFilter !== "ALL" && (
+                  <button
+                    onClick={() => setLibVideoFilter("ALL")}
+                    className="text-[8px] font-black text-slate-500 hover:text-white uppercase tracking-wider cursor-pointer"
+                  >
+                    REDEFINIR VÍDEO
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { id: "ALL", label: `Todos (${videoCounts.total})`, icon: Video },
+                  { id: "WITH_VIDEO", label: `🎥 Com Vídeo Anexado (${videoCounts.withVideo})`, icon: Play },
+                  { id: "WITHOUT_VIDEO", label: `Sem Vídeo (${videoCounts.withoutVideo})`, icon: VideoOff },
+                ].map((vf) => (
+                  <button
+                    key={vf.id}
+                    onClick={() => setLibVideoFilter(vf.id as any)}
+                    className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border flex items-center gap-1.5 cursor-pointer ${
+                      libVideoFilter === vf.id
+                        ? vf.id === "WITH_VIDEO"
+                          ? "bg-red-500/15 text-red-400 border-red-500/40 shadow-lg shadow-red-500/10 font-extrabold"
+                          : vf.id === "WITHOUT_VIDEO"
+                          ? "bg-amber-500/15 text-amber-400 border-amber-500/40 font-extrabold"
+                          : "bg-brand-primary/10 text-brand-primary border-brand-primary/30 font-extrabold"
+                        : "bg-[#0c101b] text-slate-400 border-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <span>{vf.label}</span>
                   </button>
                 ))}
               </div>
