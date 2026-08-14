@@ -262,10 +262,10 @@ export const useAthletes = (token?: string | null) => {
         } else if (isNetworkError(err)) {
           console.warn('Carregamento interrompido devido a erro de rede:', err.message || err);
         } else {
-          console.error('Carregamento interrompido:', err.message);
+          console.warn('Carregamento interrompido:', err.message);
         }
-        if (err.message === 'TIMEOUT_GLOBAL' && !isSilent) {
-          toast.error("O servidor demorou muito para responder. Tente recarregar a página.", { id: 'timeout-global-toast' });
+        if (err.message === 'TIMEOUT_GLOBAL' && !isSilent && athletesRef.current.length === 0) {
+          toast.error("O servidor demorou para responder. Operando em modo offline seguro.", { id: 'timeout-global-toast' });
         }
         throw err;
       });
@@ -473,7 +473,9 @@ export const useAthletes = (token?: string | null) => {
   };
 
   useEffect(() => {
-    syncData();
+    // If local athletes exist in cache, perform silent background sync on startup to avoid cold-start error toasts
+    const hasInitialData = athletesRef.current.length > 0;
+    syncData(hasInitialData);
 
     // Auto-sync when page recovers focus, online connection, visibility change, or page show (mobile return)
     const handleRefocusOrOnline = () => {
