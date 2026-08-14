@@ -335,7 +335,7 @@ export const supabaseService = {
               videoUrl: ex.video_url || '',
               imageUrl: ex.image_url || '',
               performedSets: (ex.performed_sets || [])
-            })).sort((x: any, y: any) => (x.order_index || 0) - (y.order_index || 0))
+            })).sort((x: any, y: any) => (x.order_index ?? 0) - (y.order_index ?? 0))
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           assessments: {
             bioimpedance: athleteBio.map((b: any) => ({
