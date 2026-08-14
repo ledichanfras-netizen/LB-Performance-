@@ -21,7 +21,7 @@ export default async function handler(request, response) {
       sql`SELECT * FROM athletes ORDER BY name ASC`,
       sql`SELECT * FROM wellness ORDER BY date DESC`,
       sql`SELECT * FROM workouts ORDER BY date DESC`,
-      sql`SELECT * FROM prescribed_exercises`,
+      sql`SELECT * FROM prescribed_exercises ORDER BY order_index ASC`,
       sql`SELECT * FROM performed_sets`,
       sql`SELECT * FROM bioimpedance`,
       sql`SELECT * FROM isometric_strength`,
@@ -79,18 +79,24 @@ export default async function handler(request, response) {
       workouts: (workoutsByAth[a.id] || []).map(wk => ({
         id: wk.id, date: wk.date, name: wk.name, phase: wk.phase, status: wk.status, rpe: wk.rpe, totalLoad: asNum(wk.total_load), 
         durationMinutes: wk.duration_minutes, monotony: asNum(wk.monotony), strain: asNum(wk.strain), feedback: wk.feedback, trainerNotes: wk.trainer_notes,
-        exercises: (exByWorkout[wk.id] || []).map(ex => ({ 
-          id: ex.id, 
-          name: ex.name, 
-          muscleGroup: ex.muscle_group, 
-          sets: ex.sets, 
-          reps: ex.reps, 
-          weight: ex.weight, 
-          rest: ex.rest, 
-          notes: ex.notes,
-          painLevel: ex.pain_level,
-          performedSets: (setsByEx[ex.id] || []).map(ps => ({ reps: ps.reps, weight: ps.weight, rpe: ps.rpe }))
-        }))
+        exercises: (exByWorkout[wk.id] || [])
+          .sort((x, y) => (x.order_index ?? 0) - (y.order_index ?? 0))
+          .map(ex => ({
+            id: ex.id,
+            name: ex.name,
+            muscleGroup: ex.muscle_group,
+            sets: ex.sets,
+            reps: ex.reps,
+            weight: ex.weight,
+            rest: ex.rest,
+            notes: ex.notes,
+            painLevel: ex.pain_level,
+            repsType: ex.reps_type || 'reps',
+            order_index: ex.order_index ?? 0,
+            videoUrl: ex.video_url || '',
+            imageUrl: ex.image_url || '',
+            performedSets: (setsByEx[ex.id] || []).map(ps => ({ reps: ps.reps, weight: ps.weight, rpe: ps.rpe }))
+          }))
       })),
       assessments: {
         bioimpedance: (bioByAth[a.id] || []).map(b => ({

@@ -143,20 +143,17 @@ export const useAthletes = (token?: string | null) => {
       ...a,
       workouts: (a.workouts || []).map(w => {
         const exs = (w.exercises || []).slice();
-        const hasOrderIndex = exs.some(x => typeof x.order_index === 'number');
-        const sortedExs = hasOrderIndex
-          ? exs.sort((x: any, y: any) => {
-              const xVal = typeof x.order_index === 'number' ? x.order_index : 9999;
-              const yVal = typeof y.order_index === 'number' ? y.order_index : 9999;
-              return xVal - yVal;
-            })
-          : exs;
+        const sortedExs = exs.sort((x: any, y: any) => {
+          const xVal = typeof x.order_index === 'number' ? x.order_index : 9999;
+          const yVal = typeof y.order_index === 'number' ? y.order_index : 9999;
+          return xVal - yVal;
+        });
 
         return {
           ...w,
           exercises: sortedExs.map((ex, idx) => ({
             ...ex,
-            order_index: idx
+            order_index: typeof ex.order_index === 'number' ? ex.order_index : idx
           }))
         };
       })
@@ -610,6 +607,7 @@ export const useAthletes = (token?: string | null) => {
     safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(newAthletes));
     console.log("Iniciando sincronização em segundo plano...");
     setSyncing(true);
+    syncingRef.current = true;
     try {
       if (specificAthleteId) {
         const athlete = newAthletes.find(a => a.id === specificAthleteId);
@@ -638,6 +636,7 @@ export const useAthletes = (token?: string | null) => {
       toast.error(`Erro ao sincronizar: ${message} ${detail ? `(${detail})` : ''}`, { id: 'sync-error' });
     } finally {
       setSyncing(false);
+      syncingRef.current = false;
     }
   };
 
@@ -651,11 +650,12 @@ export const useAthletes = (token?: string | null) => {
   const addWellness = async (athleteId: string, entry: Omit<WellnessEntry, 'id' | 'readinessScore'>) => {
     const score = calculateReadiness(entry);
     const newId = `w-${Date.now()}-${Math.random()}`;
+    const nowIso = new Date().toISOString();
     
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
         const history = Array.isArray(a.wellness) ? a.wellness : [];
-        const newHistory = [{ ...entry, id: newId, readinessScore: score }, ...history];
+        const newHistory = [{ ...entry, id: newId, readinessScore: score, updatedAt: nowIso }, ...history];
         newHistory.sort((x, y) => getSafeDateTime(y.date) - getSafeDateTime(x.date));
         return { ...a, wellness: newHistory };
       }
@@ -728,9 +728,11 @@ export const useAthletes = (token?: string | null) => {
 
   const addWorkout = async (athleteId: string, workout: Omit<Workout, 'id'>) => {
     const newId = `wk-${Date.now()}-${Math.random()}`;
+    const nowIso = new Date().toISOString();
     const normalizedWorkout = {
       ...workout,
       id: newId,
+      updatedAt: nowIso,
       exercises: (workout.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
     };
     const updated = athletes.map(a => {
@@ -826,11 +828,12 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const addAssessment = async (athleteId: string, type: AssessmentType, data: any) => {
+    const nowIso = new Date().toISOString();
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
         const currentAssessments = a.assessments || { bioimpedance: [], isometricStrength: [], imtp: [], cmj: [], dropJump: [], vo2max: [], speed: [] };
         const history = Array.isArray(currentAssessments[type]) ? currentAssessments[type] : [];
-        const assessments = { ...currentAssessments, [type]: [{ ...data, id: `asm-${Date.now()}-${Math.floor(Math.random() * 10000)}` }, ...history] };
+        const assessments = { ...currentAssessments, [type]: [{ ...data, id: `asm-${Date.now()}-${Math.floor(Math.random() * 10000)}`, updatedAt: nowIso }, ...history] };
         return { ...a, assessments };
       }
       return a;
