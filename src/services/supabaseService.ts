@@ -91,10 +91,14 @@ const serializeBackupAthleteFields = (athlete: any) => {
     dropJumpBackup: dropJump,
     imtpBackup: imtp,
     posturalBackup: postural,
-    matches: athlete.matches || [],
-    photoUrl: athlete.photoUrl || athlete.photo_url || ''
+    matches: athlete.matches || []
+    // Intentionally omit duplicating base64 photoUrl here to save database storage and bandwidth
   });
 };
+
+// Global memory cache and timestamp tracking to avoid redownloading un-modified data
+let lastKnownRemoteTimestamp: string | null = null;
+let inMemoryCachedAthletes: Athlete[] = [];
 
 const extractMissingColumnFromSupabaseError = (errorMessage: string): string | null => {
   if (!errorMessage) return null;
@@ -134,12 +138,32 @@ export const logError = (context: string, error: any) => {
 };
 
 export const supabaseService = {
-  async loadAthletes(): Promise<Athlete[]> {
+  async loadAthletes(forceReload = false): Promise<Athlete[]> {
     if (!isSupabaseConfigured) {
       return [];
     }
 
     try {
+      // Bandwidth Optimization: If we already have cached athletes in memory and not forcing a reload,
+      // check the latest updated_at from the database first (~200 bytes) instead of downloading all 13 tables (~2MB).
+      if (!forceReload && inMemoryCachedAthletes.length > 0 && lastKnownRemoteTimestamp) {
+        try {
+          const { data: latestCheck } = await supabase
+            .from('athletes')
+            .select('updated_at')
+            .order('updated_at', { ascending: false })
+            .limit(1);
+
+          const remoteLatest = latestCheck?.[0]?.updated_at;
+          if (remoteLatest && remoteLatest <= lastKnownRemoteTimestamp) {
+            console.log('[Supabase Cache] Dados inalterados no servidor (0 KB transferidos). Utilizando cache.');
+            return inMemoryCachedAthletes;
+          }
+        } catch (checkErr) {
+          // If check fails, fall through to full fetch
+        }
+      }
+
       // 1. Fetch core athletes information with wellness, external_sessions and workouts/exercises/sets
       const primaryQuery = await supabase
         .from('athletes')
@@ -264,7 +288,7 @@ export const supabaseService = {
       });
 
       // 4. Map the core and relational data back to the Athlete object structure
-      return athletes.map((a: any) => {
+      const mappedAthletes: Athlete[] = athletes.map((a: any) => {
         const parsedFields = parseBackupAthleteFields(a);
         
         // Retrieve separate tables safely
@@ -469,6 +493,20 @@ export const supabaseService = {
           }
         };
       });
+
+      // Update in-memory cache and remote timestamp tracking
+      inMemoryCachedAthletes = mappedAthletes;
+      const maxUpdated = athletes.reduce((max: string, a: any) => {
+        const t = a.updated_at || a.created_at || '';
+        return t > max ? t : max;
+      }, '');
+      if (maxUpdated) {
+        lastKnownRemoteTimestamp = maxUpdated;
+      } else {
+        lastKnownRemoteTimestamp = new Date().toISOString();
+      }
+
+      return mappedAthletes;
     } catch (e: any) {
       logError('Supabase load crash:', e);
       throw e;
@@ -935,21 +973,30 @@ export const supabaseService = {
     }
     
     console.log(`[Supabase] Atleta ${athlete.name} salvo com sucesso.`);
+    lastKnownRemoteTimestamp = new Date().toISOString();
+    // Update or append in-memory cache
+    if (inMemoryCachedAthletes.length > 0) {
+      const idx = inMemoryCachedAthletes.findIndex(a => a.id === athlete.id);
+      if (idx >= 0) {
+        inMemoryCachedAthletes[idx] = athlete;
+      } else {
+        inMemoryCachedAthletes.push(athlete);
+      }
+    }
   },
 
   async saveAthletes(athletes: Athlete[]): Promise<void> {
-    // This is a complex operation because of the relational structure.
-    // In a real Supabase app, we would use granular updates.
-    // For now, we'll implement a basic sync logic or just use the Express API if it's easier.
-    // But since the user wants to "integrate Supabase", let's try to do it right.
-    
     for (const athlete of athletes) {
       await this.saveAthlete(athlete);
     }
+    lastKnownRemoteTimestamp = new Date().toISOString();
+    inMemoryCachedAthletes = athletes;
   },
 
   async deleteAthlete(id: string): Promise<void> {
     try {
+      lastKnownRemoteTimestamp = new Date().toISOString();
+      inMemoryCachedAthletes = inMemoryCachedAthletes.filter(a => a.id !== id);
       // Manual deep delete with individual try-catch blocks to prevent missing tables from blocking athlete deletion
       const safeDelete = async (table: string) => {
         try {

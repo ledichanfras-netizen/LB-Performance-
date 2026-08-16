@@ -477,22 +477,14 @@ export const useAthletes = (token?: string | null) => {
     const hasInitialData = athletesRef.current.length > 0;
     syncData(hasInitialData);
 
-    // Auto-sync when page recovers focus, online connection, visibility change, or page show (mobile return)
+    // Auto-sync when page recovers focus, online connection, visibility change, or page show (with 5-min throttle)
     const handleRefocusOrOnline = () => {
-      if (navigator.onLine && document.visibilityState === 'visible' && !syncingRef.current) {
-        console.log('[Auto-Sync] Janela ativa e online. Sincronizando dados em background...');
-        lastSyncTimeRef.current = Date.now();
-        syncDataRef.current(true); // Silent sync
-      }
-    };
-
-    // Intelligent sync on user activity (ideal for tablets/mobiles waking up from sleep/stand-by)
-    const handleUserActivity = () => {
       const now = Date.now();
-      // If the last sync was more than 60 seconds ago, trigger a background sync on interaction
-      if (now - lastSyncTimeRef.current > 60000 && navigator.onLine && !syncingRef.current) {
-        console.log('[Activity-Sync] Interação do usuário detectada após inatividade. Sincronizando dados...');
-        lastSyncTimeRef.current = now; // Update timestamp immediately to prevent concurrent triggers
+      // Throttle window refocus sync to at most once every 5 minutes (300,000 ms) to prevent excessive bandwidth consumption
+      const MIN_REFOCUS_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+      if (now - lastSyncTimeRef.current > MIN_REFOCUS_SYNC_INTERVAL_MS && navigator.onLine && document.visibilityState === 'visible' && !syncingRef.current) {
+        console.log('[Auto-Sync] Janela ativa e online após inatividade. Sincronizando dados em background...');
+        lastSyncTimeRef.current = now;
         syncDataRef.current(true); // Silent sync
       }
     };
@@ -502,7 +494,7 @@ export const useAthletes = (token?: string | null) => {
     window.addEventListener('pageshow', handleRefocusOrOnline);
     document.addEventListener('visibilitychange', handleRefocusOrOnline);
 
-    // BroadcastChannel for cross-tab/multi-window synchronization on the same device
+    // BroadcastChannel for cross-tab/multi-window synchronization on the same device (Zero bandwidth cost)
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -518,28 +510,12 @@ export const useAthletes = (token?: string | null) => {
       console.warn("BroadcastChannel não suportado neste navegador.");
     }
 
-    // Add user interaction listeners to instantly trigger background sync on tablets/mobiles waking up from stand-by
-    window.addEventListener('mousedown', handleUserActivity, { passive: true });
-    window.addEventListener('touchstart', handleUserActivity, { passive: true });
-
-    // Configura um intervalo periódico suave de atualização (polling) em background a cada 30 segundos
-    const intervalId = setInterval(() => {
-      if (navigator.onLine && document.visibilityState === 'visible' && !syncingRef.current) {
-        console.log('[Interval-Sync] Sincronizando dados de outros dispositivos/IPs em background...');
-        lastSyncTimeRef.current = Date.now();
-        syncDataRef.current(true); // Silent sync
-      }
-    }, 30000); // Executa a cada 30 segundos para manter sincronizado sem sobrecarregar a rede/servidor
-
     return () => {
       window.removeEventListener('focus', handleRefocusOrOnline);
       window.removeEventListener('online', handleRefocusOrOnline);
       window.removeEventListener('pageshow', handleRefocusOrOnline);
       document.removeEventListener('visibilitychange', handleRefocusOrOnline);
-      window.removeEventListener('mousedown', handleUserActivity);
-      window.removeEventListener('touchstart', handleUserActivity);
       if (bc) bc.close();
-      clearInterval(intervalId);
     };
   }, [token]);
 

@@ -512,7 +512,11 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
         const fetchTableSafely = async (tableName: string) => {
           try {
-            const { data, error } = await supabase.from(tableName).select('*');
+            let q = supabase.from(tableName).select('*');
+            if (isAthlete && athleteId) {
+              q = q.eq('athlete_id', athleteId);
+            }
+            const { data, error } = await q;
             if (error) {
               console.warn(`[SERVIÇO] Alerta ao carregar tabela '${tableName}' do Supabase:`, error.message);
               return [];

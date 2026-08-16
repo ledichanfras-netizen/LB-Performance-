@@ -23,7 +23,8 @@ export const processProfileImageFile = (file: File, callback: (base64: string) =
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      const MAX_SIZE = 600;
+      // Ultra-optimized 220px thumbnail for crisp retina avatars with minimal DB/network footprint (~15KB)
+      const MAX_SIZE = 220;
       let width = img.width;
       let height = img.height;
       if (width > height) {
@@ -37,11 +38,11 @@ export const processProfileImageFile = (file: File, callback: (base64: string) =
           height = MAX_SIZE;
         }
       }
-      canvas.width = width;
-      canvas.height = height;
+      canvas.width = Math.round(width);
+      canvas.height = Math.round(height);
       const ctx = canvas.getContext("2d");
-      ctx?.drawImage(img, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
       callback(dataUrl);
     };
     img.onerror = () => {
