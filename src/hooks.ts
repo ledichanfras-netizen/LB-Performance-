@@ -1091,10 +1091,12 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const generateAIWorkouts = async (athlete: Athlete, coachInstructions?: string): Promise<void> => {
-    const toastId = toast.loading("IA elaborando periodização elite...");
-    console.log("Iniciando geração de treinos para:", athlete.name);
+    const toastId = toast.loading("IA Co-Pilot elaborando periodização...");
+    console.log("Iniciando geração de treinos IA Co-Pilot para:", athlete.name);
     
     try {
+      const dayNamesPt = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+      
       // Calculate exact calendar dates based on athlete training config
       const startStr = athlete.periodizationStart || getLocalDateString();
       let endStr = athlete.periodizationEnd;
@@ -1110,11 +1112,11 @@ export const useAthletes = (token?: string | null) => {
       }
 
       // Find all matching dates between start and end str with their training type meta
-      const trainingDatesMeta: { date: string; type: "academia" | "quadra" | "ambos" }[] = [];
+      const trainingDatesMeta: { date: string; dayOfWeek: number; dayName: string; type: "academia" | "quadra" | "ambos" }[] = [];
       let currentDate = new Date(startStr + "T12:00:00");
       const endDateVal = new Date(endStr + "T12:00:00");
       let safetyCounter = 0;
-      const maxWorkouts = 12; // Maintain safety boundaries
+      const maxWorkouts = 14; // Maintain safety boundaries
 
       while (currentDate <= endDateVal && safetyCounter < 180 && trainingDatesMeta.length < maxWorkouts) {
         const dayOfWeek = currentDate.getDay();
@@ -1129,6 +1131,8 @@ export const useAthletes = (token?: string | null) => {
           }
           trainingDatesMeta.push({
             date: currentDate.toISOString().split('T')[0],
+            dayOfWeek,
+            dayName: dayNamesPt[dayOfWeek],
             type
           });
         }
@@ -1136,17 +1140,28 @@ export const useAthletes = (token?: string | null) => {
         safetyCounter++;
       }
 
-      // Ultimate fallback if dates are out of bounds or none generated
+      // Fallback if dates are out of bounds or none generated
       if (trainingDatesMeta.length === 0) {
         let fallbackDate = new Date();
         for (let i = 0; i < 6; i++) {
+          const dayOfWeek = fallbackDate.getDay();
           trainingDatesMeta.push({
             date: fallbackDate.toISOString().split('T')[0],
+            dayOfWeek,
+            dayName: dayNamesPt[dayOfWeek],
             type: i % 2 === 0 ? "academia" : "quadra"
           });
           fallbackDate.setDate(fallbackDate.getDate() + 2);
         }
       }
+
+      const academyDaysNames = Array.isArray(athlete.academyDays) && athlete.academyDays.length > 0
+        ? athlete.academyDays.map(d => dayNamesPt[d]).join(', ')
+        : "Nenhum dia específico marcado (padrão flexível)";
+
+      const courtDaysNames = Array.isArray(athlete.courtDays) && athlete.courtDays.length > 0
+        ? athlete.courtDays.map(d => dayNamesPt[d]).join(', ')
+        : "Nenhum dia específico marcado (padrão flexível)";
 
       const context = {
         name: athlete.name,
@@ -1169,7 +1184,7 @@ export const useAthletes = (token?: string | null) => {
         recentWorkouts: athlete.workouts.filter(w => w.status === 'completed').slice(0, 10)
       };
 
-      console.log("[AI] Contexto enviado:", JSON.stringify(context, null, 2));
+      console.log("[AI Co-Pilot] Contexto enviado:", JSON.stringify(context, null, 2));
 
       // Build trainer's combined library list
       let customLibrary: any[] = [];
@@ -1206,51 +1221,46 @@ export const useAthletes = (token?: string | null) => {
       ).join('\n');
 
       const prompt = `
-        Você é um Treinador de Elite Mundial e Cientista do Esporte de referência.
-        Sua missão é criar uma PERIODIZAÇÃO INDIVIDUALIZADA e ALTAMENTE ESTRUTURADA para o atleta ${context.name}.
+        Você é o IA CO-PILOT DE PERIODIZAÇÃO ESPORTIVA DE ALTO RENDIMENTO.
+        Sua missão é analisar minuciosamente os dias da semana de treino do atleta, o período configurado, a descrição/diretrizes do treinador e os dados fisiológicos/antropométricos para elaborar a periodização completa nas datas e dias corretos para ${context.name}.
         
-        CONTEXTO DO ATLETA:
+        PERFIL DO ATLETA:
+        - Nome: ${context.name}
         - Modalidade: ${context.modality}
         - Sexo: ${athlete.gender === 'M' ? 'Masculino' : 'Feminino'}
         - Idade: ${calculateAge(athlete.dob)} anos
         - Objetivo Principal: ${context.goal || 'Performance de Elite'}
-        - Histórico de Lesões (ATENÇÃO CRÍTICA): ${JSON.stringify(context.injuries)}
+        - Histórico de Lesões / Cuidados: ${JSON.stringify(context.injuries)}
         
-        PREFERÊNCIA ABSOLUTA DA BIBLIOTECA DO TREINADOR:
-        Ao montar as sessões de treino e escolher os exercícios, você DEVE consultar a lista de exercícios cadastrados abaixo e dar preferência absoluta aos itens já cadastrados na biblioteca do treinador.
-        Se um exercício cadastrado preencher a função fisiológica/biomecânica desejada, use-o com o mesmo nome exato da lista abaixo.
-        Você PODE criar e prescrever novos exercícios específicos que não estão na lista abaixo caso considere que são mais adequados, específicos ou necessários para o atleta e seu esporte (assim o treinador poderá ir cadastrando novos exercícios), mas tente usar os da lista o máximo possível.
+        CONFIGURAÇÃO DOS DIAS DA SEMANA E PERÍODO (IA CO-PILOT):
+        - Período: De ${startStr} até ${endStr}
+        - Dias de Academia (Fortalecimento / Musculação / Potência): ${academyDaysNames}
+        - Dias de Campo / Quadra (Técnico / Tático / Agilidade): ${courtDaysNames}
+        
+        DIRETRIZES ESTRATÉGICAS / DESCRIÇÃO DO TREINADOR:
+        "${coachInstructions || 'Desenvolver a melhor forma física e atlética do atleta, respeitando os dias e focos de treinamento.'}"
+        
+        CRONOGRAMA EXATO DE SESSÕES A SEREM GERADAS (Total: ${trainingDatesMeta.length} treinos):
+        ${trainingDatesMeta.map(d => `- Data: ${d.date} (${d.dayName}) | Foco: ${d.type === 'academia' ? '🏋️‍♂️ ACADEMIA (Musculação / Força / Potência / RFD)' : d.type === 'quadra' ? '⚽ CAMPO/QUADRA (Agilidade / Técnico / Tático / Velocidade)' : '⚡ MISTO / INTEGRADO'}`).join('\n')}
 
-        Exercícios cadastrados na Biblioteca:
+        PREFERÊNCIA ABSOLUTA DA BIBLIOTECA DO TREINADOR:
+        Ao prescrever os exercícios, consulte a lista abaixo e dê preferência aos nomes já cadastrados. Crie novos apenas quando indispensável para a modalidade:
         ${libraryText}
 
-        CRONOGRAMA DE DATAS DA PERIODIZAÇÃO E FOCO DOS TREINOS (MUITO IMPORTANTE):
-        Você DEVE criar exatamente ${trainingDatesMeta.length} sessões de treino, combinando cada treino com uma data exclusiva do cronograma fornecido e respeitando rigorosamente o foco especificado para cada dia:
-        - Dias rotulados como ACADEMIA: Elabore rotinas de musculação, fortalecimento, força máxima, RFD (taxa de desenvolvimento de força), potência muscular, força explosiva, estabilidade articular, core ou exercícios resistidos específicos.
-        - Dias rotulados como CAMPO/QUADRA: Elabore rotinas específicas da modalidade (${context.modality}) como treinos de agilidade, aceleração/desaceleração, potência aeróbica/anaeróbica, táticos ou técnicos, gestos esportivos e corrida/movimentação específica na quadra ou campo.
-        - Dias rotulados como AMBOS: Treinos mistos de transição ou sessões integradas de força e campo.
-        
-        Lista de datas cronológicas e focos para gerar treinos:
-        ${trainingDatesMeta.map(d => `- Data: ${d.date} | Foco do Treino: ${d.type === 'academia' ? 'ACADEMIA' : d.type === 'quadra' ? 'CAMPO/QUADRA' : 'MISTO / AMBOS'}`).join('\n')}
+        DADOS DE TESTES E AVALIAÇÕES DO ATLETA:
+        - Força Isométrica / Dinamométrica: ${JSON.stringify(context.lastAssessments.strength)}
+        - Salto Vertical (CMJ / RSI): ${JSON.stringify(context.lastAssessments.cmj)}
+        - Velocidade / Sprint: ${JSON.stringify(context.lastAssessments.speed)}
+        - Capacidade Cardiorrespiratória (VO2): ${JSON.stringify(context.lastAssessments.vo2max)}
 
-        DADOS DE PERFORMANCE (USE PARA INDIVIDUALIZAR CARGAS E INTENSIDADES):
-        - Força/Potência: ${JSON.stringify(context.lastAssessments.strength)} | Salto CMJ: ${JSON.stringify(context.lastAssessments.cmj)}
-        - Velocidade/Resistência: ${JSON.stringify(context.lastAssessments.speed)} | VO2 Máximo: ${JSON.stringify(context.lastAssessments.vo2max)}
-        
-        ${coachInstructions ? `DIRETRIZES ESTRATÉGICAS ESPECÍFICA DO TREINADOR: "${coachInstructions}"` : ''}
-
-        ORGANIZAÇÃO DAS FASES DE TREINO (DIFERENCIE CADA FASE):
-        Para que seja uma VERDADEIRA periodização, distribua progressivamente os treinos conforme a passagem do tempo:
-        1. FASE DE PREPARAÇÃO GERAL (Primeiros treinos): Concentre em fortalecimento de base, correção de desequilíbrios musculares (I/Q, estabilidade de core/tornozelo), reabilitação preventiva integrada de lesões, maior volume e menor intensidade relativa.
-        2. FASE DE PREPARAÇÃO ESPECÍFICA (Treinos intermediários): Foco no gesto esportivo de ${context.modality}, aplicação de potência máxima (RFD, explosão e CMJ), e treinos mais complexos.
-        3. FASE DE POLIMENTO / TAPERING (Últimos treinos próximos ao fim da periodização): Redução acentuada de volume (menos séries e exercícios), mantendo a intensidade alta para aumentar os índices de prontidão física ("Readiness") e explosão reativa.
-
-        INSTRUÇÕES ADICIONAIS:
-        - Cada sessão de treino deve ser única, progressiva e conter nome técnico descritivo de acordo com seu foco (ex: "Fase de Preparação Geral - ACADEMIA: Força de Base", "Fase Específica - CAMPO/QUADRA: Taxa de Desenvolvimento de Velocidade").
-        - Se houver lesão ativa, inclua exercícios específicos de reabilitação estruturada no aquecimento.
+        REGRAS RIGOROSAS DA PERIODIZAÇÃO (IA CO-PILOT):
+        1. Para cada item do cronograma acima, gere um objeto de treino com a 'date' correspondente exata (formato YYYY-MM-DD).
+        2. Incorpore integralmente a DESCRIÇÃO DO TREINADOR nas escolhas metodológicas, séries, repetições e seleção de exercícios.
+        3. Diferencie as fases: Inicie com Preparação Geral (base estrutural), evolua para Preparação Específica (potência e gesto esportivo de ${context.modality}) e finalize com Polimento / Tapering (alta prontidão).
+        4. Em dias de ACADEMIA, foque em musculação, fortalecimento, RFD e força. Em dias de CAMPO/QUADRA, foque em velocidade, mudança de direção, agilidade e fundamentos do esporte.
 
         FORMATO DE SAÍDA:
-        Retorne APENAS um array JSON válido de objetos de treino para as datas do cronograma fornecido, no formato JSON especificado.
+        Retorne APENAS um array JSON de objetos de treino para as datas do cronograma fornecido.
       `;
 
       const res = await fetch("/api/generate-workouts", {
@@ -1316,13 +1326,13 @@ export const useAthletes = (token?: string | null) => {
 
         setAthletes(updated);
         await save(updated, athlete.id);
-        toast.success(`Periodização com ${formattedWorkouts.length} treinos gerada com sucesso!`, { id: toastId });
+        toast.success(`IA Co-Pilot: Periodização com ${formattedWorkouts.length} treinos gerada com sucesso!`, { id: toastId });
       } else {
         throw new Error("Formato de resposta inválido.");
       }
     } catch (e: any) {
-      console.error("[AI] Erro na periodização:", e);
-      toast.error(`Falha na IA: ${e.message || "Erro desconhecido"}`, { id: toastId });
+      console.error("[IA Co-Pilot] Erro na periodização:", e);
+      toast.error(`Falha no IA Co-Pilot: ${e.message || "Erro desconhecido"}`, { id: toastId });
     }
   };
 

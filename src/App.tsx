@@ -16095,10 +16095,15 @@ const PeriodizationConfig: FC<{
 
   return (
     <div className="space-y-6 bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
-      <h3 className="text-xs font-black uppercase text-brand-primary tracking-widest flex items-center gap-2">
-        <Calendar className="w-4 h-4" />
-        Configuração de Periodização Inteligente
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-black uppercase text-brand-primary tracking-widest flex items-center gap-2">
+          <Brain className="w-4 h-4 text-brand-primary" />
+          IA Co-Pilot • Periodização & Dias de Treino
+        </h3>
+        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+          Co-Pilot
+        </span>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field
@@ -16395,6 +16400,24 @@ const AthleteForm: FC<{
             placeholder="Diretrizes adicionais do treinador para o perfil deste atleta..."
           />
         </div>
+
+        {/* IA Co-Pilot Periodization & Training Weekdays */}
+        <PeriodizationConfig
+          start={formData.periodizationStart}
+          end={formData.periodizationEnd}
+          days={formData.trainingDays || [1, 3, 5]}
+          academyDays={formData.academyDays || []}
+          courtDays={formData.courtDays || []}
+          onChange={({ start, end, days, academyDays, courtDays }) => {
+            update({
+              periodizationStart: start,
+              periodizationEnd: end,
+              trainingDays: days,
+              academyDays,
+              courtDays
+            });
+          }}
+        />
 
         <div className="flex flex-col sm:flex-row gap-4 border-t border-slate-800 pt-10">
           <Button

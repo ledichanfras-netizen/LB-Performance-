@@ -1595,15 +1595,137 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         {sidebarTab === "ai" && (
           <div className="flex-1 flex flex-col min-h-0 space-y-4">
             
-            {/* Strategic Directions Textarea */}
+            {/* IA CO-PILOT - PERIODIZATION & TRAINING DAYS */}
             {athlete && updateAthlete && (
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3 shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[#39FF14]">
+                    <Brain className="w-4 h-4 text-[#39FF14] animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                      IA CO-PILOT (PERIODIZAÇÃO)
+                    </span>
+                  </div>
+                  <span className="text-[7.5px] font-black px-1.5 py-0.5 rounded bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 uppercase">
+                    Ciclo Automático
+                  </span>
+                </div>
+
+                <p className="text-[8.5px] text-slate-400 font-bold leading-relaxed">
+                  Defina o intervalo e os dias da semana. A <span className="text-white font-black">IA Co-Pilot</span> analisa a descrição do treinador e os testes do atleta para estruturar os treinos nas datas corretas.
+                </p>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Início do Ciclo</label>
+                    <input
+                      type="date"
+                      value={athlete.periodizationStart || ""}
+                      onChange={(e) => updateAthlete(athlete.id, { periodizationStart: e.target.value })}
+                      className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Término do Ciclo</label>
+                    <input
+                      type="date"
+                      value={athlete.periodizationEnd || ""}
+                      onChange={(e) => updateAthlete(athlete.id, { periodizationEnd: e.target.value })}
+                      className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
+                    />
+                  </div>
+                </div>
+
+                {/* Weekdays for Academy and Field */}
+                <div className="space-y-2.5 pt-1">
+                  <div>
+                    <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1">
+                      🏋️‍♂️ Academia (Musculação / Força)
+                    </label>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { id: 0, label: "D" },
+                        { id: 1, label: "S" },
+                        { id: 2, label: "T" },
+                        { id: 3, label: "Q" },
+                        { id: 4, label: "Q" },
+                        { id: 5, label: "S" },
+                        { id: 6, label: "S" },
+                      ].map((day) => {
+                        const isSelected = (athlete.academyDays || []).includes(day.id);
+                        return (
+                          <button
+                            key={day.id}
+                            type="button"
+                            onClick={() => {
+                              const academyDays = athlete.academyDays || [];
+                              const newAcademy = academyDays.includes(day.id)
+                                ? academyDays.filter((d: number) => d !== day.id)
+                                : [...academyDays, day.id].sort();
+                              const unionDays = Array.from(new Set([...newAcademy, ...(athlete.courtDays || [])])).sort();
+                              updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
+                            }}
+                            className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
+                              isSelected
+                                ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
+                                : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                            }`}
+                          >
+                            {day.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1">
+                      ⚽ Campo / Quadra (Técnico / Tático)
+                    </label>
+                    <div className="flex flex-wrap gap-1">
+                      {[
+                        { id: 0, label: "D" },
+                        { id: 1, label: "S" },
+                        { id: 2, label: "T" },
+                        { id: 3, label: "Q" },
+                        { id: 4, label: "Q" },
+                        { id: 5, label: "S" },
+                        { id: 6, label: "S" },
+                      ].map((day) => {
+                        const isSelected = (athlete.courtDays || []).includes(day.id);
+                        return (
+                          <button
+                            key={day.id}
+                            type="button"
+                            onClick={() => {
+                              const courtDays = athlete.courtDays || [];
+                              const newCourt = courtDays.includes(day.id)
+                                ? courtDays.filter((d: number) => d !== day.id)
+                                : [...courtDays, day.id].sort();
+                              const unionDays = Array.from(new Set([...(athlete.academyDays || []), ...newCourt])).sort();
+                              updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
+                            }}
+                            className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
+                              isSelected
+                                ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
+                                : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                            }`}
+                          >
+                            {day.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">DIRETRIZES ESTRATÉGICAS DO TREINADOR</label>
+                  <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1">
+                    📝 Descrição & Diretrizes da Periodização
+                  </label>
                   <textarea
                     value={iaInstructions}
                     onChange={(e) => setIaInstructions(e.target.value)}
-                    placeholder="Ex: Focar em força explosiva, reduzir volume se dor lombar persistir..."
+                    placeholder="Ex: Focar em potência e salto vertical, ênfase em corrida de alta intensidade nos dias de campo, proteção de ligamentos..."
                     className="w-full bg-[#161b26] border border-slate-850 rounded-lg p-2.5 text-[9px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-16 placeholder:text-slate-700"
                   />
                 </div>
@@ -1612,17 +1734,17 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   type="button"
                   onClick={handlePeriodizeWithAi}
                   disabled={iaWorkoutsLoading}
-                  className="w-full bg-[#39FF14] hover:bg-[#32e00f] disabled:bg-slate-850 text-slate-950 font-black text-[9px] py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39FF14]/5"
+                  className="w-full bg-[#39FF14] hover:bg-[#32e00f] disabled:bg-slate-850 text-slate-950 font-black text-[9.5px] py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39FF14]/10"
                 >
                   {iaWorkoutsLoading ? (
                     <>
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      PERIODIZANDO ATLETA...
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      IA CO-PILOT PERIODIZANDO ATLETA...
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-3 h-3 stroke-[3]" />
-                      PERIODIZAR ATLETA (SISTEMA IA)
+                      <Sparkles className="w-3.5 h-3.5 stroke-[3]" />
+                      GERAR PERIODIZAÇÃO COM IA CO-PILOT
                     </>
                   )}
                 </button>
@@ -2095,7 +2217,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 </div>
               </div>
 
-            {/* PERIODIZATION CONTROL CENTER */}
+            {/* IA CO-PILOT (PERIODIZATION & WORKOUT DAYS) */}
             {athlete && updateAthlete && (
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3 shrink-0 my-3">
                 <button
@@ -2104,17 +2226,26 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   className="w-full flex items-center justify-between text-left text-brand-primary"
                 >
                   <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-[#39FF14]" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-white">CENTRO DE COMANDO IA (PERIODIZAÇÃO)</span>
+                    <Brain className="w-4 h-4 text-[#39FF14] animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                      IA CO-PILOT (PERIODIZAÇÃO)
+                    </span>
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 uppercase">
+                      Inteligente
+                    </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-350 ${isPeriodizationExpanded ? "rotate-180" : ""}`} />
                 </button>
                 
                 {isPeriodizationExpanded && (
                   <div className="space-y-3.5 pt-2.5 border-t border-slate-900 animate-fade-in">
+                    <p className="text-[8.5px] text-slate-400 font-bold leading-relaxed">
+                      A <span className="text-white font-black">IA Co-Pilot</span> analisa os dias da semana de treino (Academia vs Campo/Quadra), o período selecionado e a descrição do treinador para estruturar a periodização nas datas e dias corretos.
+                    </p>
+
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Início</label>
+                        <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Início</label>
                         <input
                           type="date"
                           value={athlete.periodizationStart || ""}
@@ -2123,7 +2254,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Término</label>
+                        <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Término</label>
                         <input
                           type="date"
                           value={athlete.periodizationEnd || ""}
@@ -2164,7 +2295,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 }}
                                 className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
                                   isSelected
-                                    ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black"
+                                    ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
                                     : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
                                 }`}
                               >
@@ -2204,7 +2335,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 }}
                                 className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
                                   isSelected
-                                    ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black"
+                                    ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
                                     : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
                                 }`}
                               >
@@ -2215,6 +2346,39 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
                       </div>
                     </div>
+
+                    {/* Coach description / strategic directions */}
+                    <div className="space-y-1.5 pt-1">
+                      <label className="text-[7.5px] font-black text-slate-400 uppercase block">
+                        📝 Descrição & Diretrizes da Periodização (IA Co-Pilot)
+                      </label>
+                      <textarea
+                        value={iaInstructions}
+                        onChange={(e) => setIaInstructions(e.target.value)}
+                        placeholder="Ex: Focar em força explosiva e saltos, reduzir carga se houver fadiga na lombar, treinos de campo com foco em agilidade e mudanças de direção..."
+                        className="w-full bg-[#161b26] border border-slate-850 rounded-lg p-2.5 text-[9px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-16 placeholder:text-slate-700"
+                      />
+                    </div>
+
+                    {/* Periodize Action Button */}
+                    <button
+                      type="button"
+                      onClick={handlePeriodizeWithAi}
+                      disabled={iaWorkoutsLoading}
+                      className="w-full bg-[#39FF14] hover:bg-[#32e00f] disabled:bg-slate-850 text-slate-950 font-black text-[9.5px] py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39FF14]/10"
+                    >
+                      {iaWorkoutsLoading ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          IA CO-PILOT PERIODIZANDO ATLETA...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 stroke-[3]" />
+                          GERAR PERIODIZAÇÃO COM IA CO-PILOT
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
               </div>
