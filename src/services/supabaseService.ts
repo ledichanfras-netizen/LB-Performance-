@@ -21,8 +21,10 @@ const parseBackupAthleteFields = (a: any) => {
   let injuries = safeParse(a.injuries, []);
   let medicalExams = safeParse(a.medical_exams || a.medicalExams, []);
   let trainingDays = safeParse(a.training_days, [1, 3, 5]);
-  let academyDays = safeParse(a.training_days, [1, 3, 5]); // default/fallback
-  let courtDays = [2, 4]; // default/fallback
+  let academyDays = Array.isArray(a.academy_days) ? a.academy_days : safeParse(a.academy_days, null);
+  let courtDays = Array.isArray(a.court_days) ? a.court_days : safeParse(a.court_days, null);
+  let periodizationStart = a.periodization_start || a.periodizationStart || undefined;
+  let periodizationEnd = a.periodization_end || a.periodizationEnd || undefined;
   let dropJumpBackup = [];
   let imtpBackup = [];
   let posturalBackup = [];
@@ -42,13 +44,17 @@ const parseBackupAthleteFields = (a: any) => {
             trainingDays = parsed.trainingDays || [1, 3, 5];
           }
         }
+        if (parsed.hasOwnProperty('periodizationStart') && parsed.periodizationStart) {
+          periodizationStart = parsed.periodizationStart;
+        }
+        if (parsed.hasOwnProperty('periodizationEnd') && parsed.periodizationEnd) {
+          periodizationEnd = parsed.periodizationEnd;
+        }
         if (parsed.hasOwnProperty('medicalExams') && Array.isArray(parsed.medicalExams)) {
           medicalExams = parsed.medicalExams;
         }
         if (parsed.hasOwnProperty('academyDays') && Array.isArray(parsed.academyDays)) {
           academyDays = parsed.academyDays;
-        } else if (parsed.hasOwnProperty('trainingDays') && Array.isArray(parsed.trainingDays)) {
-          academyDays = parsed.trainingDays;
         }
         if (parsed.hasOwnProperty('courtDays') && Array.isArray(parsed.courtDays)) {
           courtDays = parsed.courtDays;
@@ -74,7 +80,14 @@ const parseBackupAthleteFields = (a: any) => {
     }
   }
   
-  return { injuryHistory, injuries, medicalExams, trainingDays, academyDays, courtDays, dropJumpBackup, imtpBackup, posturalBackup, matches, photoUrl };
+  if (academyDays === null || academyDays === undefined) {
+    academyDays = Array.isArray(trainingDays) && trainingDays.length > 0 ? trainingDays : [1, 3, 5];
+  }
+  if (courtDays === null || courtDays === undefined) {
+    courtDays = [2, 4];
+  }
+
+  return { injuryHistory, injuries, medicalExams, trainingDays, academyDays, courtDays, periodizationStart, periodizationEnd, dropJumpBackup, imtpBackup, posturalBackup, matches, photoUrl };
 };
 
 const serializeBackupAthleteFields = (athlete: any) => {
@@ -88,6 +101,8 @@ const serializeBackupAthleteFields = (athlete: any) => {
     trainingDays: athlete.trainingDays || [1, 3, 5],
     academyDays: athlete.academyDays || [],
     courtDays: athlete.courtDays || [],
+    periodizationStart: athlete.periodizationStart || '',
+    periodizationEnd: athlete.periodizationEnd || '',
     dropJumpBackup: dropJump,
     imtpBackup: imtp,
     posturalBackup: postural,
@@ -313,8 +328,8 @@ export const supabaseService = {
           weeklyFrequency: a.weekly_frequency,
           injuryHistory: parsedFields.injuryHistory,
           isTournamentMode: a.is_tournament_mode,
-          periodizationStart: a.periodization_start,
-          periodizationEnd: a.periodization_end,
+          periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
+          periodizationEnd: a.periodization_end || parsedFields.periodizationEnd || undefined,
           trainingDays: parsedFields.trainingDays,
           academyDays: parsedFields.academyDays,
           courtDays: parsedFields.courtDays,

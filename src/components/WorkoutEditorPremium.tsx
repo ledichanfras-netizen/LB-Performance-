@@ -25,7 +25,16 @@ interface WorkoutEditorPremiumProps {
   athleteName?: string;
   athlete?: any;
   updateAthlete?: (id: string, data: any) => Promise<void> | void;
-  generateAIWorkouts?: (athlete: any, coachInstructions?: string) => Promise<void>;
+  generateAIWorkouts?: (
+    athlete: any, 
+    coachInstructions?: string,
+    options?: {
+      periodizationStart?: string;
+      periodizationEnd?: string;
+      academyDays?: number[];
+      courtDays?: number[];
+    }
+  ) => Promise<void>;
 }
 
 export function getYouTubeEmbedUrl(url?: string): string | null {
@@ -345,10 +354,23 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [aiAgeRange, setAiAgeRange] = useState("Profissional");
   const [aiEquipmentSet, setAiEquipmentSet] = useState("Completo");
   
-  // Periodization & Strategic Command States
+  // Periodization & Strategic Command States (IA Co-Pilot)
   const [iaInstructions, setIaInstructions] = useState("");
   const [isPeriodizationExpanded, setIsPeriodizationExpanded] = useState(false);
   const [iaWorkoutsLoading, setIaWorkoutsLoading] = useState(false);
+  const [localPeriodizationStart, setLocalPeriodizationStart] = useState<string>(athlete?.periodizationStart || "");
+  const [localPeriodizationEnd, setLocalPeriodizationEnd] = useState<string>(athlete?.periodizationEnd || "");
+  const [localAcademyDays, setLocalAcademyDays] = useState<number[]>(Array.isArray(athlete?.academyDays) ? athlete.academyDays : [1, 3, 5]);
+  const [localCourtDays, setLocalCourtDays] = useState<number[]>(Array.isArray(athlete?.courtDays) ? athlete.courtDays : [2, 4]);
+
+  useEffect(() => {
+    if (athlete) {
+      if (athlete.periodizationStart !== undefined) setLocalPeriodizationStart(athlete.periodizationStart || "");
+      if (athlete.periodizationEnd !== undefined) setLocalPeriodizationEnd(athlete.periodizationEnd || "");
+      if (Array.isArray(athlete.academyDays)) setLocalAcademyDays(athlete.academyDays);
+      if (Array.isArray(athlete.courtDays)) setLocalCourtDays(athlete.courtDays);
+    }
+  }, [athlete?.id, athlete?.periodizationStart, athlete?.periodizationEnd, athlete?.academyDays, athlete?.courtDays]);
 
   // Progression Studio States
   const [progressionMethod, setProgressionMethod] = useState<"linear" | "undulating" | "accumulation" | "deload" | "tapering">("linear");
@@ -957,9 +979,23 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     }
     setIaWorkoutsLoading(true);
     try {
-      await generateAIWorkouts(athlete, iaInstructions);
+      const unionTrainingDays = Array.from(new Set([...localAcademyDays, ...localCourtDays])).sort();
+      if (updateAthlete) {
+        await updateAthlete(athlete.id, {
+          periodizationStart: localPeriodizationStart,
+          periodizationEnd: localPeriodizationEnd,
+          academyDays: localAcademyDays,
+          courtDays: localCourtDays,
+          trainingDays: unionTrainingDays
+        });
+      }
+      await generateAIWorkouts(athlete, iaInstructions, {
+        periodizationStart: localPeriodizationStart,
+        periodizationEnd: localPeriodizationEnd,
+        academyDays: localAcademyDays,
+        courtDays: localCourtDays
+      });
       setIaInstructions(""); // Clear after successful generation
-      toast.success("Periodização completa gerada com sucesso pela IA!");
     } catch (error) {
       console.error("Erro ao gerar periodização completa:", error);
       toast.error("Erro ao processar periodização completa com IA.");
@@ -1619,8 +1655,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Início do Ciclo</label>
                     <input
                       type="date"
-                      value={athlete.periodizationStart || ""}
-                      onChange={(e) => updateAthlete(athlete.id, { periodizationStart: e.target.value })}
+                      value={localPeriodizationStart}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLocalPeriodizationStart(val);
+                        if (updateAthlete && athlete) {
+                          updateAthlete(athlete.id, { periodizationStart: val });
+                        }
+                      }}
                       className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                     />
                   </div>
@@ -1628,8 +1670,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Término do Ciclo</label>
                     <input
                       type="date"
-                      value={athlete.periodizationEnd || ""}
-                      onChange={(e) => updateAthlete(athlete.id, { periodizationEnd: e.target.value })}
+                      value={localPeriodizationEnd}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLocalPeriodizationEnd(val);
+                        if (updateAthlete && athlete) {
+                          updateAthlete(athlete.id, { periodizationEnd: val });
+                        }
+                      }}
                       className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                     />
                   </div>
@@ -1651,20 +1699,22 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         { id: 5, label: "S" },
                         { id: 6, label: "S" },
                       ].map((day) => {
-                        const isSelected = (athlete.academyDays || []).includes(day.id);
+                        const isSelected = localAcademyDays.includes(day.id);
                         return (
                           <button
                             key={day.id}
                             type="button"
                             onClick={() => {
-                              const academyDays = athlete.academyDays || [];
-                              const newAcademy = academyDays.includes(day.id)
-                                ? academyDays.filter((d: number) => d !== day.id)
-                                : [...academyDays, day.id].sort();
-                              const unionDays = Array.from(new Set([...newAcademy, ...(athlete.courtDays || [])])).sort();
-                              updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
+                              const newAcademy = localAcademyDays.includes(day.id)
+                                ? localAcademyDays.filter((d: number) => d !== day.id)
+                                : [...localAcademyDays, day.id].sort();
+                              setLocalAcademyDays(newAcademy);
+                              const unionDays = Array.from(new Set([...newAcademy, ...localCourtDays])).sort();
+                              if (updateAthlete && athlete) {
+                                updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
+                              }
                             }}
-                            className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
+                            className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
                                 : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
@@ -1691,20 +1741,22 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         { id: 5, label: "S" },
                         { id: 6, label: "S" },
                       ].map((day) => {
-                        const isSelected = (athlete.courtDays || []).includes(day.id);
+                        const isSelected = localCourtDays.includes(day.id);
                         return (
                           <button
                             key={day.id}
                             type="button"
                             onClick={() => {
-                              const courtDays = athlete.courtDays || [];
-                              const newCourt = courtDays.includes(day.id)
-                                ? courtDays.filter((d: number) => d !== day.id)
-                                : [...courtDays, day.id].sort();
-                              const unionDays = Array.from(new Set([...(athlete.academyDays || []), ...newCourt])).sort();
-                              updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
+                              const newCourt = localCourtDays.includes(day.id)
+                                ? localCourtDays.filter((d: number) => d !== day.id)
+                                : [...localCourtDays, day.id].sort();
+                              setLocalCourtDays(newCourt);
+                              const unionDays = Array.from(new Set([...localAcademyDays, ...newCourt])).sort();
+                              if (updateAthlete && athlete) {
+                                updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
+                              }
                             }}
-                            className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
+                            className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
                                 : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
@@ -2248,8 +2300,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Início</label>
                         <input
                           type="date"
-                          value={athlete.periodizationStart || ""}
-                          onChange={(e) => updateAthlete(athlete.id, { periodizationStart: e.target.value })}
+                          value={localPeriodizationStart}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setLocalPeriodizationStart(val);
+                            if (updateAthlete && athlete) {
+                              updateAthlete(athlete.id, { periodizationStart: val });
+                            }
+                          }}
                           className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                         />
                       </div>
@@ -2257,8 +2315,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Término</label>
                         <input
                           type="date"
-                          value={athlete.periodizationEnd || ""}
-                          onChange={(e) => updateAthlete(athlete.id, { periodizationEnd: e.target.value })}
+                          value={localPeriodizationEnd}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setLocalPeriodizationEnd(val);
+                            if (updateAthlete && athlete) {
+                              updateAthlete(athlete.id, { periodizationEnd: val });
+                            }
+                          }}
                           className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                         />
                       </div>
@@ -2280,20 +2344,22 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             { id: 5, label: "S" },
                             { id: 6, label: "S" },
                           ].map((day) => {
-                            const isSelected = (athlete.academyDays || []).includes(day.id);
+                            const isSelected = localAcademyDays.includes(day.id);
                             return (
                               <button
                                 key={day.id}
                                 type="button"
                                 onClick={() => {
-                                  const academyDays = athlete.academyDays || [];
-                                  const newAcademy = academyDays.includes(day.id)
-                                    ? academyDays.filter((d: number) => d !== day.id)
-                                    : [...academyDays, day.id].sort();
-                                  const unionDays = Array.from(new Set([...newAcademy, ...(athlete.courtDays || [])])).sort();
-                                  updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
+                                  const newAcademy = localAcademyDays.includes(day.id)
+                                    ? localAcademyDays.filter((d: number) => d !== day.id)
+                                    : [...localAcademyDays, day.id].sort();
+                                  setLocalAcademyDays(newAcademy);
+                                  const unionDays = Array.from(new Set([...newAcademy, ...localCourtDays])).sort();
+                                  if (updateAthlete && athlete) {
+                                    updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
+                                  }
                                 }}
-                                className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
+                                className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                                   isSelected
                                     ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
                                     : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
@@ -2320,20 +2386,22 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             { id: 5, label: "S" },
                             { id: 6, label: "S" },
                           ].map((day) => {
-                            const isSelected = (athlete.courtDays || []).includes(day.id);
+                            const isSelected = localCourtDays.includes(day.id);
                             return (
                               <button
                                 key={day.id}
                                 type="button"
                                 onClick={() => {
-                                  const courtDays = athlete.courtDays || [];
-                                  const newCourt = courtDays.includes(day.id)
-                                    ? courtDays.filter((d: number) => d !== day.id)
-                                    : [...courtDays, day.id].sort();
-                                  const unionDays = Array.from(new Set([...(athlete.academyDays || []), ...newCourt])).sort();
-                                  updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
+                                  const newCourt = localCourtDays.includes(day.id)
+                                    ? localCourtDays.filter((d: number) => d !== day.id)
+                                    : [...localCourtDays, day.id].sort();
+                                  setLocalCourtDays(newCourt);
+                                  const unionDays = Array.from(new Set([...localAcademyDays, ...newCourt])).sort();
+                                  if (updateAthlete && athlete) {
+                                    updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
+                                  }
                                 }}
-                                className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all ${
+                                className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                                   isSelected
                                     ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
                                     : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"

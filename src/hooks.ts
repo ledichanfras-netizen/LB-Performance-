@@ -1090,47 +1090,87 @@ export const useAthletes = (token?: string | null) => {
     throw new Error("Não foi possível processar a periodização devido a uma instabilidade no servidor do Gemini. Por favor, tente novamente com um intervalo de datas menor.");
   };
 
-  const generateAIWorkouts = async (athlete: Athlete, coachInstructions?: string): Promise<void> => {
+  const generateAIWorkouts = async (
+    athlete: Athlete, 
+    coachInstructions?: string,
+    options?: {
+      periodizationStart?: string;
+      periodizationEnd?: string;
+      academyDays?: number[];
+      courtDays?: number[];
+    }
+  ): Promise<void> => {
     const toastId = toast.loading("IA Co-Pilot elaborando periodização...");
-    console.log("Iniciando geração de treinos IA Co-Pilot para:", athlete.name);
+    console.log("Iniciando geração de treinos IA Co-Pilot para:", athlete.name, "com opções:", options);
     
     try {
       const dayNamesPt = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
       
-      // Calculate exact calendar dates based on athlete training config
-      const startStr = athlete.periodizationStart || getLocalDateString();
-      let endStr = athlete.periodizationEnd;
-      const targetDays = Array.isArray(athlete.trainingDays) && athlete.trainingDays.length > 0 
-        ? athlete.trainingDays 
-        : [1, 3, 5]; // Default to Mon, Wed, Fri (Seg, Qua, Sex)
+      // Calculate exact calendar dates based on options or athlete training config
+      let startStr = options?.periodizationStart || athlete.periodizationStart || getLocalDateString();
+      let endStr = options?.periodizationEnd || athlete.periodizationEnd;
+      
+      const effectiveAcademyDays = options?.academyDays ?? (Array.isArray(athlete.academyDays) ? athlete.academyDays : []);
+      const effectiveCourtDays = options?.courtDays ?? (Array.isArray(athlete.courtDays) ? athlete.courtDays : []);
+      
+      let targetDays = Array.from(new Set([...effectiveAcademyDays, ...effectiveCourtDays])).sort();
+      if (targetDays.length === 0 && Array.isArray(athlete.trainingDays) && athlete.trainingDays.length > 0) {
+        targetDays = athlete.trainingDays;
+      }
+      if (targetDays.length === 0) {
+        targetDays = [1, 3, 5]; // Default to Mon, Wed, Fri (Seg, Qua, Sex)
+      }
 
       if (!endStr) {
         // Generate a standard robust 2-week cycle block
-        const startDateVal = new Date(startStr + "T12:00:00");
+        const [sy, sm, sd] = startStr.split('-').map(Number);
+        const startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
         const endDateVal = new Date(startDateVal.getTime() + (14 * 24 * 60 * 60 * 1000));
-        endStr = endDateVal.toISOString().split('T')[0];
+        const ey = endDateVal.getFullYear();
+        const em = String(endDateVal.getMonth() + 1).padStart(2, '0');
+        const ed = String(endDateVal.getDate()).padStart(2, '0');
+        endStr = `${ey}-${em}-${ed}`;
+      }
+
+      // Check date ordering
+      let [sy, sm, sd] = startStr.split('-').map(Number);
+      let [ey, em, ed] = endStr.split('-').map(Number);
+      let startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
+      let endDateVal = new Date(ey, em - 1, ed, 12, 0, 0);
+
+      if (startDateVal > endDateVal) {
+        // Swap if reversed
+        const temp = startStr;
+        startStr = endStr;
+        endStr = temp;
+        [sy, sm, sd] = startStr.split('-').map(Number);
+        [ey, em, ed] = endStr.split('-').map(Number);
+        startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
+        endDateVal = new Date(ey, em - 1, ed, 12, 0, 0);
       }
 
       // Find all matching dates between start and end str with their training type meta
       const trainingDatesMeta: { date: string; dayOfWeek: number; dayName: string; type: "academia" | "quadra" | "ambos" }[] = [];
-      let currentDate = new Date(startStr + "T12:00:00");
-      const endDateVal = new Date(endStr + "T12:00:00");
+      let currentDate = new Date(startDateVal);
       let safetyCounter = 0;
-      const maxWorkouts = 14; // Maintain safety boundaries
+      const maxWorkouts = 28; // Support full mesocycles
 
-      while (currentDate <= endDateVal && safetyCounter < 180 && trainingDatesMeta.length < maxWorkouts) {
+      while (currentDate <= endDateVal && safetyCounter < 365 && trainingDatesMeta.length < maxWorkouts) {
         const dayOfWeek = currentDate.getDay();
         if (targetDays.includes(dayOfWeek)) {
-          const isAcademy = Array.isArray(athlete.academyDays) && athlete.academyDays.includes(dayOfWeek);
-          const isCourt = Array.isArray(athlete.courtDays) && athlete.courtDays.includes(dayOfWeek);
+          const isAcademy = effectiveAcademyDays.includes(dayOfWeek);
+          const isCourt = effectiveCourtDays.includes(dayOfWeek);
           let type: "academia" | "quadra" | "ambos" = "academia";
           if (isAcademy && isCourt) {
             type = "ambos";
           } else if (isCourt) {
             type = "quadra";
           }
+          const cy = currentDate.getFullYear();
+          const cm = String(currentDate.getMonth() + 1).padStart(2, '0');
+          const cd = String(currentDate.getDate()).padStart(2, '0');
           trainingDatesMeta.push({
-            date: currentDate.toISOString().split('T')[0],
+            date: `${cy}-${cm}-${cd}`,
             dayOfWeek,
             dayName: dayNamesPt[dayOfWeek],
             type
@@ -1140,27 +1180,32 @@ export const useAthletes = (token?: string | null) => {
         safetyCounter++;
       }
 
-      // Fallback if dates are out of bounds or none generated
+      // Fallback if no matching dates found in the chosen interval
       if (trainingDatesMeta.length === 0) {
-        let fallbackDate = new Date();
+        let fallbackDate = new Date(startDateVal);
         for (let i = 0; i < 6; i++) {
           const dayOfWeek = fallbackDate.getDay();
+          const isAcademy = effectiveAcademyDays.includes(dayOfWeek);
+          const isCourt = effectiveCourtDays.includes(dayOfWeek);
+          const cy = fallbackDate.getFullYear();
+          const cm = String(fallbackDate.getMonth() + 1).padStart(2, '0');
+          const cd = String(fallbackDate.getDate()).padStart(2, '0');
           trainingDatesMeta.push({
-            date: fallbackDate.toISOString().split('T')[0],
+            date: `${cy}-${cm}-${cd}`,
             dayOfWeek,
             dayName: dayNamesPt[dayOfWeek],
-            type: i % 2 === 0 ? "academia" : "quadra"
+            type: isCourt ? "quadra" : isAcademy ? "academia" : (i % 2 === 0 ? "academia" : "quadra")
           });
           fallbackDate.setDate(fallbackDate.getDate() + 2);
         }
       }
 
-      const academyDaysNames = Array.isArray(athlete.academyDays) && athlete.academyDays.length > 0
-        ? athlete.academyDays.map(d => dayNamesPt[d]).join(', ')
+      const academyDaysNames = effectiveAcademyDays.length > 0
+        ? effectiveAcademyDays.map(d => dayNamesPt[d]).join(', ')
         : "Nenhum dia específico marcado (padrão flexível)";
 
-      const courtDaysNames = Array.isArray(athlete.courtDays) && athlete.courtDays.length > 0
-        ? athlete.courtDays.map(d => dayNamesPt[d]).join(', ')
+      const courtDaysNames = effectiveCourtDays.length > 0
+        ? effectiveCourtDays.map(d => dayNamesPt[d]).join(', ')
         : "Nenhum dia específico marcado (padrão flexível)";
 
       const context = {
@@ -1171,9 +1216,9 @@ export const useAthletes = (token?: string | null) => {
         weeklyFrequency: athlete.weeklyFrequency,
         periodizationStart: startStr,
         periodizationEnd: endStr,
-        trainingDays: athlete.trainingDays,
-        academyDays: athlete.academyDays,
-        courtDays: athlete.courtDays,
+        trainingDays: targetDays,
+        academyDays: effectiveAcademyDays,
+        courtDays: effectiveCourtDays,
         lastAssessments: {
           bioimpedance: athlete.assessments.bioimpedance?.[0],
           strength: athlete.assessments.isometricStrength?.[0],
@@ -1184,7 +1229,7 @@ export const useAthletes = (token?: string | null) => {
         recentWorkouts: athlete.workouts.filter(w => w.status === 'completed').slice(0, 10)
       };
 
-      console.log("[AI Co-Pilot] Contexto enviado:", JSON.stringify(context, null, 2));
+      console.log("[AI Co-Pilot] Cronograma gerado:", trainingDatesMeta);
 
       // Build trainer's combined library list
       let customLibrary: any[] = [];
@@ -1284,33 +1329,38 @@ export const useAthletes = (token?: string | null) => {
       const newWorkoutsData = tryParseAndRepairArray(rawText);
 
       if (Array.isArray(newWorkoutsData)) {
-        const formattedWorkouts = newWorkoutsData.map((w: any) => ({
-          id: `wk-ai-${Date.now()}-${Math.random()}`,
-          date: w.date || getLocalDateString(),
-          name: w.name || 'Treino Periodizado',
-          phase: w.phase || 'Competição',
-          status: 'planned' as const,
-          exercises: (Array.isArray(w.exercises) ? w.exercises : []).map((ex: any) => ({
-            id: `ex-ai-${Date.now()}-${Math.random()}`,
-            name: ex.name,
-            muscleGroup: ex.muscleGroup,
-            sets: Number(ex.sets) || 3,
-            reps: String(ex.reps),
-            repsType: String(ex.reps).toLowerCase().includes("s") ? ("time" as const) : ("reps" as const),
-            weight: String(ex.weight),
-            rest: '60-90s',
-            notes: '',
-            performedSets: Array.from({ length: Number(ex.sets) || 3 }).map(() => ({
-              id: `set-${Math.random()}`,
-              reps: 0,
-              weight: 0,
-              rpe: 0
-            }))
-          })),
-          rpe: 0,
-          totalLoad: 0,
-          durationMinutes: 0
-        }));
+        const formattedWorkouts = newWorkoutsData.map((w: any, idx: number) => {
+          const matchedMeta = trainingDatesMeta.find(m => m.date === w.date) || trainingDatesMeta[idx] || { date: w.date || getLocalDateString(), dayName: "" };
+          const workoutDate = (w.date && /^\d{4}-\d{2}-\d{2}$/.test(w.date)) ? w.date : matchedMeta.date;
+          
+          return {
+            id: `wk-ai-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+            date: workoutDate,
+            name: w.name || `Treino Periodizado (${matchedMeta.dayName || 'Sessão'})`,
+            phase: w.phase || 'Preparação Geral',
+            status: 'planned' as const,
+            exercises: (Array.isArray(w.exercises) ? w.exercises : []).map((ex: any, exIdx: number) => ({
+              id: `ex-ai-${Date.now()}-${idx}-${exIdx}-${Math.random().toString(36).substring(2, 7)}`,
+              name: ex.name,
+              muscleGroup: ex.muscleGroup || 'Geral',
+              sets: Number(ex.sets) || 3,
+              reps: String(ex.reps || '10'),
+              repsType: String(ex.reps).toLowerCase().includes("s") ? ("time" as const) : ("reps" as const),
+              weight: String(ex.weight || 'Carga Moderada'),
+              rest: '60-90s',
+              notes: '',
+              performedSets: Array.from({ length: Number(ex.sets) || 3 }).map(() => ({
+                id: `set-${Math.random().toString(36).substring(2, 7)}`,
+                reps: 0,
+                weight: 0,
+                rpe: 0
+              }))
+            })),
+            rpe: 0,
+            totalLoad: 0,
+            durationMinutes: 0
+          };
+        });
 
         const updated = athletes.map(a => {
           if (a.id === athlete.id) {
@@ -1319,7 +1369,15 @@ export const useAthletes = (token?: string | null) => {
             const merged = [...formattedWorkouts, ...currentWorkouts].sort((x, y) => 
                new Date(x.date).getTime() - new Date(y.date).getTime()
             );
-            return { ...a, workouts: merged };
+            return {
+              ...a,
+              periodizationStart: startStr,
+              periodizationEnd: endStr,
+              trainingDays: targetDays,
+              academyDays: effectiveAcademyDays,
+              courtDays: effectiveCourtDays,
+              workouts: merged
+            };
           }
           return a;
         });

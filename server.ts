@@ -133,6 +133,10 @@ const parseBackupAthleteFields = (a: any) => {
   let injuryHistory = a.injury_history || '';
   let injuries = safeParseJson(a.injuries, []);
   let trainingDays = safeParseJson(a.training_days, [1, 3, 5]);
+  let academyDays = Array.isArray(a.academy_days) ? a.academy_days : safeParseJson(a.academy_days, null);
+  let courtDays = Array.isArray(a.court_days) ? a.court_days : safeParseJson(a.court_days, null);
+  let periodizationStart = a.periodization_start || a.periodizationStart || undefined;
+  let periodizationEnd = a.periodization_end || a.periodizationEnd || undefined;
   let dropJumpBackup = [];
   let imtpBackup = [];
   let posturalBackup = [];
@@ -151,6 +155,18 @@ const parseBackupAthleteFields = (a: any) => {
           if ((!a.training_days || a.training_days.length === 0) && parsed.trainingDays) {
             trainingDays = parsed.trainingDays || [1, 3, 5];
           }
+        }
+        if (parsed.hasOwnProperty('periodizationStart') && parsed.periodizationStart) {
+          periodizationStart = parsed.periodizationStart;
+        }
+        if (parsed.hasOwnProperty('periodizationEnd') && parsed.periodizationEnd) {
+          periodizationEnd = parsed.periodizationEnd;
+        }
+        if (parsed.hasOwnProperty('academyDays') && Array.isArray(parsed.academyDays)) {
+          academyDays = parsed.academyDays;
+        }
+        if (parsed.hasOwnProperty('courtDays') && Array.isArray(parsed.courtDays)) {
+          courtDays = parsed.courtDays;
         }
         if (parsed.hasOwnProperty('dropJumpBackup') && Array.isArray(parsed.dropJumpBackup)) {
           dropJumpBackup = parsed.dropJumpBackup;
@@ -173,7 +189,14 @@ const parseBackupAthleteFields = (a: any) => {
     }
   }
   
-  return { injuryHistory, injuries, trainingDays, dropJumpBackup, imtpBackup, posturalBackup, matches, photoUrl };
+  if (academyDays === null || academyDays === undefined) {
+    academyDays = Array.isArray(trainingDays) && trainingDays.length > 0 ? trainingDays : [1, 3, 5];
+  }
+  if (courtDays === null || courtDays === undefined) {
+    courtDays = [2, 4];
+  }
+
+  return { injuryHistory, injuries, trainingDays, academyDays, courtDays, periodizationStart, periodizationEnd, dropJumpBackup, imtpBackup, posturalBackup, matches, photoUrl };
 };
 
 const serializeBackupAthleteFields = (athlete: any) => {
@@ -184,6 +207,10 @@ const serializeBackupAthleteFields = (athlete: any) => {
     legacy: athlete.injuryHistory || '',
     injuries: athlete.injuries || [],
     trainingDays: athlete.trainingDays || [1, 3, 5],
+    academyDays: athlete.academyDays || [],
+    courtDays: athlete.courtDays || [],
+    periodizationStart: athlete.periodizationStart || '',
+    periodizationEnd: athlete.periodizationEnd || '',
     dropJumpBackup: dropJump,
     imtpBackup: imtp,
     posturalBackup: postural,
@@ -604,9 +631,11 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
             competitiveLevel: a.competitive_level,
             injuryHistory: parsedFields.injuryHistory,
             isTournamentMode: a.is_tournament_mode,
-            periodizationStart: a.periodization_start,
-            periodizationEnd: a.periodization_end,
+            periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
+            periodizationEnd: a.periodization_end || parsedFields.periodizationEnd || undefined,
             trainingDays: parsedFields.trainingDays,
+            academyDays: parsedFields.academyDays,
+            courtDays: parsedFields.courtDays,
             injuries: parsedFields.injuries,
             matches: parsedFields.matches || [],
             wellness: (a.wellness || []).map((w: any) => ({
@@ -826,9 +855,11 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         weeklyFrequency: a.weekly_frequency,
         injuryHistory: parsedFields.injuryHistory,
         isTournamentMode: a.is_tournament_mode,
-        periodizationStart: a.periodization_start,
-        periodizationEnd: a.periodization_end,
+        periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
+        periodizationEnd: a.periodization_end || parsedFields.periodizationEnd || undefined,
         trainingDays: parsedFields.trainingDays,
+        academyDays: parsedFields.academyDays,
+        courtDays: parsedFields.courtDays,
         injuries: parsedFields.injuries,
         matches: parsedFields.matches || [],
       wellness: (wellnessByAth[a.id] || []).map((w: any) => ({
