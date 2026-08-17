@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lb-performance-v3.0';
+const CACHE_NAME = 'lb-performance-v4.5';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -8,10 +8,11 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -21,13 +22,20 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
-            console.log('[SW] Deletando cache antigo:', cache);
+            console.log('[SW] Purgando cache antigo:', cache);
             return caches.delete(cache);
           }
         })
       );
     }).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING' || event.data === 'CLEAR_CACHE') {
+    self.skipWaiting();
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+  }
 });
 
 self.addEventListener('fetch', (event) => {
@@ -38,8 +46,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for HTML navigation so updates are applied immediately
-  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+  // Network-first for HTML navigation, JS bundles, and CSS to guarantee instant updates after deploy
+  if (
+    event.request.mode === 'navigate' || 
+    url.pathname.endsWith('.html') || 
+    url.pathname === '/' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.includes('/assets/')
+  ) {
     event.respondWith(
       fetch(event.request, { cache: 'no-cache' })
         .then((response) => {
@@ -54,7 +69,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for static assets (JS, CSS, images, fonts)
+  // Stale-while-revalidate for static images, icons and fonts
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {

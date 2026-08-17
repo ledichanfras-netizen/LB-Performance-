@@ -93,9 +93,11 @@ app.use((req, res, next) => {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 3000, // Reduzido para 3 segundos para falhar rápido se desativado
-  idleTimeoutMillis: 30000,
-  max: 20,
+  connectionTimeoutMillis: 3000, // Falhar em 3s para liberar para Supabase
+  idleTimeoutMillis: 10000,
+  statement_timeout: 4000,
+  query_timeout: 4000,
+  max: 10,
 });
 
 const safeParseJson = (val: any, defaultVal: any = []) => {
