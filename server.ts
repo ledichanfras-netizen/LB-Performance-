@@ -675,13 +675,18 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
                 muscleGroup: ex.muscle_group,
                 painLevel: ex.pain_level,
                 repsType: ex.reps_type || 'reps',
+                order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
                 videoUrl: ex.video_url || '',
                 imageUrl: ex.image_url || '',
                 performedSets: (ex.performed_sets || []).map((s: any) => ({
                   ...s,
                   isCompleted: s.is_completed ?? false
                 }))
-              })).sort((x: any, y: any) => (x.order_index || 0) - (y.order_index || 0))
+              })).sort((x: any, y: any) => {
+                const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
+                const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
+                return xIdx - yIdx;
+              })
             })),
             assessments: {
               bioimpedance: (bioMap.get(a.id) || []).map((b: any) => ({ ...b, fatPercentage: b.fat_percentage, muscleMass: b.muscle_mass, visceralFat: b.visceral_fat, hydration: b.hydration, basalMetabolism: b.basal_metabolism, metabolicAge: b.metabolic_age, boneMass: b.bone_mass, physiqueRating: b.physique_rating, fatArmR: b.fat_arm_r, fatArmL: b.fat_arm_l, fatLegR: b.fat_leg_r, fatLegL: b.fat_leg_l, fatTrunk: b.fat_trunk, muscleArmR: b.muscle_arm_r, muscleArmL: b.muscle_arm_l, muscleLegR: b.muscle_leg_r, muscleLegL: b.muscle_leg_l, muscleTrunk: b.muscle_trunk }))
@@ -780,7 +785,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         pool.query(`SELECT * FROM athletes ${isAthlete && athleteId ? 'WHERE id = $1' : ''} ORDER BY name ASC`, params),
         pool.query(`SELECT * FROM wellness ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM workouts ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM prescribed_exercises ${isAthlete && athleteId ? 'WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)' : ''}`, params),
+        pool.query(`SELECT * FROM prescribed_exercises ${isAthlete && athleteId ? 'WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)' : ''} ORDER BY order_index ASC, id ASC`, params),
         pool.query(`SELECT * FROM performed_sets ${isAthlete && athleteId ? 'WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))' : ''}`, params),
         pool.query(`SELECT * FROM isometric_strength ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM cmj ${whereClause} ORDER BY date DESC`, params),
@@ -900,11 +905,18 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
           rest: ex.rest,
           notes: ex.notes,
           repsType: ex.reps_type || 'reps',
+          order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
+          videoUrl: ex.video_url || '',
+          imageUrl: ex.image_url || '',
           performedSets: (setsByEx[ex.id] || []).map((s: any) => ({
             ...s,
             isCompleted: s.is_completed ?? false
           }))
-        })).sort((x: any, y: any) => (x.order_index || 0) - (y.order_index || 0))
+        })).sort((x: any, y: any) => {
+          const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
+          const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
+          return xIdx - yIdx;
+        })
       })),
       assessments: {
         bioimpedance: (bioByAth[a.id] || []).map((b: any) => ({

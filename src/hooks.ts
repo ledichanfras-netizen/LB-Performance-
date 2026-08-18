@@ -143,11 +143,11 @@ export const useAthletes = (token?: string | null) => {
       ...a,
       workouts: (a.workouts || []).map(w => {
         const exs = (w.exercises || []).slice();
-        const hasOrderIndex = exs.some(x => typeof x.order_index === 'number');
+        const hasOrderIndex = exs.some(x => typeof x.order_index === 'number' || typeof (x as any).orderIndex === 'number');
         const sortedExs = hasOrderIndex
           ? exs.sort((x: any, y: any) => {
-              const xVal = typeof x.order_index === 'number' ? x.order_index : 9999;
-              const yVal = typeof y.order_index === 'number' ? y.order_index : 9999;
+              const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
+              const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
               return xVal - yVal;
             })
           : exs;
@@ -1349,6 +1349,7 @@ export const useAthletes = (token?: string | null) => {
               weight: String(ex.weight || 'Carga Moderada'),
               rest: '60-90s',
               notes: '',
+              order_index: exIdx,
               performedSets: Array.from({ length: Number(ex.sets) || 3 }).map(() => ({
                 id: `set-${Math.random().toString(36).substring(2, 7)}`,
                 reps: 0,

@@ -371,10 +371,15 @@ export const supabaseService = {
               muscleGroup: ex.muscle_group,
               painLevel: ex.pain_level,
               repsType: ex.reps_type || 'reps',
+              order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
               videoUrl: ex.video_url || '',
               imageUrl: ex.image_url || '',
               performedSets: (ex.performed_sets || [])
-            })).sort((x: any, y: any) => (x.order_index || 0) - (y.order_index || 0))
+            })).sort((x: any, y: any) => {
+              const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
+              const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
+              return xIdx - yIdx;
+            })
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           assessments: {
             bioimpedance: athleteBio.map((b: any) => ({

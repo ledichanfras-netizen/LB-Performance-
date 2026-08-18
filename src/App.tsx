@@ -1147,7 +1147,13 @@ const EliteHubApp: FC<{
           monotony: 0,
           strain: 0,
           feedback: "",
-          exercises: (workoutToClone.exercises || []).map((ex, exIdx) => ({
+          exercises: [...(workoutToClone.exercises || [])]
+            .sort((a: any, b: any) => {
+              const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
+              const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
+              return aIdx - bIdx;
+            })
+            .map((ex, exIdx) => ({
             ...ex,
             id: `ex-clone-${Date.now()}-${Math.random()}`,
             order_index: exIdx,
@@ -7029,7 +7035,7 @@ const SessionTracker: FC<{
                       }
                       const matchingCustomEx = customExs.find((x: any) => x.name.toLowerCase().trim() === ex.name.toLowerCase().trim() || ex.name.toLowerCase().includes(x.name.toLowerCase()));
                       const matchingLibEx = ENRICHED_LIBRARY.find((x: any) => x.name.toLowerCase().trim() === ex.name.toLowerCase().trim() || ex.name.toLowerCase().includes(x.name.toLowerCase()));
-                      const videoUrl = ex.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl || `https://www.youtube.com/results?search_query=como+fazer+${encodeURIComponent(ex.name)}`;
+                      const videoUrl = ex.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl || `https://www.youtube.com/results?search_query=como+fazer+${encodeURIComponent(ex.name)}+execucao+correta`;
                       const hasDirectVideo = !!(ex.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl);
 
                       return (

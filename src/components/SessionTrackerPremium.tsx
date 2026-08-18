@@ -3,13 +3,14 @@ import {
   Play, Pause, RotateCcw, Volume2, VolumeX, Trophy, Zap, 
   Settings, Check, AlertCircle, ChevronRight, MessageSquare, 
   Smile, Dumbbell, Clock, Timer, Sparkles, Flame, ShieldAlert,
-  Sliders, ArrowRight, ArrowLeft, X, ChevronUp, ChevronDown, Plus, Trash2
+  Sliders, ArrowRight, ArrowLeft, X, ChevronUp, ChevronDown, Plus, Trash2,
+  Video, ExternalLink, Search, Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
 import { Workout, PrescribedExercise, ExerciseSet } from "../types";
 import { ENRICHED_LIBRARY } from "../data/exercises";
-import { calculateWorkoutLoad, isTimeExercise } from "../utils";
+import { calculateWorkoutLoad, isTimeExercise, getEmbedVideoInfo } from "../utils";
 
 // TTS Voice announcer
 const speakText = (text: string, enabled: boolean) => {
@@ -77,8 +78,14 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     status: "in_progress",
     date: workout.date?.split("T")[0] || new Date().toISOString().split("T")[0],
     durationMinutes: workout.durationMinutes || 60,
-    exercises: (Array.isArray(workout.exercises) ? workout.exercises : []).map(
-      (ex) => {
+    exercises: (Array.isArray(workout.exercises) ? [...workout.exercises] : [])
+      .sort((a: any, b: any) => {
+        const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+        const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+        return aIdx - bIdx;
+      })
+      .map(
+      (ex, idx) => {
         const targetReps = parseReps(ex.reps);
         const targetWeight = parseWeight(ex.weight);
         const initialSets = ex.performedSets && ex.performedSets.length > 0
@@ -129,6 +136,13 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [isQuickAdjustsCollapsed, setIsQuickAdjustsCollapsed] = useState(false);
   const [isGeneralParamsCollapsed, setIsGeneralParamsCollapsed] = useState(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [videoModalExercise, setVideoModalExercise] = useState<{
+    name: string;
+    muscleGroup?: string;
+    notes?: string;
+    videoUrl?: string;
+    imageUrl?: string;
+  } | null>(null);
   
   // References
   const mainStopwatchRef = useRef<NodeJS.Timeout | null>(null);
@@ -1099,24 +1113,31 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       const matchingCustomEx = customExs.find((x: any) => x.name.toLowerCase().trim() === activeEx.name.toLowerCase().trim() || activeEx.name.toLowerCase().includes(x.name.toLowerCase()));
                       const matchingLibEx = ENRICHED_LIBRARY.find((x: any) => x.name.toLowerCase().trim() === activeEx.name.toLowerCase().trim() || activeEx.name.toLowerCase().includes(x.name.toLowerCase()));
                       
-                      const videoUrl = activeEx.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl || `https://www.youtube.com/results?search_query=como+fazer+${encodeURIComponent(activeEx.name)}`;
-                      const hasDirectVideo = !!(activeEx.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl);
+                      const resolvedVideoUrl = activeEx.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl;
+                      const hasDirectVideo = !!resolvedVideoUrl;
 
                       return (
-                        <a
-                          href={videoUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 text-[9px] uppercase font-black tracking-wider rounded-lg transition-all ${
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVideoModalExercise({
+                              name: activeEx.name,
+                              muscleGroup: activeEx.muscleGroup,
+                              notes: activeEx.notes,
+                              videoUrl: resolvedVideoUrl,
+                              imageUrl: activeEx.imageUrl || (matchingCustomEx as any)?.imageUrl || (matchingLibEx as any)?.imageUrl
+                            });
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9.5px] uppercase font-black tracking-wider rounded-xl transition-all cursor-pointer ${
                             hasDirectVideo 
-                              ? "bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/20 shadow-[0_0_15px_rgba(57,255,20,0.15)] animate-pulse" 
-                              : "bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 hover:border-slate-700"
+                              ? "bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse" 
+                              : "bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/25 shadow-[0_0_15px_rgba(57,255,20,0.15)]"
                           }`}
-                          title={hasDirectVideo ? "Assistir ao vídeo técnico de execução cadastrado" : "Pesquisar vídeo de execução no YouTube automaticamente"}
+                          title="Abrir demonstração em vídeo e guia técnico de execução"
                         >
-                          <Play className="w-2.5 h-2.5 fill-current shrink-0" />
-                          <span>{hasDirectVideo ? "Ver Vídeo Técnico" : "Auto-Vídeo ⚡"}</span>
-                        </a>
+                          <Video className="w-3.5 h-3.5 shrink-0" />
+                          <span>{hasDirectVideo ? "Vídeo Técnico 🎬" : "Guia de Execução ⚡"}</span>
+                        </button>
                       );
                     })()}
                   </h3>
@@ -1688,6 +1709,118 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   ENVIAR E CONCLUIR 🏆
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* VIDEO DEMONSTRATION & TECHNIQUE MODAL */}
+      <AnimatePresence>
+        {videoModalExercise && (
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-[#0b101b] border border-slate-800 rounded-3xl p-5 md:p-6 w-full max-w-2xl shadow-2xl relative space-y-4 my-auto"
+            >
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-red-600/20 text-red-400 flex items-center justify-center border border-red-500/30 shrink-0">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg md:text-xl font-black text-white uppercase italic tracking-tight">
+                      {videoModalExercise.name}
+                    </h3>
+                    <span className="text-[10px] font-black text-[#39FF14] uppercase tracking-widest">
+                      {videoModalExercise.muscleGroup || "Execução Técnica"}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setVideoModalExercise(null)}
+                  className="w-8 h-8 rounded-full bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white flex items-center justify-center border border-slate-800 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Video embed / Player / Fallback */}
+              {(() => {
+                const videoInfo = getEmbedVideoInfo(videoModalExercise.videoUrl);
+                const youtubeSearchUrl = `https://www.youtube.com/results?search_query=como+fazer+${encodeURIComponent(videoModalExercise.name)}+execucao+correta`;
+                const googleImagesUrl = `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(videoModalExercise.name + " exercicio musculacao gif")}`;
+
+                return (
+                  <div className="space-y-4">
+                    {videoInfo && videoInfo.embedUrl ? (
+                      <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-slate-850 bg-slate-950 shadow-2xl">
+                        {videoInfo.type === "direct" ? (
+                          <video src={videoInfo.embedUrl} controls className="w-full h-full object-contain" autoPlay={false} />
+                        ) : (
+                          <iframe
+                            src={videoInfo.embedUrl}
+                            title={`Vídeo: ${videoModalExercise.name}`}
+                            className="w-full h-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        )}
+                      </div>
+                    ) : videoModalExercise.imageUrl ? (
+                      <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-slate-850 bg-slate-950 flex items-center justify-center">
+                        <img
+                          src={videoModalExercise.imageUrl}
+                          alt={videoModalExercise.name}
+                          className="w-full h-full object-cover rounded-2xl"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-6 bg-slate-950/60 rounded-2xl border border-slate-900 flex flex-col items-center justify-center text-center space-y-2">
+                        <Video className="w-10 h-10 text-slate-600 animate-pulse" />
+                        <h4 className="text-sm font-black text-white uppercase">Demonstração e Guia de Movimento</h4>
+                        <p className="text-xs text-slate-400 font-medium max-w-md">
+                          Acesse instantaneamente tutoriais em alta definição no YouTube e referências técnicas de postura para este exercício.
+                        </p>
+                      </div>
+                    )}
+
+                    {videoModalExercise.notes && (
+                      <div className="p-3.5 bg-slate-900/60 border border-slate-800/80 rounded-2xl text-xs text-slate-300">
+                        <span className="font-bold text-[#39FF14] block mb-1">💡 Dica do Treinador:</span>
+                        {videoModalExercise.notes}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <a
+                        href={youtubeSearchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 py-3 px-4 bg-red-600/15 hover:bg-red-600/25 border border-red-500/30 text-red-400 hover:text-red-300 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-red-950/30"
+                      >
+                        <Play className="w-4 h-4 fill-current" />
+                        <span>Abrir Vídeos no YouTube</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-auto" />
+                      </a>
+
+                      <a
+                        href={googleImagesUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 py-3 px-4 bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/30 text-purple-400 hover:text-purple-300 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-purple-950/30"
+                      >
+                        <ImageIcon className="w-4 h-4" />
+                        <span>Ver GIFs e Imagens</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-auto" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         )}
