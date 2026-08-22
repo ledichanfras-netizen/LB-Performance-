@@ -9962,88 +9962,85 @@ const CmjReport: FC<{
 
   // Score Cardiovascular/Explosive CmjScore:
   let cmjScore = Math.round(
-    Math.min(((cmjHeight / hEliteLimit) * 50) + ((cmjPowerRel / pEliteLimit) * 50), 100)
+    Math.min(((cmjHeight / 50) * 50) + ((cmjPowerRel / 60) * 50), 100)
   );
   if (cmjScore < 20) cmjScore = 20;
 
-  let cmjScoreClass = "Baixo";
-  let cmjScoreColor = "bg-red-555/10 text-red-400 border-red-500/20";
-  if (cmjScore >= 85) {
-    cmjScoreClass = "Elite";
+  let cmjScoreClass = "Em Desenvolvimento";
+  let cmjScoreColor = "bg-amber-500/10 text-amber-500 border-amber-500/20";
+  if (cmjScore >= 80) {
+    cmjScoreClass = "Excelente Rendimento";
     cmjScoreColor = "bg-brand-primary/10 text-brand-primary border-brand-primary/20";
-  } else if (cmjScore >= 70) {
-    cmjScoreClass = "Bom";
+  } else if (cmjScore >= 65) {
+    cmjScoreClass = "Ótima Explosão";
     cmjScoreColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  } else if (cmjScore >= 50) {
-    cmjScoreClass = "Moderado";
+  } else if (cmjScore >= 45) {
+    cmjScoreClass = "Consistente";
     cmjScoreColor = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
   }
 
   // Reactive Index Cmj Efficiency (IEP):
   const fTimeEff = Math.min(Math.round((cmjFlightTime / 650) * 100), 100);
-  const pRelEff = Math.min(Math.round((cmjPowerRel / pEliteLimit) * 100), 100);
-  const cmjStiffnessEff = Math.min(Math.round((cmjHeight / hEliteLimit) * 100), 100);
+  const pRelEff = Math.min(Math.round((cmjPowerRel / 60) * 100), 100);
+  const cmjStiffnessEff = Math.min(Math.round((cmjHeight / 50) * 100), 100);
   const totalEfficiencyCmj = Math.round((fTimeEff + pRelEff + cmjStiffnessEff) / 3);
 
-  let efficiencyLevelCmj = "Baixo";
-  let efficiencyColorCmj = "bg-red-555/10 text-red-400 border-red-500/20";
-  if (totalEfficiencyCmj >= 85) {
-    efficiencyLevelCmj = "Elite";
+  let efficiencyLevelCmj = "Em Desenvolvimento";
+  let efficiencyColorCmj = "bg-amber-500/10 text-amber-500 border-amber-500/20";
+  if (totalEfficiencyCmj >= 80) {
+    efficiencyLevelCmj = "Excelente Aproveitamento";
     efficiencyColorCmj = "bg-brand-primary/10 text-brand-primary border-brand-primary/20";
-  } else if (totalEfficiencyCmj >= 70) {
-    efficiencyLevelCmj = "Alta";
+  } else if (totalEfficiencyCmj >= 65) {
+    efficiencyLevelCmj = "Alta Eficiência";
     efficiencyColorCmj = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  } else if (totalEfficiencyCmj >= 50) {
-    efficiencyLevelCmj = "Moderada";
+  } else if (totalEfficiencyCmj >= 45) {
+    efficiencyLevelCmj = "Boa Eficiência";
     efficiencyColorCmj = "bg-yellow-500/10 text-yellow-500 border-yellow-500/30";
   }
 
-  // 1. VEREDICTO RESUMO DO ESPECIALISTA (Cientista do Esporte)
-  let veredictoResumoCmj = `Perfil de força explosiva moderado. Apresenta boa relação altura de salto, mas necessita elevar a aceleração concêntrica na fase de subida do contra-movimento.`;
-  if (isFutebol) {
-    if (cmjHeight >= reqHeightMax && cmjPowerRel >= reqRelPowerMax) {
-      veredictoResumoCmj = `Excelente dominância neuromuscular para futebolista da categoria ${soccerCategory}. Apresenta desenvolvimento de pico de força, taxa de força de aceleração e potência relativa (W/kg) de elite nacional/internacional, com fantástico acoplamento elástico.`;
-    } else if (cmjHeight >= reqHeightMin && cmjPowerRel >= reqRelPowerMin) {
-      veredictoResumoCmj = `Belo perfil funcional de salto vertical para a categoria ${soccerCategory}. Os resultados de potência corporal e altura de elevação enquadram-se na média ideal estabelecida pela literatura para futebolistas competitivos.`;
+  // 1. VEREDICTO RESUMO DO ESPECIALISTA (Cientista do Esporte) - Foco em Evolução Individual
+  let veredictoResumoCmj = `Perfil funcional de força explosiva bem estruturado. O atleta demonstra boa capacidade de impulsão, com oportunidade contínua de elevar a aceleração concêntrica na fase de subida do contra-movimento.`;
+  if (previousData) {
+    const hDiff = data.height - (previousData.height || 0);
+    if (hDiff > 0) {
+      veredictoResumoCmj = `Excelente evolução neuromuscular em relação à avaliação anterior (+${hDiff.toFixed(1)} cm de impulsão). Demonstra ótima absorção das cargas de treino, aumento no gradiente de aceleração e resposta elástica superior dos membros inferiores.`;
+    } else if (hDiff === 0) {
+      veredictoResumoCmj = `Manutenção consistente da potência e impulsão vertical em relação ao teste anterior. Apresenta estabilidade motora e base física consolidada para novos estímulos de força rápida.`;
     } else {
-      veredictoResumoCmj = `Capacidade reativa muscular em fase de lapidação frente à normativa científica para a categoria ${soccerCategory}. Recomenda-se treinos para fortificar a taxa de produção de força rápida.`;
+      veredictoResumoCmj = `Oscilação fisiológica pontual de ${hDiff.toFixed(1)} cm em relação à avaliação anterior. Sugere ajuste fino na recuperação neuromuscular e foco em trabalhos de rigidez articular e pliometria para recuperar o pico de impulsão.`;
     }
   } else {
-    if (cmjHeight >= 50 && cmjPowerRel >= 62) {
-      veredictoResumoCmj = `Excelente dominância neuromuscular. Atleta de elite apresentando alto desenvolvimento de taxa de força relativa (RFD) e ótimo aproveitamento do ciclo alongamento-encurtamento.`;
-    } else if (cmjHeight >= 40 || cmjPowerRel >= 50) {
-      veredictoResumoCmj = `Belo perfil de transferência de força vertical. Ótima reatividade neuromuscular com boa coordenação intermuscular durante as fases de transição excêntrica-concêntrica.`;
-    } else if (cmjHeight < 30) {
-      veredictoResumoCmj = `Baixo desenvolvimento de força rápida. Necessita estruturar o treinamento focando em força máxima de base e pliometria inicial para ganho de rigidez muscular.`;
+    if (cmjHeight >= 40) {
+      veredictoResumoCmj = `Excelente dominância neuromuscular e capacidade de impulsão no marco inicial. Apresenta ótimo aproveitamento do ciclo alongamento-encurtamento e expressiva taxa de produção de força rápida.`;
+    } else {
+      veredictoResumoCmj = `Marco inicial de potência vertical estabelecido com sucesso. O teste serve como linha de base para monitorar a evolução gradual da velocidade e taxa de desenvolvimento de força nos próximos ciclos.`;
     }
   }
 
   // 2. EXPLICAÇÃO TÉCNICA (Treinador)
   const averageForceWkg = data.averageForce ? data.averageForce / cmjWeight : 0;
   
-  let sCmjExcExc = "A aplicação de força concêntrica apresenta-se dentro da média fisiológica, sugerindo capacidade razoável de superação da inércia. Potencial de otimização na curva de força-tempo.";
+  let sCmjExcExc = "A aplicação de força concêntrica apresenta-se dentro de parâmetros consistentes, sugerindo capacidade de superação da inércia. Potencial de otimização na curva de força-tempo.";
   if (averageForceWkg > 25) {
-    sCmjExcExc = "Expressiva capacidade de aplicação de força máxima relativa ao peso corporal. O impulso gerado (área sob a curva de força) reflete um sistema neuromuscular incrivelmente denso e responsivo, perfil de elite.";
+    sCmjExcExc = "Expressiva capacidade de aplicação de força máxima relativa ao peso corporal. O impulso gerado reflete um sistema neuromuscular denso e responsivo com alta eficiência propulsiva.";
   } else if (averageForceWkg > 0 && averageForceWkg < 15) {
-    sCmjExcExc = "Déficit na magnitude de força aplicada. A insuficiência na produção de força média limita severamente o impulso total, resultando em menor velocidade de saída (take-off velocity). Recomenda-se bloco focado em hipertrofia miofibrilar e força máxima absoluta.";
+    sCmjExcExc = "Oportunidade de expansão na magnitude de força aplicada no solo. Recomenda-se bloco focado em hipertrofia miofibrilar e fortalecimento de base para potencializar o impulso total.";
   }
 
-  let sCmjAproveitamentoElastico = "Aproveitamento do CEA (Ciclo Alongamento Encurtamento) intermediário. Necessita melhorar o acoplamento excêntrico-concêntrico para otimizar o reaproveitamento de energia elástica dos tecidos moles conjutivos.";
+  let sCmjAproveitamentoElastico = "Aproveitamento do CEA (Ciclo Alongamento Encurtamento) equilibrado. O atleta demonstra boa transição excêntrico-concêntrica com reaproveitamento de energia elástica dos tecidos conjuntivos.";
   if (cmjHeight >= 45) {
     sCmjAproveitamentoElastico = "Excelente rigidez elástica do complexo músculo-tendíneo (MTU). Potência elástica exemplar com mínimo vazamento de força na fase de transição (amortecimento/explosão).";
   }
 
-  let sCmjFatoresNeuromusculares = "Acionamento de fibras tipo IIb (rápidas) adequado à categoria, porém com margem expressiva de evolução através do aumento do gradiente de força no primeiro terço de subida.";
-  if (cmjPowerRel >= 58) {
-    sCmjFatoresNeuromusculares = "Magnífico recrutamento de unidades motoras de alto limiar de excitação. Taxa de disparo e sincronização de fibras rápidas em nível de excelência profissional.";
+  let sCmjFatoresNeuromusculares = "Acionamento de unidades motoras adequado, com margem expressiva de evolução através do aumento do gradiente de força no primeiro terço de subida.";
+  if (cmjPowerRel >= 55) {
+    sCmjFatoresNeuromusculares = "Excelente recrutamento de unidades motoras de alto limiar de excitação. Taxa de disparo e sincronização de fibras rápidas em alto nível de prontidão.";
   }
 
   // 3. TRADUÇÃO SIMPLES (Atleta)
-  let sCmjAthleteTranslation = "Seu salto vertical é bom! Para pular ainda mais alto, vamos treinar para deixar sua subida mais rápida e explosiva, empurrando o chão com o máximo de força possível no menor tempo.";
-  if (heightClass === "Elite") {
-    sCmjAthleteTranslation = "Incrível! Você tem um salto digno de atleta olímpico! Sua explosão neuromuscular é espetacular. Continuaremos lapidando sua técnica para manter esse nível supremo.";
-  } else if (heightClass === "Baixo") {
-    sCmjAthleteTranslation = "Seu salto precisa de um foco especial. Vamos trabalhar exercícios para dar estabilidade às suas pernas e ensinar seus músculos a dispararem com velocidade máxima!";
+  let sCmjAthleteTranslation = "Seu salto vertical mostrou ótima energia! Vamos continuar treinando sua impulsão para você superar suas próprias marcas a cada avaliação, empurrando o chão com o máximo de velocidade!";
+  if (previousData && data.height > (previousData.height || 0)) {
+    sCmjAthleteTranslation = `Parabéns! Você pulou ${(data.height - previousData.height).toFixed(1)} cm mais alto que na sua última avaliação! Seu treino está fazendo efeito e sua explosão está aumentando!`;
   }
 
   // 4. EXPLICAÇÃO PARA PAIS
@@ -10107,19 +10104,38 @@ const CmjReport: FC<{
     triggerPrint();
   };
 
-  const evolutionData = [...history]
-    .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date))
-    .map((item) => ({
-      date: formatDate(item.date),
-      altura: item.height || 0,
-      rsi: item.rsi || 0,
-      potencia: item.power || 0,
-      profundidade: item.depth || 0,
-      tempoVoo: item.flightTime || 0,
-      forcaMedia: item.averageForce || 0,
-    }))
-    .filter(item => item.altura > 0 || item.potencia > 0)
-    .slice(-6);
+  const sortedHistory = [...history]
+    .filter(item => (item.height && item.height > 0) || (item.power && item.power > 0))
+    .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date));
+
+  const evolutionData = sortedHistory
+    .map((item, idx, arr) => {
+      const prev = idx > 0 ? arr[idx - 1] : null;
+      const heightDiff = prev && prev.height ? Number((item.height - prev.height).toFixed(1)) : 0;
+      const heightDiffPct = prev && prev.height ? Number((((item.height - prev.height) / prev.height) * 100).toFixed(1)) : 0;
+      const powerDiff = prev && prev.power ? Number((item.power - prev.power).toFixed(0)) : 0;
+      return {
+        date: formatDate(item.date),
+        rawDate: item.date,
+        altura: item.height || 0,
+        rsi: item.rsi || 0,
+        potencia: item.power || 0,
+        profundidade: item.depth || 0,
+        tempoVoo: item.flightTime || 0,
+        forcaMedia: item.averageForce || 0,
+        heightDiff,
+        heightDiffPct,
+        powerDiff,
+        isCurrent: item.id === data.id || item.date === data.date
+      };
+    })
+    .slice(-8);
+
+  const prevAssessmentsBeforeCurrent = history.filter(h => getSafeDateTime(h.date) < getSafeDateTime(data.date) && h.height && h.height > 0);
+  const bestHistoricalHeight = sortedHistory.length > 0 ? Math.max(...sortedHistory.map(d => d.height || 0)) : (data.height || 0);
+  const bestPreviousHeight = prevAssessmentsBeforeCurrent.length > 0 ? Math.max(...prevAssessmentsBeforeCurrent.map(d => d.height || 0)) : null;
+  const avgHistoricalHeight = sortedHistory.length > 0 ? (sortedHistory.reduce((acc, d) => acc + (d.height || 0), 0) / sortedHistory.length) : (data.height || 0);
+  const avgHistoricalPower = sortedHistory.length > 0 ? (sortedHistory.reduce((acc, d) => acc + (d.power || 0), 0) / sortedHistory.length) : (data.power || 0);
 
   const StatCard = ({
     icon: Icon,
@@ -10332,15 +10348,13 @@ const CmjReport: FC<{
                     <TrendingUp className="w-4 h-4 text-brand-primary animate-pulse" />
                     <div>
                       <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em] font-bold">
-                        Evolução e Análise de Salto
+                        Evolução Histórica do Salto
                       </h4>
                       <p className="text-[8px] text-slate-400 font-extrabold uppercase mt-0.5 tracking-wider">
-                        Padrão Elite de Avaliação de Força Explosiva
+                        Comparativo Individual com Avaliações Anteriores
                       </p>
                     </div>
                   </div>
-                  
-                  {/* Elite Visualization Tabs */}
                 </div>
 
                 <div className="h-[250px] w-full">
@@ -10391,10 +10405,11 @@ const CmjReport: FC<{
                       <Tooltip
                         content={({ active, payload, label }: any) => {
                           if (active && payload && payload.length) {
+                            const currentPoint = evolutionData.find(d => d.date === label);
                             return (
-                              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl text-[10px] font-sans text-white max-w-[200px]">
+                              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-2xl text-[10px] font-sans text-white min-w-[210px]">
                                 <p className="font-black text-slate-400 mb-2 border-b border-slate-800 pb-1 uppercase tracking-wider">{label}</p>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1.5 mb-2">
                                   {payload.map((item: any, idx: number) => {
                                     let unit = item.dataKey === "altura" ? " cm" : " W";
                                     let name = item.dataKey === "altura" ? "Altura do Salto" : "Potência de Pico";
@@ -10413,6 +10428,14 @@ const CmjReport: FC<{
                                     );
                                   })}
                                 </div>
+                                {currentPoint && currentPoint.heightDiff !== undefined && currentPoint.heightDiff !== 0 && (
+                                  <div className="pt-2 border-t border-slate-800 text-[8.5px] font-bold flex items-center justify-between text-slate-300">
+                                    <span className="text-slate-400">VARIAÇÃO VS ANTERIOR:</span>
+                                    <span className={currentPoint.heightDiff > 0 ? "text-emerald-400 font-extrabold" : "text-amber-400 font-extrabold"}>
+                                      {currentPoint.heightDiff > 0 ? `+${currentPoint.heightDiff}` : currentPoint.heightDiff} cm ({currentPoint.heightDiffPct > 0 ? `+${currentPoint.heightDiffPct}` : currentPoint.heightDiffPct}%)
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             );
                           }
@@ -10420,12 +10443,21 @@ const CmjReport: FC<{
                         }}
                       />
                       <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '8px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                      <ReferenceLine yAxisId="left" y={hEliteLimit} stroke="#10b981" strokeDasharray="3 3" strokeWidth={1.5}>
-                        <Label value={`ELITE (${hEliteLimit} cm)`} position="insideBottomLeft" fill="#10b981" style={{ fontSize: '7px', fontWeight: 900 }} />
-                      </ReferenceLine>
-                      <ReferenceLine yAxisId="left" y={hBomLimit} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1.5}>
-                        <Label value={`MÉDIA/BOM (${hBomLimit} cm)`} position="insideBottomLeft" fill="#f59e0b" style={{ fontSize: '7px', fontWeight: 900 }} />
-                      </ReferenceLine>
+                      
+                      {/* Reference line comparing with the immediate previous assessment */}
+                      {previousData && previousData.height ? (
+                        <ReferenceLine yAxisId="left" y={previousData.height} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1.5}>
+                          <Label value={`AVALIAÇÃO ANTERIOR (${previousData.height.toFixed(1)} cm)`} position="insideBottomLeft" fill="#3b82f6" style={{ fontSize: '7.5px', fontWeight: 900 }} />
+                        </ReferenceLine>
+                      ) : null}
+
+                      {/* Reference line for previous personal record if distinct from previous */}
+                      {bestPreviousHeight && previousData && Math.abs(bestPreviousHeight - (previousData.height || 0)) > 0.4 ? (
+                        <ReferenceLine yAxisId="left" y={bestPreviousHeight} stroke="#0284c7" strokeDasharray="3 3" strokeWidth={1.5}>
+                          <Label value={`RECORDE ANTERIOR (${bestPreviousHeight.toFixed(1)} cm)`} position="insideTopLeft" fill="#0284c7" style={{ fontSize: '7px', fontWeight: 900 }} />
+                        </ReferenceLine>
+                      ) : null}
+
                       <Bar
                         yAxisId="left"
                         name="Altura do Salto"
@@ -10450,28 +10482,26 @@ const CmjReport: FC<{
                   </ResponsiveContainer>
                 </div>
 
-                {/* Historical Stats Footer - Elite Standard */}
+                {/* Historical Stats Footer - Individual Progress */}
                 <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100 bg-slate-50/50 p-4 rounded-2xl">
                   <div className="text-center">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">MÁXIMO HISTÓRICO</span>
+                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">RECORDE DO ATLETA (PR)</span>
                     <span className="text-sm font-black text-slate-800 italic">
-                      {evolutionData.length > 0 ? Math.max(...evolutionData.map(d => d.altura || 0)).toFixed(1) : "0.0"} <span className="text-[8px] uppercase">cm</span>
+                      {bestHistoricalHeight.toFixed(1)} <span className="text-[8px] uppercase">cm</span>
                     </span>
                   </div>
                   <div className="text-center border-x border-slate-200">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">MÉDIA DE POTÊNCIA</span>
-                    <span className="text-sm font-black text-slate-800 italic">
-                      {evolutionData.length > 0 
-                        ? (evolutionData.reduce((acc, d) => acc + (d.potencia || 0), 0) / evolutionData.length).toFixed(0)
-                        : 0} <span className="text-[8px] uppercase">W</span>
+                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">VARIAÇÃO VS ANTERIOR</span>
+                    <span className={`text-sm font-black italic ${previousData ? (data.height >= (previousData.height || 0) ? "text-emerald-600" : "text-amber-600") : "text-slate-700"}`}>
+                      {previousData && previousData.height
+                        ? `${data.height >= previousData.height ? "+" : ""}${(data.height - previousData.height).toFixed(1)} cm (${getDiff(data.height, previousData.height).percent}%)`
+                        : "Primeira Avaliação"}
                     </span>
                   </div>
                   <div className="text-center">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">MÉDIA DE FORÇA</span>
+                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">MÉDIA HISTÓRICA DO ATLETA</span>
                     <span className="text-sm font-black text-blue-600 italic">
-                      {evolutionData.length > 0 
-                        ? (evolutionData.reduce((acc, d) => acc + (d.forcaMedia || 0), 0) / evolutionData.length).toFixed(0)
-                        : "0"} <span className="text-[8px] uppercase">N</span>
+                      {avgHistoricalHeight.toFixed(1)} <span className="text-[8px] uppercase">cm</span> <span className="text-[8px] font-bold text-slate-400">({avgHistoricalPower.toFixed(0)} W)</span>
                     </span>
                   </div>
                 </div>
@@ -10480,61 +10510,63 @@ const CmjReport: FC<{
               <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex flex-col justify-between font-sans">
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Zap className="w-4 h-4 text-orange-500" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-500 font-bold">
-                      PERFIL DE POTÊNCIA (W/KG)
+                    <TrendingUp className="w-4 h-4 text-brand-primary" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary font-bold">
+                      PROGRESSÃO INDIVIDUAL
                     </span>
                   </div>
                   
                   {(() => {
                     const powerWkg = data.power / (data.weight || 1);
-                    let rating = "Baixo";
-                    let color = "text-red-400 border-red-500/30 bg-red-500/10";
-                    let tip = "Foco em treinos de força explosiva de base e transferência dinâmica.";
-                    let progressPct = Math.min((powerWkg / 70) * 100, 100);
-                    
-                    if (powerWkg >= 55) {
-                      rating = "Elite";
-                      color = "text-brand-primary border-brand-primary/30 bg-brand-primary/10";
-                      tip = "Performance altamente explosiva e excelente elasticidade neuromuscular.";
-                    } else if (powerWkg >= 45) {
-                      rating = "Ótimo";
-                      color = "text-emerald-400 border-emerald-500/30 bg-emerald-500/10";
-                      tip = "Excelente relação peso-potência e boa eficiência contrátil de fibras tipo II.";
-                    } else if (powerWkg >= 35) {
-                      rating = "Moderado";
-                      color = "text-yellow-400 border-yellow-500/30 bg-yellow-500/10";
-                      tip = "Trabalho de força rápida de base e pliometria de baixa intensidade.";
-                    }
+                    const prevPowerWkg = previousData ? (previousData.power || 0) / (previousData.weight || 1) : null;
+                    const heightDiff = previousData && previousData.height ? data.height - previousData.height : 0;
+                    const powerDiff = previousData && previousData.power ? data.power - previousData.power : 0;
+                    const hasImproved = heightDiff >= 0;
                     
                     return (
                       <div className="space-y-4">
-                        <div className={`p-4 rounded-2xl border ${color}`}>
+                        <div className={`p-4 rounded-2xl border ${hasImproved || !previousData ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>
                           <div className="flex justify-between items-center mb-1">
-                            <span className="text-[8px] font-black tracking-widest text-slate-400 uppercase">CLASSIFICAÇÃO DE POTÊNCIA</span>
-                            <span className="text-xs font-black uppercase italic">{rating}</span>
+                            <span className="text-[8px] font-black tracking-widest text-slate-400 uppercase">STATUS DE EVOLUÇÃO</span>
+                            <span className="text-xs font-black uppercase italic">
+                              {previousData ? (hasImproved ? "PROGRESSÃO POSITIVA" : "AJUSTE DE CARGA") : "AVALIAÇÃO BASE INICIAL"}
+                            </span>
                           </div>
-                          <span className="text-xl font-black italic block mb-2 text-white">{powerWkg.toFixed(1)} <span className="text-xs uppercase">W/KG</span></span>
-                          <p className="text-[9px] font-medium leading-relaxed uppercase text-slate-300">{tip}</p>
+                          <div className="flex items-baseline gap-2 mb-2">
+                            <span className="text-xl font-black italic text-white">
+                              {data.height || 0} <span className="text-xs uppercase text-slate-300">CM</span>
+                            </span>
+                            {previousData && (
+                              <span className={`text-xs font-black ${heightDiff >= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                ({heightDiff >= 0 ? `+${heightDiff.toFixed(1)}` : heightDiff.toFixed(1)} cm)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[9px] font-medium leading-relaxed uppercase text-slate-300">
+                            {previousData 
+                              ? (hasImproved 
+                                  ? `Ganho de ${heightDiff.toFixed(1)} cm e ${powerDiff >= 0 ? `+${powerDiff}` : powerDiff} W em relação ao teste anterior, consolidando a evolução do seu potencial individual.`
+                                  : `Variação de ${heightDiff.toFixed(1)} cm em relação ao teste anterior. Indicativo para modular descanso e focar na qualidade dos disparos neuromusculares.`)
+                              : "Marco inicial estabelecido. Todas as próximas avaliações serão comparadas com este valor para medir sua evolução real."}
+                          </p>
                         </div>
                         
-                        <div>
-                          <div className="flex justify-between text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1.5">
-                            <span>MODERADO (35)</span>
-                            <span>ÓTIMO (45)</span>
-                            <span>ELITE (55)</span>
+                        <div className="space-y-2 bg-slate-800/60 p-3.5 rounded-2xl border border-slate-800">
+                          <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-slate-400">
+                            <span>Potência Relativa Atual</span>
+                            <span className="text-white font-extrabold">{powerWkg.toFixed(1)} W/KG</span>
                           </div>
-                          <div className="relative h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                            <div 
-                              className="h-full bg-orange-500 transition-all duration-1000"
-                              style={{ width: `${progressPct}%` }}
-                            />
-                          </div>
+                          {prevPowerWkg !== null && (
+                            <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-slate-400 pt-1.5 border-t border-slate-700/50">
+                              <span>Avaliação Anterior</span>
+                              <span className="text-slate-300 font-extrabold">{prevPowerWkg.toFixed(1)} W/KG ({powerWkg >= prevPowerWkg ? `+${(powerWkg - prevPowerWkg).toFixed(1)}` : (powerWkg - prevPowerWkg).toFixed(1)})</span>
+                            </div>
+                          )}
                         </div>
                         
-                        <div className="space-y-2 mt-4 pt-4 border-t border-slate-800">
-                          <p className="text-[10px] text-slate-400 font-medium leading-relaxed uppercase">
-                            Aprimore a força excêntrica se o gradiente de desenvolvimento de força dinâmica relativa estiver abaixo de <span className="text-white font-extrabold">45 W/kg</span>.
+                        <div className="space-y-2 mt-2 pt-3 border-t border-slate-800">
+                          <p className="text-[9.5px] text-slate-300 font-medium leading-relaxed uppercase">
+                            Cada atleta possui ritmo e potencial únicos. A evolução contínua frente ao seu próprio histórico é o indicador mais fidedigno de adaptação ao treinamento.
                           </p>
                         </div>
                       </div>
@@ -10543,9 +10575,9 @@ const CmjReport: FC<{
                 </div>
                 
                 <div className="mt-4 pt-4 border-t border-slate-800 flex items-start gap-2">
-                  <Info className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
-                  <p className="text-[8px] text-slate-500 font-black leading-snug italic uppercase tracking-wider">
-                    "A potência relativa define a aceleração e explosão atlética pioneira."
+                  <Info className="w-3.5 h-3.5 text-brand-primary shrink-0 mt-0.5" />
+                  <p className="text-[8px] text-slate-400 font-black leading-snug italic uppercase tracking-wider">
+                    "O progresso real é medido pela superação consistente das suas próprias marcas anteriores."
                   </p>
                 </div>
               </div>
@@ -10559,7 +10591,7 @@ const CmjReport: FC<{
               subTitle="DIAGNÓSTICO NEUROMUSCULAR & ANÁLISE"
               athlete={athlete}
               date={formatDate(data.date)}
-              extraStats={[{ label: "PERFIL", value: heightClass.toUpperCase() }, { label: "PÁGINA", value: "03 DE 04" }]}
+              extraStats={[{ label: "STATUS", value: previousData ? (data.height >= (previousData.height || 0) ? "EM EVOLUÇÃO" : "ESTÁVEL") : "AVALIAÇÃO BASE" }, { label: "PÁGINA", value: "03 DE 04" }]}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
