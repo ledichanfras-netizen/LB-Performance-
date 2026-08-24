@@ -227,6 +227,8 @@ export interface Workout {
   strain?: number;   
   feedback?: string;
   trainerNotes?: string;
+  updatedAt?: string;
+  createdAt?: string;
 }
 
 export interface Assessment {

@@ -363,9 +363,12 @@ export const supabaseService = {
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           workouts: (a.workouts || []).map((wk: any) => ({
             ...wk,
+            date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
             durationMinutes: wk.duration_minutes,
             totalLoad: wk.total_load,
             trainerNotes: wk.trainer_notes,
+            updatedAt: wk.updated_at || wk.updatedAt || new Date().toISOString(),
+            createdAt: wk.created_at || wk.createdAt,
             exercises: (wk.prescribed_exercises || []).map((ex: any) => ({ 
               ...ex, 
               muscleGroup: ex.muscle_group,
@@ -693,10 +696,11 @@ export const supabaseService = {
     if (workouts.length > 0) {
       for (const wk of workouts) {
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
+        const cleanDate = wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
         const { error: wkError } = await supabase.from('workouts').upsert({
           id: wk.id,
           athlete_id: athlete.id,
-          date: wk.date,
+          date: cleanDate,
           name: wk.name,
           phase: wk.phase,
           status: wk.status,

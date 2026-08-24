@@ -304,11 +304,12 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     });
     const indexed = sorted.map((ex, idx) => ({ ...ex, order_index: idx }));
     return {
+      ...workout,
       id: workout.id || `wk-man-${Date.now()}`,
       date: workout.date?.split("T")[0] || new Date().toISOString().split("T")[0],
       name: workout.name || "",
       phase: workout.phase || "Preparação Geral",
-      status: "planned",
+      status: workout.status || "planned",
       exercises: indexed,
     };
   });
@@ -2843,6 +2844,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               }));
               onSave({
                 ...edited,
+                date: edited.date.split("T")[0],
+                updatedAt: new Date().toISOString(),
                 exercises: finalExercises
               });
             }}

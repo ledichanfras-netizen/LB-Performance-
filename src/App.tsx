@@ -7745,6 +7745,8 @@ const WorkoutEditor: FC<{
               }));
               onSave({
                 ...edited,
+                date: edited.date.split("T")[0],
+                updatedAt: new Date().toISOString(),
                 exercises: finalExercises
               });
             }}

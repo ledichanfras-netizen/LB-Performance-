@@ -814,13 +814,15 @@ export function mergeArrayById<T extends { id: string; date?: string; updatedAt?
         // Local item created offline or not yet on server -> keep!
         mergedMap.set(item.id, item);
       } else {
-        const localTime = item.updatedAt ? getSafeDateTime(item.updatedAt) : 0;
-        const remoteTime = existing.updatedAt ? getSafeDateTime(existing.updatedAt) : 0;
+        const localTime = (item.updatedAt || (item as any).updated_at) ? getSafeDateTime(item.updatedAt || (item as any).updated_at) : 0;
+        const remoteTime = (existing.updatedAt || (existing as any).updated_at) ? getSafeDateTime(existing.updatedAt || (existing as any).updated_at) : 0;
 
         if (localTime > remoteTime || (item.status === 'completed' && existing.status !== 'completed')) {
-          mergedMap.set(item.id, item);
-        } else {
+          // Local item is newer (e.g. edited offline or pending immediate sync)
           mergedMap.set(item.id, { ...existing, ...item });
+        } else {
+          // Remote DB item is newer or equal -> remote takes precedence
+          mergedMap.set(item.id, { ...item, ...existing });
         }
       }
     }
@@ -885,8 +887,8 @@ export function mergeAthletesWithLocalCache(
       };
 
       mergedMap.set(lAth.id, {
-        ...rAth,
         ...lAth,
+        ...rAth,
         wellness: mergedWellness,
         workouts: mergedWorkouts,
         externalSessions: mergedExternalSessions,

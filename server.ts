@@ -895,9 +895,12 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       })),
       workouts: (workoutsByAth[a.id] || []).map((wk: any) => ({
         ...wk,
+        date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
         durationMinutes: wk.duration_minutes,
         totalLoad: wk.total_load,
         trainerNotes: wk.trainer_notes,
+        updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : (wk.updatedAt || new Date().toISOString()),
+        createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : (wk.createdAt || new Date().toISOString()),
         exercises: (exByWorkout[wk.id] || []).map((ex: any) => ({ 
           ...ex, 
           muscleGroup: ex.muscle_group,
@@ -1663,9 +1666,10 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
       for (const wk of (athlete.workouts || [])) {
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
+        const cleanDate = wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
         await client.query(
-          'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, updated_at = CURRENT_TIMESTAMP',
-          [wk.id, athlete.id, wk.date, wk.name ?? null, wk.phase ?? null, wk.status ?? null, wk.rpe ?? null, wk.totalLoad ?? null, wk.durationMinutes ?? null, wk.monotony ?? null, wk.strain ?? null, wk.feedback ?? null, wk.trainerNotes ?? null]
+          'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, updated_at = CURRENT_TIMESTAMP',
+          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, wk.rpe ?? null, wk.totalLoad ?? null, wk.durationMinutes ?? null, wk.monotony ?? null, wk.strain ?? null, wk.feedback ?? null, wk.trainerNotes ?? null]
         );
 
         // Deep sync for exercises: delete orphans

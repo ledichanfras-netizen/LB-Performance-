@@ -776,23 +776,27 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const updateWorkout = async (athleteId: string, workout: Workout) => {
+    const cleanDate = workout.date ? (typeof workout.date === 'string' ? workout.date.split('T')[0] : new Date(workout.date).toISOString().split('T')[0]) : getLocalDateString();
+    const updatedWorkout: Workout = {
+      ...workout,
+      date: cleanDate,
+      updatedAt: new Date().toISOString(),
+      exercises: (workout.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
+    };
+
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
-        let updatedWorkout = {
-          ...workout,
-          updatedAt: new Date().toISOString(),
-          exercises: (workout.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
-        };
+        let finalWorkout = { ...updatedWorkout };
         if (workout.status === 'completed') {
-          const athleteWeight = a.assessments.bioimpedance[0]?.weight;
-          updatedWorkout.totalLoad = calculateWorkoutLoad(workout, athleteWeight);
-          const workoutsList = (a.workouts || []).map(w => w.id === workout.id ? updatedWorkout : w);
+          const athleteWeight = a.assessments?.bioimpedance?.[0]?.weight || (a as any).weight || 70;
+          finalWorkout.totalLoad = calculateWorkoutLoad(workout, athleteWeight);
+          const workoutsList = (a.workouts || []).map(w => w.id === workout.id ? finalWorkout : w);
           const { monotony, strain } = calculateAdvancedMetrics(workoutsList, a.externalSessions);
-          updatedWorkout.monotony = monotony;
-          updatedWorkout.strain = strain;
+          finalWorkout.monotony = monotony;
+          finalWorkout.strain = strain;
           return { ...a, workouts: workoutsList };
         }
-        return { ...a, workouts: (a.workouts || []).map(w => w.id === workout.id ? updatedWorkout : w) };
+        return { ...a, workouts: (a.workouts || []).map(w => w.id === workout.id ? finalWorkout : w) };
       }
       return a;
     });

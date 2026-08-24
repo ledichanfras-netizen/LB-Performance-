@@ -499,11 +499,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     const completedSession: Workout = {
       ...session,
       status: "completed",
-      date: sessionDate,
+      date: sessionDate.split("T")[0],
       durationMinutes: finalDuration,
       rpe: overallRpe,
       feedback: feedbackNotes || session.feedback || "Treino concluído com biofeedback de alta performance.",
       totalLoad: calculateWorkoutLoad(session, athleteWeight),
+      updatedAt: new Date().toISOString(),
       exercises: (session.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
     };
 
