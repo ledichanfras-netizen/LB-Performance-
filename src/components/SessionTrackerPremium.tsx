@@ -4,7 +4,8 @@ import {
   Settings, Check, AlertCircle, ChevronRight, MessageSquare, 
   Smile, Dumbbell, Clock, Timer, Sparkles, Flame, ShieldAlert,
   Sliders, ArrowRight, ArrowLeft, X, ChevronUp, ChevronDown, Plus, Trash2,
-  Video, ExternalLink, Search, Image as ImageIcon
+  Video, ExternalLink, Search, Image as ImageIcon,
+  ListOrdered, CheckCircle2, Circle, Target, Layers, Maximize2, LayoutGrid, ClipboardList
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -136,6 +137,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [isQuickAdjustsCollapsed, setIsQuickAdjustsCollapsed] = useState(false);
   const [isGeneralParamsCollapsed, setIsGeneralParamsCollapsed] = useState(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState<"full" | "guided">("full");
   const [videoModalExercise, setVideoModalExercise] = useState<{
     name: string;
     muscleGroup?: string;
@@ -151,6 +153,44 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   // Active workout stats
   const activeEx = session.exercises[currentExerciseIndex];
   const nextEx = session.exercises[currentExerciseIndex + 1];
+
+  const isExCompleted = (ex: PrescribedExercise) => {
+    if (!ex || !ex.performedSets || ex.performedSets.length === 0) return false;
+    return ex.performedSets.every((s: any) => s.isCompleted);
+  };
+
+  const completeAllSetsOfExercise = (exId: string) => {
+    setSession((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) => {
+        if (ex.id !== exId) return ex;
+        return {
+          ...ex,
+          performedSets: (ex.performedSets || []).map((s) => ({ ...s, isCompleted: true })),
+        };
+      }),
+    }));
+    const ex = session.exercises.find((e) => e.id === exId);
+    const restValue = ex?.rest || "90s";
+    const secondsMatch = restValue.match(/\d+/);
+    const restSecs = secondsMatch ? parseInt(secondsMatch[0]) : 90;
+    startRestTimer(restSecs);
+    toast.success(`Exercício ${ex?.name || ""} concluído! ⚡ Descanso iniciado.`);
+  };
+
+  const resetAllSetsOfExercise = (exId: string) => {
+    setSession((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) => {
+        if (ex.id !== exId) return ex;
+        return {
+          ...ex,
+          performedSets: (ex.performedSets || []).map((s) => ({ ...s, isCompleted: false })),
+        };
+      }),
+    }));
+    toast.success("Séries reabertas para edição!");
+  };
 
   const incompleteExercisesCount = useMemo(() => {
     return session.exercises.filter(ex => 
@@ -233,15 +273,16 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     let justCompleted = false;
     let willBeAllCompleted = false;
 
-    if (activeEx && activeEx.id === exId && activeEx.performedSets) {
-      const targetSet = activeEx.performedSets.find((s) => s.id === setId);
+    const targetEx = session.exercises.find((e) => e.id === exId);
+    if (targetEx && targetEx.performedSets) {
+      const targetSet = targetEx.performedSets.find((s) => s.id === setId);
       const isTargetCompletedBefore = targetSet ? (targetSet as any).isCompleted : false;
       const nextCompleted = !isTargetCompletedBefore;
       if (nextCompleted) {
         justCompleted = true;
       }
       
-      const allOthersCompleted = activeEx.performedSets
+      const allOthersCompleted = targetEx.performedSets
         .filter((s) => s.id !== setId)
         .every((s) => (s as any).isCompleted);
       
@@ -276,15 +317,15 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       });
 
       // Parse configured rest time or fallback to 90s
-      const restValue = activeEx?.rest || "90s";
+      const restValue = targetEx?.rest || "90s";
       const secondsMatch = restValue.match(/\d+/);
       const restSecs = secondsMatch ? parseInt(secondsMatch[0]) : 90;
 
       // Auto start rest timer! Excellent usability UX
       startRestTimer(restSecs);
 
-      // Auto-switching to next exercise if all are completed
-      if (willBeAllCompleted) {
+      // Auto-switching to next exercise if all are completed (only when in guided focus mode)
+      if (willBeAllCompleted && viewMode === "guided") {
         const nextIndex = currentExerciseIndex + 1;
         if (nextIndex < session.exercises.length) {
           setTimeout(() => {
@@ -529,10 +570,24 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         <div id="edit-glow" className="absolute -top-12 -right-12 w-48 h-48 bg-brand-primary/5 rounded-full blur-[80px] pointer-events-none" />
         
         {/* EDITING HEADER */}
-        <div id="edit-header" className="flex justify-between items-center border-b border-slate-900 pb-3 shrink-0">
-          <div>
-            <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-widest block">MODO DE EDIÇÃO DE TREINO CONCLUÍDO</span>
-            <h2 className="text-sm sm:text-base font-black uppercase italic text-white tracking-tight mt-0.5">{workout.name}</h2>
+        <div id="edit-header" className="flex justify-between items-start gap-4 border-b border-slate-900 pb-3 shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-widest bg-[#39FF14]/10 border border-[#39FF14]/25 px-2.5 py-0.5 rounded-md">
+                MODO DE EDIÇÃO DE TREINO CONCLUÍDO
+              </span>
+              {workout.phase && (
+                <span className="text-[9px] font-black uppercase text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md">
+                  {workout.phase}
+                </span>
+              )}
+              <span className="text-[9px] font-bold text-slate-400">
+                {session.exercises.length} EXERCÍCIOS NA ORDEM
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black uppercase italic text-white tracking-tight leading-snug break-words">
+              {workout.name}
+            </h2>
           </div>
           <button
             id="edit-close-btn"
@@ -541,10 +596,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 onCancel();
               }
             }}
-            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-slate-800 transition-all cursor-pointer"
+            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer shrink-0"
             title="Sair da Edição"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -666,12 +721,14 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               >
                 {/* Exercise Title and prescribed metrics */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-slate-900">
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight flex items-center gap-1.5">
-                      <span className="text-[#39FF14]">{idx + 1}.</span>
-                      <span>{ex.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                      <span className="w-5 h-5 rounded-md bg-[#39FF14]/15 border border-[#39FF14]/30 text-[#39FF14] font-black text-[10px] flex items-center justify-center font-mono shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="break-words leading-tight">{ex.name}</span>
                     </h4>
-                    <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider mt-0.5 block">
+                    <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
                       Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {prescribedSets}x{isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ {prescribedWeight}
                     </span>
                   </div>
@@ -792,14 +849,19 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       {isHeaderCollapsed ? (
         /* COMPACT FOCUS HEADER FOR MOBILE */
         <div className="flex items-center justify-between gap-3 border-b border-slate-900 pb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider truncate max-w-[150px] sm:max-w-none">
-              {workout.name} — <strong className="text-amber-400">Modo Foco 🎯</strong>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            <span className="text-[11px] font-black text-slate-200 uppercase tracking-tight break-words leading-tight">
+              {workout.name}
             </span>
+            {workout.phase && (
+              <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded shrink-0">
+                {workout.phase}
+              </span>
+            )}
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {isEditingCompleted && (
               <button
                 type="button"
@@ -836,22 +898,34 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       ) : (
         /* HUD HEADER PANEL */
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-900 pb-5 shrink-0">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">SESSÃO ELITE EM EXECUÇÃO</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-[10px] font-black uppercase text-emerald-400 tracking-widest">
+                  {isEditingCompleted ? "MODO DE EDIÇÃO DE TREINO" : "SESSÃO EM EXECUÇÃO"}
+                </span>
               </div>
+              {workout.phase && (
+                <span className="text-[9px] font-black uppercase text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md">
+                  {workout.phase}
+                </span>
+              )}
+              <span className="text-[9px] font-bold text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-2 py-0.5 rounded-md">
+                {session.exercises.length} EXERCÍCIOS NA ORDEM
+              </span>
               <button
                 type="button"
                 onClick={() => setIsHeaderCollapsed(true)}
-                className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-[8px] font-bold uppercase tracking-wider text-amber-400 rounded transition-all cursor-pointer"
+                className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-[8px] font-bold uppercase tracking-wider text-amber-400 rounded transition-all cursor-pointer ml-auto sm:ml-0"
                 title="Ocultar cabeçalho para focar exclusivamente nos exercícios e liberar espaço no celular"
               >
-                🎯 Recolher Cabeçalho (Foco Celular)
+                🎯 Foco Compacto
               </button>
             </div>
-            <h2 className="text-xl md:text-2xl font-black uppercase italic text-white tracking-tight mt-1">{workout.name}</h2>
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-black uppercase italic text-white tracking-tight leading-snug break-words mt-1">
+              {workout.name}
+            </h2>
           </div>
 
           {/* CLOCKS & TOGGLES */}
@@ -1072,9 +1146,318 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         </div>
       )}
 
-      {/* DETAILED ACTIVE WORKOUT CARD */}
+      {/* SELETOR DE MODO DE VISUALIZAÇÃO DO TREINO */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-2.5 bg-[#090e1a] border border-slate-900 rounded-2xl shrink-0">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-900/90 shrink-0">
+          <button
+            type="button"
+            onClick={() => setViewMode("full")}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              viewMode === "full"
+                ? "bg-[#39FF14] text-slate-950 shadow-md shadow-[#39FF14]/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900"
+            }`}
+          >
+            <ListOrdered className="w-3.5 h-3.5" />
+            <span>Treino Completo ({session.exercises.length} Exercícios na Ordem)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("guided")}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+              viewMode === "guided"
+                ? "bg-[#39FF14] text-slate-950 shadow-md shadow-[#39FF14]/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900"
+            }`}
+          >
+            <Target className="w-3.5 h-3.5" />
+            <span>Modo Guiado (1 por Vez)</span>
+          </button>
+        </div>
+
+        {/* Quick Exercise Jump Pills (Order 1, 2, 3...) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-1 min-w-0">
+          <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider shrink-0 hidden xl:inline">Ir para:</span>
+          {session.exercises.map((ex, idx) => {
+            const allCompleted = isExCompleted(ex);
+            const isCurrent = idx === currentExerciseIndex;
+            return (
+              <button
+                key={ex.id || idx}
+                type="button"
+                onClick={() => {
+                  setCurrentExerciseIndex(idx);
+                  if (viewMode === "full") {
+                    const el = document.getElementById(`exercise-card-${ex.id}`);
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  }
+                }}
+                className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border ${
+                  allCompleted
+                    ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                    : isCurrent
+                      ? "bg-[#39FF14]/20 border-[#39FF14]/40 text-[#39FF14]"
+                      : "bg-slate-950 hover:bg-slate-900 border-slate-900 text-slate-400 hover:text-white"
+                }`}
+                title={`${idx + 1}. ${ex.name}`}
+              >
+                <span className="font-mono text-[9px] opacity-70">#{idx + 1}</span>
+                <span className="truncate max-w-[85px] sm:max-w-[110px]">{ex.name}</span>
+                {allCompleted && <Check className="w-2.5 h-2.5 stroke-[3] text-emerald-400 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* DETAILED ACTIVE WORKOUT CARD OR FULL WORKOUT VIEW */}
       <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar">
-        {activeEx ? (
+        {session.exercises.length === 0 ? (
+          <div className="py-12 text-center text-slate-500">
+            Nenhum exercício carregado neste treino.
+          </div>
+        ) : viewMode === "full" ? (
+          /* VISÃO COMPLETA: TODOS OS EXERCÍCIOS NA ORDEM SEQUENCIAL */
+          <div className="space-y-6 pb-8">
+            {session.exercises.map((ex, exIdx) => {
+              const exCompleted = isExCompleted(ex);
+              const isTime = isTimeExercise(ex);
+
+              // lookup custom video or library video
+              let customExs: any[] = [];
+              try {
+                const stored = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
+                if (stored) customExs = JSON.parse(stored);
+              } catch (err) {}
+              const matchingCustomEx = customExs.find((x: any) => x.name.toLowerCase().trim() === ex.name.toLowerCase().trim() || ex.name.toLowerCase().includes(x.name.toLowerCase()));
+              const matchingLibEx = ENRICHED_LIBRARY.find((x: any) => x.name.toLowerCase().trim() === ex.name.toLowerCase().trim() || ex.name.toLowerCase().includes(x.name.toLowerCase()));
+              const resolvedVideoUrl = ex.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl;
+              const hasDirectVideo = !!resolvedVideoUrl;
+
+              return (
+                <div
+                  key={ex.id || exIdx}
+                  id={`exercise-card-${ex.id}`}
+                  className={`p-4 sm:p-6 rounded-[2rem] border transition-all relative overflow-hidden ${
+                    exCompleted
+                      ? "bg-[#081112] border-emerald-500/30 shadow-lg shadow-emerald-950/20"
+                      : exIdx === currentExerciseIndex
+                        ? "bg-gradient-to-b from-[#0c111d] to-[#05080e] border-[#39FF14]/40 shadow-xl shadow-[#39FF14]/5 ring-1 ring-[#39FF14]/20"
+                        : "bg-gradient-to-b from-[#0c111d] to-[#05080e] border-slate-900 hover:border-slate-800"
+                  }`}
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full blur-[50px] pointer-events-none" />
+
+                  {/* Header do Exercício */}
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pb-4 border-b border-slate-900 relative z-10">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="w-7 h-7 rounded-lg bg-[#39FF14]/15 border border-[#39FF14]/30 text-[#39FF14] font-black text-xs flex items-center justify-center font-mono shrink-0">
+                          {exIdx + 1}
+                        </span>
+                        <span className="text-[10px] font-black bg-slate-900 border border-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                          {ex.muscleGroup || "GERAL"}
+                        </span>
+                        {exCompleted ? (
+                          <span className="text-[10px] font-black bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                            <Check className="w-3 h-3 stroke-[3]" /> CONCLUÍDO
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black bg-amber-500/15 border border-amber-500/30 text-amber-400 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                            {(ex.performedSets || []).filter((s: any) => s.isCompleted).length} / {(ex.performedSets || []).length} SÉRIES
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-xl sm:text-2xl font-black uppercase italic text-white tracking-tight leading-snug break-words">
+                        {ex.name}
+                      </h3>
+
+                      {ex.notes && (
+                        <p className="text-xs text-slate-400 font-medium mt-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/80 italic">
+                          💡 {ex.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Prescrição e Ações Rápidas */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end">
+                      <div className="flex flex-col items-end mr-1">
+                        <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-widest block">PRESCRIÇÃO</span>
+                        <span className="text-xs sm:text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-3 py-1 rounded-xl font-mono">
+                          {ex.sets}x{isTime ? `${String(ex.reps).replace(/s/gi, "")}s` : ex.reps} @ {ex.weight}
+                        </span>
+                      </div>
+
+                      {/* Botão Vídeo / Guia */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVideoModalExercise({
+                            name: ex.name,
+                            muscleGroup: ex.muscleGroup,
+                            notes: ex.notes,
+                            videoUrl: resolvedVideoUrl,
+                            imageUrl: ex.imageUrl || (matchingCustomEx as any)?.imageUrl || (matchingLibEx as any)?.imageUrl,
+                          });
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9px] uppercase font-black tracking-wider rounded-xl transition-all cursor-pointer ${
+                          hasDirectVideo
+                            ? "bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30"
+                            : "bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/25"
+                        }`}
+                        title="Ver demonstração e guia de execução"
+                      >
+                        <Video className="w-3.5 h-3.5" />
+                        <span>{hasDirectVideo ? "Vídeo 🎬" : "Guia ⚡"}</span>
+                      </button>
+
+                      {/* Botão Concluir/Reabrir todas as séries */}
+                      {exCompleted ? (
+                        <button
+                          type="button"
+                          onClick={() => resetAllSetsOfExercise(ex.id)}
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Reabrir Séries
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => completeAllSetsOfExercise(ex.id)}
+                          className="px-3 py-1.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black rounded-xl text-[9px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-sm shadow-[#39FF14]/20"
+                        >
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>Concluir Todas</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Tabela de Séries */}
+                  <div className="space-y-2 mt-4 relative z-10">
+                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500 px-2">
+                      <span>Séries Executadas</span>
+                      <span>Carga / Reps / PSE / Status</span>
+                    </div>
+
+                    {(ex.performedSets || []).map((set: any, sIdx: number) => {
+                      const isSetCompleted = set.isCompleted;
+                      return (
+                        <div
+                          key={set.id || sIdx}
+                          className={`grid grid-cols-12 gap-2 items-center p-2.5 sm:p-3 rounded-xl border transition-all ${
+                            isSetCompleted
+                              ? "bg-[#39FF14]/5 border-[#39FF14]/20"
+                              : "bg-[#080d17] border-slate-900 hover:border-slate-800"
+                          }`}
+                        >
+                          <div className="col-span-2 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleSetCompletion(ex.id, set.id)}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
+                                isSetCompleted
+                                  ? "bg-[#39FF14] text-slate-950 border-[#39FF14] shadow-md shadow-[#39FF14]/20"
+                                  : "bg-slate-950 border border-slate-800 text-slate-600 hover:border-slate-500"
+                              }`}
+                              title={isSetCompleted ? "Marcar como não concluída" : "Marcar como concluída"}
+                            >
+                              <Check className={`w-3.5 h-3.5 stroke-[3] transition-transform ${isSetCompleted ? "scale-100" : "scale-0"}`} />
+                            </button>
+                            <span className={`text-xs font-black uppercase ${isSetCompleted ? "text-[#39FF14]" : "text-slate-300"}`}>
+                              S{sIdx + 1}
+                            </span>
+                          </div>
+
+                          {/* Weight input */}
+                          <div className="col-span-3 flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={set.weight || ""}
+                              onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
+                              placeholder="0"
+                            />
+                            <span className="text-[8.5px] font-black text-slate-500 uppercase">KG</span>
+                          </div>
+
+                          {/* Reps input */}
+                          <div className="col-span-3 flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={set.reps || ""}
+                              onChange={(e) => updateSetField(ex.id, set.id, "reps", parseInt(e.target.value) || 0)}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
+                              placeholder="0"
+                            />
+                            <span className="text-[8.5px] font-black text-slate-500 uppercase">{isTime ? "SEG" : "REPS"}</span>
+                          </div>
+
+                          {/* RPE selector */}
+                          <div className="col-span-3 flex items-center gap-1">
+                            <span className="text-[8px] font-black text-slate-500 uppercase">PSE</span>
+                            <select
+                              value={set.rpe || 0}
+                              onChange={(e) => updateSetField(ex.id, set.id, "rpe", parseInt(e.target.value))}
+                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1 text-center font-bold text-xs text-white"
+                            >
+                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+                                <option key={v} value={v}>{v}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Remove set */}
+                          <div className="col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => removeSetFromExercise(ex.id, set.id)}
+                              className="p-1 text-slate-600 hover:text-red-400 transition-colors cursor-pointer"
+                              title="Excluir série"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => addSetToExercise(ex.id)}
+                        className="py-2 px-3.5 bg-slate-950 hover:bg-[#39FF14]/10 border border-dashed border-slate-800 hover:border-[#39FF14]/40 text-slate-400 hover:text-[#39FF14] font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        Adicionar Série (+ Replicar Carga/Reps)
+                      </button>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-900">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Dor:</span>
+                          <select
+                            value={ex.painLevel || 0}
+                            onChange={(e) => updatePainValue(ex.id, parseInt(e.target.value))}
+                            className="bg-transparent text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
+                          >
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+                              <option key={v} value={v} className="bg-slate-900">Dor {v}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : activeEx ? (
           <div className="space-y-6">
             
             {/* Exercise Card Header & Info */}

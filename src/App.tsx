@@ -2692,10 +2692,10 @@ const EliteHubApp: FC<{
                                 </div>
                                 <div className="flex flex-col min-w-0 flex-grow">
                                   <span className="text-[10px] font-black tracking-widest text-slate-500 uppercase">Sessão Ativa</span>
-                                  <span className="text-lg font-black text-white uppercase italic tracking-tight leading-none mt-1 truncate">
+                                  <span className="text-lg font-black text-white uppercase italic tracking-tight leading-none mt-1">
                                     HOJE, {getFormattedDatePT().toUpperCase()}
                                   </span>
-                                  <span className="text-xs font-bold text-[#10b981] mt-1.5 truncate uppercase">
+                                  <span className="text-xs font-bold text-[#10b981] mt-1.5 uppercase break-words leading-tight">
                                     {activeWorkoutToday.name}
                                   </span>
                                 </div>
@@ -2720,7 +2720,7 @@ const EliteHubApp: FC<{
                                   <span className="text-lg font-black text-white uppercase italic tracking-tight leading-none mt-1">
                                     HOJE ESTÁ PAGO! 🎉
                                   </span>
-                                  <span className="text-xs font-bold text-slate-400 mt-1.5 truncate uppercase">
+                                  <span className="text-xs font-bold text-slate-400 mt-1.5 uppercase break-words leading-tight">
                                     {completedWorkoutToday.name}
                                   </span>
                                 </div>
@@ -3283,8 +3283,8 @@ const EliteHubApp: FC<{
                                   </div>
 
                                   {/* Workout Name & Action Buttons Row */}
-                                  <div className="flex items-center justify-between gap-2 w-full mt-1">
-                                    <h5 className="text-xl md:text-2xl font-black uppercase italic text-brand-primary leading-tight tracking-tight drop-shadow-[0_0_8px_rgba(75,222,5,0.3)] truncate min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2 w-full mt-1">
+                                    <h5 className="text-xl md:text-2xl font-black uppercase italic text-brand-primary leading-tight tracking-tight drop-shadow-[0_0_8px_rgba(75,222,5,0.3)] break-words min-w-0 flex-1">
                                       {w.name}
                                     </h5>
                                     {user.role === "coach" && (
@@ -3376,24 +3376,41 @@ const EliteHubApp: FC<{
                                 </div>
 
                                 <div className="mb-6 flex-grow">
-                                  <p className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2.5">
-                                    Foco da Sessão
-                                  </p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {(w.exercises || [])
-                                      .slice(0, 4)
-                                      .map((ex) => (
-                                        <span
-                                          key={ex.id}
-                                          className="text-[9px] md:text-[10px] bg-slate-900/90 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-800 font-bold max-w-full truncate"
+                                  <div className="flex items-center justify-between mb-2">
+                                    <p className="text-[10px] md:text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                                      Exercícios na Ordem ({(w.exercises || []).length})
+                                    </p>
+                                    <span className="text-[9px] font-bold text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-2 py-0.5 rounded uppercase tracking-wider">
+                                      Sequência
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 no-scrollbar">
+                                    {[...(w.exercises || [])]
+                                      .sort((a: any, b: any) => {
+                                        const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
+                                        const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
+                                        return aIdx - bIdx;
+                                      })
+                                      .map((ex, idx) => (
+                                        <div
+                                          key={ex.id || idx}
+                                          className="flex items-center justify-between gap-2 p-2 bg-slate-900/90 rounded-xl border border-slate-800/80 text-[10px] hover:border-slate-700 transition-colors"
                                         >
-                                          {ex.name}
-                                        </span>
+                                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                                            <span className="w-5 h-5 rounded-lg bg-[#39FF14]/15 border border-[#39FF14]/30 text-[#39FF14] font-black text-[9px] flex items-center justify-center shrink-0 font-mono">
+                                              {idx + 1}
+                                            </span>
+                                            <span className="text-slate-200 font-bold break-words leading-tight">
+                                              {ex.name}
+                                            </span>
+                                          </div>
+                                          <span className="text-[9px] font-black text-slate-400 shrink-0 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                                            {ex.sets}x{ex.reps}
+                                          </span>
+                                        </div>
                                       ))}
-                                    {(w.exercises || []).length > 4 && (
-                                      <span className="text-[9px] md:text-[10px] bg-slate-900/60 text-slate-400 px-2 py-1 rounded-lg border border-slate-800 font-black tracking-widest">
-                                        +{(w.exercises || []).length - 4}
-                                      </span>
+                                    {(w.exercises || []).length === 0 && (
+                                      <p className="text-[10px] text-slate-500 italic">Nenhum exercício cadastrado.</p>
                                     )}
                                   </div>
                                 </div>
