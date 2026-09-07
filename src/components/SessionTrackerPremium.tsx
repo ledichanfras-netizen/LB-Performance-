@@ -1779,7 +1779,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                               ? "bg-[#39FF14]/5 border-[#39FF14]/20 shadow-inner" 
                               : isActive
                                 ? "bg-slate-900 border-[#39FF14]/40 shadow-[0_0_15px_rgba(57,255,20,0.05)] ring-1 ring-[#39FF14]/20"
-                                : "bg-[#0c111d] border-slate-900"
+                                : "bg-[#080d17] border-slate-900 hover:border-slate-800"
                           }`}
                         >
                           {/* Checkbox button & Set label */}

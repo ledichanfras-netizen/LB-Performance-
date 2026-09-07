@@ -137,6 +137,9 @@ body.light-theme [class*="bg-[#090e1a]"],
 body.light-theme [class*="bg-[#0a0f1d]"],
 body.light-theme [class*="bg-[#0A0D16]"],
 body.light-theme [class*="bg-[#0b0f19]"],
+body.light-theme [class*="bg-[#0B0F19]"],
+body.light-theme [class*="bg-[#0b101b]"],
+body.light-theme .bg-\[\#0b101b\],
 body.light-theme [class*="bg-[#0b1c11]"],
 body.light-theme [class*="bg-[#0c101b]"],
 body.light-theme [class*="bg-[#0c111d]"],
@@ -192,7 +195,9 @@ body.light-theme [class*="bg-amber-950"],
 body.light-theme [class*="bg-emerald-950"],
 body.light-theme [class*="bg-indigo-950"],
 body.light-theme [class*="bg-rose-950"],
-body.light-theme [class*="bg-red-950"] {
+body.light-theme [class*="bg-red-950"],
+body.light-theme [class*="bg-[#080d17]"],
+body.light-theme .bg-\[\#080d17\] {
   background-color: #f8fafc !important;
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
@@ -347,6 +352,31 @@ body.light-theme .text-slate-600 {
   color: #64748b !important;
 }
 
+body.light-theme .text-emerald-400,
+body.light-theme .text-emerald-500 {
+  color: #047857 !important;
+}
+
+body.light-theme .text-amber-400,
+body.light-theme .text-amber-500 {
+  color: #b45309 !important;
+}
+
+body.light-theme .text-red-400,
+body.light-theme .text-red-500 {
+  color: #b91c1c !important;
+}
+
+body.light-theme .text-purple-400,
+body.light-theme .text-purple-500 {
+  color: #7c3aed !important;
+}
+
+body.light-theme .text-blue-400,
+body.light-theme .text-blue-500 {
+  color: #0369a1 !important;
+}
+
 /* High-Contrast Neon Green (#39FF14) & Accents in Light Mode */
 body.light-theme .text-\[\#39FF14\],
 body.light-theme [class*="text-[#39FF14]"] {
@@ -460,6 +490,7 @@ body.light-theme .bg-cyan-500\/10 {
 
 /* Modal Backdrops & Dialogs in Light Mode */
 body.light-theme .fixed.inset-0.bg-black\/80,
+body.light-theme .fixed.inset-0.bg-slate-950\/85,
 body.light-theme .fixed.inset-0.bg-slate-950\/80,
 body.light-theme .fixed.inset-0.bg-slate-900\/80,
 body.light-theme .fixed.inset-0.bg-black\/60,
@@ -467,6 +498,148 @@ body.light-theme .fixed.inset-0.bg-black\/70 {
   background-color: rgba(15, 23, 42, 0.5) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Executar Treino & Guia de Vídeo Light Mode Enhancements */
+body.light-theme [class*="bg-[#0b101b]"],
+body.light-theme .bg-\[\#0b101b\] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] .border-slate-800,
+body.light-theme [class*="bg-[#0b101b]"] .border-slate-800\/80,
+body.light-theme [class*="bg-[#0b101b]"] .border-slate-900 {
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] .text-white {
+  color: #0f172a !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] .text-slate-300 {
+  color: #0f172a !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] .text-slate-400 {
+  color: #334155 !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] .bg-slate-900\/60,
+body.light-theme [class*="bg-[#0b101b]"] .bg-slate-950\/60 {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] button.bg-slate-900 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme [class*="bg-[#0b101b]"] button.bg-slate-900:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Set Rows in Executar Treino */
+body.light-theme [class*="bg-[#080d17]"],
+body.light-theme .bg-\[\#080d17\] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"]:hover,
+body.light-theme .bg-\[\#080d17\]:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"] .text-slate-300 {
+  color: #0f172a !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"] .text-slate-500 {
+  color: #475569 !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"] .text-slate-600 {
+  color: #64748b !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"] input {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"] select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme [class*="bg-[#080d17]"] button.bg-slate-950 {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Completed set row */
+body.light-theme [class*="bg-[#39FF14]/5"] {
+  background-color: #f0fdf4 !important;
+  color: #15803d !important;
+  border-color: #86efac !important;
+}
+
+body.light-theme [class*="bg-[#39FF14]/5"] .text-slate-500 {
+  color: #166534 !important;
+}
+
+body.light-theme [class*="bg-[#39FF14]/5"] input {
+  background-color: #ffffff !important;
+  color: #14532d !important;
+  border-color: #86efac !important;
+}
+
+body.light-theme [class*="bg-[#39FF14]/5"] select {
+  background-color: #ffffff !important;
+  color: #14532d !important;
+  border-color: #86efac !important;
+}
+
+/* Completed Exercise Card */
+body.light-theme [class*="bg-[#081112]"],
+body.light-theme .bg-\[\#081112\] {
+  background-color: #f0fdf4 !important;
+  color: #0f172a !important;
+  border-color: #86efac !important;
+  box-shadow: 0 10px 25px -5px rgba(22, 163, 74, 0.08) !important;
+}
+
+body.light-theme [class*="bg-[#081112]"] .text-white {
+  color: #0f172a !important;
+}
+
+body.light-theme [class*="bg-[#081112]"] .text-slate-400 {
+  color: #334155 !important;
+}
+
+/* Quick video guide link buttons inside video modal */
+body.light-theme .bg-red-600\/15 {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+}
+
+body.light-theme .bg-purple-600\/15 {
+  background-color: #faf5ff !important;
+  border-color: #d8b4fe !important;
+  color: #7c3aed !important;
 }
 
 /* Tables in Light Mode */
