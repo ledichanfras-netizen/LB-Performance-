@@ -137,6 +137,7 @@ export interface Athlete {
   goal?: string;
   weeklyFrequency?: number;
   isTournamentMode?: boolean;
+  anamnesis?: AnamnesisRecord[];
   assessments: {
     bioimpedance: Bioimpedance[];
     isometricStrength: IsometricStrength[];
@@ -442,3 +443,80 @@ export interface AsymmetryStatus {
   status: 'Aceitável' | 'Atenção' | 'Crítico';
   color: string;
 }
+
+export interface AnamnesisRecord {
+  id: string;
+  athleteId: string;
+  date: string;
+  
+  // Dados do Atleta (snapshot ou extras)
+  athleteName?: string;
+  dob?: string;
+  athleteAge?: number;
+  athleteGender?: 'M' | 'F';
+  phone?: string;
+  modality?: string;
+  categoryOrPosition?: string;
+  teamOrClub?: string;
+  competitiveLevel?: 'recreativo' | 'competitivo' | 'alto_rendimento';
+  emergencyContact?: string;
+  emergencyPhone?: string;
+
+  // 1. Triagem de Segurança Cardiovascular (PAR-Q+ / ACSM)
+  cardio: {
+    chestPainExercise: boolean;     // 1.1 Dor no peito em exercício
+    chestPainRest: boolean;         // 1.2 Dor no peito em repouso
+    dizzinessOrFainting: boolean;   // 1.3 Tonturas / desmaios
+    hypertensionOrArrhythmia: boolean; // 1.4 Pressão alta / arritmia / sopro
+    asthmaOrDyspnea: boolean;       // 1.5 Asma / bronquite / falta de ar
+    familySuddenDeath: boolean;     // 1.6 Morte súbita familiar < 50 anos
+    continuousMedication: boolean;  // 1.7 Medicamento contínuo
+    medicationDetails?: string;     // Qual(is) medicamento(s)
+  };
+
+  // 2. Histórico Ortopédico, Lesões Recentes e Dor Atual (FIFA Medical)
+  orthopedic: {
+    hasInjuryPast12Months: boolean; // 2.1 Teve lesão nos últimos 12 meses
+    injuryDetails?: {
+      ankleFoot?: { has: boolean; side?: 'Dir' | 'Esq' | 'Ambos'; type?: string };
+      knee?: { has: boolean; side?: 'Dir' | 'Esq' | 'Ambos'; type?: string };
+      thighHamstring?: { has: boolean; side?: 'Dir' | 'Esq' | 'Ambos'; type?: string };
+      hipPubis?: { has: boolean; side?: 'Dir' | 'Esq' | 'Ambos'; type?: string };
+      spine?: { has: boolean; region?: string };
+      shoulderUpperLimb?: { has: boolean; side?: 'Dir' | 'Esq' | 'Ambos'; type?: string };
+      otherNotes?: string;
+    };
+    hasSurgery: boolean;            // 2.2 Cirurgia ortopédica
+    surgeryDetails?: string;
+    hasCurrentPain: boolean;        // 2.3 Dor ou incômodo hoje
+    painLocation?: string;
+    painLevel: number;              // 0 a 10 (EVA)
+  };
+
+  // 3. Rotina de Treino, Sono e Recuperação
+  routine: {
+    weeklyTrainingDays: string;     // '1-2x' | '3-4x' | '5-6x' | 'todos'
+    sleepHours: string;             // '<6h' | '6-8h' | '>8h'
+    sleepQuality: string;           // 'ruim' | 'regular' | 'bom'
+    intenseTrainingPast24h: boolean; // Treinou forte nas últimas 24h
+    usesSupplements: boolean;       // Usa suplementos
+    supplementsDetails?: string;
+    waterIntake: string;            // '<1.5L' | '1.5-2.5L' | '>2.5L'
+  };
+
+  // 4. Objetivo Principal do Atleta / Aluno
+  mainGoal: 'performance' | 'prevencao' | 'saude' | 'retorno' | 'estetica' | string;
+  mainGoalOther?: string;
+
+  // 5. Declaração
+  declaredTruthful: boolean;
+  signatureName?: string;
+  signatureDate: string;
+
+  // Rodapé Técnico
+  technicalResponsible: {
+    name: string;
+    cred: string;
+  };
+}
+

@@ -41,6 +41,7 @@ import {
   InjuryEntry,
   ImtpAiDetails,
   MuscleAssessmentDetails,
+  AnamnesisRecord,
 } from "./types";
 import {
   calculateAge,
@@ -91,6 +92,7 @@ import { CompetitionsCalendarView } from "./components/CompetitionsCalendarView"
 import { ProfilePhotoOptionsModal } from "./components/ProfilePhotoOptionsModal";
 import { AiPerformanceChatModal } from "./components/AiPerformanceChatModal";
 import { PwaInstallBanner } from "./components/PwaInstallBanner";
+import { AnamnesisModal } from "./components/AnamnesisModal";
 import toast from "react-hot-toast";
 import { toJpeg } from "html-to-image";
 import ReactMarkdown from "react-markdown";
@@ -123,6 +125,7 @@ import {
   Dumbbell,
   ClipboardList,
   Sparkles,
+  AlertTriangle,
   Plus,
   Target,
   ArrowUp,
@@ -3589,6 +3592,7 @@ const EliteHubApp: FC<{
                         updateAssessment={updateAssessment}
                         addAssessment={addAssessment}
                         removeAssessment={removeAssessment}
+                        updateAthlete={updateAthlete}
                       />
                     )}
 
@@ -4357,18 +4361,7 @@ const EliteHubApp: FC<{
               )}
             </AnimatePresence>
 
-            {/* Floating Action Button for AI Performance Chat */}
-            <button
-              onClick={() => setIsAiChatOpen(true)}
-              className="fixed bottom-24 md:bottom-8 right-6 z-[1000] bg-brand-primary text-slate-950 hover:bg-lime-300 p-3.5 sm:p-4 rounded-full shadow-[0_10px_30px_rgba(204,255,0,0.45)] flex items-center gap-2.5 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-slate-950/30 group font-black"
-              title="Abrir Chat de Performance IA"
-            >
-              <Brain className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse text-slate-950" />
-              <span className="hidden sm:inline text-xs font-black uppercase tracking-wider pr-1 text-slate-950">Chat IA</span>
-              <span className="w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900 absolute -top-0.5 -right-0.5 shadow-md animate-ping" />
-              <span className="w-3 h-3 bg-emerald-400 rounded-full border-2 border-slate-900 absolute -top-0.5 -right-0.5 shadow-md" />
-            </button>
-
+            {/* AI Performance Chat Modal (Accessed via Tab) */}
             <AiPerformanceChatModal
               isOpen={isAiChatOpen}
               onClose={() => setIsAiChatOpen(false)}
@@ -15532,8 +15525,11 @@ const AssessmentView: FC<{
   updateAssessment?: (athleteId: string, type: AssessmentType, assessmentId: string, data: any) => Promise<any>;
   addAssessment?: (athleteId: string, type: AssessmentType, data: any) => Promise<any>;
   removeAssessment?: (athleteId: string, type: AssessmentType, assessmentId: string) => Promise<any>;
-}> = ({ athlete, onAdd, onEdit, onDelete, onGenerateAI, aiLoading, role, updateAssessment, addAssessment, removeAssessment }) => {
+  updateAthlete?: (athleteId: string, data: any) => Promise<any> | void;
+}> = ({ athlete, onAdd, onEdit, onDelete, onGenerateAI, aiLoading, role, updateAssessment, addAssessment, removeAssessment, updateAthlete }) => {
   const [filterType, setFilterType] = useState<AssessmentType>("bioimpedance");
+  const [showAnamnesisModal, setShowAnamnesisModal] = useState(false);
+  const latestAnamnesis = athlete.anamnesis && athlete.anamnesis.length > 0 ? athlete.anamnesis[0] : null;
   const [showBioReport, setShowBioReport] = useState<Bioimpedance | null>(null);
   const [showStrengthReport, setShowStrengthReport] =
     useState<IsometricStrength | null>(null);
@@ -15604,7 +15600,22 @@ const AssessmentView: FC<{
             </button>
           ))}
         </div>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex gap-2 w-full md:w-auto items-center">
+          <button
+            type="button"
+            onClick={() => setShowAnamnesisModal(true)}
+            className="flex-1 md:flex-none px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-[#39FF14]/50 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-wider text-slate-200 hover:text-[#39FF14] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm group"
+            title="Ficha de Anamnese Pré-Avaliação (PAR-Q+ e FIFA Medical) - Preenchimento digital e impressão A4"
+          >
+            <FileText className="w-4 h-4 text-[#39FF14] group-hover:scale-110 transition-transform" />
+            <span>Anamnese</span>
+            {athlete.anamnesis && athlete.anamnesis.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-[#39FF14]/20 text-[#39FF14] text-[9px] font-black border border-[#39FF14]/30">
+                {athlete.anamnesis.length}
+              </span>
+            )}
+          </button>
+
           {role === "coach" && (
             <Button
               onClick={() => onAdd(filterType)}
@@ -15616,6 +15627,33 @@ const AssessmentView: FC<{
           )}
         </div>
       </div>
+
+      {latestAnamnesis && (latestAnamnesis.orthopedic?.hasCurrentPain || Object.entries(latestAnamnesis.cardio || {}).some(([k, v]) => k !== "medicationDetails" && v === true)) && (
+        <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-amber-400 font-bold">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>
+              Alerta Clínico na Anamnese ({new Date(latestAnamnesis.date).toLocaleDateString("pt-BR")}):{" "}
+              {latestAnamnesis.orthopedic?.hasCurrentPain ? (
+                <span className="text-amber-300">
+                  Dor ativa relatada em <strong>{latestAnamnesis.orthopedic.painLocation || "região musculoesquelética"}</strong> (Nível {latestAnamnesis.orthopedic.painLevel}/10 na Escala EVA).
+                </span>
+              ) : (
+                <span className="text-amber-300">
+                  Fatores de atenção apontados na triagem cardiovascular PAR-Q+.
+                </span>
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAnamnesisModal(true)}
+            className="text-[10px] font-black uppercase text-amber-400 hover:text-amber-300 underline cursor-pointer"
+          >
+            Ver Anamnese
+          </button>
+        </div>
+      )}
 
       <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex items-start gap-4">
         <div className="w-8 h-8 bg-brand-primary rounded-full flex items-center justify-center shrink-0 text-white">
@@ -16091,6 +16129,29 @@ const AssessmentView: FC<{
           />
         )}
       </AnimatePresence>
+
+      {showAnamnesisModal && (
+        <AnamnesisModal
+          athlete={athlete}
+          isOpen={showAnamnesisModal}
+          onClose={() => setShowAnamnesisModal(false)}
+          role={role}
+          onSave={(newRecord) => {
+            const existing = athlete.anamnesis || [];
+            const updated = [newRecord, ...existing.filter((r) => r.id !== newRecord.id)];
+            if (updateAthlete) {
+              updateAthlete(athlete.id, { anamnesis: updated });
+            }
+          }}
+          onDeleteRecord={(recordId) => {
+            const existing = athlete.anamnesis || [];
+            const updated = existing.filter((r) => r.id !== recordId);
+            if (updateAthlete) {
+              updateAthlete(athlete.id, { anamnesis: updated });
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
