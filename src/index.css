@@ -912,6 +912,19 @@ html, body {
     page-break-after: avoid;
   }
 
+  .print-scale-wrapper {
+    width: 100% !important;
+    height: auto !important;
+    position: static !important;
+  }
+  
+  .print-scale-inner {
+    transform: none !important;
+    position: static !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+  }
+
   .report-page.anamnesis-sheet-page {
     padding: 10mm 12mm !important;
     height: 297mm !important;

@@ -257,7 +257,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
     <div
       className={`report-modal fixed inset-0 z-[1200] ${
         isPreview
-          ? "flex flex-col items-center justify-start bg-slate-950/95 backdrop-blur-xl overflow-y-auto overflow-x-hidden p-0 sm:p-4"
+          ? "flex flex-col items-center justify-start bg-slate-950/95 backdrop-blur-xl overflow-y-auto overflow-x-hidden p-2 sm:p-4"
           : "flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto"
       }`}
     >
@@ -275,39 +275,51 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
       {/* Screen Interactive Container (Hidden during @media print) */}
       <div className={`no-print ${isPreview ? "hidden" : "flex"} flex-col bg-[#0b101b] border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
         {/* Header */}
-        <div className="p-4 sm:p-6 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-4 bg-slate-900/40">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14]">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black text-white tracking-tight uppercase">
-                  Anamnese Pré-Avaliação
-                </h2>
-                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                  PAR-Q+ & FIFA Medical
-                </span>
+        <div className="p-3.5 sm:p-6 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/40">
+          <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14] shrink-0">
+                <FileText className="w-5 h-5" />
               </div>
-              <p className="text-xs text-slate-400 font-medium">
-                Atleta: <strong className="text-white">{athlete.name}</strong> • {athlete.modality || "Geral"}
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-sm sm:text-lg font-black text-white tracking-tight uppercase truncate">
+                    Anamnese Pré-Avaliação
+                  </h2>
+                  <span className="text-[8.5px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                    PAR-Q+ & FIFA
+                  </span>
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-400 font-medium truncate">
+                  Atleta: <strong className="text-white">{athlete.name}</strong> • {athlete.modality || "Geral"}
+                </p>
+              </div>
             </div>
+
+            {/* Mobile close button right on header row */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="sm:hidden w-8 h-8 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
+              title="Fechar modal"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Direct Print Shortcuts */}
+          {/* Action buttons: Responsive grid on mobile, inline on tablet/desktop */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => {
                 setSelectedRecordForView(null);
                 setActiveTab("preview_blank");
               }}
-              className="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-xl text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="flex-1 sm:flex-initial px-3 py-2 sm:py-2 bg-slate-900 hover:bg-slate-800 active:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-xl text-xs font-bold text-slate-200 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
               title="Gerar modelo em branco pronto para imprimir e preencher à caneta"
             >
-              <Printer className="w-3.5 h-3.5 text-slate-400" />
-              <span>Folha em Branco</span>
+              <Printer className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="whitespace-nowrap">Folha em Branco</span>
             </button>
 
             <button
@@ -316,17 +328,19 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                 setSelectedRecordForView(null);
                 setActiveTab("preview_filled");
               }}
-              className="px-3 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-[#39FF14]/50 rounded-xl text-xs font-bold text-slate-200 hover:text-[#39FF14] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              className="flex-1 sm:flex-initial px-3 py-2 sm:py-2 bg-slate-900 hover:bg-slate-800 active:bg-slate-700 border border-slate-700 hover:border-[#39FF14]/50 rounded-xl text-xs font-bold text-slate-200 hover:text-[#39FF14] transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
               title="Visualizar e imprimir com os dados preenchidos deste atleta"
             >
-              <Printer className="w-3.5 h-3.5 text-[#39FF14]" />
-              <span>Imprimir Ficha</span>
+              <Printer className="w-3.5 h-3.5 text-[#39FF14] shrink-0" />
+              <span className="whitespace-nowrap">Imprimir Ficha</span>
             </button>
 
+            {/* Desktop close button */}
             <button
               type="button"
               onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+              className="hidden sm:flex w-9 h-9 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white items-center justify-center transition-all cursor-pointer shrink-0"
+              title="Fechar"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1332,8 +1346,33 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
   const isBlank = !data;
   const sheetRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [zoomLevel, setZoomLevel] = useState<number>(0.95);
-  const [fitToWidth, setFitToWidth] = useState(false);
+  const [scale, setScale] = useState<number>(0.95);
+  const [isZoomedIn, setIsZoomedIn] = useState<boolean>(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+
+  // Responsive automatic scale calculation for tablet and mobile
+  useEffect(() => {
+    const computeScale = () => {
+      const w = window.innerWidth;
+      if (isZoomedIn) {
+        setScale(zoomLevel);
+        return;
+      }
+      // On mobile / tablet (< 860px), auto scale down so the entire 794px A4 sheet fits inside the screen width with breathing room!
+      if (w < 860) {
+        const padding = w < 640 ? 16 : 32;
+        const targetW = w - padding;
+        const autoFit = Math.min(1, Math.max(0.35, targetW / 794));
+        setScale(Math.round(autoFit * 100) / 100);
+      } else {
+        setScale(0.95);
+      }
+    };
+
+    computeScale();
+    window.addEventListener("resize", computeScale);
+    return () => window.removeEventListener("resize", computeScale);
+  }, [isZoomedIn, zoomLevel]);
 
   const handleDownloadJpeg = async () => {
     if (!sheetRef.current) return;
@@ -1360,141 +1399,146 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
     }
   };
 
-  const adjustZoom = (delta: number) => {
-    setFitToWidth(false);
-    setZoomLevel((prev) => {
-      const next = Math.round((prev + delta) * 100) / 100;
-      return Math.min(Math.max(next, 0.5), 1.3);
-    });
-  };
-
   return (
     <div className="w-full flex flex-col items-center">
-      {/* Sticky Top Toolbar (Screen Only) */}
-      <div className="no-print sticky top-0 z-50 w-full max-w-5xl mb-4 p-2.5 sm:p-3.5 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-2xl">
-        <div className="flex items-center gap-2.5">
+      {/* Sticky Top Toolbar (Screen Only) - Mobile, Tablet & Desktop Responsive */}
+      <div className="no-print sticky top-0 z-50 w-full max-w-5xl mb-3 sm:mb-4 p-2 sm:p-3.5 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl flex flex-col gap-2">
+        {/* Row 1: Back, Title/Badge, and Close */}
+        <div className="flex items-center justify-between gap-2 w-full">
           <button
             type="button"
             onClick={onBack}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
           </button>
 
-          <div className="hidden sm:block">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-white">
-                {isBlank ? "Modelo em Branco (A4)" : "Ficha Preenchida (A4)"}
-              </span>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#39FF14]/15 text-[#39FF14] border border-[#39FF14]/30 uppercase">
-                {athlete.name}
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400">
-              {isBlank ? "Pronto para imprimir e preencher à caneta" : "Dados clínicos e respostas registradas"}
-            </p>
+          <div className="flex items-center gap-1.5 min-w-0 text-center">
+            <span className="text-xs sm:text-xs font-black uppercase tracking-wider text-white truncate">
+              {isBlank ? "Folha em Branco (A4)" : "Ficha Preenchida (A4)"}
+            </span>
+            <span className="hidden sm:inline-block text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#39FF14]/15 text-[#39FF14] border border-[#39FF14]/30 uppercase truncate max-w-[140px]">
+              {athlete.name}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                title="Fechar"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
-        {/* View / Zoom Controls */}
-        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
-          <button
-            type="button"
-            onClick={() => adjustZoom(-0.1)}
-            disabled={fitToWidth || zoomLevel <= 0.55}
-            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer"
-            title="Reduzir Zoom (-)"
-          >
-            -
-          </button>
-
-          <span className="px-2 font-mono text-[11px] font-bold text-slate-300 min-w-[42px] text-center">
-            {fitToWidth ? "Ajust." : `${Math.round(zoomLevel * 100)}%`}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => adjustZoom(0.1)}
-            disabled={fitToWidth || zoomLevel >= 1.25}
-            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer"
-            title="Aumentar Zoom (+)"
-          >
-            +
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setFitToWidth((prev) => !prev);
-              if (!fitToWidth) setZoomLevel(1);
-            }}
-            className={`ml-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-              fitToWidth
-                ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="Ajustar à largura da tela para não precisar de rolagem horizontal"
-          >
-            <Maximize2 className="w-3 h-3" />
-            <span className="hidden md:inline">{fitToWidth ? "Ajustado" : "Ajustar à Tela"}</span>
-          </button>
-        </div>
-
-        {/* Primary Action Buttons: Download & Print */}
-        <div className="flex items-center gap-2">
+        {/* Row 2: Action Buttons (DOWNLOAD & PRINT) - ALWAYS VISIBLE, BIG TARGETS */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-end gap-2 w-full">
           <button
             type="button"
             onClick={handleDownloadJpeg}
             disabled={isExporting}
-            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-600/20 active:scale-95"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-600/25 active:scale-95"
             title="Baixar imagem em alta definição para guardar ou enviar via WhatsApp"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>{isExporting ? "Gerando..." : "Baixar Ficha"}</span>
+            <Download className="w-4 h-4 shrink-0" />
+            <span className="truncate">{isExporting ? "Gerando..." : "Baixar Ficha"}</span>
           </button>
 
           <button
             type="button"
             onClick={onPrint}
-            className="px-3.5 py-1.5 bg-[#39FF14] hover:bg-[#32e012] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#39FF14]/20 active:scale-95"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-[#39FF14] hover:bg-[#32e012] active:bg-[#28b80e] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[#39FF14]/25 active:scale-95"
             title="Imprimir ou Salvar como PDF via impressora do navegador"
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Imprimir / PDF</span>
+            <Printer className="w-4 h-4 shrink-0" />
+            <span className="truncate">Imprimir / PDF</span>
           </button>
+        </div>
 
-          {onClose && (
+        {/* Row 3: Zoom / Visualização controls */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80 text-xs">
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={onClose}
-              className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer ml-0.5"
-              title="Fechar"
+              onClick={() => {
+                setIsZoomedIn((prev) => !prev);
+                if (isZoomedIn) setZoomLevel(1);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                !isZoomedIn
+                  ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40"
+                  : "bg-slate-800 text-slate-300 hover:text-white"
+              }`}
             >
-              <X className="w-4 h-4" />
+              <Maximize2 className="w-3 h-3" />
+              <span>{!isZoomedIn ? "Página Inteira (Ajustada)" : "Ajustar à Tela"}</span>
             </button>
-          )}
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-950/80 p-0.5 rounded-lg border border-slate-800">
+            <button
+              type="button"
+              onClick={() => {
+                setIsZoomedIn(true);
+                setZoomLevel((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10));
+              }}
+              className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer"
+              title="Reduzir zoom"
+            >
+              -
+            </button>
+            <span className="px-1.5 font-mono text-[10px] font-bold text-slate-300 min-w-[36px] text-center">
+              {Math.round(scale * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsZoomedIn(true);
+                setZoomLevel((z) => Math.min(1.4, Math.round((z + 0.1) * 10) / 10));
+              }}
+              className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer"
+              title="Aumentar zoom"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Sheet Container with responsive scroll wrapper and zoom */}
-      <div className="w-full flex justify-center overflow-x-auto pb-4 pt-1 px-1">
+      {/* Sheet Container with responsive scroll wrapper and mathematical scaled box */}
+      <div className="w-full flex justify-center overflow-x-auto pb-24 sm:pb-8 pt-1 px-1 sm:px-2">
         <div
+          className="print-scale-wrapper relative flex justify-center items-start transition-all"
           style={{
-            transform: !fitToWidth && zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
-            transformOrigin: "top center",
-            marginBottom: !fitToWidth && zoomLevel < 1 ? `-${Math.round((1 - zoomLevel) * 1130)}px` : undefined,
+            width: `${Math.round(794 * scale)}px`,
+            height: `${Math.round(1123 * scale)}px`,
+            maxWidth: "100%",
           }}
-          className="transition-transform duration-150 flex justify-center"
         >
-          {/* The Actual A4 Printable Page */}
           <div
-            ref={sheetRef}
-            className={`report-page anamnesis-sheet-page bg-white text-slate-900 shadow-2xl p-5 sm:p-6 flex flex-col justify-between border border-slate-300 print:border-none print:shadow-none print:m-0 font-sans text-left box-border shrink-0 transition-all ${
-              fitToWidth ? "w-full max-w-[210mm]" : "w-[210mm]"
-            }`}
-            style={{ minHeight: "297mm", width: fitToWidth ? undefined : "210mm" }}
+            className="print-scale-inner"
+            style={{
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+              width: "794px",
+              minHeight: "1123px",
+              position: "absolute",
+              top: 0,
+              left: 0,
+            }}
           >
+            {/* The Actual A4 Printable Page */}
+            <div
+              ref={sheetRef}
+              className="report-page anamnesis-sheet-page bg-white text-slate-900 shadow-2xl p-5 sm:p-6 flex flex-col justify-between border border-slate-300 print:border-none print:shadow-none print:m-0 font-sans text-left box-border shrink-0"
+              style={{ width: "794px", minHeight: "1123px" }}
+            >
             <div>
               {/* Header */}
               <div className="flex items-center justify-between pb-2.5 border-b-2 border-slate-900">
@@ -1779,9 +1823,10 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Bottom Action Controls (Screen Only) */}
-      <div className="no-print w-full max-w-5xl mt-4 mb-10 flex flex-col sm:flex-row gap-3 px-2">
+      {/* Desktop Bottom Action Controls (Screen Only) */}
+      <div className="no-print w-full max-w-5xl mt-4 mb-10 hidden sm:flex flex-col sm:flex-row gap-3 px-2">
         <button
           type="button"
           onClick={handleDownloadJpeg}
@@ -1818,6 +1863,38 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
             Fechar
           </button>
         )}
+      </div>
+
+      {/* Mobile & Tablet Persistent Bottom Floating Bar (Screen Only - Always in View) */}
+      <div className="no-print fixed bottom-0 left-0 right-0 z-[1300] bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 p-2.5 sm:hidden flex items-center justify-between gap-2 shadow-2xl">
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-3.5 py-2.5 bg-slate-800 active:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shrink-0 active:scale-95"
+          title="Voltar"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Voltar</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDownloadJpeg}
+          disabled={isExporting}
+          className="flex-1 py-2.5 bg-emerald-600 active:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/30 active:scale-95 cursor-pointer"
+        >
+          <Download className="w-4 h-4 shrink-0" />
+          <span className="truncate">{isExporting ? "Gerando..." : "Baixar Ficha"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onPrint}
+          className="flex-1 py-2.5 bg-[#39FF14] active:bg-[#32e012] text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-[#39FF14]/30 active:scale-95 cursor-pointer"
+        >
+          <Printer className="w-4 h-4 shrink-0" />
+          <span className="truncate">Imprimir / PDF</span>
+        </button>
       </div>
     </div>
   );
