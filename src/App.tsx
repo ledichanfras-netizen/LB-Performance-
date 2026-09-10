@@ -66,6 +66,7 @@ import {
   getFatRangesByAgeAndGender,
   getSafeDateTime,
   getLocalDateString,
+  isBirthdayToday,
   formatCompetitiveLevel,
   calculateSleepHoursFromTimes,
   formatSleepHours,
@@ -145,7 +146,7 @@ import {
   Search,
   Pencil,
   HeartPulse,
-  Timer, Clock, Trophy, Camera, Upload,
+  Timer, Clock, Trophy, Camera, Upload, MessageCircle, Gift,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -759,6 +760,7 @@ const EliteHubApp: FC<{
       return {
         id: ath.id,
         name: ath.name,
+        dob: ath.dob,
         photoUrl: ath.photoUrl,
         esporte: ath.modality || "Geral",
         acute,
@@ -898,18 +900,20 @@ const EliteHubApp: FC<{
           athleteId: athlete.id,
         });
       }
+
+      // Birthday check for athlete
+      if (isBirthdayToday(athlete.dob, today)) {
+        list.push({
+          id: `bday-ath-${athlete.id}-${today}`,
+          text: `🎉 FELIZ ANIVERSÁRIO! A equipe LB Sports te deseja muitas conquistas e evolução máxima! 🎂`,
+          type: "success" as const,
+          athleteId: athlete.id,
+        });
+      }
     } else if (user.role === "coach") {
       athletes.forEach((a) => {
         // Birthday check
-        const isBirthdayToday = (dobString?: string) => {
-          if (!dobString) return false;
-          const dobParts = dobString.split("-");
-          if (dobParts.length < 3) return false;
-          const todayParts = today.split("-");
-          return dobParts[1] === todayParts[1] && dobParts[2] === todayParts[2];
-        };
-
-        if (isBirthdayToday(a.dob)) {
+        if (isBirthdayToday(a.dob, today)) {
           list.push({
             id: `bday-${a.id}-${today}`,
             text: `🎂 ANIVERSÁRIO HOJE: ${a.name.toUpperCase()}! Parabenize seu atleta!`,
@@ -2202,7 +2206,111 @@ const EliteHubApp: FC<{
                   <AthleteGuide role={user?.role} />
                 </div>
               ) : !selected && user.role === "coach" ? (
-                <div className="flex flex-col items-center px-4 max-w-7xl mx-auto">
+                <div className="flex flex-col items-center px-4 max-w-7xl mx-auto w-full">
+                  {/* Banner de Aniversariantes do Dia no Dashboard do Treinador */}
+                  {(() => {
+                    const birthdayAthletesToday = athletes.filter((a) => isBirthdayToday(a.dob));
+                    if (birthdayAthletesToday.length === 0) return null;
+
+                    return (
+                      <div className="w-full mb-8 relative overflow-hidden bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-[#39FF14]/15 border border-[#39FF14]/35 rounded-[2.2rem] p-6 sm:p-8 shadow-[0_15px_50px_rgba(57,255,20,0.08)] animate-fadeIn">
+                        {/* Elementos decorativos de festa */}
+                        <div className="absolute top-2 right-4 text-xs opacity-40 animate-bounce">✨</div>
+                        <div className="absolute bottom-3 left-6 text-xs opacity-40 animate-ping">🎉</div>
+                        <div className="absolute top-4 left-1/3 text-sm opacity-30">🎈</div>
+                        <div className="absolute bottom-2 right-1/4 text-sm opacity-30">🎂</div>
+
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10 border-b border-slate-800/80 pb-6 mb-6">
+                          <div className="flex items-center gap-4 sm:gap-5">
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#39FF14]/20 border border-[#39FF14]/40 flex items-center justify-center text-3xl sm:text-4xl shrink-0 shadow-xl relative">
+                              🎂
+                              <span className="absolute -top-1 -right-1 text-xs animate-pulse">🎉</span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                                  Hoje é Dia de Festa! 🥳
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 bg-slate-900/90 border border-slate-800 px-2.5 py-0.5 rounded-full">
+                                  {birthdayAthletesToday.length === 1 ? "1 Aniversariante Hoje" : `${birthdayAthletesToday.length} Aniversariantes Hoje`}
+                                </span>
+                              </div>
+                              <h3 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tight">
+                                {birthdayAthletesToday.length === 1 
+                                  ? `Aniversário de ${birthdayAthletesToday[0].name.split(" ")[0]}!`
+                                  : "Aniversariantes do Dia na Equipe!"}
+                              </h3>
+                              <p className="text-xs text-slate-300 font-medium max-w-xl leading-relaxed">
+                                Fortaleça a conexão e a motivação do time enviando felicitações personalizadas aos aniversariantes!
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cards dos Aniversariantes com Ações Rápidas */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+                          {birthdayAthletesToday.map((ath) => {
+                            const age = calculateAge(ath.dob);
+                            const cleanFirstName = ath.name.split(" ")[0];
+                            return (
+                              <div
+                                key={ath.id}
+                                className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-[#39FF14]/40 transition-all shadow-md group"
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="relative w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-amber-400/40 bg-slate-900 shadow-md">
+                                    <img
+                                      src={ath.photoUrl || `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%230f172a"/><text x="50" y="58" font-size="28" font-weight="bold" fill="%2339ff14" text-anchor="middle">${ath.name.charAt(0)}</text></svg>`}
+                                      alt={ath.name}
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <span className="absolute bottom-0 right-0 text-[10px] leading-none">🎂</span>
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="text-xs font-black text-white truncate group-hover:text-[#39FF14] transition-colors">
+                                      {ath.name}
+                                    </h4>
+                                    <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                                      {age > 0 ? `${age} anos hoje!` : "Aniversário hoje!"}
+                                    </p>
+                                    <span className="text-[9px] text-slate-500 truncate block">
+                                      {ath.modality || "Atleta"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const text = `Fala, ${cleanFirstName}! Passando aqui em nome da LB Sports para te desejar um feliz aniversário! Muito sucesso, saúde, evolução e que possamos continuar superando recordes e conquistando alta performance juntos! Tmj! 🚀🎂🎉`;
+                                      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                                      window.open(url, "_blank");
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer shadow-md shadow-emerald-500/20 hover:scale-105 active:scale-95"
+                                    title="Enviar Parabéns pelo WhatsApp"
+                                  >
+                                    <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                                    <span className="hidden sm:inline">WhatsApp</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedId(ath.id)}
+                                    className="px-2.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer hover:scale-105 active:scale-95"
+                                    title="Ver Perfil do Atleta"
+                                  >
+                                    Perfil
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Dashboard Stats / Overview */}
                   <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
                     {[
@@ -2457,9 +2565,16 @@ const EliteHubApp: FC<{
                                             />
                                           </div>
                                           <div>
-                                            <span className={ath.isSelected ? "text-xs font-black text-amber-450 block" : "text-xs font-black text-white hover:text-amber-550 block"}>
-                                              {ath.name}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className={ath.isSelected ? "text-xs font-black text-amber-450 block" : "text-xs font-black text-white hover:text-amber-550 block"}>
+                                                {ath.name}
+                                              </span>
+                                              {isBirthdayToday(ath.dob) && (
+                                                <span className="inline-flex items-center gap-1 text-[8.5px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full animate-pulse">
+                                                  🎂 Aniversariante Hoje
+                                                </span>
+                                              )}
+                                            </div>
                                             {ath.isSelected && (
                                               <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest mt-0.5 block animate-pulse">
                                                 Ativo no Painel
@@ -2571,44 +2686,65 @@ const EliteHubApp: FC<{
                       </button>
                     </div>
                   )}
+
+                  {/* Banner de Aniversário - Visível tanto para o Atleta quanto para o Treinador ao ver o perfil */}
+                  {isBirthdayToday(selected.dob) && (
+                    <div className="relative overflow-hidden bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-[#39FF14]/15 border border-[#39FF14]/35 rounded-[2rem] p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-[0_0_50px_rgba(57,255,20,0.08)] animate-fadeIn mb-6">
+                      {/* Animated background stars/confetti placeholders */}
+                      <div className="absolute top-2 right-4 text-xs opacity-40 animate-bounce">✨</div>
+                      <div className="absolute bottom-3 left-6 text-xs opacity-40 animate-ping">🎉</div>
+                      <div className="absolute top-6 left-1/3 text-sm opacity-30">🎈</div>
+                      <div className="absolute bottom-2 right-1/4 text-sm opacity-30">🎂</div>
+
+                      <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left flex-grow">
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#39FF14]/20 flex items-center justify-center border border-[#39FF14]/40 text-4xl shrink-0 shadow-2xl relative">
+                          🎂
+                          <span className="absolute -top-1 -right-1 text-xs animate-pulse">🎉</span>
+                        </div>
+                        <div className="space-y-2 flex-grow">
+                          <div className="flex items-center gap-2 justify-center md:justify-start flex-wrap">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full">
+                              Hoje é Aniversário! 🥳
+                            </span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 bg-slate-900/90 border border-slate-800 px-2.5 py-0.5 rounded-full">
+                              {calculateAge(selected.dob)} ANOS
+                            </span>
+                          </div>
+                          <h2 className="text-lg md:text-2xl font-black text-[#39FF14] uppercase tracking-wider italic">
+                            {user.role === "athlete"
+                              ? `Feliz Aniversário, ${selected.name.split(" ")[0]}! 🥳🎈`
+                              : `Hoje é o Aniversário de ${selected.name}! 🥳🎈`}
+                          </h2>
+                          <p className="text-xs text-slate-200 leading-relaxed max-w-2xl font-medium">
+                            {user.role === "athlete"
+                              ? "Toda a equipe LB Sports te deseja parabéns! Que este novo ciclo seja de muita saúde, consistência nos treinos, recordes superados e uma evolução esportiva de nível elite! Vamos juntos conquistar novos patamares. 🚀💪"
+                              : `O atleta completa ${calculateAge(selected.dob)} anos hoje! Fortaleça o vínculo e a motivação do atleta enviando suas felicitações personalizadas.`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {user.role === "coach" && (
+                        <div className="flex items-center gap-3 shrink-0 w-full md:w-auto justify-center md:justify-end z-10">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cleanName = selected.name.split(" ")[0];
+                              const text = `Fala, ${cleanName}! Passando aqui em nome da LB Sports para te desejar um feliz aniversário! Muito sucesso, saúde, evolução e que possamos continuar superando recordes e conquistando alta performance juntos! Tmj! 🚀🎂🎉`;
+                              const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+                              window.open(url, "_blank");
+                            }}
+                            className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+                          >
+                            <MessageCircle className="w-4 h-4 fill-current" />
+                            <span>Parabenizar no WhatsApp</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {user.role === "athlete" ? (
                     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-top-6 duration-550 mb-6">
-                      {(() => {
-                        const isBirthdayToday = (dobString?: string) => {
-                          if (!dobString) return false;
-                          const dobParts = dobString.split("-");
-                          if (dobParts.length < 3) return false;
-                          const todayParts = getLocalDateString().split("-");
-                          return dobParts[1] === todayParts[1] && dobParts[2] === todayParts[2];
-                        };
-                        
-                        if (isBirthdayToday(selected.dob)) {
-                          return (
-                            <div className="relative overflow-hidden bg-gradient-to-r from-pink-500/15 via-purple-500/15 to-brand-primary/15 border border-brand-primary/30 rounded-[2rem] p-6 md:p-8 flex flex-col md:flex-row items-center gap-6 shadow-[0_0_50px_rgba(57,255,20,0.06)] animate-fadeIn">
-                              {/* Animated background stars/confetti placeholders */}
-                              <div className="absolute top-2 right-4 text-xs opacity-40 animate-bounce">✨</div>
-                              <div className="absolute bottom-3 left-6 text-xs opacity-40 animate-ping">🎉</div>
-                              <div className="absolute top-6 left-1/3 text-sm opacity-30">🎈</div>
-                              <div className="absolute bottom-2 right-1/4 text-sm opacity-30">🎂</div>
-
-                              <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-brand-primary/20 flex items-center justify-center border border-brand-primary/40 text-4xl shrink-0 shadow-2xl relative">
-                                🎂
-                                <span className="absolute -top-1 -right-1 text-xs">🎉</span>
-                              </div>
-                              <div className="text-center md:text-left space-y-2 flex-grow">
-                                <h2 className="text-lg md:text-xl font-black text-brand-primary uppercase tracking-wider italic">
-                                  Feliz Aniversário, {selected.name.split(" ")[0]}! 🥳🎈
-                                </h2>
-                                <p className="text-xs text-slate-200 leading-relaxed max-w-2xl font-medium">
-                                  Toda a equipe <strong>LB Sports</strong> te deseja parabéns! Que este novo ciclo seja de muita saúde, consistência nos treinos, recordes superados e uma evolução esportiva de nível elite! Vamos juntos conquistar novos patamares. 🚀💪
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex items-center gap-4">
                           <button
@@ -4306,7 +4442,18 @@ const EliteHubApp: FC<{
                               </div>
 
                               <div className="flex items-center justify-between">
-                                {n.id.startsWith("bday-") ? (
+                                {n.id.startsWith("bday-ath-") ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveTab("dash");
+                                      setShowNotifications(false);
+                                    }}
+                                    className="text-[9px] font-black text-amber-400 uppercase tracking-widest hover:brightness-125 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-all border border-amber-500/30 flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <span>VER MENSAGEM 🎂</span>
+                                  </button>
+                                ) : n.id.startsWith("bday-") ? (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

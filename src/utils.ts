@@ -703,6 +703,33 @@ export const getLocalDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+export const isBirthdayToday = (dobString?: string, todayStr?: string): boolean => {
+  if (!dobString) return false;
+  const currentToday = todayStr || getLocalDateString();
+  const cleanDob = dobString.includes("T") ? dobString.split("T")[0] : dobString.trim();
+  const todayParts = currentToday.split("-");
+  if (todayParts.length < 3) return false;
+  const currentMonth = parseInt(todayParts[1], 10);
+  const currentDay = parseInt(todayParts[2], 10);
+
+  if (cleanDob.includes("-")) {
+    const parts = cleanDob.split("-");
+    if (parts.length >= 3) {
+      const birthMonth = parseInt(parts[1], 10);
+      const birthDay = parseInt(parts[2], 10);
+      return birthMonth === currentMonth && birthDay === currentDay;
+    }
+  } else if (cleanDob.includes("/")) {
+    const parts = cleanDob.split("/");
+    if (parts.length >= 3) {
+      const birthDay = parseInt(parts[0], 10);
+      const birthMonth = parseInt(parts[1], 10);
+      return birthMonth === currentMonth && birthDay === currentDay;
+    }
+  }
+  return false;
+};
+
 export const formatCompetitiveLevel = (level?: string, modality?: string): string => {
   const l = (level || "").toLowerCase();
   const isFutebol = (modality || "").toLowerCase().includes("futebol") || (modality || "").toLowerCase().includes("soccer");
