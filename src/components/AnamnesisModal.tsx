@@ -1,4 +1,4 @@
-import React, { useState, FC, useEffect } from "react";
+import React, { useState, FC, useEffect, useRef } from "react";
 import {
   X,
   Printer,
@@ -16,7 +16,13 @@ import {
   User,
   Sparkles,
   HelpCircle,
+  Download,
+  ArrowLeft,
+  Maximize2,
+  Eye,
 } from "lucide-react";
+import { toJpeg } from "html-to-image";
+import toast from "react-hot-toast";
 import { Athlete, AnamnesisRecord } from "../types";
 
 interface AnamnesisModalProps {
@@ -144,6 +150,32 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
   if (!isOpen) return null;
 
   const handlePrint = () => {
+    const isIframe = window.self !== window.top;
+    if (isIframe) {
+      toast(
+        (t) => (
+          <div className="space-y-1 text-xs text-left">
+            <p className="font-bold text-amber-400 flex items-center gap-1.5">
+              <span>💡 Dica para Impressão / PDF:</span>
+            </p>
+            <p className="text-slate-300 leading-relaxed">
+              Caso o navegador bloqueie a janela de impressão no visualizador, você pode usar o botão <strong>"Baixar Ficha"</strong> para baixar o arquivo imediatamente, ou abrir o aplicativo em uma nova aba!
+            </p>
+          </div>
+        ),
+        {
+          duration: 9000,
+          position: "top-center",
+          style: {
+            background: "#0b1329",
+            color: "#ffffff",
+            border: "1px solid #38bdf8",
+            borderRadius: "14px",
+            padding: "12px 16px",
+          },
+        }
+      );
+    }
     window.print();
   };
 
@@ -219,20 +251,29 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
     ([k, v]) => k !== "medicationDetails" && v === true
   ).length;
 
+  const isPreview = activeTab === "preview_blank" || activeTab === "preview_filled";
+
   return (
-    <div className="report-modal fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
+    <div
+      className={`report-modal fixed inset-0 z-[1200] ${
+        isPreview
+          ? "flex flex-col items-center justify-start bg-slate-950/95 backdrop-blur-xl overflow-y-auto overflow-x-hidden p-0 sm:p-4"
+          : "flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto"
+      }`}
+    >
       {/* Printable Sheet View (Hidden on screen unless preview active, visible in @media print) */}
-      <div className={`print-container ${activeTab === "preview_blank" || activeTab === "preview_filled" ? "block" : "hidden print:block"} w-full max-w-4xl`}>
+      <div className={`print-container ${isPreview ? "w-full flex flex-col items-center" : "hidden print:block"}`}>
         <PrintableAnamnesisSheet
           data={activeTab === "preview_blank" ? null : (selectedRecordForView || (formData as AnamnesisRecord))}
           athlete={athlete}
           onBack={() => setActiveTab("form")}
           onPrint={handlePrint}
+          onClose={onClose}
         />
       </div>
 
       {/* Screen Interactive Container (Hidden during @media print) */}
-      <div className={`no-print ${activeTab === "preview_blank" || activeTab === "preview_filled" ? "hidden" : "flex"} flex-col bg-[#0b101b] border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
+      <div className={`no-print ${isPreview ? "hidden" : "flex"} flex-col bg-[#0b101b] border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
         {/* Header */}
         <div className="p-4 sm:p-6 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-4 bg-slate-900/40">
           <div className="flex items-center gap-3">
@@ -1278,6 +1319,7 @@ interface PrintableAnamnesisSheetProps {
   athlete: Athlete;
   onBack: () => void;
   onPrint: () => void;
+  onClose?: () => void;
 }
 
 export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
@@ -1285,321 +1327,497 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
   athlete,
   onBack,
   onPrint,
+  onClose,
 }) => {
   const isBlank = !data;
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(0.95);
+  const [fitToWidth, setFitToWidth] = useState(false);
+
+  const handleDownloadJpeg = async () => {
+    if (!sheetRef.current) return;
+    setIsExporting(true);
+    const toastId = toast.loading("Gerando imagem de alta definição da ficha...");
+    try {
+      const dataUrl = await toJpeg(sheetRef.current, {
+        quality: 0.95,
+        backgroundColor: "#ffffff",
+        pixelRatio: 2,
+      });
+      const link = document.createElement("a");
+      const athleteSlug = (data?.athleteName || athlete.name).toLowerCase().replace(/\s+/g, "-");
+      const dateStr = (data?.date || new Date().toISOString().split("T")[0]).replace(/-/g, "");
+      link.download = `anamnese-${athleteSlug}-${isBlank ? "folha-em-branco" : "ficha-preenchida"}-${dateStr}.jpg`;
+      link.href = dataUrl;
+      link.click();
+      toast.success("Download da ficha concluído com sucesso!", { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error("Não foi possível gerar a imagem da ficha.", { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const adjustZoom = (delta: number) => {
+    setFitToWidth(false);
+    setZoomLevel((prev) => {
+      const next = Math.round((prev + delta) * 100) / 100;
+      return Math.min(Math.max(next, 0.5), 1.3);
+    });
+  };
 
   return (
-    <div className="flex flex-col items-center">
-      {/* Print Controls (Screen Only) */}
-      <div className="no-print w-full max-w-[210mm] mb-4 p-3 bg-slate-900 border border-slate-800 rounded-2xl flex items-center justify-between shadow-xl">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
-        >
-          ← Voltar para Edição
-        </button>
+    <div className="w-full flex flex-col items-center">
+      {/* Sticky Top Toolbar (Screen Only) */}
+      <div className="no-print sticky top-0 z-50 w-full max-w-5xl mb-4 p-2.5 sm:p-3.5 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-2xl">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Voltar</span>
+          </button>
 
-        <div className="text-center">
-          <span className="text-xs font-black uppercase tracking-wider text-white">
-            {isBlank ? "Visualização: Modelo em Branco (A4)" : "Visualização: Ficha Preenchida (A4)"}
-          </span>
-          <p className="text-[10px] text-slate-400">Pressione Imprimir para gerar o PDF ou enviar à impressora</p>
+          <div className="hidden sm:block">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-white">
+                {isBlank ? "Modelo em Branco (A4)" : "Ficha Preenchida (A4)"}
+              </span>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#39FF14]/15 text-[#39FF14] border border-[#39FF14]/30 uppercase">
+                {athlete.name}
+              </span>
+            </div>
+            <p className="text-[10px] text-slate-400">
+              {isBlank ? "Pronto para imprimir e preencher à caneta" : "Dados clínicos e respostas registradas"}
+            </p>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onPrint}
-          className="px-4 py-1.5 bg-[#39FF14] hover:bg-[#32e012] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#39FF14]/20"
-        >
-          <Printer className="w-4 h-4" />
-          Imprimir Agora
-        </button>
+        {/* View / Zoom Controls */}
+        <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
+          <button
+            type="button"
+            onClick={() => adjustZoom(-0.1)}
+            disabled={fitToWidth || zoomLevel <= 0.55}
+            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer"
+            title="Reduzir Zoom (-)"
+          >
+            -
+          </button>
+
+          <span className="px-2 font-mono text-[11px] font-bold text-slate-300 min-w-[42px] text-center">
+            {fitToWidth ? "Ajust." : `${Math.round(zoomLevel * 100)}%`}
+          </span>
+
+          <button
+            type="button"
+            onClick={() => adjustZoom(0.1)}
+            disabled={fitToWidth || zoomLevel >= 1.25}
+            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 flex items-center justify-center font-bold text-xs cursor-pointer"
+            title="Aumentar Zoom (+)"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setFitToWidth((prev) => !prev);
+              if (!fitToWidth) setZoomLevel(1);
+            }}
+            className={`ml-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              fitToWidth
+                ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+            title="Ajustar à largura da tela para não precisar de rolagem horizontal"
+          >
+            <Maximize2 className="w-3 h-3" />
+            <span className="hidden md:inline">{fitToWidth ? "Ajustado" : "Ajustar à Tela"}</span>
+          </button>
+        </div>
+
+        {/* Primary Action Buttons: Download & Print */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadJpeg}
+            disabled={isExporting}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-600/20 active:scale-95"
+            title="Baixar imagem em alta definição para guardar ou enviar via WhatsApp"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{isExporting ? "Gerando..." : "Baixar Ficha"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onPrint}
+            className="px-3.5 py-1.5 bg-[#39FF14] hover:bg-[#32e012] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#39FF14]/20 active:scale-95"
+            title="Imprimir ou Salvar como PDF via impressora do navegador"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Imprimir / PDF</span>
+          </button>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer ml-0.5"
+              title="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* The Actual A4 Printable Page */}
-      <div className="report-page bg-white text-slate-900 shadow-2xl w-[210mm] min-h-[297mm] p-6 sm:p-8 flex flex-col justify-between border border-slate-200 print:border-none print:shadow-none print:p-6 print:m-0 font-sans text-left box-border">
-        <div>
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b-2 border-slate-900">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-slate-950 rounded-xl flex items-center justify-center p-1.5 border border-slate-800">
-                <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB Sports" />
-              </div>
-              <div>
-                <h1 className="text-sm font-black uppercase tracking-wider text-slate-950 leading-tight">
-                  LB SPORTS • CENTRO DE PERFORMANCE E AVALIAÇÃO FÍSICA
-                </h1>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-600">
-                  FICHA DE ANAMNESE E TRIAGEM PRÉ-AVALIAÇÃO
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="text-[9px] font-black uppercase px-2 py-0.5 border border-slate-900 rounded bg-slate-100 text-slate-900">
-                PAR-Q+ • FIFA MED
-              </span>
-              <p className="text-[8px] font-bold text-slate-500 uppercase mt-0.5">
-                Data: {isBlank ? "____/____/202___" : (data?.date ? new Date(data.date).toLocaleDateString("pt-BR") : "____/____/202___")}
-              </p>
-            </div>
-          </div>
-
-          {/* Dados do Aluno / Atleta */}
-          <div className="mt-3 p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-[10px] space-y-1.5">
-            <div className="flex justify-between items-center font-black uppercase text-slate-800 text-[9px] border-b border-slate-200 pb-1">
-              <span>IDENTIFICAÇÃO DO ALUNO / ATLETA</span>
-              <span>{isBlank ? "NÍVEL: [ ] RECREATIVO  [ ] COMPETITIVO  [ ] ALTO RENDIMENTO" : `NÍVEL: ${(data?.competitiveLevel || "Competitivo").toUpperCase()}`}</span>
-            </div>
-            <div className="grid grid-cols-12 gap-x-2 gap-y-1 text-[10px]">
-              <div className="col-span-8">
-                <strong>Nome:</strong> {isBlank ? "________________________________________________________________" : data?.athleteName || athlete.name}
-              </div>
-              <div className="col-span-4">
-                <strong>Nasc:</strong> {isBlank ? "____/____/________" : (data?.dob ? new Date(data.dob).toLocaleDateString("pt-BR") : "____/____/________")} ({isBlank ? "____ anos" : `${data?.athleteAge || 0} anos`})
-              </div>
-
-              <div className="col-span-4">
-                <strong>Sexo:</strong> {isBlank ? "( ) M  ( ) F" : (data?.athleteGender === "F" ? "Feminino" : "Masculino")}
-              </div>
-              <div className="col-span-4">
-                <strong>Telefone:</strong> {isBlank ? "(___) _______________" : data?.phone || "(___) _______________"}
-              </div>
-              <div className="col-span-4">
-                <strong>Esporte:</strong> {isBlank ? "____________________" : data?.modality || athlete.modality || "Geral"}
-              </div>
-
-              <div className="col-span-6">
-                <strong>Posição / Categoria:</strong> {isBlank ? "___________________________" : data?.categoryOrPosition || "—"}
-              </div>
-              <div className="col-span-6">
-                <strong>Contato Emergência:</strong> {isBlank ? "___________________________" : data?.emergencyContact ? `${data.emergencyContact} ${data.emergencyPhone || ""}` : "___________________________"}
-              </div>
-            </div>
-          </div>
-
-          {/* 1. Triagem de Segurança Cardiovascular */}
-          <div className="mt-3">
-            <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider flex justify-between">
-              <span>1. TRIAGEM DE SEGURANÇA CARDIOVASCULAR (Protocolo PAR-Q+ & ACSM)</span>
-              <span>SIM &nbsp;&nbsp;&nbsp; NÃO</span>
-            </div>
-            <div className="divide-y divide-slate-200 text-[9.5px] border border-slate-200 rounded-b-lg">
-              {[
-                { id: "1.1", text: "Sente dor, pressão ou aperto no peito durante a prática de exercícios?", val: data?.cardio?.chestPainExercise },
-                { id: "1.2", text: "Sente dor ou desconforto no peito quando está em repouso?", val: data?.cardio?.chestPainRest },
-                { id: "1.3", text: "Teve tonturas, sensação de desmaio ou perda de equilíbrio nos últimos 12 meses?", val: data?.cardio?.dizzinessOrFainting },
-                { id: "1.4", text: "Possui diagnóstico médico de pressão alta, arritmia cardíaca ou sopro?", val: data?.cardio?.hypertensionOrArrhythmia },
-                { id: "1.5", text: "Possui histórico de asma, bronquite ou falta de ar intensa sem causa óbvia?", val: data?.cardio?.asthmaOrDyspnea },
-                { id: "1.6", text: "Algum familiar direto (pais, irmãos) faleceu subitamente de coração antes dos 50 anos?", val: data?.cardio?.familySuddenDeath },
-                { id: "1.7", text: "Faz uso diário de algum medicamento de uso contínuo?", val: data?.cardio?.continuousMedication },
-              ].map((q) => (
-                <div key={q.id} className="py-1 px-2 flex justify-between items-center">
-                  <span className="leading-tight">
-                    <strong>{q.id}.</strong> {q.text}
-                  </span>
-                  <div className="flex gap-4 font-mono font-bold shrink-0 ml-2">
-                    <span>{isBlank ? "[  ]" : q.val ? "[ X ]" : "[  ]"}</span>
-                    <span>{isBlank ? "[  ]" : !q.val ? "[ X ]" : "[  ]"}</span>
+      {/* Sheet Container with responsive scroll wrapper and zoom */}
+      <div className="w-full flex justify-center overflow-x-auto pb-4 pt-1 px-1">
+        <div
+          style={{
+            transform: !fitToWidth && zoomLevel !== 1 ? `scale(${zoomLevel})` : undefined,
+            transformOrigin: "top center",
+            marginBottom: !fitToWidth && zoomLevel < 1 ? `-${Math.round((1 - zoomLevel) * 1130)}px` : undefined,
+          }}
+          className="transition-transform duration-150 flex justify-center"
+        >
+          {/* The Actual A4 Printable Page */}
+          <div
+            ref={sheetRef}
+            className={`report-page anamnesis-sheet-page bg-white text-slate-900 shadow-2xl p-5 sm:p-6 flex flex-col justify-between border border-slate-300 print:border-none print:shadow-none print:m-0 font-sans text-left box-border shrink-0 transition-all ${
+              fitToWidth ? "w-full max-w-[210mm]" : "w-[210mm]"
+            }`}
+            style={{ minHeight: "297mm", width: fitToWidth ? undefined : "210mm" }}
+          >
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2.5 border-b-2 border-slate-900">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 bg-slate-950 rounded-xl flex items-center justify-center p-1.5 border border-slate-800">
+                    <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB Sports" />
+                  </div>
+                  <div>
+                    <h1 className="text-sm font-black uppercase tracking-wider text-slate-950 leading-tight">
+                      LB SPORTS • CENTRO DE PERFORMANCE E AVALIAÇÃO FÍSICA
+                    </h1>
+                    <p className="text-[9.5px] font-extrabold uppercase tracking-widest text-slate-600">
+                      FICHA DE ANAMNESE E TRIAGEM PRÉ-AVALIAÇÃO
+                    </p>
                   </div>
                 </div>
-              ))}
-              <div className="py-1 px-2 text-[9px] bg-slate-50">
-                <strong>Medicamento contínuo (se houver):</strong>{" "}
-                {isBlank ? "________________________________________________________________________________" : data?.cardio?.medicationDetails || "Nenhum"}
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Histórico Ortopédico, Lesões e Dor Atual */}
-          <div className="mt-3">
-            <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider flex justify-between">
-              <span>2. HISTÓRICO ORTOPÉDICO, LESÕES RECENTES E DOR ATUAL (Base FIFA Medical)</span>
-            </div>
-            <div className="border border-slate-200 rounded-b-lg p-2 text-[9.5px] space-y-1.5">
-              <div className="flex justify-between items-center">
-                <span>
-                  <strong>2.1. Sofreu lesão osteomuscular nos últimos 12 meses?</strong>
-                </span>
-                <span className="font-mono font-bold">
-                  {isBlank ? "( ) NÃO   ( ) SIM" : data?.orthopedic?.hasInjuryPast12Months ? "( ) NÃO   ( X ) SIM" : "( X ) NÃO   ( ) SIM"}
-                </span>
-              </div>
-              <div className="text-[9px] bg-slate-50 p-1.5 rounded border border-slate-100 flex flex-wrap gap-x-4 gap-y-1">
-                {[
-                  { key: "ankleFoot", label: "Tornozelo/Pé" },
-                  { key: "knee", label: "Joelho" },
-                  { key: "thighHamstring", label: "Coxa/Posterior" },
-                  { key: "hipPubis", label: "Quadril/Púbis" },
-                  { key: "spine", label: "Coluna" },
-                  { key: "shoulderUpperLimb", label: "Ombro/MMSS" },
-                ].map((r) => {
-                  const marked = !isBlank && !!(data?.orthopedic?.injuryDetails as any)?.[r.key]?.has;
-                  return (
-                    <span key={r.key}>
-                      [{marked ? "X" : " "}] {r.label}
-                    </span>
-                  );
-                })}
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span>
-                  <strong>2.2. Já realizou alguma cirurgia ortopédica?</strong> {isBlank ? "( ) NÃO  ( ) SIM. Qual/Ano: __________________________" : data?.orthopedic?.hasSurgery ? `(X) SIM: ${data.orthopedic.surgeryDetails || "Não especificado"}` : "(X) NÃO"}
-                </span>
-              </div>
-
-              <div className="pt-1 border-t border-slate-200">
-                <div className="flex justify-between items-center">
-                  <span>
-                    <strong>2.3. Sente dor ou incômodo no corpo HOJE?</strong> {isBlank ? "( ) NÃO  ( ) SIM" : data?.orthopedic?.hasCurrentPain ? "(X) SIM" : "(X) NÃO"}
+                <div className="text-right">
+                  <span className="text-[8.5px] font-black uppercase px-2 py-0.5 border border-slate-900 rounded bg-slate-100 text-slate-900">
+                    PAR-Q+ • FIFA MED
                   </span>
-                  <span>
-                    <strong>Local:</strong> {isBlank ? "________________________" : data?.orthopedic?.painLocation || "Livre de dor"}
-                  </span>
+                  <p className="text-[8px] font-bold text-slate-500 uppercase mt-0.5">
+                    Data: {isBlank ? "____/____/202___" : (data?.date ? new Date(data.date).toLocaleDateString("pt-BR") : "____/____/202___")}
+                  </p>
                 </div>
-                <div className="mt-1 flex items-center justify-between text-[9px] bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                  <span className="font-bold">Escala EVA (0 a 10):</span>
-                  <div className="flex gap-1 font-mono font-bold text-[9px]">
-                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
-                      const active = !isBlank && data?.orthopedic?.hasCurrentPain && data?.orthopedic?.painLevel === n;
+              </div>
+
+              {/* Dados do Aluno / Atleta */}
+              <div className="mt-2.5 p-2 bg-slate-50 border border-slate-300 rounded-lg text-[9.5px] space-y-1">
+                <div className="flex justify-between items-center font-black uppercase text-slate-800 text-[8.5px] border-b border-slate-200 pb-0.5">
+                  <span>IDENTIFICAÇÃO DO ALUNO / ATLETA</span>
+                  <span>{isBlank ? "NÍVEL: [ ] RECREATIVO  [ ] COMPETITIVO  [ ] ALTO RENDIMENTO" : `NÍVEL: ${(data?.competitiveLevel || "Competitivo").toUpperCase()}`}</span>
+                </div>
+                <div className="grid grid-cols-12 gap-x-2 gap-y-1 text-[9.5px]">
+                  <div className="col-span-8">
+                    <strong>Nome:</strong> {isBlank ? "________________________________________________________________" : data?.athleteName || athlete.name}
+                  </div>
+                  <div className="col-span-4">
+                    <strong>Nasc:</strong> {isBlank ? "____/____/________" : (data?.dob ? new Date(data.dob).toLocaleDateString("pt-BR") : "____/____/________")} ({isBlank ? "____ anos" : `${data?.athleteAge || 0} anos`})
+                  </div>
+
+                  <div className="col-span-4">
+                    <strong>Sexo:</strong> {isBlank ? "( ) M  ( ) F" : (data?.athleteGender === "F" ? "Feminino" : "Masculino")}
+                  </div>
+                  <div className="col-span-4">
+                    <strong>Telefone:</strong> {isBlank ? "(___) _______________" : data?.phone || "(___) _______________"}
+                  </div>
+                  <div className="col-span-4">
+                    <strong>Esporte:</strong> {isBlank ? "____________________" : data?.modality || athlete.modality || "Geral"}
+                  </div>
+
+                  <div className="col-span-6">
+                    <strong>Posição / Categoria:</strong> {isBlank ? "___________________________" : data?.categoryOrPosition || "—"}
+                  </div>
+                  <div className="col-span-6">
+                    <strong>Contato Emergência:</strong> {isBlank ? "___________________________" : data?.emergencyContact ? `${data.emergencyContact} ${data.emergencyPhone || ""}` : "___________________________"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 1. Triagem de Segurança Cardiovascular */}
+              <div className="mt-2.5">
+                <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider flex justify-between">
+                  <span>1. TRIAGEM DE SEGURANÇA CARDIOVASCULAR (Protocolo PAR-Q+ & ACSM)</span>
+                  <span>SIM &nbsp;&nbsp;&nbsp; NÃO</span>
+                </div>
+                <div className="divide-y divide-slate-200 text-[9px] border border-slate-200 rounded-b-lg">
+                  {[
+                    { id: "1.1", text: "Sente dor, pressão ou aperto no peito durante a prática de exercícios?", val: data?.cardio?.chestPainExercise },
+                    { id: "1.2", text: "Sente dor ou desconforto no peito quando está em repouso?", val: data?.cardio?.chestPainRest },
+                    { id: "1.3", text: "Teve tonturas, sensação de desmaio ou perda de equilíbrio nos últimos 12 meses?", val: data?.cardio?.dizzinessOrFainting },
+                    { id: "1.4", text: "Possui diagnóstico médico de pressão alta, arritmia cardíaca ou sopro?", val: data?.cardio?.hypertensionOrArrhythmia },
+                    { id: "1.5", text: "Possui histórico de asma, bronquite ou falta de ar intensa sem causa óbvia?", val: data?.cardio?.asthmaOrDyspnea },
+                    { id: "1.6", text: "Algum familiar direto (pais, irmãos) faleceu subitamente de coração antes dos 50 anos?", val: data?.cardio?.familySuddenDeath },
+                    { id: "1.7", text: "Faz uso diário de algum medicamento de uso contínuo?", val: data?.cardio?.continuousMedication },
+                  ].map((q) => (
+                    <div key={q.id} className="py-0.5 px-2 flex justify-between items-center">
+                      <span className="leading-tight">
+                        <strong>{q.id}.</strong> {q.text}
+                      </span>
+                      <div className="flex gap-4 font-mono font-bold shrink-0 ml-2">
+                        <span>{isBlank ? "[  ]" : q.val ? "[ X ]" : "[  ]"}</span>
+                        <span>{isBlank ? "[  ]" : !q.val ? "[ X ]" : "[  ]"}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="py-0.5 px-2 text-[8.5px] bg-slate-50">
+                    <strong>Medicamento contínuo (se houver):</strong>{" "}
+                    {isBlank ? "________________________________________________________________________________" : data?.cardio?.medicationDetails || "Nenhum"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Histórico Ortopédico, Lesões e Dor Atual */}
+              <div className="mt-2.5">
+                <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider flex justify-between">
+                  <span>2. HISTÓRICO ORTOPÉDICO, LESÕES RECENTES E DOR ATUAL (Base FIFA Medical)</span>
+                </div>
+                <div className="border border-slate-200 rounded-b-lg p-2 text-[9px] space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <strong>2.1. Sofreu lesão osteomuscular nos últimos 12 meses?</strong>
+                    </span>
+                    <span className="font-mono font-bold">
+                      {isBlank ? "( ) NÃO   ( ) SIM" : data?.orthopedic?.hasInjuryPast12Months ? "( ) NÃO   ( X ) SIM" : "( X ) NÃO   ( ) SIM"}
+                    </span>
+                  </div>
+                  <div className="text-[8.5px] bg-slate-50 p-1 rounded border border-slate-100 flex flex-wrap gap-x-4 gap-y-0.5">
+                    {[
+                      { key: "ankleFoot", label: "Tornozelo/Pé" },
+                      { key: "knee", label: "Joelho" },
+                      { key: "thighHamstring", label: "Coxa/Posterior" },
+                      { key: "hipPubis", label: "Quadril/Púbis" },
+                      { key: "spine", label: "Coluna" },
+                      { key: "shoulderUpperLimb", label: "Ombro/MMSS" },
+                    ].map((r) => {
+                      const marked = !isBlank && !!(data?.orthopedic?.injuryDetails as any)?.[r.key]?.has;
                       return (
-                        <span
-                          key={n}
-                          className={`px-1 rounded ${active ? "bg-slate-900 text-white font-black" : "text-slate-700"}`}
-                        >
-                          {n}
+                        <span key={r.key}>
+                          [{marked ? "X" : " "}] {r.label}
                         </span>
                       );
                     })}
                   </div>
-                  <span className="text-[8px] text-slate-500 uppercase">(0 = Sem dor | 10 = Extrema)</span>
+
+                  <div className="flex justify-between items-center">
+                    <span>
+                      <strong>2.2. Já realizou alguma cirurgia ortopédica?</strong> {isBlank ? "( ) NÃO  ( ) SIM. Qual/Ano: __________________________" : data?.orthopedic?.hasSurgery ? `(X) SIM: ${data.orthopedic.surgeryDetails || "Não especificado"}` : "(X) NÃO"}
+                    </span>
+                  </div>
+
+                  <div className="pt-0.5 border-t border-slate-200">
+                    <div className="flex justify-between items-center">
+                      <span>
+                        <strong>2.3. Sente dor ou incômodo no corpo HOJE?</strong> {isBlank ? "( ) NÃO  ( ) SIM" : data?.orthopedic?.hasCurrentPain ? "(X) SIM" : "(X) NÃO"}
+                      </span>
+                      <span>
+                        <strong>Local:</strong> {isBlank ? "________________________" : data?.orthopedic?.painLocation || "Livre de dor"}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 flex items-center justify-between text-[8.5px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                      <span className="font-bold">Escala EVA (0 a 10):</span>
+                      <div className="flex gap-1 font-mono font-bold text-[8.5px]">
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
+                          const active = !isBlank && data?.orthopedic?.hasCurrentPain && data?.orthopedic?.painLevel === n;
+                          return (
+                            <span
+                              key={n}
+                              className={`px-1 rounded ${active ? "bg-slate-900 text-white font-black" : "text-slate-700"}`}
+                            >
+                              {n}
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <span className="text-[7.5px] text-slate-500 uppercase">(0 = Sem dor | 10 = Extrema)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Rotina de Treino, Sono e Recuperação */}
+              <div className="mt-2.5">
+                <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider">
+                  3. ROTINA DE TREINO, SONO E RECUPERAÇÃO
+                </div>
+                <div className="border border-slate-200 rounded-b-lg p-2 text-[9px] grid grid-cols-3 gap-1.5">
+                  <div>
+                    <strong>Treinos semanais:</strong>
+                    <p className="text-[8.5px] text-slate-700 mt-0.5">
+                      {isBlank ? "[ ] 1-2x  [ ] 3-4x  [ ] 5-6x  [ ] Todos" : data?.routine?.weeklyTrainingDays || "3-4x"}
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Média de sono/noite:</strong>
+                    <p className="text-[8.5px] text-slate-700 mt-0.5">
+                      {isBlank ? "[ ] < 6h  [ ] 6h a 8h  [ ] > 8h" : data?.routine?.sleepHours || "6-8h"}
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Qualidade do sono:</strong>
+                    <p className="text-[8.5px] text-slate-700 mt-0.5">
+                      {isBlank ? "[ ] Ruim  [ ] Regular  [ ] Bom" : (data?.routine?.sleepQuality || "Bom").toUpperCase()}
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Treino intenso últimas 24h?</strong>
+                    <p className="text-[8.5px] text-slate-700 mt-0.5">
+                      {isBlank ? "[ ] NÃO   [ ] SIM" : data?.routine?.intenseTrainingPast24h ? "[X] SIM" : "[X] NÃO"}
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Usa suplementos?</strong>
+                    <p className="text-[8.5px] text-slate-700 mt-0.5">
+                      {isBlank ? "[ ] NÃO   [ ] SIM" : data?.routine?.usesSupplements ? `[X] SIM (${data.routine.supplementsDetails || "Sim"})` : "[X] NÃO"}
+                    </p>
+                  </div>
+                  <div>
+                    <strong>Consumo diário de água:</strong>
+                    <p className="text-[8.5px] text-slate-700 mt-0.5">
+                      {isBlank ? "[ ] < 1,5L  [ ] 1,5L-2,5L  [ ] > 2,5L" : data?.routine?.waterIntake || "1,5-2,5L"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Objetivo Principal do Aluno / Atleta */}
+              <div className="mt-2.5">
+                <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[8.5px] font-black uppercase tracking-wider">
+                  4. OBJETIVO PRINCIPAL DO ALUNO / ATLETA
+                </div>
+                <div className="border border-slate-200 rounded-b-lg p-2 text-[9px] grid grid-cols-2 gap-x-4 gap-y-1">
+                  {[
+                    { id: "performance", label: "⚡ Melhorar Performance e Rendimento Esportivo" },
+                    { id: "prevencao", label: "🛡️ Prevenção de Lesões e Longevidade Física" },
+                    { id: "saude", label: "🌿 Saúde, Bem-Estar e Qualidade de Vida" },
+                    { id: "retorno", label: "🔄 Retorno Seguro ao Esporte (Pós-Lesão)" },
+                    { id: "estetica", label: "⚖️ Estética e Composição Corporal" },
+                  ].map((g) => {
+                    const checked = !isBlank && data?.mainGoal === g.id;
+                    return (
+                      <div key={g.id} className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold">[{checked ? "X" : " "}]</span>
+                        <span>{g.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 5. Declaração de Veracidade e Ciência */}
+              <div className="mt-2.5 p-2 border border-slate-300 rounded-lg text-[8.5px] space-y-1.5 bg-slate-50">
+                <p className="text-slate-700 leading-snug">
+                  <strong>Declaração de Ciência e Veracidade:</strong> Declaro que todas as informações prestadas nesta
+                  anamnese são verdadeiras e completas, não tendo omitido nenhum sintoma, dor ou diagnóstico prévio. Estou
+                  ciente de que as avaliações físicas exigem esforço motor voluntário e que os dados aqui coletados servirão de
+                  base científica para o planejamento do meu treinamento na LB Sports.
+                </p>
+                <div className="flex justify-between items-end pt-2">
+                  <div className="w-2/3 border-b border-slate-900 pb-0.5">
+                    <p className="text-[7.5px] font-black uppercase text-slate-500">Assinatura do Atleta / Aluno (ou Responsável se menor):</p>
+                    <p className="text-[9.5px] font-bold text-slate-900">
+                      {isBlank ? "" : data?.signatureName || athlete.name}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[7.5px] font-black uppercase text-slate-500">Data:</p>
+                    <p className="text-[9.5px] font-bold text-slate-900">
+                      {isBlank ? "_____ / _____ / 202___" : (data?.signatureDate ? new Date(data.signatureDate).toLocaleDateString("pt-BR") : "_____ / _____ / 202___")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Official Standard Evaluation Footer */}
+            <div className="mt-3 pt-2.5 border-t-2 border-slate-900 flex justify-between items-center bg-white shrink-0 text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center p-1 border border-slate-800 shrink-0">
+                  <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB" />
+                </div>
+                <div>
+                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.25em] leading-none mb-1">
+                    Responsável Técnico
+                  </p>
+                  <p className="text-[9.5px] font-black text-slate-900 uppercase italic leading-none">
+                    {DEFAULT_TECHNICAL_RESPONSIBLE.name} ({DEFAULT_TECHNICAL_RESPONSIBLE.cred})
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none mb-1">
+                  Página 1 de 1
+                </p>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-[#39FF14] rounded-full"></span>
+                  <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                    LB HUB v3.0 • ELITE PERFORMANCE
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* 3. Rotina de Treino, Sono e Recuperação */}
-          <div className="mt-3">
-            <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
-              3. ROTINA DE TREINO, SONO E RECUPERAÇÃO
-            </div>
-            <div className="border border-slate-200 rounded-b-lg p-2 text-[9.5px] grid grid-cols-3 gap-2">
-              <div>
-                <strong>Treinos semanais:</strong>
-                <p className="text-[9px] text-slate-700 mt-0.5">
-                  {isBlank ? "[ ] 1-2x  [ ] 3-4x  [ ] 5-6x  [ ] Todos" : data?.routine?.weeklyTrainingDays || "3-4x"}
-                </p>
-              </div>
-              <div>
-                <strong>Média de sono/noite:</strong>
-                <p className="text-[9px] text-slate-700 mt-0.5">
-                  {isBlank ? "[ ] < 6h  [ ] 6h a 8h  [ ] > 8h" : data?.routine?.sleepHours || "6-8h"}
-                </p>
-              </div>
-              <div>
-                <strong>Qualidade do sono:</strong>
-                <p className="text-[9px] text-slate-700 mt-0.5">
-                  {isBlank ? "[ ] Ruim  [ ] Regular  [ ] Bom" : (data?.routine?.sleepQuality || "Bom").toUpperCase()}
-                </p>
-              </div>
-              <div>
-                <strong>Treino intenso últimas 24h?</strong>
-                <p className="text-[9px] text-slate-700 mt-0.5">
-                  {isBlank ? "[ ] NÃO   [ ] SIM" : data?.routine?.intenseTrainingPast24h ? "[X] SIM" : "[X] NÃO"}
-                </p>
-              </div>
-              <div>
-                <strong>Usa suplementos?</strong>
-                <p className="text-[9px] text-slate-700 mt-0.5">
-                  {isBlank ? "[ ] NÃO   [ ] SIM" : data?.routine?.usesSupplements ? `[X] SIM (${data.routine.supplementsDetails || "Sim"})` : "[X] NÃO"}
-                </p>
-              </div>
-              <div>
-                <strong>Consumo diário de água:</strong>
-                <p className="text-[9px] text-slate-700 mt-0.5">
-                  {isBlank ? "[ ] < 1,5L  [ ] 1,5L-2,5L  [ ] > 2,5L" : data?.routine?.waterIntake || "1,5-2,5L"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Objetivo Principal do Aluno / Atleta */}
-          <div className="mt-3">
-            <div className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider">
-              4. OBJETIVO PRINCIPAL DO ALUNO / ATLETA
-            </div>
-            <div className="border border-slate-200 rounded-b-lg p-2 text-[9.5px] grid grid-cols-2 gap-x-4 gap-y-1">
-              {[
-                { id: "performance", label: "⚡ Melhorar Performance e Rendimento Esportivo" },
-                { id: "prevencao", label: "🛡️ Prevenção de Lesões e Longevidade Física" },
-                { id: "saude", label: "🌿 Saúde, Bem-Estar e Qualidade de Vida" },
-                { id: "retorno", label: "🔄 Retorno Seguro ao Esporte (Pós-Lesão)" },
-                { id: "estetica", label: "⚖️ Estética e Composição Corporal" },
-              ].map((g) => {
-                const checked = !isBlank && data?.mainGoal === g.id;
-                return (
-                  <div key={g.id} className="flex items-center gap-1.5">
-                    <span className="font-mono font-bold">[{checked ? "X" : " "}]</span>
-                    <span>{g.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 5. Declaração de Veracidade e Ciência */}
-          <div className="mt-3 p-2.5 border border-slate-300 rounded-lg text-[9px] space-y-2 bg-slate-50">
-            <p className="text-slate-700 leading-snug">
-              <strong>Declaração de Ciência e Veracidade:</strong> Declaro que todas as informações prestadas nesta
-              anamnese são verdadeiras e completas, não tendo omitido nenhum sintoma, dor ou diagnóstico prévio. Estou
-              ciente de que as avaliações físicas exigem esforço motor voluntário e que os dados aqui coletados servirão de
-              base científica para o planejamento do meu treinamento na LB Sports.
-            </p>
-            <div className="flex justify-between items-end pt-3">
-              <div className="w-2/3 border-b border-slate-900 pb-0.5">
-                <p className="text-[8px] font-black uppercase text-slate-500">Assinatura do Atleta / Aluno (ou Responsável se menor):</p>
-                <p className="text-[10px] font-bold text-slate-900">
-                  {isBlank ? "" : data?.signatureName || athlete.name}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-[8px] font-black uppercase text-slate-500">Data:</p>
-                <p className="text-[10px] font-bold text-slate-900">
-                  {isBlank ? "_____ / _____ / 202___" : (data?.signatureDate ? new Date(data.signatureDate).toLocaleDateString("pt-BR") : "_____ / _____ / 202___")}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
 
-        {/* Official Standard Evaluation Footer */}
-        <div className="mt-4 pt-3 border-t-2 border-slate-900 flex justify-between items-center bg-white shrink-0 text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center p-1 border border-slate-800 shrink-0">
-              <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB" />
-            </div>
-            <div>
-              <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em] leading-none mb-1">
-                Responsável Técnico
-              </p>
-              <p className="text-[10px] font-black text-slate-900 uppercase italic leading-none">
-                {DEFAULT_TECHNICAL_RESPONSIBLE.name} ({DEFAULT_TECHNICAL_RESPONSIBLE.cred})
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none mb-1">
-              Página 1 de 1
-            </p>
-            <div className="flex items-center justify-end gap-1.5">
-              <span className="w-1.5 h-1.5 bg-[#39FF14] rounded-full"></span>
-              <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                LB HUB v3.0 • ELITE PERFORMANCE
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Bottom Action Controls (Screen Only) */}
+      <div className="no-print w-full max-w-5xl mt-4 mb-10 flex flex-col sm:flex-row gap-3 px-2">
+        <button
+          type="button"
+          onClick={handleDownloadJpeg}
+          disabled={isExporting}
+          className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-3.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 transition-all cursor-pointer active:scale-95"
+        >
+          <Download className="w-4 h-4" />
+          <span>{isExporting ? "Gerando..." : "Baixar Imagem (JPEG)"}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onPrint}
+          className="flex-1 flex items-center justify-center gap-2 bg-[#39FF14] hover:bg-[#32e012] text-slate-950 py-3.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-[#39FF14]/20 transition-all cursor-pointer active:scale-95"
+        >
+          <Printer className="w-4 h-4" />
+          <span>Imprimir / Salvar como PDF</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onBack}
+          className="px-6 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+        >
+          Voltar para Edição
+        </button>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+          >
+            Fechar
+          </button>
+        )}
       </div>
     </div>
   );

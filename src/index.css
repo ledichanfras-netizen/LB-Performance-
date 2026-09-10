@@ -912,6 +912,13 @@ html, body {
     page-break-after: avoid;
   }
 
+  .report-page.anamnesis-sheet-page {
+    padding: 10mm 12mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+  }
+
   /* Hide everything else when printing a report */
   aside, nav, .fixed:not(.report-modal), .modal-backdrop { display: none !important; }
   
