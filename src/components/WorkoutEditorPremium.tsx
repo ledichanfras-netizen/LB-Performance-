@@ -6,11 +6,11 @@ import {
   X, ChevronRight, Grid, HelpCircle, Info, Brain, 
   Cpu, Sliders, Layers, Award, ShieldAlert, CheckCircle2,
   TrendingUp, RefreshCw, Eye, BookOpen, Target, Save, Bookmark, Video, Play, Image as ImageIcon,
-  Edit3
+  Edit3, ArrowLeftRight, Repeat
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
-import { Workout, PrescribedExercise } from "../types";
+import { Workout, PrescribedExercise, AdvancedExecutionMethod } from "../types";
 import { ENRICHED_LIBRARY, EnrichedExercise, getBiomechanicalDetails, BiomechanicalDetails } from "../data/exercises";
 import { searchExercisesWithAi, prescribeWorkoutWithAi } from "../services/aiPerformanceService";
 import { ExerciseEditorModal } from "./ExerciseEditorModal";
@@ -346,6 +346,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [activeMobileTab, setActiveMobileTab] = useState<"library" | "workout">("workout");
   const [selectedDetailsExercise, setSelectedDetailsExercise] = useState<EnrichedExercise | null>(null);
   const [customExerciseName, setCustomExerciseName] = useState("");
+
+  // Swap / Replace Exercise State (Troca de Exercício pela Biblioteca)
+  const [exerciseToSwap, setExerciseToSwap] = useState<PrescribedExercise | null>(null);
+  const [swapSearchQuery, setSwapSearchQuery] = useState("");
+  const [swapCategoryFilter, setSwapCategoryFilter] = useState("TODOS");
   
   // Collapse & Expand States for spacious layout optimization
   const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(() => !edited.name);
@@ -677,7 +682,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     setEdited({ ...edited, exercises: reindexed });
   };
 
-  const addExFromLib = (libEx: EnrichedExercise) => {
+  const addExFromLib = (
+    libEx: EnrichedExercise,
+    method: AdvancedExecutionMethod = "standard",
+    complexTag?: string
+  ) => {
     const current = edited.exercises || [];
     const prescribedSets = libEx.defaultSets && Number(libEx.defaultSets) > 0 ? Number(libEx.defaultSets) : 3;
     const repsType: 'reps' | 'time' = libEx.defaultRepsType || (
@@ -686,30 +695,196 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         ? "time"
         : "reps"
     );
-    const repVal = repsType === "time"
+    let repVal = repsType === "time"
       ? (libEx.defaultExecutionTime || libEx.defaultReps || "30s")
       : (libEx.defaultReps || "10");
+
+    let weightVal = libEx.defaultWeight || "BW";
+    let restVal = libEx.recommendedRest || "90s";
+    let blockTagVal = complexTag;
+    let blockRoleVal: string | undefined = undefined;
+    let intraSetVal: number | undefined = undefined;
+    let blockRestVal: string | undefined = undefined;
+    let clusterRepsVal: string | undefined = undefined;
+    let setsVal = prescribedSets;
+
+    if (method === "complex_contrast") {
+      // Intelligently determine blockTag if not provided
+      if (!blockTagVal) {
+        const lastEx = current.length > 0 ? current[current.length - 1] : null;
+        if (lastEx && lastEx.executionMethod === "complex_contrast" && lastEx.blockTag) {
+          const pt = lastEx.blockTag;
+          if (pt.endsWith("A")) blockTagVal = pt.replace("A", "B");
+          else if (pt.endsWith("B")) blockTagVal = pt.replace("B", "C");
+          else if (pt.endsWith("C")) blockTagVal = pt.replace("C", "D");
+          else {
+            const round = (parseInt(pt.charAt(0)) || 1) + 1;
+            blockTagVal = `${round}A`;
+          }
+        } else {
+          const existing = current.filter(e => e.executionMethod === "complex_contrast").length;
+          const round = Math.floor(existing / 4) + 1;
+          const mod = existing % 4;
+          const letters = ["A", "B", "C", "D"];
+          blockTagVal = `${round}${letters[mod] || "A"}`;
+        }
+      }
+
+      setsVal = 3;
+      if (blockTagVal.endsWith("A")) {
+        blockRoleVal = "1A: Carga Pesada (PAP 80-85% 1RM)";
+        weightVal = "85% 1RM";
+        repVal = "3";
+        restVal = "20s";
+      } else if (blockTagVal.endsWith("B")) {
+        blockRoleVal = "1B: Pliometria com Sobrecarga (Salto)";
+        weightVal = "BW";
+        repVal = "4";
+        restVal = "20s";
+      } else if (blockTagVal.endsWith("C")) {
+        blockRoleVal = "1C: Velocidade Balística (30% 1RM)";
+        weightVal = "30% 1RM";
+        repVal = "4";
+        restVal = "20s";
+      } else if (blockTagVal.endsWith("D")) {
+        blockRoleVal = "1D: Pliometria Reativa (RSI / Drop Jump)";
+        weightVal = "BW";
+        repVal = "4";
+        restVal = "3m30s";
+      }
+      intraSetVal = 20;
+      blockRestVal = "3m30s";
+    } else if (method === "cluster") {
+      clusterRepsVal = "2+2+2";
+      repVal = "2+2+2";
+      intraSetVal = 20;
+      restVal = "2m30s";
+      weightVal = "85% 1RM";
+    } else if (method === "rest_pause") {
+      repVal = "8 + 3 + 2";
+      intraSetVal = 15;
+      restVal = "2min";
+      weightVal = "RPE 9";
+    }
 
     const newEx: PrescribedExercise = {
       id: `ex-lib-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       name: libEx.name,
       muscleGroup: libEx.muscleGroup,
-      sets: prescribedSets,
+      sets: setsVal,
       reps: repVal,
-      weight: libEx.defaultWeight || "BW",
+      weight: weightVal,
       repsType: repsType,
-      rest: libEx.recommendedRest || "90s",
-      notes: `Foco: ${libEx.physicalQuality || 'Geral'} | RPE Alvo: ${libEx.recommendedRpe || '8'}`,
+      rest: restVal,
+      notes: method === "complex_contrast" 
+        ? `Estágio ${blockTagVal}: ${blockRoleVal}` 
+        : `Foco: ${libEx.physicalQuality || 'Geral'} | RPE Alvo: ${libEx.recommendedRpe || '8'}`,
       videoUrl: libEx.videoUrl || "",
       imageUrl: libEx.imageUrl || "",
+      executionMethod: method,
+      blockTag: blockTagVal,
+      blockRole: blockRoleVal,
+      intraSetRest: intraSetVal,
+      blockRest: blockRestVal,
+      clusterReps: clusterRepsVal,
       order_index: current.length
     };
 
     const reindexed = [...current, newEx].map((ex, i) => ({ ...ex, order_index: i }));
-    setEdited({ ...edited, exercises: reindexed });
+    setEdited(prev => ({ ...prev, exercises: reindexed }));
     setExpandedExerciseId(newEx.id); // auto-expand newly added exercise
     setRecentAdds(prev => [libEx.id, ...prev.slice(0, 4)]);
-    toast.success(`Prescrito: ${libEx.name} (${prescribedSets}x ${repVal})`);
+
+    if (method === "complex_contrast") {
+      toast.success(`🇫🇷 Adicionado ao Contraste Francês: ${libEx.name} (${blockTagVal})!`, { duration: 3500, icon: "🇫🇷" });
+    } else if (method === "cluster") {
+      toast.success(`🎯 Adicionado como Cluster Set: ${libEx.name}!`, { duration: 3500, icon: "🎯" });
+    } else if (method === "rest_pause") {
+      toast.success(`🔥 Adicionado como Rest-Pause: ${libEx.name}!`, { duration: 3500, icon: "🔥" });
+    } else {
+      toast.success(`Prescrito: ${libEx.name} (${setsVal}x ${repVal})`);
+    }
+  };
+
+  // TROCAR EXERCÍCIO EXISTENTE POR OUTRO DA BIBLIOTECA (PRESERVANDO ESTRUTURA, BLOCO E ESTÁGIO)
+  const swapExerciseWithLibrary = (currentExId: string, libEx: EnrichedExercise) => {
+    const current = edited.exercises || [];
+    const targetIndex = current.findIndex(e => e.id === currentExId);
+    if (targetIndex === -1) return;
+
+    const oldEx = current[targetIndex];
+
+    // Detectar se o novo exercício é isométrico ou tem tempo de contração padrão (ex: Meio Agachamento Isométrico IMTP)
+    const isIsometric = (libEx.name || "").toLowerCase().includes("isométrico") || 
+                        (libEx.name || "").toLowerCase().includes("isometric") ||
+                        (libEx.subcategory || "").toLowerCase().includes("isometria") ||
+                        (libEx.tags || []).some(t => t.toLowerCase().includes("imtp") || t.toLowerCase().includes("isometria")) ||
+                        libEx.defaultRepsType === "time";
+
+    let repsVal = oldEx.reps;
+    let repsTypeVal: 'reps' | 'time' = oldEx.repsType || "reps";
+    let weightVal = oldEx.weight;
+    let restVal = oldEx.rest;
+
+    if (isIsometric) {
+      repsVal = libEx.defaultExecutionTime || libEx.defaultReps || "5s";
+      repsTypeVal = "time";
+      // Se for estágio 1A do Contraste Francês, carga padrão de esforço máximo isométrico (MVC)
+      if (oldEx.executionMethod === "complex_contrast" && (oldEx.blockTag || "").endsWith("A")) {
+        weightVal = libEx.defaultWeight || "100% MVC";
+      }
+    } else {
+      // Se era time e o novo é repetições normais dinâmicas
+      if (oldEx.repsType === "time" && !isIsometric) {
+        repsVal = libEx.defaultReps || "4";
+        repsTypeVal = "reps";
+      }
+    }
+
+    let notesVal = oldEx.notes || "";
+    if (oldEx.executionMethod === "complex_contrast") {
+      notesVal = `Estágio ${oldEx.blockTag || "1A"}: ${oldEx.blockRole || "PAP / Contraste"} • ${libEx.name}`;
+    } else if (!notesVal || notesVal.includes("Foco:") || notesVal.includes("RPE")) {
+      notesVal = `Foco: ${libEx.physicalQuality || 'Geral'} | RPE Alvo: ${libEx.recommendedRpe || '8-10'}`;
+    }
+
+    const updatedEx: PrescribedExercise = {
+      ...oldEx,
+      name: libEx.name,
+      muscleGroup: libEx.muscleGroup,
+      videoUrl: libEx.videoUrl || "",
+      imageUrl: libEx.imageUrl || "",
+      notes: notesVal,
+      reps: repsVal,
+      repsType: repsTypeVal,
+      weight: weightVal,
+      rest: restVal,
+    };
+
+    const newExercises = [...current];
+    newExercises[targetIndex] = updatedEx;
+
+    setEdited(prev => ({
+      ...prev,
+      exercises: newExercises
+    }));
+
+    setExpandedExerciseId(updatedEx.id);
+    setExerciseToSwap(null);
+    setSwapSearchQuery("");
+
+    const methodTag = oldEx.executionMethod === "complex_contrast"
+      ? ` (mantido Estágio ${oldEx.blockTag || "1A"} • Contraste Francês 🇫🇷)`
+      : oldEx.executionMethod === "cluster"
+      ? " (mantido Cluster Set 🎯)"
+      : oldEx.executionMethod === "rest_pause"
+      ? " (mantido Rest-Pause 🔥)"
+      : "";
+
+    toast.success(
+      `Exercício trocado: "${oldEx.name}" ➔ "${libEx.name}"${methodTag}!`,
+      { duration: 4500, icon: "🔄" }
+    );
   };
 
   const addCustomEx = () => {
@@ -815,10 +990,26 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   };
 
 
+  const updateExFields = (id: string, updates: Partial<PrescribedExercise>) => {
+    setEdited(prev => ({
+      ...prev,
+      exercises: (prev.exercises || []).map((ex, i) => {
+        if (ex.id === id) {
+          const updated = { ...ex, ...updates, order_index: i };
+          if (updates.repsType === "time") {
+            updated.repsType = "time";
+          }
+          return updated;
+        }
+        return { ...ex, order_index: i };
+      }),
+    }));
+  };
+
   const updateExField = (id: string, field: keyof PrescribedExercise, value: any) => {
-    setEdited({
-      ...edited,
-      exercises: (edited.exercises || []).map((ex, i) => {
+    setEdited(prev => ({
+      ...prev,
+      exercises: (prev.exercises || []).map((ex, i) => {
         if (ex.id === id) {
           const updated = { ...ex, [field]: value, order_index: i };
           if (field === "repsType" && value === "time") {
@@ -828,7 +1019,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         }
         return { ...ex, order_index: i };
       }),
-    });
+    }));
   };
 
   const duplicateBlock = (ex: PrescribedExercise) => {
@@ -863,6 +1054,198 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: reindexed
     });
     toast.success(`Duplicado! Total de ${edited.exercises.length} novos exercícios adicionados.`);
+  };
+
+  // MÉTODOS AVANÇADOS DE FORÇA & POTÊNCIA (S&C DE ELITE)
+  // Adiciona um Bloco de Contraste Francês Completo (4 Estágios: 1A, 1B, 1C, 1D)
+  const addFrenchContrastBlock = () => {
+    const groupId = `complex_fct_${Date.now()}`;
+    const existingComplexCount = (edited.exercises || []).filter(e => e.executionMethod === "complex_contrast").length;
+    const roundNumber = Math.floor(existingComplexCount / 4) + 1;
+    
+    const blockExs: PrescribedExercise[] = [
+      {
+        id: `ex-fct-1a-${Date.now()}-1`,
+        name: "Agachamento Livre (Back Squat)",
+        muscleGroup: "Membros Inferiores",
+        sets: 3,
+        reps: "3",
+        weight: "85% 1RM",
+        rest: "20s",
+        notes: "Estágio 1A: Carga Pesada (Potenciação Pós-Ativação - PAPE). Movimento com máxima intenção concêntrica.",
+        executionMethod: "complex_contrast",
+        blockGroupId: groupId,
+        blockTag: `${roundNumber}A`,
+        blockType: "french_contrast",
+        blockRole: "1A: Carga Pesada (PAP 80-85% 1RM)",
+        intraSetRest: 20,
+        blockRest: "3m30s"
+      },
+      {
+        id: `ex-fct-1b-${Date.now()}-2`,
+        name: "Hurdle Jumps / Saltos sobre Barreiras",
+        muscleGroup: "Potência / Pliometria",
+        sets: 3,
+        reps: "4",
+        weight: "BW",
+        rest: "20s",
+        notes: "Estágio 1B: Pliometria com Sobrecarga / Esforço Máximo. Mínimo tempo de contato com o solo.",
+        executionMethod: "complex_contrast",
+        blockGroupId: groupId,
+        blockTag: `${roundNumber}B`,
+        blockType: "french_contrast",
+        blockRole: "1B: Pliometria com Sobrecarga (Salto)",
+        intraSetRest: 20,
+        blockRest: "3m30s"
+      },
+      {
+        id: `ex-fct-1c-${Date.now()}-3`,
+        name: "Trap Bar Jump Squat (ou Halteres)",
+        muscleGroup: "Potência Balística",
+        sets: 3,
+        reps: "4",
+        weight: "30% 1RM",
+        rest: "20s",
+        notes: "Estágio 1C: Velocidade Balística com Carga Leve. Acelerar através de toda a amplitude.",
+        executionMethod: "complex_contrast",
+        blockGroupId: groupId,
+        blockTag: `${roundNumber}C`,
+        blockType: "french_contrast",
+        blockRole: "1C: Velocidade Balística (30% 1RM)",
+        intraSetRest: 20,
+        blockRest: "3m30s"
+      },
+      {
+        id: `ex-fct-1d-${Date.now()}-4`,
+        name: "Drop Jump Reativo (RSI)",
+        muscleGroup: "Pliometria Reativa",
+        sets: 3,
+        reps: "4",
+        weight: "BW",
+        rest: "3m30s",
+        notes: "Estágio 1D: Pliometria Reativa Rápida. Foco em rigidez de tornozelo (stiffness) e tempo de contato mínimo.",
+        executionMethod: "complex_contrast",
+        blockGroupId: groupId,
+        blockTag: `${roundNumber}D`,
+        blockType: "french_contrast",
+        blockRole: "1D: Pliometria Reativa (RSI / Drop Jump)",
+        intraSetRest: 20,
+        blockRest: "3m30s"
+      }
+    ];
+
+    const current = edited.exercises || [];
+    const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({
+      ...edited,
+      exercises: reindexed
+    });
+    setExpandedExerciseId(blockExs[0].id);
+    toast.success("🇫🇷 Bloco de Contraste Francês (4 Estágios) adicionado com sucesso!", { duration: 4000, icon: "🇫🇷" });
+  };
+
+  // Adiciona um Par Contrastado Clássico (1A + 1B)
+  const addClassicPapBlock = () => {
+    const groupId = `complex_pap_${Date.now()}`;
+    const existingComplexCount = (edited.exercises || []).filter(e => e.executionMethod === "complex_contrast").length;
+    const roundNumber = Math.floor(existingComplexCount / 2) + 1;
+    
+    const blockExs: PrescribedExercise[] = [
+      {
+        id: `ex-pap-1a-${Date.now()}-1`,
+        name: "Back Squat ou Trap Bar Pesado",
+        muscleGroup: "Membros Inferiores",
+        sets: 3,
+        reps: "3",
+        weight: "85% 1RM",
+        rest: "90s",
+        notes: "1A: Estímulo Condicionante PAP. Descanso intermediário de 90s para dissipação da fadiga e aproveitamento da potenciação.",
+        executionMethod: "complex_contrast",
+        blockGroupId: groupId,
+        blockTag: `${roundNumber}A`,
+        blockType: "pap_classic",
+        blockRole: "1A: Carga Pesada (PAP 80-85% 1RM)",
+        intraSetRest: 90,
+        blockRest: "2m30s"
+      },
+      {
+        id: `ex-pap-1b-${Date.now()}-2`,
+        name: "Salto Vertical CMJ ou Tuck Jump",
+        muscleGroup: "Potência Pliométrica",
+        sets: 3,
+        reps: "5",
+        weight: "BW",
+        rest: "2m30s",
+        notes: "1B: Expressão Balística Máxima potencializada pelo PAP.",
+        executionMethod: "complex_contrast",
+        blockGroupId: groupId,
+        blockTag: `${roundNumber}B`,
+        blockType: "pap_classic",
+        blockRole: "1B: Pliometria com Sobrecarga (Salto)",
+        intraSetRest: 90,
+        blockRest: "2m30s"
+      }
+    ];
+
+    const current = edited.exercises || [];
+    const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({
+      ...edited,
+      exercises: reindexed
+    });
+    setExpandedExerciseId(blockExs[0].id);
+    toast.success("⚡ Complex PAP Clássico (1A + 1B) adicionado!", { duration: 3500, icon: "⚡" });
+  };
+
+  // Adiciona Exercício em Cluster Set
+  const addClusterSetTemplate = () => {
+    const clusterEx: PrescribedExercise = {
+      id: `ex-cluster-${Date.now()}`,
+      name: "Agachamento ou Supino (Cluster Set)",
+      muscleGroup: "Força Pura / VBT",
+      sets: 4,
+      reps: "2+2+2",
+      weight: "85% 1RM",
+      rest: "2m30s",
+      notes: "Série em Cluster: Realize 2 reps, descanse 20s na barra, 2 reps, descanse 20s, 2 reps finais. Mantenha alta velocidade concêntrica.",
+      executionMethod: "cluster",
+      clusterReps: "2+2+2",
+      intraSetRest: 20
+    };
+
+    const current = edited.exercises || [];
+    const reindexed = [...current, clusterEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({
+      ...edited,
+      exercises: reindexed
+    });
+    setExpandedExerciseId(clusterEx.id);
+    toast.success("🎯 Cluster Set (2+2+2 • 20s intra-pausa) adicionado!", { icon: "🎯" });
+  };
+
+  // Adiciona Exercício em Rest-Pause
+  const addRestPauseTemplate = () => {
+    const restPauseEx: PrescribedExercise = {
+      id: `ex-rp-${Date.now()}`,
+      name: "Puxada Alta ou Desenvolvimento (Rest-Pause)",
+      muscleGroup: "Hipertrofia Funcional",
+      sets: 3,
+      reps: "8 + 3 + 2",
+      weight: "RPE 9",
+      rest: "2min",
+      notes: "Rest-Pause: Realize 8 reps até próximo da falha, pause 15s respirando fundo, mais 3 reps, pause 15s, mais 2 reps finais.",
+      executionMethod: "rest_pause",
+      intraSetRest: 15
+    };
+
+    const current = edited.exercises || [];
+    const reindexed = [...current, restPauseEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({
+      ...edited,
+      exercises: reindexed
+    });
+    setExpandedExerciseId(restPauseEx.id);
+    toast.success("🔥 Rest-Pause (8+3+2 • 15s intra-pausa) adicionado!", { icon: "🔥" });
   };
 
   // Advanced filtration
@@ -937,6 +1320,128 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const uniqueEquipments = [
     "Barra", "Halter", "Kettlebell", "Peso Corporal", "Elástico", "Força", "Máquina", "BOSU", "Cones", "Corda", "Trenó"
   ];
+
+  // Recomendações contextuais de troca de exercício
+  const swapRecommendations = useMemo(() => {
+    if (!exerciseToSwap) return [];
+    
+    // Se for Contraste Francês
+    if (exerciseToSwap.executionMethod === "complex_contrast") {
+      const tag = (exerciseToSwap.blockTag || "1A").toUpperCase();
+      if (tag.endsWith("A")) {
+        return [
+          "Meio Agachamento Isométrico IMTP",
+          "Puxada Isométrica no Meio da Coxa (IMTP)",
+          "Agachamento Traseiro (Back Squat)",
+          "Agachamento Frontal (Front Squat)",
+          "Trap Bar Deadlift",
+          "Leg Press 45º Unilateral"
+        ];
+      }
+      if (tag.endsWith("B")) {
+        return [
+          "Hurdle Jumps / Saltos sobre Barreiras",
+          "Box Jump (Salto na Caixa)",
+          "Salto Vertical CMJ com Halteres",
+          "Salto sobre Barreira Unilateral",
+          "Broad Jump (Salto Horizontal)"
+        ];
+      }
+      if (tag.endsWith("C")) {
+        return [
+          "Trap Bar Jump Squat (ou Halteres)",
+          "Kettlebell Swing Potência",
+          "Push Press com Barra",
+          "Power Clean",
+          "Arremesso de Medball no Solo"
+        ];
+      }
+      if (tag.endsWith("D")) {
+        return [
+          "Drop Jump Reativo (RSI)",
+          "Pogo Jumps Reativos",
+          "Saltos Contínuos no Step",
+          "Drop Jump com Barreira"
+        ];
+      }
+    }
+
+    // Se for Cluster Set
+    if (exerciseToSwap.executionMethod === "cluster") {
+      return [
+        "Agachamento Traseiro (Back Squat)",
+        "Supino Reto com Barra",
+        "Trap Bar Deadlift",
+        "Desenvolvimento Militar",
+        "Meio Agachamento Isométrico IMTP"
+      ];
+    }
+
+    // Se for Rest-Pause
+    if (exerciseToSwap.executionMethod === "rest_pause") {
+      return [
+        "Leg Press 45º",
+        "Puxada Alta no Pulley",
+        "Supino Inclinado com Halteres",
+        "Remada Curvada com Barra",
+        "Agachamento Hack"
+      ];
+    }
+
+    // Caso padrão: exercícios populares do mesmo grupo muscular
+    return combinedLibrary
+      .filter(e => e.muscleGroup === exerciseToSwap.muscleGroup || (e.tags || []).some(t => t.toLowerCase().includes("força") || t.toLowerCase().includes("potência")))
+      .slice(0, 6)
+      .map(e => e.name);
+  }, [exerciseToSwap, combinedLibrary]);
+
+  // Busca e filtragem da biblioteca para o modal de troca
+  const swapFilteredLibrary = useMemo(() => {
+    if (!exerciseToSwap) return [];
+    
+    const query = swapSearchQuery.trim().toLowerCase();
+    
+    return combinedLibrary.filter(item => {
+      // 1. Categoria
+      if (swapCategoryFilter !== "TODOS") {
+        const cat = (item.category || "").toUpperCase();
+        const sub = (item.subcategory || "").toUpperCase();
+        const mg = (item.muscleGroup || "").toUpperCase();
+        const filt = swapCategoryFilter.toUpperCase();
+        if (!cat.includes(filt) && !sub.includes(filt) && !mg.includes(filt)) {
+          return false;
+        }
+      }
+
+      // 2. Query de texto
+      if (query) {
+        const matchesName = item.name.toLowerCase().includes(query);
+        const matchesSub = (item.subcategory || "").toLowerCase().includes(query);
+        const matchesQuality = (item.physicalQuality || "").toLowerCase().includes(query);
+        const matchesMuscle = item.muscleGroup.toLowerCase().includes(query);
+        const matchesEquip = (item.equipment || "").toLowerCase().includes(query);
+        const matchesTags = (item.tags || []).some(t => t.toLowerCase().includes(query));
+        const matchesPattern = (item.movementPattern || "").toLowerCase().includes(query);
+        return matchesName || matchesSub || matchesQuality || matchesMuscle || matchesEquip || matchesTags || matchesPattern;
+      }
+
+      return true;
+    }).sort((a, b) => {
+      if (query) {
+        const aStarts = a.name.toLowerCase().startsWith(query);
+        const bStarts = b.name.toLowerCase().startsWith(query);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+      }
+      
+      const aIsRec = swapRecommendations.includes(a.name);
+      const bIsRec = swapRecommendations.includes(b.name);
+      if (aIsRec && !bIsRec) return -1;
+      if (!aIsRec && bIsRec) return 1;
+
+      return 0;
+    });
+  }, [combinedLibrary, exerciseToSwap, swapSearchQuery, swapCategoryFilter, swapRecommendations]);
 
   const handleAiSearch = async () => {
     if (!searchQuery.trim()) {
@@ -1575,28 +2080,52 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {/* View Details Icon */}
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedDetailsExercise(item);
                       }}
-                      className="p-1.5 text-slate-500 hover:text-white transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-white transition-colors cursor-pointer"
                       title="Ver detalhes científicos ricos"
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     {/* Favorite Heart Icon */}
                     <button
+                      type="button"
                       onClick={(e) => toggleFavorite(item.id, e)}
-                      className="p-1.5 text-slate-500 hover:text-amber-400 transition-colors"
+                      className="p-1.5 text-slate-500 hover:text-amber-400 transition-colors cursor-pointer"
                     >
                       <Heart className={`w-3.5 h-3.5 ${favorites.includes(item.id) ? "fill-amber-400 text-amber-400" : ""}`} />
                     </button>
-                    <div className="w-6 h-6 rounded-md bg-[#39FF14]/10 border border-[#39FF14]/20 flex items-center justify-center text-[#39FF14] group-hover:scale-110 transition-transform">
+                    {/* Prescribe directly as Complex Training / French Contrast */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addExFromLib(item, "complex_contrast");
+                      }}
+                      className="px-2 py-1 rounded-md bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 transition-all cursor-pointer shadow-sm shadow-cyan-500/10 active:scale-95"
+                      title="Prescrever direto no Treino Complexo / Contraste Francês 🇫🇷"
+                    >
+                      <span className="text-[11px] leading-none">🇫🇷</span>
+                      <span className="text-[8px] font-black uppercase hidden xl:inline">Complex</span>
+                    </button>
+                    {/* Standard Add */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addExFromLib(item, "standard");
+                      }}
+                      className="w-6 h-6 rounded-md bg-[#39FF14]/10 hover:bg-[#39FF14]/20 border border-[#39FF14]/20 flex items-center justify-center text-[#39FF14] group-hover:scale-110 transition-transform cursor-pointer"
+                      title="Prescrever Padrão (+)"
+                    >
                       <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                    </div>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -2573,6 +3102,66 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             </div>
           )}
 
+          {/* MÉTODOS AVANÇADOS S&C: CONTRASTE FRANCÊS, PAP, CLUSTERS, REST-PAUSE */}
+          <div className="p-3.5 bg-gradient-to-r from-[#0c111d] via-[#101827] to-[#0c111d] rounded-2xl border border-slate-800/80 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 shrink-0">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <h5 className="text-[10px] sm:text-xs font-black uppercase text-slate-200 tracking-wider flex items-center gap-2">
+                  <span>Métodos Avançados de Força & Potência (S&C)</span>
+                  <span className="text-[8px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/30">ELITE</span>
+                </h5>
+                <p className="text-[9px] text-slate-400 font-medium">
+                  Adicione blocos com micro-pausas intra-série e pareamento biomecânico
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={addFrenchContrastBlock}
+                className="px-3 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
+                title="Adicionar Complexo Francês de 4 Estágios (1A PAP Pesado ➔ 1B Pliometria com Carga ➔ 1C Balístico ➔ 1D Pliometria Reativa RSI)"
+              >
+                <span>🇫🇷</span>
+                <span className="group-hover:text-white">Contraste Francês (4 Estágios)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={addClassicPapBlock}
+                className="px-3 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
+                title="Adicionar Par Contrastado PAP (1A Pesado + 1B Salto Explosivo)"
+              >
+                <span>⚡</span>
+                <span className="group-hover:text-white">Complex PAP (1A + 1B)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={addClusterSetTemplate}
+                className="px-3 py-1.5 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/40 hover:border-purple-400 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
+                title="Adicionar Série em Cluster (2+2+2 com micro-pausa de 20s)"
+              >
+                <span>🎯</span>
+                <span className="group-hover:text-white">Cluster Set</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={addRestPauseTemplate}
+                className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 hover:border-rose-400 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
+                title="Adicionar Série em Rest-Pause (8+3+2 com micro-pausa de 15s)"
+              >
+                <span>🔥</span>
+                <span className="group-hover:text-white">Rest-Pause</span>
+              </button>
+            </div>
+          </div>
+
           {/* ACTIVE EXERCISES LIST */}
           <div className="space-y-4">
             <AnimatePresence initial={false}>
@@ -2588,10 +3177,24 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
                     className={`bg-[#0c111d] border rounded-2xl md:rounded-3xl relative group shadow-lg transition-all ${
-                      isExpanded 
-                        ? "border-[#39FF14]/30 ring-1 ring-[#39FF14]/10 p-5 md:p-6 shadow-[#39FF14]/5 bg-[#0e1627]" 
-                        : "border-slate-900/60 hover:border-[#39FF14]/20 p-4 hover:bg-[#0c111d]/80 cursor-pointer"
-                    }`}
+                      exerciseToSwap?.id === ex.id
+                        ? "ring-2 ring-cyan-400 border-cyan-400 shadow-xl shadow-cyan-500/20"
+                        : ex.executionMethod === "complex_contrast"
+                        ? (ex.blockTag || "").endsWith("A")
+                          ? "border-cyan-500/50 bg-gradient-to-br from-[#0c111d] via-[#091421] to-[#0c111d] shadow-cyan-500/5"
+                          : (ex.blockTag || "").endsWith("B")
+                          ? "border-indigo-500/50 bg-gradient-to-br from-[#0c111d] via-[#101429] to-[#0c111d] shadow-indigo-500/5"
+                          : (ex.blockTag || "").endsWith("C")
+                          ? "border-amber-500/50 bg-gradient-to-br from-[#0c111d] via-[#1a170d] to-[#0c111d] shadow-amber-500/5"
+                          : "border-emerald-500/50 bg-gradient-to-br from-[#0c111d] via-[#0b1c14] to-[#0c111d] shadow-emerald-500/5"
+                        : ex.executionMethod === "cluster"
+                        ? "border-purple-500/50 bg-gradient-to-br from-[#0c111d] via-[#160d26] to-[#0c111d] shadow-purple-500/5"
+                        : ex.executionMethod === "rest_pause"
+                        ? "border-rose-500/50 bg-gradient-to-br from-[#0c111d] via-[#210c14] to-[#0c111d] shadow-rose-500/5"
+                        : isExpanded 
+                        ? "border-[#39FF14]/30 ring-1 ring-[#39FF14]/10 shadow-[#39FF14]/5 bg-[#0e1627]" 
+                        : "border-slate-900/60 hover:border-[#39FF14]/20 hover:bg-[#0c111d]/80 cursor-pointer"
+                    } ${isExpanded ? "p-5 md:p-6" : "p-4"}`}
                     onClick={() => {
                       if (!isExpanded) {
                         setExpandedExerciseId(ex.id);
@@ -2615,6 +3218,21 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         title="Mover para baixo"
                       >
                         <ChevronDown className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExerciseToSwap(ex);
+                          setSwapSearchQuery("");
+                          setSwapCategoryFilter("TODOS");
+                        }}
+                        className="bg-cyan-500/10 hover:bg-cyan-500/25 text-cyan-400 hover:text-cyan-200 w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-cyan-500/30 hover:border-cyan-400 shadow-md flex items-center justify-center transition-all cursor-pointer group/swap active:scale-95"
+                        title={ex.executionMethod === "complex_contrast"
+                          ? `Trocar Estágio ${ex.blockTag || "1A"} por outro da Biblioteca (ex: Meio Agachamento Isométrico IMTP)`
+                          : "Trocar exercício por outro da Biblioteca"}
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5 group-hover/swap:rotate-180 transition-transform duration-300" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); saveExerciseToLibrary(ex); }}
@@ -2647,10 +3265,16 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             #{index + 1}
                           </div>
                           <div className="min-w-0">
-                            <h4 className="text-sm sm:text-base font-extrabold text-slate-100 group-hover:text-[#39FF14] transition-colors truncate">
-                              {ex.name || "Sem Nome"}
+                            <h4 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-[#39FF14] transition-colors truncate flex items-center gap-2">
+                              <span>{ex.name || "Sem Nome"}</span>
+                              {exerciseToSwap?.id === ex.id && (
+                                <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-cyan-500 text-slate-950 flex items-center gap-1 shadow-xs animate-pulse">
+                                  <ArrowLeftRight className="w-3 h-3" />
+                                  <span>Em Troca</span>
+                                </span>
+                              )}
                             </h4>
-                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mt-0.5 truncate">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                               {ex.muscleGroup || "GERAL"}
                             </p>
                           </div>
@@ -2658,6 +3282,30 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
                         {/* Quick Prescription Badges */}
                         <div className="flex flex-wrap items-center gap-2">
+                          {ex.executionMethod === "complex_contrast" && (
+                            <span className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider border shadow-sm ${
+                              (ex.blockTag || "").endsWith("A")
+                                ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                                : (ex.blockTag || "").endsWith("B")
+                                ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                                : (ex.blockTag || "").endsWith("C")
+                                ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                            }`}>
+                              🇫🇷 {ex.blockTag || "1A"} • {ex.blockRole?.split(":")[1]?.trim() || "PAP / Contraste"}
+                            </span>
+                          )}
+                          {ex.executionMethod === "cluster" && (
+                            <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                              🎯 Cluster {ex.clusterReps || ex.reps} • {ex.intraSetRest || 20}s
+                            </span>
+                          )}
+                          {ex.executionMethod === "rest_pause" && (
+                            <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                              🔥 Rest-Pause • {ex.intraSetRest || 15}s
+                            </span>
+                          )}
+
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Séries</span>
                             <span className="text-[#39FF14] text-xs font-extrabold">{ex.sets}</span>
@@ -2665,16 +3313,31 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Volume</span>
                             <span className="text-slate-200 text-xs font-extrabold">
-                              {ex.reps}{ex.repsType === "time" ? "s" : ""}
+                              {ex.clusterReps || ex.reps}{ex.repsType === "time" ? "s" : ""}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Carga</span>
                             <span className="text-slate-200 text-xs font-extrabold">{ex.weight || "BW"}</span>
                           </div>
-                          <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
-                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Pausa</span>
-                            <span className="text-amber-400 text-xs font-extrabold">{ex.rest || "90s"}</span>
+                          <div 
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 bg-slate-950/80 hover:bg-slate-900 border border-slate-850 hover:border-amber-400/50 focus-within:border-amber-400 px-2.5 py-1 rounded-xl transition-all shadow-sm group/rest cursor-text"
+                            title="Clique para editar Transição ou Pausa diretamente"
+                          >
+                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 group-hover/rest:text-amber-500 transition-colors">
+                              {ex.executionMethod === "complex_contrast" ? "Transição" : "Pausa"}:
+                            </span>
+                            <input
+                              value={ex.rest || (ex.executionMethod === "complex_contrast" ? "20s" : "90s")}
+                              onChange={(e) => updateExField(ex.id, "rest", e.target.value)}
+                              onFocus={(e) => e.target.select()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                (e.target as HTMLInputElement).select();
+                              }}
+                              className="w-14 bg-transparent text-amber-500 dark:text-amber-400 text-xs font-black text-center outline-none border-b border-dashed border-amber-500/30 focus:border-amber-400 py-0.5"
+                            />
                           </div>
                         </div>
                       </div>
@@ -2689,7 +3352,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             <input
                               value={ex.name}
                               onChange={(e) => updateExField(ex.id, "name", e.target.value)}
-                              className="bg-transparent border-b border-dashed border-slate-700 focus:border-b-[#39FF14] outline-none text-base md:text-lg text-slate-100 font-extrabold w-full py-1 transition-colors"
+                              className="bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 focus:border-b-[#39FF14] outline-none text-base md:text-lg text-slate-900 dark:text-slate-100 font-extrabold w-full py-1 transition-colors"
                             />
                           </div>
                           <input
@@ -2698,6 +3361,27 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             className="bg-transparent text-[10px] font-black uppercase text-slate-400 w-full outline-none focus:text-slate-300"
                             placeholder="Grupo Muscular"
                           />
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExerciseToSwap(ex);
+                                setSwapSearchQuery("");
+                                setSwapCategoryFilter("TODOS");
+                              }}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 dark:text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
+                              title="Trocar este exercício por outro da Biblioteca"
+                            >
+                              <ArrowLeftRight className="w-3 h-3 text-cyan-400" />
+                              <span>Trocar da Biblioteca</span>
+                            </button>
+                            {ex.executionMethod === "complex_contrast" && (
+                              <span className="text-[9px] font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-md">
+                                {ex.blockTag || "1A"}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {/* Numeric Prescriptions */}
@@ -2755,17 +3439,567 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             />
                           </div>
                           <div className="col-span-2 sm:col-span-1">
-                            <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
-                              Descanso
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">
+                                {ex.executionMethod === "complex_contrast" ? "Transição" : "Descanso"}
+                              </label>
+                              <span className="text-[8.5px] text-amber-500 font-bold hidden sm:inline">⚡ Clique e edite</span>
+                            </div>
                             <input
-                              value={ex.rest || "90s"}
+                              value={ex.rest || (ex.executionMethod === "complex_contrast" ? "20s" : "90s")}
                               onChange={(e) => updateExField(ex.id, "rest", e.target.value)}
                               onFocus={(e) => e.target.select()}
-                              className="w-full bg-slate-950/50 border border-slate-800 focus:border-[#39FF14]/50 rounded-xl p-3 text-sm text-amber-400 text-center font-extrabold transition-all"
-                              placeholder="90s"
+                              onClick={(e) => (e.target as HTMLInputElement).select()}
+                              className="w-full bg-slate-950/50 border border-slate-800 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 rounded-xl p-3 text-sm text-amber-500 dark:text-amber-400 text-center font-black transition-all outline-none"
+                              placeholder={ex.executionMethod === "complex_contrast" ? "20s" : "90s"}
                             />
+                            {/* Preset pills for 1-click editing */}
+                            <div className="flex items-center justify-center gap-1 mt-1.5 flex-wrap">
+                              {(ex.executionMethod === "complex_contrast" 
+                                ? ["15s", "20s", "30s", "45s", "3m30s"] 
+                                : ["30s", "45s", "60s", "90s", "2m", "3m"]
+                              ).map((preset) => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateExField(ex.id, "rest", preset);
+                                    if (ex.executionMethod === "complex_contrast" && preset.endsWith("s") && !preset.includes("m")) {
+                                      updateExField(ex.id, "intraSetRest", parseInt(preset) || 20);
+                                    }
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                    ex.rest === preset
+                                      ? "bg-amber-500 text-slate-950 font-black shadow"
+                                      : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
+                                  }`}
+                                >
+                                  {preset}
+                                </button>
+                              ))}
+                            </div>
                           </div>
+                        </div>
+
+                        {/* ADVANCED S&C EXECUTION METHOD CONFIGURATOR */}
+                        <div className="md:col-span-12 mt-3 pt-3 border-t border-slate-800/80 bg-slate-950/70 p-4 rounded-2xl border border-slate-900">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
+                            <div className="flex items-center gap-2">
+                              <Zap className="w-4 h-4 text-amber-400" />
+                              <span className="text-[11px] font-black uppercase tracking-wider text-slate-200">
+                                Método Especial de Treinamento
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {[
+                                { id: "standard", label: "Padrão" },
+                                { id: "complex_contrast", label: "🇫🇷 Contraste Francês / Complex" },
+                                { id: "cluster", label: "🎯 Cluster Set" },
+                                { id: "rest_pause", label: "🔥 Rest-Pause" },
+                              ].map((m) => {
+                                const isCurrent = (ex.executionMethod || "standard") === m.id;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (m.id === "complex_contrast") {
+                                        // Intelligently detect if previous exercise in workout is already in complex
+                                        const prevEx = index > 0 ? (edited.exercises || [])[index - 1] : null;
+                                        let suggestedTag = "1A";
+                                        let suggestedRole = "1A: Carga Pesada (PAP 80-85% 1RM)";
+                                        let suggestedRest = "20s";
+                                        let suggestedReps = "3";
+                                        let suggestedWeight = ex.weight && ex.weight !== "BW" ? ex.weight : "85% 1RM";
+
+                                        if (prevEx && prevEx.executionMethod === "complex_contrast" && prevEx.blockTag) {
+                                          const prevTag = prevEx.blockTag;
+                                          if (prevTag.endsWith("A")) {
+                                            suggestedTag = `${prevTag.slice(0, -1)}B`;
+                                            suggestedRole = "1B: Pliometria com Sobrecarga (Salto)";
+                                            suggestedWeight = "BW";
+                                            suggestedReps = "4";
+                                            suggestedRest = "20s";
+                                          } else if (prevTag.endsWith("B")) {
+                                            suggestedTag = `${prevTag.slice(0, -1)}C`;
+                                            suggestedRole = "1C: Velocidade Balística (30% 1RM)";
+                                            suggestedWeight = "30% 1RM";
+                                            suggestedReps = "4";
+                                            suggestedRest = "20s";
+                                          } else if (prevTag.endsWith("C")) {
+                                            suggestedTag = `${prevTag.slice(0, -1)}D`;
+                                            suggestedRole = "1D: Pliometria Reativa (RSI / Drop Jump)";
+                                            suggestedWeight = "BW";
+                                            suggestedReps = "4";
+                                            suggestedRest = "3m30s";
+                                          } else {
+                                            const round = (parseInt(prevTag) || 1) + 1;
+                                            suggestedTag = `${round}A`;
+                                          }
+                                        }
+
+                                        const targetTag = ex.blockTag || suggestedTag;
+                                        const targetRole = ex.blockRole || suggestedRole;
+                                        const targetRest = targetTag.endsWith("D") ? (ex.blockRest || "3m30s") : "20s";
+
+                                        updateExFields(ex.id, {
+                                          executionMethod: "complex_contrast",
+                                          blockTag: targetTag,
+                                          blockRole: targetRole,
+                                          intraSetRest: ex.intraSetRest ?? 20,
+                                          blockRest: ex.blockRest || "3m30s",
+                                          rest: targetRest,
+                                          reps: ex.reps && ex.reps !== "10" ? ex.reps : suggestedReps,
+                                          weight: ex.weight && ex.weight !== "BW" ? ex.weight : suggestedWeight
+                                        });
+                                        toast.success(`🇫🇷 Configurado como Contraste Francês (${targetTag})!`, { icon: "🇫🇷" });
+                                      } else if (m.id === "cluster") {
+                                        const cReps = ex.clusterReps || (ex.reps && ex.reps.includes("+") ? ex.reps : "2+2+2");
+                                        updateExFields(ex.id, {
+                                          executionMethod: "cluster",
+                                          clusterReps: cReps,
+                                          reps: cReps,
+                                          intraSetRest: ex.intraSetRest ?? 20,
+                                          rest: ex.rest && ex.rest !== "20s" ? ex.rest : "2m30s"
+                                        });
+                                        toast.success("🎯 Configurado como Cluster Set (2+2+2)!", { icon: "🎯" });
+                                      } else if (m.id === "rest_pause") {
+                                        updateExFields(ex.id, {
+                                          executionMethod: "rest_pause",
+                                          intraSetRest: ex.intraSetRest ?? 15,
+                                          rest: ex.rest && ex.rest !== "20s" ? ex.rest : "2min"
+                                        });
+                                        toast.success("🔥 Configurado como Rest-Pause (15s micro-pausa)!", { icon: "🔥" });
+                                      } else {
+                                        updateExFields(ex.id, {
+                                          executionMethod: "standard",
+                                          blockTag: undefined,
+                                          blockRole: undefined,
+                                          clusterReps: undefined,
+                                          rest: ex.rest === "20s" ? "90s" : (ex.rest || "90s")
+                                        });
+                                        toast.success("Configurado como Treino Padrão.");
+                                      }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                      isCurrent
+                                        ? "bg-amber-400 text-slate-950 shadow-md font-black"
+                                        : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white border border-slate-800"
+                                    }`}
+                                  >
+                                    {m.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Complex Contrast Specific Fields */}
+                          {ex.executionMethod === "complex_contrast" && (
+                            <div className="pt-3 border-t border-slate-900 text-xs space-y-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div className="sm:col-span-3">
+                                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                    Posição no Bloco (ex: 1A, 1B, 1C, 1D)
+                                  </label>
+                                  <div className="flex gap-1">
+                                    {["1A", "1B", "1C", "1D", "2A", "2B", "2C", "2D"].map((tag) => (
+                                      <button
+                                        key={tag}
+                                        type="button"
+                                        onClick={() => {
+                                          let newRole = ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)";
+                                          let newRest = "20s";
+                                          let newWeight = ex.weight;
+                                          let newReps = ex.reps;
+                                          if (tag.endsWith("A")) {
+                                            newRole = "1A: Carga Pesada (PAP 80-85% 1RM)";
+                                            newRest = "20s";
+                                            if (!ex.weight || ex.weight === "BW") newWeight = "85% 1RM";
+                                            if (!ex.reps || ex.reps === "10") newReps = "3";
+                                          } else if (tag.endsWith("B")) {
+                                            newRole = "1B: Pliometria com Sobrecarga (Salto)";
+                                            newRest = "20s";
+                                            if (!ex.weight) newWeight = "BW";
+                                            if (!ex.reps || ex.reps === "10") newReps = "4";
+                                          } else if (tag.endsWith("C")) {
+                                            newRole = "1C: Velocidade Balística (30% 1RM)";
+                                            newRest = "20s";
+                                            if (!ex.weight || ex.weight === "BW") newWeight = "30% 1RM";
+                                            if (!ex.reps || ex.reps === "10") newReps = "4";
+                                          } else if (tag.endsWith("D")) {
+                                            newRole = "1D: Pliometria Reativa (RSI / Drop Jump)";
+                                            newRest = ex.blockRest || "3m30s";
+                                            if (!ex.weight) newWeight = "BW";
+                                            if (!ex.reps || ex.reps === "10") newReps = "4";
+                                          }
+                                          updateExFields(ex.id, {
+                                            blockTag: tag,
+                                            blockRole: newRole,
+                                            rest: newRest,
+                                            weight: newWeight,
+                                            reps: newReps
+                                          });
+                                        }}
+                                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                          (ex.blockTag || "1A") === tag
+                                            ? "bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow"
+                                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                        }`}
+                                      >
+                                        {tag}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="sm:col-span-5">
+                                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                    Papel no Complexo Francês / PAPE
+                                  </label>
+                                  <select
+                                    value={ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)"}
+                                    onChange={(e) => updateExField(ex.id, "blockRole", e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold outline-none focus:border-cyan-400"
+                                  >
+                                    <option value="1A: Carga Pesada (PAP 80-85% 1RM)">1A: Carga Pesada / Força Máxima (PAP - 80-85% 1RM)</option>
+                                    <option value="1B: Pliometria com Sobrecarga (Salto)">1B: Pliometria com Sobrecarga / Salto Acentuado</option>
+                                    <option value="1C: Velocidade Balística (30% 1RM)">1C: Velocidade Balística / Força Rápida (30% 1RM)</option>
+                                    <option value="1D: Pliometria Reativa (RSI / Drop Jump)">1D: Pliometria Reativa / Assistida (RSI / Drop Jump)</option>
+                                    <option value="Agonista / Antagonista">Par Agonista / Antagonista</option>
+                                    <option value="Customizado">Customizado</option>
+                                  </select>
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                      Transição Rápida
+                                    </label>
+                                    <span className="text-[8px] text-cyan-500 font-bold hidden sm:inline">⚡ intra-bloco</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 focus-within:border-cyan-400 rounded-xl px-2.5 py-2 transition-all">
+                                    <input
+                                      type="number"
+                                      value={ex.intraSetRest ?? 20}
+                                      onChange={(e) => {
+                                        const val = parseInt(e.target.value) || 0;
+                                        updateExFields(ex.id, {
+                                          intraSetRest: val,
+                                          ...(!(ex.blockTag || "").endsWith("D") ? { rest: `${val}s` } : {})
+                                        });
+                                      }}
+                                      onFocus={(e) => e.target.select()}
+                                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                                      className="w-full bg-transparent text-slate-100 font-black text-center text-xs outline-none"
+                                    />
+                                    <span className="text-[9px] text-slate-400 font-bold">s</span>
+                                  </div>
+                                  {/* Quick Click Preset Pills */}
+                                  <div className="flex items-center justify-between gap-1 mt-1">
+                                    {[15, 20, 30, 45].map((sec) => (
+                                      <button
+                                        key={sec}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateExFields(ex.id, {
+                                            intraSetRest: sec,
+                                            ...(!(ex.blockTag || "").endsWith("D") ? { rest: `${sec}s` } : {})
+                                          });
+                                        }}
+                                        className={`flex-1 py-0.5 rounded text-[8px] font-black uppercase transition-all cursor-pointer ${
+                                          (ex.intraSetRest ?? 20) === sec
+                                            ? "bg-cyan-500 text-slate-950 font-black"
+                                            : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-cyan-400 border border-slate-800"
+                                        }`}
+                                      >
+                                        {sec}s
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                      Pausa pós-Round
+                                    </label>
+                                    <span className="text-[8px] text-amber-500 font-bold hidden sm:inline">⏱️ pós 1D</span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={ex.blockRest || "3m30s"}
+                                    onChange={(e) => {
+                                      updateExFields(ex.id, {
+                                        blockRest: e.target.value,
+                                        ...((ex.blockTag || "").endsWith("D") ? { rest: e.target.value } : {})
+                                      });
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    placeholder="3m30s"
+                                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 rounded-xl px-2.5 py-2 text-xs text-amber-500 dark:text-amber-400 font-black text-center outline-none transition-all"
+                                  />
+                                  {/* Quick Click Preset Pills */}
+                                  <div className="flex items-center justify-between gap-1 mt-1">
+                                    {["2m", "2m30s", "3m", "3m30s", "4m"].map((pRest) => (
+                                      <button
+                                        key={pRest}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateExFields(ex.id, {
+                                            blockRest: pRest,
+                                            ...((ex.blockTag || "").endsWith("D") ? { rest: pRest } : {})
+                                          });
+                                        }}
+                                        className={`flex-1 py-0.5 rounded text-[7.5px] font-black uppercase transition-all cursor-pointer ${
+                                          (ex.blockRest || "3m30s") === pRest
+                                            ? "bg-amber-500 text-slate-950 font-black"
+                                            : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
+                                        }`}
+                                      >
+                                        {pRest}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Stage Scientific Description with high contrast for Light & Dark mode */}
+                              <div className="p-3 rounded-xl bg-cyan-500/5 dark:bg-slate-900/60 border border-cyan-500/20 dark:border-slate-800/80 text-xs flex items-start gap-2.5 shadow-sm">
+                                <Info className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
+                                <div className="space-y-0.5">
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-cyan-900 dark:text-slate-200">
+                                    Fisiologia & Prescrição do Estágio {ex.blockTag || "1A"}:
+                                  </div>
+                                  <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                                    {(ex.blockTag || "").endsWith("A") || (ex.blockRole || "").includes("1A")
+                                      ? "Estágio 1A (Carga Pesada / 80-85% 1RM, 3 reps): Ativação de motoneurônios de alto limiar via Potenciação Pós-Ativação (PAPE). Transição rápida (~20s) para transferir a potenciação neural ao salto."
+                                      : (ex.blockTag || "").endsWith("B") || (ex.blockRole || "").includes("1B")
+                                      ? "Estágio 1B (Pliometria com Sobrecarga / 4 reps): Converte a potenciação do estágio anterior em taxa de desenvolvimento de força (RFD) e ciclo de alongamento-encurtamento acelerado. Transição rápida (20s)."
+                                      : (ex.blockTag || "").endsWith("C") || (ex.blockRole || "").includes("1C")
+                                      ? "Estágio 1C (Velocidade Balística / 30% 1RM, 4 reps): Carga leve acelerada até velocidade concêntrica máxima, sem desaceleração no final do arco. Transição rápida (20s)."
+                                      : (ex.blockTag || "").endsWith("D") || (ex.blockRole || "").includes("1D")
+                                      ? "Estágio 1D (Pliometria Reativa / RSI, 4 reps): Saltos reativos (drop jump) com tempo de contato com o solo mínimo (<200ms) e máxima rigidez articular (stiffness). Ao finalizar o 1D, descanso longo de 3 a 4 minutos."
+                                      : "Execute o bloco contrastado respeitando a transição rápida entre os exercícios e descanso completo ao final do round."}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Quick Next Stage Adder */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 bg-cyan-500/10 dark:bg-cyan-950/20 border border-cyan-500/30 rounded-xl px-3 py-2.5 shadow-sm">
+                                <div className="text-[11px] font-bold text-cyan-900 dark:text-cyan-200 flex flex-wrap items-center gap-2">
+                                  <span>
+                                    <span className="font-black uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Bloco Vinculado:</span> {ex.blockTag || "1A"} • {ex.blockRole || "PAP / Contraste"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExerciseToSwap(ex);
+                                      setSwapSearchQuery("");
+                                      setSwapCategoryFilter("TODOS");
+                                    }}
+                                    className="px-2 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+                                    title={`Trocar exercício do Estágio ${ex.blockTag || '1A'} por outro da Biblioteca`}
+                                  >
+                                    <ArrowLeftRight className="w-2.5 h-2.5 text-cyan-600 dark:text-cyan-400" />
+                                    <span>Trocar Estágio {ex.blockTag || "1A"}</span>
+                                  </button>
+                                </div>
+                                {(() => {
+                                  const tag = ex.blockTag || "1A";
+                                  const nextLetter = tag.endsWith("A") ? "B" : tag.endsWith("B") ? "C" : tag.endsWith("C") ? "D" : null;
+                                  if (!nextLetter) return null;
+                                  const nextTag = `${tag.slice(0, -1)}${nextLetter}`;
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const current = edited.exercises || [];
+                                        const nextRole = nextLetter === "B" 
+                                          ? "1B: Pliometria com Sobrecarga (Salto)"
+                                          : nextLetter === "C"
+                                          ? "1C: Velocidade Balística (30% 1RM)"
+                                          : "1D: Pliometria Reativa (RSI / Drop Jump)";
+                                        const nextName = nextLetter === "B"
+                                          ? "Salto Vertical com Sobrecarga / Trap Bar Jump"
+                                          : nextLetter === "C"
+                                          ? "Agachamento com Salto Balístico (30% 1RM)"
+                                          : "Drop Jump / Box Jump Reativo (RSI)";
+                                        const nextWeight = nextLetter === "C" ? "30% 1RM" : "BW";
+                                        const nextRest = nextLetter === "D" ? "3m30s" : "20s";
+
+                                        const newEx: PrescribedExercise = {
+                                          id: `ex-stage-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                                          name: nextName,
+                                          muscleGroup: ex.muscleGroup,
+                                          sets: ex.sets,
+                                          reps: "4",
+                                          weight: nextWeight,
+                                          repsType: "reps",
+                                          rest: nextRest,
+                                          notes: `Estágio ${nextTag}: ${nextRole}`,
+                                          executionMethod: "complex_contrast",
+                                          blockTag: nextTag,
+                                          blockRole: nextRole,
+                                          intraSetRest: 20,
+                                          blockRest: "3m30s",
+                                          order_index: index + 1
+                                        };
+
+                                        const updatedList = [...current.slice(0, index + 1), newEx, ...current.slice(index + 1)].map((e, i) => ({ ...e, order_index: i }));
+                                        setEdited(prev => ({ ...prev, exercises: updatedList }));
+                                        setExpandedExerciseId(newEx.id);
+                                        toast.success(`Estágio ${nextTag} adicionado ao Bloco Francês!`, { icon: "🇫🇷" });
+                                      }}
+                                      className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow flex items-center gap-1"
+                                    >
+                                      <span>+ Adicionar Estágio {nextTag}</span>
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Cluster Set Specific Fields */}
+                          {ex.executionMethod === "cluster" && (
+                            <div className="space-y-3 pt-3 border-t border-slate-900 text-xs">
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div className="sm:col-span-6">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                      Estrutura de Reps Intra-Série (ex: 2+2+2 ou 3+3 ou 1+1+1+1)
+                                    </label>
+                                    <span className="text-[8.5px] text-purple-500 font-bold hidden sm:inline">⚡ Clique e edite</span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={ex.clusterReps || ex.reps || "2+2+2"}
+                                    onChange={(e) => {
+                                      updateExFields(ex.id, {
+                                        clusterReps: e.target.value,
+                                        reps: e.target.value
+                                      });
+                                    }}
+                                    onFocus={(e) => e.target.select()}
+                                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                                    placeholder="2+2+2"
+                                    className="w-full bg-slate-950 border border-slate-800 focus:border-purple-400 rounded-xl p-2.5 text-xs text-purple-600 dark:text-purple-400 font-black outline-none transition-all"
+                                  />
+                                  {/* Quick Reps Presets */}
+                                  <div className="flex items-center gap-1.5 mt-1.5">
+                                    {["2+2+2", "3+3", "1+1+1+1", "2+2+2+2"].map((preset) => (
+                                      <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => updateExFields(ex.id, { clusterReps: preset, reps: preset })}
+                                        className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                          (ex.clusterReps || ex.reps) === preset
+                                            ? "bg-purple-600 text-white font-black"
+                                            : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-purple-400 border border-slate-800"
+                                        }`}
+                                      >
+                                        {preset}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="sm:col-span-6">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                      Micro-Pausa Intra-Cluster (repouso na barra)
+                                    </label>
+                                    <span className="text-[8.5px] text-purple-500 font-bold hidden sm:inline">⏱️ segundos</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {[15, 20, 25, 30].map((sec) => (
+                                      <button
+                                        key={sec}
+                                        type="button"
+                                        onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                        className={`flex-1 py-2 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                          (ex.intraSetRest ?? 20) === sec
+                                            ? "bg-purple-600 text-white border-purple-400 font-black shadow"
+                                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                        }`}
+                                      >
+                                        {sec}s
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Pedagogical Description */}
+                              <div className="p-3 rounded-xl bg-purple-500/10 dark:bg-purple-950/20 border border-purple-500/25 text-xs flex items-start gap-2.5 shadow-sm">
+                                <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                                <div className="space-y-0.5">
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-purple-900 dark:text-purple-200">
+                                    Fundamentação Científica - Cluster Set:
+                                  </div>
+                                  <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                                    Fracionar a série com micro-pausas intra-série (15s a 30s) preserva os estoques de fosfocreatina (ATP-CP), reduz a acidose metabólica e sustenta a velocidade de pico da barra em todas as repetições sem perda de potência mecânica.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Rest-Pause Specific Fields */}
+                          {ex.executionMethod === "rest_pause" && (
+                            <div className="space-y-3 pt-3 border-t border-slate-900 text-xs">
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                <div className="sm:col-span-6">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                      Micro-Pausa Rest-Pause (tempo de respiração antes do mini-set)
+                                    </label>
+                                    <span className="text-[8.5px] text-rose-500 font-bold hidden sm:inline">⏱️ segundos</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {[10, 15, 20].map((sec) => (
+                                      <button
+                                        key={sec}
+                                        type="button"
+                                        onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                        className={`flex-1 py-2 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                          (ex.intraSetRest ?? 15) === sec
+                                            ? "bg-rose-600 text-white border-rose-400 font-black shadow"
+                                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                        }`}
+                                      >
+                                        {sec}s
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="sm:col-span-6 flex items-center">
+                                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                                    Execute a série base até RPE 9-9.5, descanse a micro-pausa (10-20s) e complete repetições adicionais até o esgotamento técnico.
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Pedagogical Description */}
+                              <div className="p-3 rounded-xl bg-rose-500/10 dark:bg-rose-950/20 border border-rose-500/25 text-xs flex items-start gap-2.5 shadow-sm">
+                                <Info className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                                <div className="space-y-0.5">
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-rose-900 dark:text-rose-200">
+                                    Fundamentação Científica - Rest-Pause:
+                                  </div>
+                                  <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                                    Execute a série principal até RPE 9-9.5 (quase falha mecânica). Descanse a micro-pausa de 10s-20s para ressíntese rápida de fosfocreatina e realize mini-sets suplementares de 2 a 3 reps, maximizando o recrutamento de fibras sob alta fadiga controlada.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Extended notes field */}
@@ -3313,18 +4547,347 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     <span>Excluir</span>
                   </button>
 
+                  {/* Standard Add */}
                   <button
+                    type="button"
                     onClick={() => {
-                      addExFromLib(selectedDetailsExercise);
+                      addExFromLib(selectedDetailsExercise, "standard");
                       setSelectedDetailsExercise(null);
                     }}
-                    className="px-5 py-2.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-xl shadow-[#39FF14]/10 cursor-pointer ml-2"
+                    className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-white font-black text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                    title="Prescrever de forma padrão"
                   >
-                    Prescrever na Planilha Ativa
+                    + Padrão
                   </button>
+
+                  {/* French Contrast / Complex Add */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addExFromLib(selectedDetailsExercise, "complex_contrast");
+                      setSelectedDetailsExercise(null);
+                    }}
+                    className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-cyan-500/20 cursor-pointer flex items-center gap-1.5"
+                    title="Prescrever direto no Contraste Francês / Complex"
+                  >
+                    <span>🇫🇷</span>
+                    <span>Contraste Francês (Complex)</span>
+                  </button>
+
+                  {/* Cluster Set Add */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addExFromLib(selectedDetailsExercise, "cluster");
+                      setSelectedDetailsExercise(null);
+                    }}
+                    className="px-3.5 py-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                    title="Prescrever como Cluster Set"
+                  >
+                    <span>🎯</span>
+                    <span>Cluster Set</span>
+                  </button>
+
+                  {/* Rest-Pause Add */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addExFromLib(selectedDetailsExercise, "rest_pause");
+                      setSelectedDetailsExercise(null);
+                    }}
+                    className="px-3.5 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                    title="Prescrever como Rest-Pause"
+                  >
+                    <span>🔥</span>
+                    <span>Rest-Pause</span>
+                  </button>
+
+                  {/* Botão de Troca Direta se exerciseToSwap estiver ativo */}
+                  {exerciseToSwap && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-400 dark:border-cyan-500/40">
+                      <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
+                        Substituir <span className="font-black text-cyan-800 dark:text-cyan-300">"{exerciseToSwap.name}"</span> por <span className="font-black text-slate-950 dark:text-white">"{selectedDetailsExercise.name}"</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          swapExerciseWithLibrary(exerciseToSwap.id, selectedDetailsExercise);
+                          setSelectedDetailsExercise(null);
+                        }}
+                        className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-cyan-500/30 cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                        title={`Substituir "${exerciseToSwap.name}" por "${selectedDetailsExercise.name}"`}
+                      >
+                        <ArrowLeftRight className="w-4 h-4" />
+                        <span>Confirmar Troca</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE TROCA DE EXERCÍCIO DA BIBLIOTECA */}
+      <AnimatePresence>
+        {exerciseToSwap && (
+          <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-4 animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 15 }}
+              className="bg-white dark:bg-[#0c111d] border border-slate-200 dark:border-slate-800 w-full max-w-3xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-900 dark:text-slate-100"
+            >
+              {/* Modal Header */}
+              <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-850 bg-slate-50/90 dark:bg-slate-950/80 flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5 w-full">
+                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5 shadow-sm">
+                    <ArrowLeftRight className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-2.5 w-full min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 rounded-lg">
+                        Substituir Exercício da Biblioteca
+                      </span>
+                      {exerciseToSwap.executionMethod === "complex_contrast" && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 rounded-lg flex items-center gap-1">
+                          <span>🇫🇷 Contraste Francês</span>
+                          <span>•</span>
+                          <span>Estágio {exerciseToSwap.blockTag || "1A"}</span>
+                        </span>
+                      )}
+                      {exerciseToSwap.executionMethod === "cluster" && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30 rounded-lg">
+                          🎯 Cluster Set
+                        </span>
+                      )}
+                      {exerciseToSwap.executionMethod === "rest_pause" && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30 rounded-lg">
+                          🔥 Rest-Pause
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Destaque com Alta Visibilidade para o Exercício Sendo Substituído */}
+                    <div className="p-3.5 rounded-2xl bg-cyan-50 dark:bg-cyan-950/40 border-2 border-cyan-500/40 dark:border-cyan-500/30 shadow-xs space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 dark:text-cyan-300 flex items-center gap-1.5">
+                          <ArrowLeftRight className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                          <span>Exercício atual (sendo substituído):</span>
+                        </span>
+                        {exerciseToSwap.blockTag && (
+                          <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-cyan-500 text-slate-950 shadow-xs">
+                            Estágio {exerciseToSwap.blockTag}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-base sm:text-xl font-black text-slate-950 dark:text-cyan-100 tracking-tight break-words">
+                        {exerciseToSwap.name}
+                      </div>
+                      <p className="text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
+                        {exerciseToSwap.executionMethod === "complex_contrast"
+                          ? `A estrutura do Estágio ${exerciseToSwap.blockTag || "1A"} (${exerciseToSwap.sets} séries, transição de ${exerciseToSwap.intraSetRest ?? 20}s) e a sequência do complexo serão preservadas.`
+                          : `As séries (${exerciseToSwap.sets}), repetições (${exerciseToSwap.reps || "8"}) e pausas configuradas serão preservadas.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExerciseToSwap(null);
+                    setSwapSearchQuery("");
+                  }}
+                  className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white rounded-xl border border-slate-300 dark:border-slate-800 transition-all cursor-pointer shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search & Quick Suggestions */}
+              <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-850/80 bg-slate-100/70 dark:bg-slate-900/30 space-y-3">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={swapSearchQuery}
+                    onChange={(e) => setSwapSearchQuery(e.target.value)}
+                    placeholder="Buscar na Biblioteca (ex: Meio Agachamento, IMTP, Isométrico, Saltos, Trap Bar...)"
+                    className="w-full bg-white dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-cyan-500 dark:focus:border-cyan-400 rounded-2xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold outline-none transition-all shadow-sm dark:shadow-inner"
+                  />
+                  {swapSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSwapSearchQuery("")}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Recommendation Pills */}
+                {swapRecommendations.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                      <span>Sugestões Compatíveis com este Estágio:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {swapRecommendations.map((recName) => {
+                        const isCurrentActive = swapSearchQuery.toLowerCase() === recName.toLowerCase();
+                        return (
+                          <button
+                            key={recName}
+                            type="button"
+                            onClick={() => setSwapSearchQuery(recName)}
+                            className={`px-2.5 py-1 rounded-xl text-[10.5px] font-bold transition-all cursor-pointer flex items-center gap-1 border ${
+                              isCurrentActive
+                                ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md font-black"
+                                : "bg-white hover:bg-cyan-50 dark:bg-slate-900/90 dark:hover:bg-cyan-950/40 text-slate-700 hover:text-cyan-800 dark:text-slate-300 dark:hover:text-cyan-300 border-slate-300 dark:border-slate-800 hover:border-cyan-500/40"
+                            }`}
+                          >
+                            <span>{recName.includes("IMTP") || recName.includes("Isométrico") ? "⚡" : "•"}</span>
+                            <span>{recName}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                  {["TODOS", "MMII", "Potência", "MMSS", "Core", "Velocidade", "Preventivo"].map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSwapCategoryFilter(cat)}
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer border ${
+                        swapCategoryFilter === cat
+                          ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
+                          : "bg-white hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900 text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-200 border-slate-300 dark:border-slate-850"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Exercise Results List */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2.5 bg-slate-50/50 dark:bg-transparent">
+                {swapFilteredLibrary.length > 0 ? (
+                  swapFilteredLibrary.slice(0, 40).map(item => {
+                    const isRecommended = swapRecommendations.includes(item.name);
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isRecommended
+                            ? "bg-cyan-50/80 hover:bg-cyan-100/80 border-cyan-400/60 dark:bg-[#101928] dark:hover:bg-[#142034] dark:border-cyan-500/30 dark:hover:border-cyan-400/60 shadow-xs"
+                            : "bg-white hover:bg-slate-100/90 border-slate-200 hover:border-slate-300 dark:bg-[#0e1320] dark:hover:bg-[#131a2c] dark:border-slate-850 dark:hover:border-slate-700 shadow-xs"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                            isRecommended
+                              ? "bg-cyan-500/20 text-cyan-800 dark:text-cyan-400 border border-cyan-500/30"
+                              : "bg-slate-200 dark:bg-slate-800/50 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700/50"
+                          }`}>
+                            <Dumbbell className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <h4 className="text-sm font-black text-slate-950 dark:text-white truncate">
+                                {item.name}
+                              </h4>
+                              {isRecommended && (
+                                <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30">
+                                  ⭐ Compatível
+                                </span>
+                              )}
+                              <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                                {item.muscleGroup || item.category}
+                              </span>
+                              {item.physicalQuality && (
+                                <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border border-indigo-500/25">
+                                  {item.physicalQuality}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1 font-medium">
+                              {item.physiologicalGoal || item.applicability || `Equipamento: ${item.equipment || "BW"} • Padrão: ${item.movementPattern || "Geral"}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDetailsExercise(item)}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-400 border border-slate-300 dark:border-slate-800 transition-all cursor-pointer"
+                            title="Ver Biomecânica & Evidência Científica"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => swapExerciseWithLibrary(exerciseToSwap.id, item)}
+                            className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/20 active:scale-95 cursor-pointer"
+                            title={`Substituir "${exerciseToSwap.name}" por "${item.name}"`}
+                          >
+                            <ArrowLeftRight className="w-3.5 h-3.5" />
+                            <span>Trocar por este</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-10 text-center space-y-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 flex items-center justify-center text-slate-500 mx-auto">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-300">Nenhum exercício encontrado</p>
+                      <p className="text-[11px] text-slate-500">Tente termos como "Agachamento", "IMTP", "Salto", "Trap Bar" ou limpe os filtros.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSwapSearchQuery("");
+                        setSwapCategoryFilter("TODOS");
+                      }}
+                      className="px-3.5 py-1.5 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-cyan-700 dark:text-cyan-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                    >
+                      Limpar Filtros
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 flex items-center justify-between">
+                <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
+                  Mostrando <strong className="text-slate-950 dark:text-white">{swapFilteredLibrary.length}</strong> exercícios disponíveis
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExerciseToSwap(null);
+                    setSwapSearchQuery("");
+                  }}
+                  className="px-4 py-2 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

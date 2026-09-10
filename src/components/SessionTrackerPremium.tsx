@@ -131,6 +131,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [restSecondsRemaining, setRestSecondsRemaining] = useState(0);
   const [restDuration, setRestDuration] = useState(90); // default rest is 90s
   const [isTimerActive, setIsTimerActive] = useState(false);
+  const [timerLabel, setTimerLabel] = useState<string>("CRONÔMETRO DE DESCANSO");
   const [feedbackNotes, setFeedbackNotes] = useState(workout.feedback || "");
   const [overallRpe, setOverallRpe] = useState(workout.rpe || 7);
   const [showFinishModal, setShowFinishModal] = useState(false);
@@ -250,12 +251,30 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     });
   };
 
+  // Helper to parse complex rest strings (e.g., "3m30s", "2min", "45s", "90")
+  const parseRestStringToSeconds = (str?: string, defaultVal = 90): number => {
+    if (!str) return defaultVal;
+    const lower = str.toLowerCase().trim();
+    const minMatch = lower.match(/(\d+)\s*(?:m|min)/);
+    const secMatch = lower.match(/(\d+)\s*s/);
+    if (minMatch && secMatch) {
+      return parseInt(minMatch[1]) * 60 + parseInt(secMatch[1]);
+    }
+    if (minMatch && !secMatch) {
+      return parseInt(minMatch[1]) * 60;
+    }
+    const digits = lower.match(/\d+/);
+    return digits ? parseInt(digits[0]) : defaultVal;
+  };
+
   // Rest timer triggers
-  const startRestTimer = (seconds: number) => {
+  const startRestTimer = (seconds: number, label?: string) => {
+    if (restTimerRef.current) clearTimeout(restTimerRef.current);
     setRestDuration(seconds);
     setRestSecondsRemaining(seconds);
     setIsTimerActive(true);
-    speakText(`Descanso iniciado. ${seconds} segundos de recuperação.`, isVoiceEnabled);
+    setTimerLabel(label || "CRONÔMETRO DE DESCANSO");
+    speakText(label ? `${label}. ${seconds} segundos.` : `Descanso iniciado. ${seconds} segundos de recuperação.`, isVoiceEnabled);
   };
 
   const stopRestTimer = () => {
@@ -309,34 +328,124 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     });
 
     if (justCompleted) {
-      // Trigger dynamic motivation toast
-      const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
-      toast.success(randomQuote, {
-        icon: "⚡",
-        duration: 3000
-      });
+      if (targetEx?.executionMethod === "complex_contrast") {
+        // Encontra todos os exercícios do mesmo bloco de complexo
+        const blockExs = session.exercises.filter(
+          e => e.blockGroupId && e.blockGroupId === targetEx.blockGroupId
+        );
+        const lastExInBlock = blockExs.length > 0 ? blockExs[blockExs.length - 1] : null;
+        const isBlockEnd = lastExInBlock 
+          ? lastExInBlock.id === targetEx.id 
+          : ((targetEx.blockTag || "").endsWith("D") || 
+             (targetEx.blockTag || "").endsWith("4") || 
+             ((targetEx.blockTag || "").endsWith("B") && !session.exercises.some(e => e.blockGroupId === targetEx.blockGroupId && ((e.blockTag || "").endsWith("C") || (e.blockTag || "").endsWith("3")))));
 
-      // Parse configured rest time or fallback to 90s
-      const restValue = targetEx?.rest || "90s";
-      const secondsMatch = restValue.match(/\d+/);
-      const restSecs = secondsMatch ? parseInt(secondsMatch[0]) : 90;
+        if (!isBlockEnd) {
+          // Rapid intra-complex transition (e.g. 1A -> 1B, 1B -> 1C, 1C -> 1D)
+          const microRest = targetEx.intraSetRest ?? 20;
+          startRestTimer(microRest, `⚡ Transição Rápida (${targetEx.blockTag || "PAP"})`);
+          toast.success(`⚡ Transição de ${microRest}s! Mude rapidamente para o próximo exercício do complexo.`, {
+            icon: "🇫🇷",
+            duration: 3500
+          });
 
-      // Auto start rest timer! Excellent usability UX
-      startRestTimer(restSecs);
-
-      // Auto-switching to next exercise if all are completed (only when in guided focus mode)
-      if (willBeAllCompleted && viewMode === "guided") {
-        const nextIndex = currentExerciseIndex + 1;
-        if (nextIndex < session.exercises.length) {
-          setTimeout(() => {
-            navigateToExercise(nextIndex);
-            toast.success(`Avançando para o próximo exercício: ${session.exercises[nextIndex].name}!`, { icon: "➡️" });
-          }, 1500);
+          const nextIndex = currentExerciseIndex + 1;
+          if (nextIndex < session.exercises.length) {
+            if (viewMode === "guided") {
+              setTimeout(() => {
+                navigateToExercise(nextIndex);
+                toast.success(`Próximo estágio: ${session.exercises[nextIndex].name}!`, { icon: "➡️" });
+              }, 1200);
+            } else {
+              // No modo lista completa, faz scroll suave até o próximo card e destaca temporariamente
+              setTimeout(() => {
+                setCurrentExerciseIndex(nextIndex);
+                const nextId = session.exercises[nextIndex].id;
+                const el = document.getElementById(`exercise-card-${nextId}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  el.classList.add("ring-2", "ring-[#39FF14]");
+                  setTimeout(() => el.classList.remove("ring-2", "ring-[#39FF14]"), 2000);
+                }
+              }, 600);
+            }
+          }
         } else {
-          setTimeout(() => {
-            setShowFinishModal(true);
-            toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) para finalizar. 🏆", { duration: 5000 });
-          }, 1500);
+          // Completed full round of the complex -> Deep neuromuscular recovery
+          const roundRestSecs = parseRestStringToSeconds(targetEx.blockRest || targetEx.rest, 210);
+          startRestTimer(roundRestSecs, `🇫🇷 Descanso do Round (${targetEx.blockTag || "Complex"})`);
+          toast.success(`🏆 Round Concluído! Descanso profundo (${Math.round(roundRestSecs / 60)}min) para total restauração neuromuscular.`, {
+            icon: "🇫🇷",
+            duration: 4500
+          });
+
+          // Se ainda restarem séries no bloco, retorna ao primeiro exercício (1A) para iniciar o próximo round
+          const firstInComplexIdx = session.exercises.findIndex(e => e.blockGroupId && e.blockGroupId === targetEx.blockGroupId);
+          if (!willBeAllCompleted && firstInComplexIdx !== -1) {
+            if (viewMode === "guided") {
+              setTimeout(() => {
+                navigateToExercise(firstInComplexIdx);
+                toast.success(`Retornando ao primeiro estágio para o próximo round!`, { icon: "🔄" });
+              }, 1500);
+            } else {
+              setTimeout(() => {
+                setCurrentExerciseIndex(firstInComplexIdx);
+                const firstId = session.exercises[firstInComplexIdx].id;
+                const el = document.getElementById(`exercise-card-${firstId}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  el.classList.add("ring-2", "ring-cyan-400");
+                  setTimeout(() => el.classList.remove("ring-2", "ring-cyan-400"), 2000);
+                }
+                toast.success(`Retornando ao primeiro estágio para o próximo round!`, { icon: "🔄" });
+              }, 800);
+            }
+          } else if (willBeAllCompleted) {
+            const nextIndex = currentExerciseIndex + 1;
+            if (nextIndex < session.exercises.length) {
+              setTimeout(() => {
+                navigateToExercise(nextIndex);
+              }, 1500);
+            } else {
+              setTimeout(() => {
+                setShowFinishModal(true);
+                toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) para finalizar. 🏆", { duration: 5000 });
+              }, 1500);
+            }
+          }
+        }
+      } else {
+        // Standard, cluster, rest-pause
+        const randomQuote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
+        toast.success(randomQuote, {
+          icon: "⚡",
+          duration: 3000
+        });
+
+        // Parse rest time
+        const restSecs = parseRestStringToSeconds(targetEx?.rest, 90);
+        const label = targetEx?.executionMethod === "cluster"
+          ? `🎯 Intervalo Cluster (${targetEx.clusterReps || "2+2+2"})`
+          : targetEx?.executionMethod === "rest_pause"
+          ? `🔥 Descanso Rest-Pause`
+          : "CRONÔMETRO DE DESCANSO";
+
+        startRestTimer(restSecs, label);
+
+        // Auto-switching to next exercise if all are completed (only when in guided focus mode)
+        if (willBeAllCompleted && viewMode === "guided") {
+          const nextIndex = currentExerciseIndex + 1;
+          if (nextIndex < session.exercises.length) {
+            setTimeout(() => {
+              navigateToExercise(nextIndex);
+              toast.success(`Avançando para o próximo exercício: ${session.exercises[nextIndex].name}!`, { icon: "➡️" });
+            }, 1500);
+          } else {
+            setTimeout(() => {
+              setShowFinishModal(true);
+              toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) para finalizar. 🏆", { duration: 5000 });
+            }, 1500);
+          }
         }
       }
     }
@@ -727,6 +836,21 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                         {idx + 1}
                       </span>
                       <span className="break-words leading-tight">{ex.name}</span>
+                      {ex.executionMethod === "complex_contrast" && (
+                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                          🇫🇷 {ex.blockTag || "1A"}
+                        </span>
+                      )}
+                      {ex.executionMethod === "cluster" && (
+                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                          🎯 Cluster {ex.clusterReps || ex.reps}
+                        </span>
+                      )}
+                      {ex.executionMethod === "rest_pause" && (
+                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                          🔥 Rest-Pause
+                        </span>
+                      )}
                     </h4>
                     <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
                       Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {prescribedSets}x{isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ {prescribedWeight}
@@ -1224,6 +1348,11 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             {session.exercises.map((ex, exIdx) => {
               const exCompleted = isExCompleted(ex);
               const isTime = isTimeExercise(ex);
+              const isFirstInComplex = ex.executionMethod === "complex_contrast" && (
+                exIdx === 0 || 
+                !session.exercises[exIdx - 1]?.blockGroupId || 
+                session.exercises[exIdx - 1]?.blockGroupId !== ex.blockGroupId
+              );
 
               // lookup custom video or library video
               let customExs: any[] = [];
@@ -1237,17 +1366,39 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               const hasDirectVideo = !!resolvedVideoUrl;
 
               return (
-                <div
-                  key={ex.id || exIdx}
-                  id={`exercise-card-${ex.id}`}
-                  className={`p-4 sm:p-6 rounded-[2rem] border transition-all relative overflow-hidden ${
-                    exCompleted
-                      ? "bg-[#081112] border-emerald-500/30 shadow-lg shadow-emerald-950/20"
-                      : exIdx === currentExerciseIndex
-                        ? "bg-gradient-to-b from-[#0c111d] to-[#05080e] border-[#39FF14]/40 shadow-xl shadow-[#39FF14]/5 ring-1 ring-[#39FF14]/20"
-                        : "bg-gradient-to-b from-[#0c111d] to-[#05080e] border-slate-900 hover:border-slate-800"
-                  }`}
-                >
+                <React.Fragment key={ex.id || exIdx}>
+                  {/* Banner do Bloco de Contraste Francês (Complex Training) */}
+                  {isFirstInComplex && (
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/40 border border-cyan-500/30 shadow-md">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🇫🇷</span>
+                          <div>
+                            <h4 className="text-xs sm:text-sm font-black text-cyan-300 uppercase tracking-wider">
+                              BLOCO DE CONTRASTE FRANCÊS (COMPLEX TRAINING)
+                            </h4>
+                            <p className="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5">
+                              Execução em circuito: Realize <strong>1 série de cada estágio sequencialmente</strong> (1A ➔ 20s ➔ 1B ➔ 20s ➔ 1C ➔ 20s ➔ 1D ➔ {ex.blockRest || "3:30 min"} descanso) antes de iniciar a Série 2.
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[9.5px] font-black uppercase text-amber-400 bg-amber-500/15 border border-amber-500/30 px-3 py-1 rounded-xl shrink-0 self-start sm:self-auto">
+                          ⚡ {ex.intraSetRest ?? 20}s Transição • {ex.blockRest || "3:30 min"} Pós-Round
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    id={`exercise-card-${ex.id}`}
+                    className={`p-4 sm:p-6 rounded-[2rem] border transition-all relative overflow-hidden ${
+                      exCompleted
+                        ? "bg-[#081112] border-emerald-500/30 shadow-lg shadow-emerald-950/20"
+                        : exIdx === currentExerciseIndex
+                          ? "bg-gradient-to-b from-[#0c111d] to-[#05080e] border-[#39FF14]/40 shadow-xl shadow-[#39FF14]/5 ring-1 ring-[#39FF14]/20"
+                          : "bg-gradient-to-b from-[#0c111d] to-[#05080e] border-slate-900 hover:border-slate-800"
+                    }`}
+                  >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full blur-[50px] pointer-events-none" />
 
                   {/* Header do Exercício */}
@@ -1274,6 +1425,69 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       <h3 className="text-xl sm:text-2xl font-black uppercase italic text-white tracking-tight leading-snug break-words">
                         {ex.name}
                       </h3>
+
+                      {/* Special Method Badges & Controls in Full View */}
+                      {ex.executionMethod && ex.executionMethod !== "standard" && (
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          {ex.executionMethod === "complex_contrast" && (
+                            <>
+                              <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
+                                (ex.blockTag || "").endsWith("A")
+                                  ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                                  : (ex.blockTag || "").endsWith("B")
+                                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                                  : (ex.blockTag || "").endsWith("C")
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                              }`}>
+                                <span>🇫🇷</span>
+                                <span>ESTÁGIO {ex.blockTag || "1A"}</span>
+                              </span>
+                              {ex.blockRole && (
+                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl">
+                                  {ex.blockRole}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1">
+                                <span>⚡ Transição: {ex.intraSetRest ?? 20}s</span>
+                                {ex.blockRest && <span>• Round: {ex.blockRest}</span>}
+                              </span>
+                            </>
+                          )}
+                          {ex.executionMethod === "cluster" && (
+                            <>
+                              <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
+                                <span>🎯</span>
+                                <span>CLUSTER SET: {ex.clusterReps || ex.reps}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => startRestTimer(ex.intraSetRest ?? 20, `⏱️ Micro-Pausa Intra-Cluster (${ex.clusterReps || "2+2+2"})`)}
+                                className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-950/60 hover:bg-purple-900/60 text-purple-200 border border-purple-500/30 hover:border-purple-400 flex items-center gap-1 cursor-pointer transition-all shadow-sm"
+                              >
+                                <Timer className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                                <span>Disparar Micro-Pausa ({ex.intraSetRest ?? 20}s)</span>
+                              </button>
+                            </>
+                          )}
+                          {ex.executionMethod === "rest_pause" && (
+                            <>
+                              <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1.5">
+                                <span>🔥</span>
+                                <span>REST-PAUSE</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => startRestTimer(ex.intraSetRest ?? 15, "🔥 Micro-Pausa Rest-Pause")}
+                                className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-950/60 hover:bg-rose-900/60 text-rose-200 border border-rose-500/30 hover:border-rose-400 flex items-center gap-1 cursor-pointer transition-all shadow-sm"
+                              >
+                                <Timer className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                                <span>Disparar Micro-Pausa ({ex.intraSetRest ?? 15}s)</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
 
                       {ex.notes && (
                         <p className="text-xs text-slate-400 font-medium mt-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/80 italic">
@@ -1454,6 +1668,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     </div>
                   </div>
                 </div>
+              </React.Fragment>
               );
             })}
           </div>
@@ -1525,6 +1740,120 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       );
                     })()}
                   </h3>
+
+                  {/* Special Method Badges & Controls in Guided View */}
+                  {activeEx.executionMethod && activeEx.executionMethod !== "standard" && (
+                    <div className="flex flex-col gap-2.5 mt-3">
+                      {activeEx.executionMethod === "complex_contrast" && (() => {
+                        const blockExs = session.exercises.filter(
+                          e => e.blockGroupId && e.blockGroupId === activeEx.blockGroupId
+                        );
+                        return (
+                          <div className="w-full space-y-2.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
+                                (activeEx.blockTag || "").endsWith("A")
+                                  ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                                  : (activeEx.blockTag || "").endsWith("B")
+                                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                                  : (activeEx.blockTag || "").endsWith("C")
+                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                              }`}>
+                                <span>🇫🇷</span>
+                                <span>COMPLEXO FRANCÊS: {activeEx.blockTag || "1A"}</span>
+                              </span>
+                              {activeEx.blockRole && (
+                                <span className="text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl">
+                                  {activeEx.blockRole}
+                                </span>
+                              )}
+                              <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl flex items-center gap-1">
+                                <span>⚡ Transição: {activeEx.intraSetRest ?? 20}s</span>
+                                {activeEx.blockRest && <span>• Descanso Pós-Round: {activeEx.blockRest}</span>}
+                              </span>
+                            </div>
+
+                            {/* Trilha Sequencial dos 4 Estágios do Complexo */}
+                            {blockExs.length > 1 && (
+                              <div className="p-3 bg-[#070c18] border border-cyan-500/20 rounded-2xl space-y-1.5">
+                                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-cyan-400">
+                                  <span>Trilha do Bloco (1 Série por Estágio):</span>
+                                  <span className="text-amber-400 font-bold">Round {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}</span>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                                  {blockExs.map((bEx) => {
+                                    const isCurrentStage = bEx.id === activeEx.id;
+                                    const bIndex = session.exercises.findIndex(e => e.id === bEx.id);
+                                    return (
+                                      <button
+                                        key={bEx.id}
+                                        type="button"
+                                        onClick={() => bIndex !== -1 && navigateToExercise(bIndex)}
+                                        className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
+                                          isCurrentStage
+                                            ? "bg-cyan-500/15 border-cyan-400 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-950/40"
+                                            : "bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between text-[9px] font-black uppercase">
+                                          <span className={isCurrentStage ? "text-cyan-300" : "text-slate-500"}>
+                                            {bEx.blockTag || "Estágio"}
+                                          </span>
+                                          {isCurrentStage && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                                          )}
+                                        </div>
+                                        <p className="text-[10px] font-bold truncate mt-0.5 text-white">
+                                          {bEx.name}
+                                        </p>
+                                        <span className="text-[8px] text-slate-500 truncate block mt-0.5">
+                                          {bEx.blockRole || "Exercício"}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {activeEx.executionMethod === "cluster" && (
+                        <>
+                          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
+                            <span>🎯</span>
+                            <span>CLUSTER SET: {activeEx.clusterReps || activeEx.reps}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => startRestTimer(activeEx.intraSetRest ?? 20, `⏱️ Micro-Pausa Intra-Cluster (${activeEx.clusterReps || "2+2+2"})`)}
+                            className="px-3 py-1.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-500/40 hover:border-purple-300 flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
+                          >
+                            <Timer className="w-4 h-4 text-purple-400 animate-pulse" />
+                            <span>Iniciar Micro-Pausa ({activeEx.intraSetRest ?? 20}s)</span>
+                          </button>
+                        </>
+                      )}
+                      {activeEx.executionMethod === "rest_pause" && (
+                        <>
+                          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1.5">
+                            <span>🔥</span>
+                            <span>REST-PAUSE</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => startRestTimer(activeEx.intraSetRest ?? 15, "🔥 Micro-Pausa Rest-Pause")}
+                            className="px-3 py-1.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider bg-rose-950/70 hover:bg-rose-900 text-rose-200 border border-rose-500/40 hover:border-rose-300 flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
+                          >
+                            <Timer className="w-4 h-4 text-rose-400 animate-pulse" />
+                            <span>Iniciar Micro-Pausa ({activeEx.intraSetRest ?? 15}s)</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {activeEx.notes && (
                     <p className="text-xs text-slate-400 font-semibold mt-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-900 italic">
                       💡 {activeEx.notes}
@@ -1578,8 +1907,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   <Timer className={`w-5 h-5 ${isTimerActive ? "animate-pulse" : ""}`} />
                 </div>
                 <div>
-                  <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">CRONÔMETRO DE DESCANSO</h4>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Automático ao marcar série</p>
+                  <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">
+                    {timerLabel}
+                  </h4>
+                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                    {isTimerActive ? "Contagem regressiva em andamento" : "Automático ao marcar série"}
+                  </p>
                 </div>
               </div>
 
@@ -1600,14 +1933,21 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    {[60, 90, 120].map((sec) => (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {[
+                      { sec: 15, label: "+15s", tip: "Micro-pausa Rest-Pause" },
+                      { sec: 20, label: "+20s", tip: "Micro-pausa Cluster / Transição" },
+                      { sec: 60, label: "+60s", tip: "Descanso padrão" },
+                      { sec: 90, label: "+90s", tip: "Descanso hipertrofia" },
+                      { sec: 180, label: "+3m", tip: "Descanso round / força" },
+                    ].map((item) => (
                       <button
-                        key={sec}
-                        onClick={() => startRestTimer(sec)}
-                        className="text-[10px] font-black uppercase tracking-wider bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 px-3 py-2 rounded-lg transition-colors cursor-pointer"
+                        key={item.sec}
+                        onClick={() => startRestTimer(item.sec, `⏱️ Descanso Manual (${item.sec}s)`)}
+                        title={item.tip}
+                        className="text-[10px] font-black uppercase tracking-wider bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-[#39FF14] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
                       >
-                        +{sec}s
+                        {item.label}
                       </button>
                     ))}
                   </div>
@@ -1731,41 +2071,79 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 // DETAILED ROW BY ROW SET RECORDING
                 <div className="space-y-4">
                   {/* SMART ACTIVE SET CONTROLLER FOR QUICK RECORDING & REST TIMER TRIGGERS */}
-                  {currentSetIndexForActiveEx < (activeEx.performedSets || []).length && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-slate-950/80 border border-[#39FF14]/30 rounded-2xl p-5 shadow-[0_15px_30px_rgba(57,255,20,0.06)] flex flex-col sm:flex-row items-center justify-between gap-4"
-                    >
-                      <div className="text-center sm:text-left">
-                        <div className="flex items-center gap-2 justify-center sm:justify-start">
-                          <span className="inline-block w-2 h-2 rounded-full bg-[#39FF14] animate-ping" />
-                          <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-widest">
-                            Série Atual em Execução
-                          </span>
-                        </div>
-                        <h3 className="text-base font-black text-white uppercase mt-1 leading-tight">
-                          Série {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}
-                        </h3>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5 tracking-wider">
-                          Meta: {isTimeExercise(activeEx) ? `${String(activeEx.reps).replace(/s/gi, "")}s (Tempo)` : `${activeEx.reps} Reps`} • Carga: {activeEx.performedSets?.[currentSetIndexForActiveEx]?.weight || activeEx.weight || 0} kg
-                        </p>
-                      </div>
+                  {currentSetIndexForActiveEx < (activeEx.performedSets || []).length && (() => {
+                    const isComplex = activeEx.executionMethod === "complex_contrast";
+                    const blockExs = isComplex 
+                      ? session.exercises.filter(e => e.blockGroupId && e.blockGroupId === activeEx.blockGroupId) 
+                      : [];
+                    const lastEx = blockExs.length > 0 ? blockExs[blockExs.length - 1] : null;
+                    const isBlockEnd = lastEx 
+                      ? lastEx.id === activeEx.id 
+                      : ((activeEx.blockTag || "").endsWith("D") || (activeEx.blockTag || "").endsWith("4"));
+                    const currentIdxInBlock = blockExs.findIndex(e => e.id === activeEx.id);
+                    const nextExInBlock = currentIdxInBlock !== -1 && currentIdxInBlock < blockExs.length - 1 
+                      ? blockExs[currentIdxInBlock + 1] 
+                      : null;
 
-                      <button
-                        onClick={() => {
-                          const activeSet = activeEx.performedSets?.[currentSetIndexForActiveEx];
-                          if (activeSet) {
-                            toggleSetCompletion(activeEx.id, activeSet.id);
-                          }
-                        }}
-                        className="w-full sm:w-auto bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase py-3.5 px-6 rounded-xl tracking-widest transition-all shadow-[0_10px_20px_rgba(57,255,20,0.15)] flex items-center justify-center gap-2 group cursor-pointer"
+                    return (
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`rounded-2xl p-5 border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${
+                          isComplex 
+                            ? "bg-slate-950/90 border-cyan-500/40 shadow-[0_15px_30px_rgba(6,182,212,0.08)] ring-1 ring-cyan-500/20" 
+                            : "bg-slate-950/80 border-[#39FF14]/30 shadow-[0_15px_30px_rgba(57,255,20,0.06)]"
+                        }`}
                       >
-                        <Check className="w-4 h-4 stroke-[3] group-hover:scale-115 transition-transform" />
-                        CONCLUIR SÉRIE {currentSetIndexForActiveEx + 1} & INICIAR DESCANSO ⏱️
-                      </button>
-                    </motion.div>
-                  )}
+                        <div className="text-center sm:text-left">
+                          <div className="flex items-center gap-2 justify-center sm:justify-start">
+                            <span className={`inline-block w-2 h-2 rounded-full animate-ping ${isComplex ? "bg-cyan-400" : "bg-[#39FF14]"}`} />
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${isComplex ? "text-cyan-400" : "text-[#39FF14]"}`}>
+                              {isComplex ? `Complexo Francês • Estágio ${activeEx.blockTag || "1A"}` : "Série Atual em Execução"}
+                            </span>
+                          </div>
+                          <h3 className="text-base font-black text-white uppercase mt-1 leading-tight flex items-center gap-2">
+                            <span>Série {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}</span>
+                            {isComplex && (
+                              <span className="text-[10px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg">
+                                Round {currentSetIndexForActiveEx + 1}
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">
+                            Meta: {isTimeExercise(activeEx) ? `${String(activeEx.reps).replace(/s/gi, "")}s (Tempo)` : `${activeEx.reps} Reps`} • Carga: {activeEx.performedSets?.[currentSetIndexForActiveEx]?.weight || activeEx.weight || 0} kg
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const activeSet = activeEx.performedSets?.[currentSetIndexForActiveEx];
+                            if (activeSet) {
+                              toggleSetCompletion(activeEx.id, activeSet.id);
+                            }
+                          }}
+                          className={`w-full sm:w-auto font-black text-xs uppercase py-3.5 px-6 rounded-xl tracking-wider transition-all flex items-center justify-center gap-2 group cursor-pointer shadow-lg ${
+                            isComplex
+                              ? !isBlockEnd
+                                ? "bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-cyan-500/20"
+                                : "bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-500/20"
+                              : "bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 shadow-[0_10px_20px_rgba(57,255,20,0.15)]"
+                          }`}
+                        >
+                          <Check className="w-4 h-4 stroke-[3] group-hover:scale-115 transition-transform" />
+                          {isComplex ? (
+                            !isBlockEnd ? (
+                              <span>CONCLUIR SÉRIE ➔ TRANSIÇÃO {activeEx.intraSetRest ?? 20}s (IR P/ {nextExInBlock?.blockTag || "PRÓXIMO"}) ⚡</span>
+                            ) : (
+                              <span>CONCLUIR ROUND {currentSetIndexForActiveEx + 1} ➔ PAUSA DE {activeEx.blockRest || "3:30"} (VOLTAR P/ 1A) 🇫🇷</span>
+                            )
+                          ) : (
+                            <span>CONCLUIR SÉRIE {currentSetIndexForActiveEx + 1} & INICIAR DESCANSO ⏱️</span>
+                          )}
+                        </button>
+                      </motion.div>
+                    );
+                  })()}
 
                   <div className="space-y-2">
                     {(activeEx.performedSets || []).map((set, index) => {

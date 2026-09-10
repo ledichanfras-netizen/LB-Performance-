@@ -196,6 +196,8 @@ export interface ExerciseSet {
   isCompleted?: boolean;
 }
 
+export type AdvancedExecutionMethod = 'standard' | 'cluster' | 'rest_pause' | 'complex_contrast';
+
 export interface PrescribedExercise {
   id: string;
   name: string;
@@ -212,6 +214,16 @@ export interface PrescribedExercise {
   order_index?: number;
   videoUrl?: string;
   imageUrl?: string;
+
+  // Métodos Avançados de Força & Potência (Cluster, Contraste Francês, Complex PAP, Rest-Pause)
+  executionMethod?: AdvancedExecutionMethod;
+  clusterReps?: string; // ex: "2+2+2", "3+3"
+  intraSetRest?: number; // micro-pausa em segundos (ex: 15, 20, 30)
+  blockGroupId?: string; // ID de agrupamento de complexo (ex: "complex_1")
+  blockTag?: string; // "1A", "1B", "1C", "1D" (até 4 exercícios no Francês)
+  blockType?: 'french_contrast' | 'pap_classic' | 'custom_complex';
+  blockRole?: string; // ex: "1A: Carga Pesada (PAP)", "1B: Pliometria com Carga", "1C: Velocidade Balística", "1D: Pliometria Reativa (RSI)"
+  blockRest?: string; // Descanso ao final do round/bloco (ex: "3m30s", "4min")
 }
 
 export interface Workout {

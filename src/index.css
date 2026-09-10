@@ -377,6 +377,162 @@ body.light-theme .text-blue-500 {
   color: #0369a1 !important;
 }
 
+/* ==========================================================================
+   SPECIAL TRAINING METHODS (CONTRASTE FRANCÊS, PAP, CLUSTER, REST-PAUSE)
+   LIGHT MODE VISIBILITY & HIGH-CONTRAST TYPOGRAPHY
+   ========================================================================== */
+
+/* Special Method Text Color Adjustments in Light Mode */
+body.light-theme .text-cyan-100,
+body.light-theme .text-cyan-200,
+body.light-theme .text-cyan-300,
+body.light-theme .text-cyan-400,
+body.light-theme .text-cyan-500,
+body.light-theme [class*="text-cyan-"] {
+  color: #0e7490 !important;
+}
+
+body.light-theme .text-indigo-200,
+body.light-theme .text-indigo-300,
+body.light-theme .text-indigo-400,
+body.light-theme [class*="text-indigo-"] {
+  color: #3730a3 !important;
+}
+
+body.light-theme .text-purple-200,
+body.light-theme .text-purple-300,
+body.light-theme [class*="text-purple-300"],
+body.light-theme [class*="text-purple-200"] {
+  color: #6b21a8 !important;
+}
+
+body.light-theme .text-rose-200,
+body.light-theme .text-rose-300,
+body.light-theme .text-rose-400,
+body.light-theme [class*="text-rose-300"],
+body.light-theme [class*="text-rose-200"] {
+  color: #9f1239 !important;
+}
+
+body.light-theme .text-amber-200,
+body.light-theme .text-amber-300,
+body.light-theme [class*="text-amber-300"] {
+  color: #92400e !important;
+}
+
+body.light-theme .text-emerald-200,
+body.light-theme .text-emerald-300,
+body.light-theme [class*="text-emerald-300"] {
+  color: #065f46 !important;
+}
+
+/* Badges & Pills for Execution Methods in Light Mode */
+body.light-theme [class*="bg-cyan-500/20"],
+body.light-theme [class*="bg-cyan-950/20"],
+body.light-theme [class*="bg-cyan-950/40"] {
+  background-color: #ecfeff !important;
+  border-color: #06b6d4 !important;
+  color: #0e7490 !important;
+}
+
+body.light-theme [class*="bg-indigo-500/20"],
+body.light-theme [class*="bg-indigo-950/40"] {
+  background-color: #eef2ff !important;
+  border-color: #6366f1 !important;
+  color: #3730a3 !important;
+}
+
+body.light-theme [class*="bg-purple-500/20"],
+body.light-theme [class*="bg-purple-950/40"],
+body.light-theme [class*="bg-purple-950/60"] {
+  background-color: #faf5ff !important;
+  border-color: #a855f7 !important;
+  color: #6b21a8 !important;
+}
+
+body.light-theme [class*="bg-rose-500/20"],
+body.light-theme [class*="bg-rose-950/40"],
+body.light-theme [class*="bg-rose-950/60"] {
+  background-color: #fff1f2 !important;
+  border-color: #f43f5e !important;
+  color: #9f1239 !important;
+}
+
+body.light-theme [class*="bg-amber-500/20"] {
+  background-color: #fffbeb !important;
+  border-color: #f59e0b !important;
+  color: #92400e !important;
+}
+
+body.light-theme [class*="bg-emerald-500/20"] {
+  background-color: #ecfdf5 !important;
+  border-color: #10b981 !important;
+  color: #065f46 !important;
+}
+
+/* Gradients for Special Training Cards in Light Mode */
+body.light-theme [class*="via-[#091421]"] {
+  background: linear-gradient(135deg, #f0fdfa 0%, #ffffff 50%, #f8fafc 100%) !important;
+  border-color: #06b6d4 !important;
+}
+
+body.light-theme [class*="via-[#101429]"] {
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 50%, #f8fafc 100%) !important;
+  border-color: #6366f1 !important;
+}
+
+body.light-theme [class*="via-[#1a170d]"] {
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 50%, #f8fafc 100%) !important;
+  border-color: #f59e0b !important;
+}
+
+body.light-theme [class*="via-[#0b1c14]"] {
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 50%, #f8fafc 100%) !important;
+  border-color: #10b981 !important;
+}
+
+body.light-theme [class*="via-[#160d26]"] {
+  background: linear-gradient(135deg, #faf5ff 0%, #ffffff 50%, #f8fafc 100%) !important;
+  border-color: #a855f7 !important;
+}
+
+body.light-theme [class*="via-[#210c14]"] {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 50%, #f8fafc 100%) !important;
+  border-color: #f43f5e !important;
+}
+
+/* Method Configurator Panel in Light Mode */
+body.light-theme [class*="bg-slate-950/70"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Swap Exercise Library & Modal Cards in Light Mode */
+body.light-theme [class*="bg-[#101928]"] {
+  background-color: #ecfeff !important;
+  border-color: #06b6d4 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme [class*="bg-[#0e1320]"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme [class*="hover:bg-[#142034]"]:hover {
+  background-color: #cffafe !important;
+}
+
+body.light-theme [class*="hover:bg-[#131a2c]"]:hover {
+  background-color: #f1f5f9 !important;
+}
+
+body.light-theme [class*="border-slate-850"] {
+  border-color: #e2e8f0 !important;
+}
+
 /* High-Contrast Neon Green (#39FF14) & Accents in Light Mode */
 body.light-theme .text-\[\#39FF14\],
 body.light-theme [class*="text-[#39FF14]"] {
