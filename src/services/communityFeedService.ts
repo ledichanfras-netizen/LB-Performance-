@@ -2,77 +2,50 @@ import { SocialFeedPost, Workout, Athlete } from "../types";
 
 const FEED_STORAGE_KEY = "lbsports_community_feed_v1";
 
-const DEFAULT_SEED_POSTS: SocialFeedPost[] = [
-  {
-    id: "post-seed-1",
-    workoutId: "w-seed-1",
-    athleteId: "ath-gabriel",
-    athleteName: "Gabriel Silva",
-    athletePhoto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
-    modality: "Futebol Profissional",
-    competitiveLevel: "Elite",
-    workoutName: "Treino A • Potência & PAP (French Contrast)",
-    phase: "Pré-Competitivo",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    durationMinutes: 58,
-    totalLoad: 5240,
-    rpe: 8,
-    exercisesCount: 6,
-    completedSetsCount: 18,
-    caption: "Sessão sinistra de French Contrast hoje! Potência pura nas pernas para o jogo de sábado. ⚡💪 #LBSports #ElitePerformance",
-    photoUrl: "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=1080&auto=format&fit=crop&q=85",
-    kudos: ["Coach Lucas", "Matheus Ramos", "Ana Paula"],
-    comments: [
-      {
-        id: "c-1",
-        userName: "Coach Lucas",
-        text: "Ritmo absurdo hoje Gabriel! Transmissão neuromuscular impecável nos saltos.",
-        timestamp: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-      },
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-  },
-  {
-    id: "post-seed-2",
-    workoutId: "w-seed-2",
-    athleteId: "ath-larissa",
-    athleteName: "Larissa Souza",
-    athletePhoto: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&auto=format&fit=crop&q=80",
-    modality: "Voleibol Feminino",
-    competitiveLevel: "Nacional",
-    workoutName: "Reatividade Elástica & RSI Drop Jump",
-    phase: "Fase Específica",
-    date: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-    durationMinutes: 48,
-    totalLoad: 3950,
-    rpe: 7,
-    exercisesCount: 5,
-    completedSetsCount: 15,
-    caption: "Foco total na reatividade de solo e desaceleração excêntrica. RSI batendo recorde pessoal hoje!",
-    photoUrl: "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=1080&auto=format&fit=crop&q=85",
-    kudos: ["Gabriel Silva", "Coach Lucas", "Mariana Rios", "Felipe Santos"],
-    comments: [],
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
-  },
-];
+// O Mural Social inicia vazio, aguardando postagens reais dos atletas da equipe
+const DEFAULT_SEED_POSTS: SocialFeedPost[] = [];
 
 export const getCommunityFeed = (): SocialFeedPost[] => {
   try {
     const raw = localStorage.getItem(FEED_STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(DEFAULT_SEED_POSTS));
-      return DEFAULT_SEED_POSTS;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(DEFAULT_SEED_POSTS));
-      return DEFAULT_SEED_POSTS;
+    if (!Array.isArray(parsed)) {
+      return [];
     }
-    return parsed;
+
+    // Filtrar quaisquer postagens simuladas/seed que foram salvas anteriormente
+    const realPosts = parsed.filter(
+      (p: any) =>
+        p &&
+        typeof p.id === "string" &&
+        !p.id.startsWith("post-seed-") &&
+        !p.workoutId?.startsWith("w-seed-") &&
+        p.athleteName !== "Gabriel Silva" &&
+        p.athleteName !== "Larissa Souza"
+    );
+
+    // Se houver resquícios de postagens fake no cache do usuário, limpar e persistir apenas os reais
+    if (realPosts.length !== parsed.length) {
+      localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(realPosts));
+    }
+
+    return realPosts;
   } catch (err) {
     console.error("Erro ao ler feed da comunidade:", err);
-    return DEFAULT_SEED_POSTS;
+    return [];
   }
+};
+
+export const clearCommunityFeed = (): SocialFeedPost[] => {
+  try {
+    localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify([]));
+  } catch (err) {
+    console.error("Erro ao limpar feed da comunidade:", err);
+  }
+  return [];
 };
 
 export const saveCommunityFeed = (posts: SocialFeedPost[]): void => {

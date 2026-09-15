@@ -16,12 +16,15 @@ import {
   Heart,
   ChevronDown,
   Layers,
+  Trash2,
 } from "lucide-react";
 import { SocialFeedPost, Athlete, Workout } from "../types";
 import {
   getCommunityFeed,
   toggleKudos,
   addCommentToPost,
+  deletePost,
+  clearCommunityFeed,
 } from "../services/communityFeedService";
 import toast from "react-hot-toast";
 
@@ -78,6 +81,22 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
     setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
     setExpandedComments((prev) => ({ ...prev, [postId]: true }));
     toast.success("Comentário publicado!");
+  };
+
+  const handleDeletePost = (postId: string) => {
+    if (window.confirm("Deseja realmente remover esta postagem do Mural?")) {
+      const updated = deletePost(postId);
+      setPosts(updated);
+      toast.success("Postagem removida do mural.");
+    }
+  };
+
+  const handleClearAll = () => {
+    if (window.confirm("Deseja limpar todas as postagens do Mural Social? Esta ação não pode ser desfeita.")) {
+      const updated = clearCommunityFeed();
+      setPosts(updated);
+      toast.success("Mural limpo com sucesso.");
+    }
   };
 
   const filteredPosts = posts.filter((p) => {
@@ -139,6 +158,16 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-2">
+            {currentUser?.role === "coach" && posts.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg transition-colors cursor-pointer"
+                title="Limpar todas as postagens"
+              >
+                Limpar Mural
+              </button>
+            )}
             <input
               type="text"
               placeholder="Buscar atleta ou treino..."
@@ -152,17 +181,34 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
         {/* Posts Feed */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-grow">
           {filteredPosts.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              <Flame className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-              <p className="text-base font-bold text-white mb-1">Nenhum treino encontrado no feed</p>
-              <p className="text-xs text-slate-500">
-                Seja o primeiro a postar seu treino concluído no mural da LB Sports!
+            <div className="text-center py-16 px-4 text-slate-400 max-w-md mx-auto">
+              <div className="w-16 h-16 rounded-3xl bg-[#39FF14]/10 border border-[#39FF14]/20 flex items-center justify-center text-[#39FF14] mx-auto mb-4 shadow-[0_0_25px_rgba(57,255,20,0.15)]">
+                <Flame className="w-8 h-8 fill-current" />
+              </div>
+              <p className="text-lg font-black italic uppercase text-white mb-2 tracking-tight">
+                Mural Social • Feed de Treinos Reais
               </p>
+              <p className="text-xs text-slate-400 leading-relaxed mb-4">
+                Nenhum treino publicado ainda. Todas as postagens de teste foram removidas. Este espaço exibirá exclusivamente os treinos reais concluídos pelos atletas da equipe.
+              </p>
+              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 text-[11px] text-slate-300 text-left space-y-1">
+                <p className="font-bold text-white flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#39FF14]" />
+                  Como publicar um treino:
+                </p>
+                <p className="text-slate-400">
+                  Acesse a aba <strong className="text-slate-200">Treinos</strong>, conclua uma sessão ou clique no botão <strong className="text-[#39FF14]">"POSTAR TREINO"</strong> no card da sessão finalizada para compartilhar foto e estatísticas aqui!
+                </p>
+              </div>
             </div>
           ) : (
             filteredPosts.map((post) => {
               const hasGivenKudos = post.kudos?.includes(currentUserName);
               const isExpanded = expandedComments[post.id];
+              const canDelete =
+                currentUser?.role === "coach" ||
+                (currentAthlete?.id && post.athleteId === currentAthlete.id) ||
+                (post.athleteName && currentUserName && post.athleteName.toLowerCase() === currentUserName.toLowerCase());
 
               return (
                 <div
@@ -207,12 +253,26 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Verified LB badge with logo */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800">
-                      <img src="/pwa-192x192.svg" alt="LB" className="app-logo w-3.5 h-3.5" />
-                      <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
-                        LB HUB
-                      </span>
+                    {/* Right action badges */}
+                    <div className="flex items-center gap-2">
+                      {/* Verified LB badge with logo */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800">
+                        <img src="/pwa-192x192.svg" alt="LB" className="app-logo w-3.5 h-3.5" />
+                        <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
+                          LB HUB
+                        </span>
+                      </div>
+
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePost(post.id)}
+                          className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                          title="Excluir postagem"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -228,7 +288,7 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
                     </div>
                   )}
 
-                  {/* Strava HUD Stats Bar */}
+                  {/* Performance HUD Stats Bar */}
                   <div className="p-4 bg-slate-900/60 border-b border-slate-800/60">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {/* Duração */}
