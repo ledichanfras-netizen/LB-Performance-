@@ -71,6 +71,13 @@ export interface AthleteGuideProps {
 
 export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
   const [subTab, setSubTab] = useState<"guide" | "normatives" | "tables" | "library" | "matrix">("guide");
+
+  useEffect(() => {
+    if (role === "athlete" && subTab === "matrix") {
+      setSubTab("guide");
+    }
+  }, [role, subTab]);
+
   const [normativeSearch, setNormativeSearch] = useState("");
   const [activeNormativeTab, setActiveNormativeTab] = useState<"all" | "imtp" | "cmj" | "speed" | "vo2">("all");
 
@@ -297,17 +304,19 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
           <FileText className="w-4 h-4" />
           <span>Tabelas</span>
         </button>
-        <button
-          onClick={() => setSubTab("matrix")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
-            subTab === "matrix"
-              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black shadow-lg"
-              : "text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-emerald-400" />
-          <span>Matriz de Decisão LB</span>
-        </button>
+        {role !== "athlete" && (
+          <button
+            onClick={() => setSubTab("matrix")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              subTab === "matrix"
+                ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black shadow-lg"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span>Matriz de Decisão LB</span>
+          </button>
+        )}
       </div>
 
       {subTab === "guide" && (
@@ -625,7 +634,7 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
         </div>
       )}
 
-      {subTab === "matrix" && (
+      {subTab === "matrix" && role !== "athlete" && (
         <div className="animate-fadeIn">
           <LBPerformanceDecisionMatrix standaloneMode />
         </div>

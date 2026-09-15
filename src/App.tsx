@@ -1290,8 +1290,16 @@ const EliteHubApp: FC<{
   };
 
   useEffect(() => {
-    if (user?.role === "athlete" && user.athleteId) {
-      setSelectedId(user.athleteId);
+    if (user?.role === "athlete") {
+      if (user.athleteId) {
+        setSelectedId(user.athleteId);
+      }
+      if (dashboardSubTab === "decision-matrix") {
+        setDashboardSubTab("classic");
+      }
+      if (isAiChatOpen) {
+        setIsAiChatOpen(false);
+      }
     }
   }, [user]);
 
@@ -1546,21 +1554,23 @@ const EliteHubApp: FC<{
               </button>
 
               {/* MATRIZ LB item */}
-              <button
-                onClick={() => {
-                  setActiveTab("dash");
-                  setDashboardSubTab("decision-matrix");
-                  setAiModelingResult(null);
-                }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black ${
-                  activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult
-                    ? "bg-[#10b981] text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-102"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Sparkles className="w-4 h-4 shrink-0" />
-                <span>MATRIZ LB</span>
-              </button>
+              {user?.role !== "athlete" && (
+                <button
+                  onClick={() => {
+                    setActiveTab("dash");
+                    setDashboardSubTab("decision-matrix");
+                    setAiModelingResult(null);
+                  }}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black ${
+                    activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult
+                      ? "bg-[#10b981] text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-102"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <span>MATRIZ LB</span>
+                </button>
+              )}
 
               {/* 6. DM E SAÚDE item */}
               <button
@@ -1610,13 +1620,15 @@ const EliteHubApp: FC<{
               </button>
 
               {/* CHAT IA item */}
-              <button
-                onClick={() => setIsAiChatOpen(true)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black bg-brand-primary text-slate-950 hover:bg-lime-400 shadow-[0_0_15px_rgba(204,255,0,0.35)] cursor-pointer"
-              >
-                <Brain className="w-4 h-4 shrink-0 text-slate-950" />
-                <span>CHAT IA</span>
-              </button>
+              {user?.role !== "athlete" && (
+                <button
+                  onClick={() => setIsAiChatOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black bg-brand-primary text-slate-950 hover:bg-lime-400 shadow-[0_0_15px_rgba(204,255,0,0.35)] cursor-pointer"
+                >
+                  <Brain className="w-4 h-4 shrink-0 text-slate-950" />
+                  <span>CHAT IA</span>
+                </button>
+              )}
 
               {/* 8. GUIA item */}
               <button
@@ -1825,21 +1837,23 @@ const EliteHubApp: FC<{
                 </button>
 
                 {/* Matriz de Decisão LB Tab */}
-                <button
-                  onClick={() => {
-                    setActiveTab("dash");
-                    setDashboardSubTab("decision-matrix");
-                    setAiModelingResult(null);
-                  }}
-                  className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
-                    activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult
-                      ? "border border-brand-primary/20 bg-gradient-to-r from-brand-primary/10 to-transparent text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.06)]"
-                      : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent"
-                  }`}
-                >
-                  <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
-                  <span>Matriz de Decisão LB</span>
-                </button>
+                {user?.role !== "athlete" && (
+                  <button
+                    onClick={() => {
+                      setActiveTab("dash");
+                      setDashboardSubTab("decision-matrix");
+                      setAiModelingResult(null);
+                    }}
+                    className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                      activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult
+                        ? "border border-brand-primary/20 bg-gradient-to-r from-brand-primary/10 to-transparent text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.06)]"
+                        : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent"
+                    }`}
+                  >
+                    <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
+                    <span>Matriz de Decisão LB</span>
+                  </button>
+                )}
 
                 {/* 6. DM e Saúde Tab */}
                 <button
@@ -1894,18 +1908,20 @@ const EliteHubApp: FC<{
                 </button>
 
                 {/* Chat IA Tab */}
-                <button
-                  onClick={() => setIsAiChatOpen(true)}
-                  className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-black uppercase tracking-wider transition-all duration-300 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20 hover:border-brand-primary shadow-lg cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Brain className="w-4 h-4 shrink-0 text-brand-primary" />
-                    <span>Chat IA</span>
-                  </div>
-                  <span className="text-[9px] uppercase font-extrabold bg-brand-primary text-slate-950 px-1.5 py-0.5 rounded">
-                    Pro
-                  </span>
-                </button>
+                {user?.role !== "athlete" && (
+                  <button
+                    onClick={() => setIsAiChatOpen(true)}
+                    className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-black uppercase tracking-wider transition-all duration-300 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20 hover:border-brand-primary shadow-lg cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Brain className="w-4 h-4 shrink-0 text-brand-primary" />
+                      <span>Chat IA</span>
+                    </div>
+                    <span className="text-[9px] uppercase font-extrabold bg-brand-primary text-slate-950 px-1.5 py-0.5 rounded">
+                      Pro
+                    </span>
+                  </button>
+                )}
 
                 {/* 8. Guia Tab */}
                 <button
@@ -4586,13 +4602,15 @@ const EliteHubApp: FC<{
             </AnimatePresence>
 
             {/* AI Performance Chat Modal (Accessed via Tab) */}
-            <AiPerformanceChatModal
-              isOpen={isAiChatOpen}
-              onClose={() => setIsAiChatOpen(false)}
-              athletes={athletes}
-              selectedAthleteId={selectedId}
-              onSelectAthlete={(id) => setSelectedId(id)}
-            />
+            {user?.role !== "athlete" && (
+              <AiPerformanceChatModal
+                isOpen={isAiChatOpen}
+                onClose={() => setIsAiChatOpen(false)}
+                athletes={athletes}
+                selectedAthleteId={selectedId}
+                onSelectAthlete={(id) => setSelectedId(id)}
+              />
+            )}
 
             {/* Strava-like Workout Share Modal */}
             {modalState.type === "strava-share" && modalState.editingData && selected && (
@@ -5101,6 +5119,12 @@ const DashboardView: FC<{
   const [activeNormativeTab, setActiveNormativeTab] = useState<"all" | "imtp" | "cmj" | "speed" | "vo2">("all");
   const [wellnessToDelete, setWellnessToDelete] = useState<any | null>(null);
   const dashboardProRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (role === "athlete" && dashboardSubTab === "decision-matrix") {
+      setDashboardSubTab("classic");
+    }
+  }, [role, dashboardSubTab, setDashboardSubTab]);
 
   const wellnessHistory = useMemo(() => {
     const list = Array.isArray(athlete.wellness) ? athlete.wellness : [];
@@ -5627,17 +5651,19 @@ const DashboardView: FC<{
         >
           Monitoramento de Carga
         </button>
-        <button
-          onClick={() => setDashboardSubTab("decision-matrix")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-            dashboardSubTab === "decision-matrix"
-              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-[0_4px_20px_rgba(16,185,129,0.3)] font-black"
-              : "text-slate-400 hover:text-emerald-400"
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Matriz LB</span>
-        </button>
+        {role !== "athlete" && (
+          <button
+            onClick={() => setDashboardSubTab("decision-matrix")}
+            className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+              dashboardSubTab === "decision-matrix"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-[0_4px_20px_rgba(16,185,129,0.3)] font-black"
+                : "text-slate-400 hover:text-emerald-400"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Matriz LB</span>
+          </button>
+        )}
       </div>
 
       {/* METRIC HELPER POPUPS / TOOLTIPS */}
@@ -6959,7 +6985,7 @@ const DashboardView: FC<{
       })()}
 
       {/* ================== TAB 4: LB PERFORMANCE DECISION MATRIX ================= */}
-      {dashboardSubTab === "decision-matrix" && (
+      {dashboardSubTab === "decision-matrix" && role !== "athlete" && (
         <div className="animate-in fade-in duration-500">
           <LBPerformanceDecisionMatrix
             athlete={athlete}
