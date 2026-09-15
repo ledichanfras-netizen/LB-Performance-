@@ -492,7 +492,7 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                             <img
                               src="/pwa-192x192.svg"
                               alt="LB Sports"
-                              className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(57,255,20,0.7)]"
+                              className="app-logo filter drop-shadow-[0_0_15px_rgba(57,255,20,0.7)]"
                             />
                           </div>
                           <div className="flex items-center gap-1.5 justify-center">

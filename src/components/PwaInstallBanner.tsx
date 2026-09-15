@@ -93,8 +93,8 @@ export const PwaInstallBanner: React.FC<PwaInstallBannerProps> = ({
 
             <div className="flex items-start gap-3">
               {/* Logo / App Icon */}
-              <div className="w-12 h-12 rounded-xl bg-slate-900 border border-brand-primary/40 p-1.5 shrink-0 flex items-center justify-center shadow-md">
-                <img src="/pwa-192x192.svg" alt="LB Sports Logo" className="w-full h-full object-contain" />
+              <div className="w-12 h-12 rounded-xl bg-slate-900 border border-brand-primary/40 shrink-0 flex items-center justify-center shadow-md overflow-hidden">
+                <img src="/pwa-192x192.svg" alt="LB Sports Logo" className="app-logo" />
               </div>
 
               {/* Text Info */}

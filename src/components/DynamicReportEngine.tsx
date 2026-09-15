@@ -38,10 +38,10 @@ export const ReportHeader: FC<{
     
     <div className="relative z-10 w-full">
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-13 h-13 rounded-2xl bg-slate-900 flex items-center justify-center p-1.5 shadow-md border border-emerald-400/30 shrink-0">
+        <div className="w-13 h-13 rounded-2xl bg-slate-900 flex items-center justify-center shadow-md border border-emerald-400/30 shrink-0 overflow-hidden">
           <img
             src="/pwa-192x192.svg"
-            className="w-full h-full object-contain"
+            className="app-logo"
             alt="Logo"
           />
         </div>
@@ -91,10 +91,10 @@ export const ReportFooter: FC<{
 }) => (
   <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center bg-white shrink-0 text-left">
     <div className="flex items-center gap-4">
-      <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center p-1 shadow-lg border border-slate-800 shrink-0">
+      <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg border border-slate-800 shrink-0 overflow-hidden">
         <img
           src="/pwa-192x192.svg"
-          className="w-full h-full object-contain"
+          className="app-logo"
           alt="LB"
         />
       </div>

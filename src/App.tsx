@@ -398,10 +398,10 @@ const Login: FC<{
         className="w-full max-w-md premium-card p-10 md:p-14 relative z-10 border-slate-800/40"
       >
         <div className="flex flex-col items-center mb-12">
-          <div className="w-24 h-24 rounded-[2rem] bg-slate-900/90 p-2.5 shadow-[0_0_50px_rgba(57,255,20,0.35)] mb-8 flex items-center justify-center border border-brand-primary/30">
+          <div className="w-24 h-24 rounded-[2rem] bg-slate-900/90 shadow-[0_0_50px_rgba(57,255,20,0.35)] mb-8 flex items-center justify-center border border-brand-primary/30 overflow-hidden">
             <img
               src="/pwa-192x192.svg"
-              className="w-full h-full object-contain filter drop-shadow-[0_0_12px_rgba(57,255,20,0.3)]"
+              className="app-logo filter drop-shadow-[0_0_12px_rgba(57,255,20,0.3)]"
               alt="Logo"
             />
           </div>
@@ -513,10 +513,10 @@ const ReportPage: FC<{
 
       <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center bg-white shrink-0">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center p-1 shadow-lg border border-slate-800 shrink-0">
+          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg border border-slate-800 shrink-0 overflow-hidden">
             <img
               src="/pwa-192x192.svg"
-              className="w-full h-full object-contain"
+              className="app-logo"
               alt="LB"
             />
           </div>
@@ -558,10 +558,10 @@ const ReportHeader: FC<{
     
     <div className="relative z-10 w-full">
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-13 h-13 rounded-2xl bg-slate-900 flex items-center justify-center p-1.5 shadow-md border border-emerald-400/30 shrink-0">
+        <div className="w-13 h-13 rounded-2xl bg-slate-900 flex items-center justify-center shadow-md border border-emerald-400/30 shrink-0 overflow-hidden">
           <img
             src="/pwa-192x192.svg"
-            className="w-full h-full object-contain"
+            className="app-logo"
             alt="Logo"
           />
         </div>
@@ -1358,10 +1358,10 @@ const EliteHubApp: FC<{
       <div className="h-screen flex flex-col items-center justify-center bg-[#020617] text-[#10b981] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] p-4 text-center relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-[#10b981]/5 rounded-full blur-[140px] animate-pulse"></div>
         <div className="relative z-10 flex flex-col items-center">
-          <div className="w-28 h-28 rounded-[2.5rem] bg-slate-900/90 p-3 shadow-[0_0_60px_rgba(16,185,129,0.4)] border border-brand-primary/30 flex items-center justify-center mb-8 animate-bounce">
+          <div className="w-28 h-28 rounded-[2.5rem] bg-slate-900/90 shadow-[0_0_60px_rgba(16,185,129,0.4)] border border-brand-primary/30 flex items-center justify-center mb-8 animate-bounce overflow-hidden">
             <img
               src="/pwa-192x192.svg"
-              className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+              className="app-logo filter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
               alt="LB Logo"
             />
           </div>
@@ -1441,7 +1441,7 @@ const EliteHubApp: FC<{
           <div className="w-16 h-16 rounded-2xl bg-slate-900/90 p-2 border border-brand-primary/30 flex items-center justify-center z-10 shadow-[0_0_20px_rgba(57,255,20,0.3)]">
             <img
               src="/pwa-192x192.svg"
-              className="w-full h-full object-contain"
+              className="app-logo"
               alt="Logo"
             />
           </div>
@@ -1661,8 +1661,8 @@ const EliteHubApp: FC<{
               {/* Premium Performance Pro Logo Bracket & Theme Toggle */}
               <div className="hidden md:flex items-center justify-between mb-10 mt-2 px-2">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 flex items-center justify-center p-1 border border-slate-800 shadow-[0_0_20px_rgba(16,185,129,0.25)] shrink-0">
-                    <img src="/pwa-192x192.svg" className="w-8 h-8 object-contain" alt="LB Logo" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 flex items-center justify-center border border-slate-800 shadow-[0_0_20px_rgba(16,185,129,0.25)] shrink-0 overflow-hidden">
+                    <img src="/pwa-192x192.svg" className="app-logo" alt="LB Logo" />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-extrabold text-xs tracking-[0.14em] uppercase text-white/90 leading-none">
@@ -2082,10 +2082,10 @@ const EliteHubApp: FC<{
 
                   <div className="relative z-10 min-w-0">
                     <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-slate-900 flex items-center justify-center p-1.5 border border-brand-primary/30 shrink-0 shadow-lg">
+                      <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-slate-900 flex items-center justify-center border border-brand-primary/30 shrink-0 shadow-lg overflow-hidden">
                         <img
                           src="/pwa-192x192.svg"
-                          className="w-full h-full object-contain"
+                          className="app-logo"
                           alt="Logo"
                         />
                       </div>

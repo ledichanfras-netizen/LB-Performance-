@@ -1216,7 +1216,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
               <div className="pt-4 border-t border-slate-800/60 flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 p-4 rounded-2xl">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center p-1 border border-slate-800 shrink-0 shadow">
-                    <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB" />
+                    <img src="/pwa-192x192.svg" className="app-logo" alt="LB" />
                   </div>
                   <div>
                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.25em] leading-none mb-1">
@@ -1543,8 +1543,8 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
               {/* Header */}
               <div className="flex items-center justify-between pb-2.5 border-b-2 border-slate-900">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-slate-950 rounded-xl flex items-center justify-center p-1.5 border border-slate-800">
-                    <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB Sports" />
+                  <div className="w-11 h-11 bg-slate-950 rounded-xl flex items-center justify-center border border-slate-800 overflow-hidden">
+                    <img src="/pwa-192x192.svg" className="app-logo" alt="LB Sports" />
                   </div>
                   <div>
                     <h1 className="text-sm font-black uppercase tracking-wider text-slate-950 leading-tight">
@@ -1796,8 +1796,8 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
             {/* Official Standard Evaluation Footer */}
             <div className="mt-3 pt-2.5 border-t-2 border-slate-900 flex justify-between items-center bg-white shrink-0 text-left">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center p-1 border border-slate-800 shrink-0">
-                  <img src="/pwa-192x192.svg" className="w-full h-full object-contain" alt="LB" />
+                <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 shrink-0 overflow-hidden">
+                  <img src="/pwa-192x192.svg" className="app-logo" alt="LB" />
                 </div>
                 <div>
                   <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.25em] leading-none mb-1">

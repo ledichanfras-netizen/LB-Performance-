@@ -209,7 +209,7 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
 
                     {/* Verified LB badge with logo */}
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-800">
-                      <img src="/pwa-192x192.svg" alt="LB" className="w-3.5 h-3.5 object-contain" />
+                      <img src="/pwa-192x192.svg" alt="LB" className="app-logo w-3.5 h-3.5" />
                       <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">
                         LB HUB
                       </span>
