@@ -94,6 +94,9 @@ import { ProfilePhotoOptionsModal } from "./components/ProfilePhotoOptionsModal"
 import { AiPerformanceChatModal } from "./components/AiPerformanceChatModal";
 import { PwaInstallBanner } from "./components/PwaInstallBanner";
 import { AnamnesisModal } from "./components/AnamnesisModal";
+import { LBPerformanceDecisionMatrix } from "./components/LBPerformanceDecisionMatrix";
+import { WorkoutStravaShareModal } from "./components/WorkoutStravaShareModal";
+import { CommunityFeedModal } from "./components/CommunityFeedModal";
 import toast from "react-hot-toast";
 import { toJpeg } from "html-to-image";
 import ReactMarkdown from "react-markdown";
@@ -797,7 +800,7 @@ const EliteHubApp: FC<{
   const [activeTab, setActiveTab] = useState<
     "dash" | "training" | "assessment" | "ai-modeling" | "premium" | "info" | "injuries" | "competitions"
   >("dash");
-  const [dashboardSubTab, setDashboardSubTab] = useState<"pro" | "classic" | "elite-monitoring">("pro");
+  const [dashboardSubTab, setDashboardSubTab] = useState<"pro" | "classic" | "elite-monitoring" | "decision-matrix">("pro");
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
@@ -1095,6 +1098,8 @@ const EliteHubApp: FC<{
       | "workout"
       | "edit-workout"
       | "active-session"
+      | "strava-share"
+      | "community-feed"
       | "assessment"
       | "ai"
       | "confirm-delete"
@@ -1540,6 +1545,23 @@ const EliteHubApp: FC<{
                 <span>PRONTIDÃO</span>
               </button>
 
+              {/* MATRIZ LB item */}
+              <button
+                onClick={() => {
+                  setActiveTab("dash");
+                  setDashboardSubTab("decision-matrix");
+                  setAiModelingResult(null);
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black ${
+                  activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult
+                    ? "bg-[#10b981] text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-102"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Sparkles className="w-4 h-4 shrink-0" />
+                <span>MATRIZ LB</span>
+              </button>
+
               {/* 6. DM E SAÚDE item */}
               <button
                 onClick={() => {
@@ -1800,6 +1822,23 @@ const EliteHubApp: FC<{
                 >
                   <ClipboardCheck className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "classic" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
                   <span>Prontidão</span>
+                </button>
+
+                {/* Matriz de Decisão LB Tab */}
+                <button
+                  onClick={() => {
+                    setActiveTab("dash");
+                    setDashboardSubTab("decision-matrix");
+                    setAiModelingResult(null);
+                  }}
+                  className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                    activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult
+                      ? "border border-brand-primary/20 bg-gradient-to-r from-brand-primary/10 to-transparent text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.06)]"
+                      : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent"
+                  }`}
+                >
+                  <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
+                  <span>Matriz de Decisão LB</span>
                 </button>
 
                 {/* 6. DM e Saúde Tab */}
@@ -3280,10 +3319,10 @@ const EliteHubApp: FC<{
                     {activeTab === "training" && (
                       <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
                         {/* Sub-tabs for training */}
-                        <div className="flex bg-slate-900/80 p-1 rounded-2xl border border-slate-800 max-w-sm gap-1">
+                        <div className="flex flex-wrap bg-slate-900/80 p-1 rounded-2xl border border-slate-800 max-w-xl gap-1">
                           <button
                             onClick={() => setTrainingSubTab("planned")}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                               trainingSubTab === "planned"
                                 ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 font-black shadow-lg"
                                 : "text-slate-400 hover:text-slate-200"
@@ -3294,7 +3333,7 @@ const EliteHubApp: FC<{
                           </button>
                           <button
                             onClick={() => setTrainingSubTab("external")}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
                               trainingSubTab === "external"
                                 ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 font-black shadow-lg"
                                 : "text-slate-400 hover:text-slate-200"
@@ -3302,6 +3341,15 @@ const EliteHubApp: FC<{
                           >
                             <Dumbbell className="w-4 h-4" />
                             <span>Sessão Externa</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setModalState({ type: "community-feed" })}
+                            className="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/25 shadow-sm"
+                            title="Abrir Mural Social de Treinos com Kudos e Fotos estilo Strava"
+                          >
+                            <Flame className="w-4 h-4 fill-current text-amber-400 animate-pulse" />
+                            <span>Mural Social (Strava)</span>
                           </button>
                         </div>
 
@@ -3642,19 +3690,35 @@ const EliteHubApp: FC<{
                                       </div>
                                     )}
 
-                                    <Button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setModalState({
-                                          type: "active-session",
-                                          editingData: w,
-                                        });
-                                      }}
-                                      variant="secondary"
-                                      className="w-full py-3.5 text-[10px] font-black tracking-widest uppercase"
-                                    >
-                                      EDITAR SESSÃO
-                                    </Button>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-auto pt-2">
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setModalState({
+                                            type: "strava-share",
+                                            editingData: w,
+                                          });
+                                        }}
+                                        className="py-3 text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 shadow-[0_0_15px_rgba(57,255,20,0.25)] flex items-center justify-center gap-1.5 cursor-pointer"
+                                        title="Gerar e compartilhar Card do Treino Estilo Strava com a Logo LB Sports"
+                                      >
+                                        <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                                        <span>POSTAR / STRAVA</span>
+                                      </Button>
+                                      <Button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setModalState({
+                                            type: "active-session",
+                                            editingData: w,
+                                          });
+                                        }}
+                                        variant="secondary"
+                                        className="py-3 text-[10px] font-black tracking-widest uppercase cursor-pointer"
+                                      >
+                                        EDITAR SESSÃO
+                                      </Button>
+                                    </div>
                                   </div>
                                 ) : (
                                   <Button
@@ -3818,9 +3882,22 @@ const EliteHubApp: FC<{
                   workout={modalState.editingData}
                   athleteWeight={selected?.assessments?.bioimpedance?.[0]?.weight || selected?.weight}
                   onCancel={() => setModalState({ type: null })}
-                  onFinish={(updated) => {
+                  onFinish={(updated, shareSocial) => {
                     updateWorkout(selected!.id, updated);
-                    setModalState({ type: null });
+                    if (shareSocial) {
+                      setModalState({
+                        type: "strava-share",
+                        editingData: updated,
+                      });
+                    } else {
+                      setModalState({ type: null });
+                    }
+                  }}
+                  onShareStrava={(w) => {
+                    setModalState({
+                      type: "strava-share",
+                      editingData: w,
+                    });
                   }}
                 />
               </div>
@@ -4517,6 +4594,38 @@ const EliteHubApp: FC<{
               onSelectAthlete={(id) => setSelectedId(id)}
             />
 
+            {/* Strava-like Workout Share Modal */}
+            {modalState.type === "strava-share" && modalState.editingData && selected && (
+              <WorkoutStravaShareModal
+                workout={modalState.editingData}
+                athlete={selected}
+                isOpen={true}
+                onClose={() => setModalState({ type: null })}
+                onUpdateWorkout={(updated) => {
+                  updateWorkout(selected.id, updated);
+                }}
+                onOpenFeed={() => {
+                  setModalState({ type: "community-feed" });
+                }}
+              />
+            )}
+
+            {/* Community Social Feed Modal (Strava-like) */}
+            {modalState.type === "community-feed" && selected && (
+              <CommunityFeedModal
+                isOpen={true}
+                onClose={() => setModalState({ type: null })}
+                currentUser={user}
+                currentAthlete={selected}
+                onShareWorkout={(w) => {
+                  setModalState({
+                    type: "strava-share",
+                    editingData: w,
+                  });
+                }}
+              />
+            )}
+
             <PwaInstallBanner
               deferredPrompt={deferredPrompt}
             />
@@ -4965,8 +5074,8 @@ const DashboardView: FC<{
   onAddWellness?: () => void;
   athletes?: Athlete[];
   onSelectAthleteId?: (id: string) => void;
-  dashboardSubTab?: "pro" | "classic" | "elite-monitoring";
-  setDashboardSubTab?: (tab: "pro" | "classic" | "elite-monitoring") => void;
+  dashboardSubTab?: "pro" | "classic" | "elite-monitoring" | "decision-matrix";
+  setDashboardSubTab?: (tab: "pro" | "classic" | "elite-monitoring" | "decision-matrix") => void;
 }> = ({
   athlete,
   onDeleteWellness,
@@ -4983,7 +5092,7 @@ const DashboardView: FC<{
   dashboardSubTab: propDashboardSubTab,
   setDashboardSubTab: propSetDashboardSubTab,
 }) => {
-  const [localSubTab, setLocalSubTab] = useState<"pro" | "classic" | "elite-monitoring">("pro");
+  const [localSubTab, setLocalSubTab] = useState<"pro" | "classic" | "elite-monitoring" | "decision-matrix">("pro");
   const dashboardSubTab = propDashboardSubTab || localSubTab;
   const setDashboardSubTab = propSetDashboardSubTab || setLocalSubTab;
   const [showCargaReport, setShowCargaReport] = useState(false);
@@ -5486,11 +5595,11 @@ const DashboardView: FC<{
   return (
     <div className="space-y-8 relative no-scrollbar">
 
-      {/* SUB-TABS SEGMENTED CONTROLLER (Enables seamless swapping between PRO and CLASSIC layout) */}
-      <div className="hidden md:flex flex-wrap md:flex-nowrap justify-between items-center bg-[#0d1324]/50 p-1.5 rounded-2xl border border-slate-800/80 max-w-3xl mx-auto backdrop-blur-xl gap-1">
+      {/* SUB-TABS SEGMENTED CONTROLLER (Enables seamless swapping between PRO, CLASSIC, ELITE MONITORING, and DECISION MATRIX) */}
+      <div className="hidden md:flex flex-wrap md:flex-nowrap justify-between items-center bg-[#0d1324]/50 p-1.5 rounded-2xl border border-slate-800/80 max-w-4xl mx-auto backdrop-blur-xl gap-1">
         <button
           onClick={() => setDashboardSubTab("pro")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-5 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
             dashboardSubTab === "pro"
               ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-[0_4px_20px_rgba(245,158,11,0.2)] font-black"
               : "text-slate-400 hover:text-white"
@@ -5500,7 +5609,7 @@ const DashboardView: FC<{
         </button>
         <button
           onClick={() => setDashboardSubTab("classic")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-5 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
             dashboardSubTab === "classic"
               ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-[0_4px_20px_rgba(245,158,11,0.2)] font-black"
               : "text-slate-400 hover:text-white"
@@ -5510,13 +5619,24 @@ const DashboardView: FC<{
         </button>
         <button
           onClick={() => setDashboardSubTab("elite-monitoring")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-5 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
             dashboardSubTab === "elite-monitoring"
               ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-[0_4px_20px_rgba(245,158,11,0.2)] font-black"
               : "text-slate-400 hover:text-white"
           }`}
         >
           Monitoramento de Carga
+        </button>
+        <button
+          onClick={() => setDashboardSubTab("decision-matrix")}
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            dashboardSubTab === "decision-matrix"
+              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-[0_4px_20px_rgba(16,185,129,0.3)] font-black"
+              : "text-slate-400 hover:text-emerald-400"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Matriz LB</span>
         </button>
       </div>
 
@@ -6837,6 +6957,20 @@ const DashboardView: FC<{
           </div>
         );
       })()}
+
+      {/* ================== TAB 4: LB PERFORMANCE DECISION MATRIX ================= */}
+      {dashboardSubTab === "decision-matrix" && (
+        <div className="animate-in fade-in duration-500">
+          <LBPerformanceDecisionMatrix
+            athlete={athlete}
+            workouts={athlete.workouts || []}
+            externalSessions={athlete.externalSessions || []}
+            onNavigateToWorkout={() => {
+              toast.success("Consulte a aba Treinos para prescrever o protocolo de intervenção.");
+            }}
+          />
+        </div>
+      )}
 
     </div>
   );

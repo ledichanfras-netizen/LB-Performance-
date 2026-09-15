@@ -36,6 +36,7 @@ import { ENRICHED_LIBRARY, EnrichedExercise } from '../data/exercises';
 import { toast } from 'react-hot-toast';
 import { ExerciseEditorModal } from './ExerciseEditorModal';
 import { getEmbedVideoInfo } from '../utils';
+import { LBPerformanceDecisionMatrix } from './LBPerformanceDecisionMatrix';
 
 const GuideCard: FC<{ 
   icon: any, 
@@ -69,7 +70,7 @@ export interface AthleteGuideProps {
 }
 
 export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
-  const [subTab, setSubTab] = useState<"guide" | "normatives" | "tables" | "library">("guide");
+  const [subTab, setSubTab] = useState<"guide" | "normatives" | "tables" | "library" | "matrix">("guide");
   const [normativeSearch, setNormativeSearch] = useState("");
   const [activeNormativeTab, setActiveNormativeTab] = useState<"all" | "imtp" | "cmj" | "speed" | "vo2">("all");
 
@@ -295,6 +296,17 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
         >
           <FileText className="w-4 h-4" />
           <span>Tabelas</span>
+        </button>
+        <button
+          onClick={() => setSubTab("matrix")}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            subTab === "matrix"
+              ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-black shadow-lg"
+              : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <span>Matriz de Decisão LB</span>
         </button>
       </div>
 
@@ -610,6 +622,12 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
             <span className="text-white uppercase block mb-1">💡 Como aplicar:</span>
             Utilize o campo de busca acima e as abas rápidas para fazer pesquisas comparativas instantâneas durante as triagens e planejamentos de cargas de treinamento de seus atletas.
           </div>
+        </div>
+      )}
+
+      {subTab === "matrix" && (
+        <div className="animate-fadeIn">
+          <LBPerformanceDecisionMatrix standaloneMode />
         </div>
       )}
 

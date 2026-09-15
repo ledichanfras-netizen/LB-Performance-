@@ -242,6 +242,40 @@ export interface Workout {
   trainerNotes?: string;
   updatedAt?: string;
   createdAt?: string;
+  // Campos de postagem estilo Strava / Mural da Comunidade
+  photoUrl?: string;
+  socialCaption?: string;
+  isPostedToFeed?: boolean;
+  kudosCount?: number;
+  kudosUsers?: string[];
+}
+
+export interface SocialFeedPost {
+  id: string;
+  workoutId: string;
+  athleteId: string;
+  athleteName: string;
+  athletePhoto?: string;
+  modality?: string;
+  competitiveLevel?: string;
+  workoutName: string;
+  phase?: string;
+  date: string;
+  durationMinutes: number;
+  totalLoad: number;
+  rpe?: number;
+  exercisesCount: number;
+  completedSetsCount: number;
+  photoUrl?: string;
+  caption?: string;
+  kudos: string[]; // Nomes ou IDs dos usuários que deram kudos (🔥)
+  comments?: Array<{
+    id: string;
+    userName: string;
+    text: string;
+    timestamp: string;
+  }>;
+  createdAt: string;
 }
 
 export interface Assessment {
@@ -531,4 +565,38 @@ export interface AnamnesisRecord {
     cred: string;
   };
 }
+
+// ==========================================
+// LB PERFORMANCE DECISION MATRIX TYPES
+// ==========================================
+
+export type DecisionPriority = 'Critica' | 'Alta' | 'Media' | 'Baixa' | 'Normal';
+
+export type DecisionCategory = 
+  | 'forca_maxima'
+  | 'taxa_desenvolvimento_forca'
+  | 'potencia_cmj'
+  | 'forca_reativa_dj'
+  | 'assimetria_prevencao'
+  | 'velocidade_sprint'
+  | 'capacidade_aerobica'
+  | 'controle_carga_recuperacao';
+
+export interface DecisionMatrixRow {
+  id: string;
+  category: DecisionCategory;
+  finding: string;              // Achado (ex: "IMTP Baixo (< 30 N/kg)")
+  metricValue?: string | number;// Valor mensurado real (se do atleta)
+  targetBenchmark?: string;     // Valor padrão ou referência
+  context: string;              // Contexto (ex: "Atleta de colisão / meio de temporada")
+  hypothesis: string;           // Hipótese Fisiológica (ex: "Déficit de força máxima absoluta")
+  priority: DecisionPriority;   // Prioridade (Crítica, Alta, Média, Baixa, Normal)
+  intervention: string;         // Intervenção Prescrita (ex: "Treino de força máxima concêntrica/isométrica")
+  practicalDetails?: string[];  // Exercícios sugeridos, séries, repetições e dosagens
+  monitoring: string;           // Monitoramento (ex: "IMTP a cada 3 semanas")
+  transfer: string;             // Transferência Esportiva (ex: "Sustentação de duelo corporal e aceleração")
+  evidenceReference?: string;   // Referência científica (ex: "Comfort et al., Stone et al.")
+  status?: 'detectado' | 'normal' | 'otimo'; // Para o diagnóstico dinâmico do atleta
+}
+
 

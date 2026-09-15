@@ -5,7 +5,7 @@ import {
   Smile, Dumbbell, Clock, Timer, Sparkles, Flame, ShieldAlert,
   Sliders, ArrowRight, ArrowLeft, X, ChevronUp, ChevronDown, Plus, Trash2,
   Video, ExternalLink, Search, Image as ImageIcon,
-  ListOrdered, CheckCircle2, Circle, Target, Layers, Maximize2, LayoutGrid, ClipboardList
+  ListOrdered, CheckCircle2, Circle, Target, Layers, Maximize2, LayoutGrid, ClipboardList, Share2
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
@@ -61,16 +61,18 @@ const parseWeight = (weightStr: string | number | undefined | null): number => {
 
 interface SessionTrackerPremiumProps {
   workout: Workout;
-  onFinish: (w: Workout) => void;
+  onFinish: (w: Workout, shareSocial?: boolean) => void;
   onCancel: () => void;
   athleteWeight?: number;
+  onShareStrava?: (w: Workout) => void;
 }
 
 export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   workout,
   onFinish,
   onCancel,
-  athleteWeight
+  athleteWeight,
+  onShareStrava
 }) => {
   const isEditingCompleted = workout.status === "completed";
 
@@ -628,7 +630,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const progressPercent = totalSetsCount > 0 ? Math.round((completedSetsCount / totalSetsCount) * 100) : 0;
 
   // Finishing the entire session
-  const triggerFinish = () => {
+  const triggerFinish = (shareSocial?: boolean | React.SyntheticEvent) => {
+    const isSocial = typeof shareSocial === "boolean" ? shareSocial : false;
     if (!isEditingCompleted && completedSetsCount < totalSetsCount * 0.5) {
       const confirmFinish = window.confirm("Você concluiu menos da metade das séries planejadas. Deseja finalizar mesmo assim?");
       if (!confirmFinish) return;
@@ -658,7 +661,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       exercises: (session.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
     };
 
-    onFinish(completedSession);
+    onFinish(completedSession, isSocial);
   };
 
   // Face indicator for RPE scale
@@ -698,18 +701,31 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               {workout.name}
             </h2>
           </div>
-          <button
-            id="edit-close-btn"
-            onClick={() => {
-              if (window.confirm("Deseja realmente sair e descartar as alterações deste treino?")) {
-                onCancel();
-              }
-            }}
-            className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer shrink-0"
-            title="Sair da Edição"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onShareStrava && (
+              <button
+                type="button"
+                onClick={() => onShareStrava(session)}
+                className="px-3 py-2 bg-gradient-to-r from-[#10b981]/20 to-[#39FF14]/20 hover:from-[#10b981]/30 hover:to-[#39FF14]/30 text-[#39FF14] border border-[#39FF14]/40 rounded-xl transition-all cursor-pointer text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+                title="Postar Treino / Gerar Card Estilo Strava com Logo"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Card Strava</span>
+              </button>
+            )}
+            <button
+              id="edit-close-btn"
+              onClick={() => {
+                if (window.confirm("Deseja realmente sair e descartar as alterações deste treino?")) {
+                  onCancel();
+                }
+              }}
+              className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer shrink-0"
+              title="Sair da Edição"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* PARÂMETROS GERAIS DO TREINO */}
@@ -949,12 +965,22 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         <div id="edit-footer-actions" className="border-t border-slate-900 pt-3 flex flex-col sm:flex-row items-center gap-2 sm:gap-4 shrink-0">
           <button
             id="edit-save-btn"
-            onClick={triggerFinish}
+            onClick={() => triggerFinish(false)}
             className="w-full sm:flex-1 py-3 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-[#39FF14]/15 cursor-pointer flex items-center justify-center gap-1.5"
           >
             <Check className="w-4 h-4 stroke-[2.5]" />
             <span>Salvar Alterações</span>
           </button>
+          {onShareStrava && (
+            <button
+              type="button"
+              onClick={() => onShareStrava(session)}
+              className="w-full sm:w-auto px-5 py-3 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-[#39FF14]/30 hover:border-[#39FF14]/60 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Share2 className="w-4 h-4" />
+              <span>Postar / Card Strava</span>
+            </button>
+          )}
           <button
             id="edit-cancel-btn"
             onClick={onCancel}
@@ -2452,24 +2478,37 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               </div>
 
               {/* SAVE ACTION */}
-              <div className="pt-4 border-t border-slate-900 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowFinishModal(false)}
-                  className="flex-1 py-3.5 border border-slate-800 hover:border-slate-500 text-slate-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
-                >
-                  VOLTAR AO TREINO
-                </button>
+              <div className="pt-4 border-t border-slate-900 flex flex-col gap-2.5">
                 <button
                   type="button"
                   onClick={() => {
                     setShowFinishModal(false);
-                    triggerFinish();
+                    triggerFinish(true);
                   }}
-                  className="flex-[1.5] py-3.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#39FF14]/15 cursor-pointer text-center"
+                  className="w-full py-3.5 bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#39FF14]/20 cursor-pointer text-center flex items-center justify-center gap-2"
                 >
-                  ENVIAR E CONCLUIR 🏆
+                  <Share2 className="w-4 h-4" />
+                  <span>CONCLUIR & POSTAR CARD (ESTILO STRAVA) ⚡</span>
                 </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFinishModal(false)}
+                    className="flex-1 py-3 border border-slate-800 hover:border-slate-500 text-slate-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+                  >
+                    VOLTAR AO TREINO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowFinishModal(false);
+                      triggerFinish(false);
+                    }}
+                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer text-center"
+                  >
+                    CONCLUIR SESSÃO 🏆
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
