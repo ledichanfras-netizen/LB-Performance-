@@ -352,7 +352,7 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#39FF14] bg-[#39FF14]/10 px-2 py-0.5 rounded-md border border-[#39FF14]/20">
-                  Estilo Strava & Stories
+                  Card de Treino & Stories
                 </span>
                 <span className="text-[10px] font-bold text-slate-400">Card & Sticker Oficial LB</span>
               </div>

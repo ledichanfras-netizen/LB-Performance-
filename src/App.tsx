@@ -3362,10 +3362,10 @@ const EliteHubApp: FC<{
                             type="button"
                             onClick={() => setModalState({ type: "community-feed" })}
                             className="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/25 shadow-sm"
-                            title="Abrir Mural Social de Treinos com Kudos e Fotos estilo Strava"
+                            title="Abrir Mural Social de Treinos com Kudos e Fotos"
                           >
                             <Flame className="w-4 h-4 fill-current text-amber-400 animate-pulse" />
-                            <span>Mural Social (Strava)</span>
+                            <span>Mural Social</span>
                           </button>
                         </div>
 
@@ -3716,10 +3716,10 @@ const EliteHubApp: FC<{
                                           });
                                         }}
                                         className="py-3 text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 shadow-[0_0_15px_rgba(57,255,20,0.25)] flex items-center justify-center gap-1.5 cursor-pointer"
-                                        title="Gerar e compartilhar Card do Treino Estilo Strava com a Logo LB Sports"
+                                        title="Gerar e compartilhar Card do Treino com a Logo LB Sports"
                                       >
                                         <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>POSTAR / STRAVA</span>
+                                        <span>POSTAR TREINO</span>
                                       </Button>
                                       <Button
                                         onClick={(e) => {

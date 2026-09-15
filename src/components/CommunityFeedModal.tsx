@@ -113,7 +113,7 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
                 </span>
               </div>
               <h3 className="text-xl font-black italic uppercase text-white tracking-tight">
-                Mural Social LB • Estilo Strava
+                Mural Social LB • Feed de Treinos
               </h3>
             </div>
           </div>

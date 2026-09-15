@@ -707,10 +707,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 type="button"
                 onClick={() => onShareStrava(session)}
                 className="px-3 py-2 bg-gradient-to-r from-[#10b981]/20 to-[#39FF14]/20 hover:from-[#10b981]/30 hover:to-[#39FF14]/30 text-[#39FF14] border border-[#39FF14]/40 rounded-xl transition-all cursor-pointer text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
-                title="Postar Treino / Gerar Card Estilo Strava com Logo"
+                title="Postar Treino / Gerar Card de Performance com Logo"
               >
                 <Share2 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Card Strava</span>
+                <span className="hidden sm:inline">Postar Treino</span>
               </button>
             )}
             <button
@@ -978,7 +978,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               className="w-full sm:w-auto px-5 py-3 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-[#39FF14]/30 hover:border-[#39FF14]/60 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Share2 className="w-4 h-4" />
-              <span>Postar / Card Strava</span>
+              <span>Postar Treino</span>
             </button>
           )}
           <button
@@ -2488,7 +2488,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   className="w-full py-3.5 bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#39FF14]/20 cursor-pointer text-center flex items-center justify-center gap-2"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span>CONCLUIR & POSTAR CARD (ESTILO STRAVA) ⚡</span>
+                  <span>CONCLUIR & POSTAR TREINO ⚡</span>
                 </button>
                 <div className="flex gap-2">
                   <button
