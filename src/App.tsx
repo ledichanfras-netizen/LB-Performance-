@@ -8058,7 +8058,7 @@ const PerformanceChart: FC<{ data: any[]; type: AssessmentType }> = ({
 }) => {
   const getKeysForType = (t: AssessmentType) => {
     if (t === "bioimpedance") return ["Gordura %", "Massa Muscular"];
-    if (t === "cmj") return ["Altura (mm)", "Tempo de Voo (ms)", "Força Média (N)", "Potência (W)"];
+    if (t === "cmj") return ["Altura Salto (cm)", "Tempo de Voo (ms)", "Força Média (N)", "Potência (W)"];
     if (t === "dropJump") return ["Altura Salto (cm)", "Índice RSI"];
     if (t === "vo2max") return ["VO2 Máx", "VAM"];
     if (t === "speed") return ["5m (m/s)", "10m (m/s)", "20m (m/s)", "30m (m/s)"];
@@ -8081,7 +8081,7 @@ const PerformanceChart: FC<{ data: any[]; type: AssessmentType }> = ({
         if (item.fatPercentage > 0) base["Gordura %"] = item.fatPercentage;
         if (item.muscleMass > 0) base["Massa Muscular"] = item.muscleMass;
       } else if (type === "cmj") {
-        if (item.height > 0) base["Altura (mm)"] = Math.round(item.height * 10);
+        if (item.height > 0) base["Altura Salto (cm)"] = item.height > 0 && item.height < 15 ? Number((item.height * 10).toFixed(1)) : Number((item.height).toFixed(1));
         if (item.flightTime > 0) base["Tempo de Voo (ms)"] = item.flightTime;
         if (item.averageForce > 0) base["Força Média (N)"] = item.averageForce;
         if (item.power > 0) base["Potência (W)"] = item.power;
@@ -10140,7 +10140,10 @@ const CmjReport: FC<{
   const previousData = getPreviousAssessment(data, history);
 
   // CMJ Sport Science Calculations:
-  const cmjHeight = data.height || 0;
+  const rawHeight = data.height || 0;
+  const cmjHeight = rawHeight > 0 && rawHeight < 15 ? Number((rawHeight * 10).toFixed(1)) : rawHeight;
+  const rawPrevHeight = previousData?.height || 0;
+  const prevHeight = rawPrevHeight > 0 && rawPrevHeight < 15 ? Number((rawPrevHeight * 10).toFixed(1)) : rawPrevHeight;
   const cmjWeight = data.weight || 1;
   const cmjPower = data.power || 0;
   const cmjPowerRel = cmjPower / cmjWeight;
@@ -10294,7 +10297,7 @@ const CmjReport: FC<{
   // 1. VEREDICTO RESUMO DO ESPECIALISTA (Cientista do Esporte) - Foco em Evolução Individual
   let veredictoResumoCmj = `Perfil funcional de força explosiva bem estruturado. O atleta demonstra boa capacidade de impulsão, com oportunidade contínua de elevar a aceleração concêntrica na fase de subida do contra-movimento.`;
   if (previousData) {
-    const hDiff = data.height - (previousData.height || 0);
+    const hDiff = cmjHeight - prevHeight;
     if (hDiff > 0) {
       veredictoResumoCmj = `Excelente evolução neuromuscular em relação à avaliação anterior (+${hDiff.toFixed(1)} cm de impulsão). Demonstra ótima absorção das cargas de treino, aumento no gradiente de aceleração e resposta elástica superior dos membros inferiores.`;
     } else if (hDiff === 0) {
@@ -10332,8 +10335,8 @@ const CmjReport: FC<{
 
   // 3. TRADUÇÃO SIMPLES (Atleta)
   let sCmjAthleteTranslation = "Seu salto vertical mostrou ótima energia! Vamos continuar treinando sua impulsão para você superar suas próprias marcas a cada avaliação, empurrando o chão com o máximo de velocidade!";
-  if (previousData && data.height > (previousData.height || 0)) {
-    sCmjAthleteTranslation = `Parabéns! Você pulou ${(data.height - previousData.height).toFixed(1)} cm mais alto que na sua última avaliação! Seu treino está fazendo efeito e sua explosão está aumentando!`;
+  if (previousData && cmjHeight > prevHeight) {
+    sCmjAthleteTranslation = `Parabéns! Você pulou ${(cmjHeight - prevHeight).toFixed(1)} cm mais alto que na sua última avaliação! Seu treino está fazendo efeito e sua explosão está aumentando!`;
   }
 
   // 4. EXPLICAÇÃO PARA PAIS
@@ -10398,6 +10401,10 @@ const CmjReport: FC<{
   };
 
   const sortedHistory = [...history]
+    .map(item => ({
+      ...item,
+      height: item.height && item.height > 0 && item.height < 15 ? Number((item.height * 10).toFixed(1)) : item.height
+    }))
     .filter(item => (item.height && item.height > 0) || (item.power && item.power > 0))
     .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date));
 
@@ -10504,14 +10511,14 @@ const CmjReport: FC<{
                   </span>
                   {previousData && (
                     <div className="flex items-center gap-1 text-[10px] font-black text-brand-dark bg-black/10 px-2 py-0.5 rounded-full">
-                      <span>{getDiff(data.height, previousData.height).icon}</span>
-                      <span>{getDiff(data.height, previousData.height).percent}%</span>
+                      <span>{getDiff(cmjHeight, prevHeight).icon}</span>
+                      <span>{getDiff(cmjHeight, prevHeight).percent}%</span>
                     </div>
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 mt-4 animate-fadeIn">
                   <h3 className="text-5xl font-black italic leading-none font-sans">
-                    {data.height || 0}
+                    {cmjHeight}
                   </h3>
                   <span className="text-sm font-bold opacity-60 uppercase italic font-sans">
                     CM
@@ -16169,8 +16176,11 @@ const AssessmentView: FC<{
                     <DataRow label="Peso" value={`${item.weight || 0} kg`} />
                     <DataRow
                       label="Altura do Salto"
-                      value={`${item.height !== undefined ? Math.round(item.height * 10) : 0} mm`}
-                      diff={renderDiff(item.height, prevItem?.height)}
+                      value={`${(item.height > 0 && item.height < 15 ? item.height * 10 : item.height || 0)} cm (${((item.height > 0 && item.height < 15 ? item.height * 10 : item.height || 0) * 10).toFixed(0)} mm)`}
+                      diff={renderDiff(
+                        item.height > 0 && item.height < 15 ? item.height * 10 : item.height,
+                        prevItem?.height > 0 && prevItem?.height < 15 ? prevItem?.height * 10 : prevItem?.height
+                      )}
                     />
                     <DataRow
                       label="Força Média"
@@ -17003,7 +17013,13 @@ const AssessmentForm: FC<{
     }
   };
 
-  const [formData, setFormData] = useState(initialData || getDefaults(type));
+  const [formData, setFormData] = useState(() => {
+    const initial = initialData || getDefaults(type);
+    if (type === "cmj" && initial?.height > 0 && initial.height < 15) {
+      return { ...initial, height: parseFloat((initial.height * 10).toFixed(2)) };
+    }
+    return initial;
+  });
   const [activeMuscleTab, setActiveMuscleTab] = useState<"quadricepsDetailsR" | "quadricepsDetailsL" | "hamstringsDetailsR" | "hamstringsDetailsL" | null>(null);
 
   const updateField = (field: string, val: any) => {
@@ -17541,9 +17557,17 @@ const AssessmentForm: FC<{
                 />
               </div>
               <Field
-                label="Altura (mm)"
-                value={formData.height !== undefined ? Math.round(formData.height * 10) : ""}
-                onChange={(v) => updateField("height", isNaN(parseFloat(v)) ? 0 : parseFloat(v) / 10)}
+                label="Altura do Salto (cm)"
+                value={formData.height !== undefined && formData.height !== null ? formData.height : ""}
+                onChange={(v) => {
+                  const parsed = parseFloat(v);
+                  if (isNaN(parsed)) {
+                    updateField("height", 0);
+                  } else {
+                    // Preserva o valor decimal exato (ex: 49.8 cm) sem arredondamento. Se for digitado em mm (ex: 498), converte para cm.
+                    updateField("height", parsed > 150 ? parseFloat((parsed / 10).toFixed(2)) : parsed);
+                  }
+                }}
               />
               <Field
                 label="Força Média (N)"
