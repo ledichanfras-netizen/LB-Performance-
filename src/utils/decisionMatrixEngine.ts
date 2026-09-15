@@ -10,37 +10,56 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
   {
     id: "master-imtp-baixo-forca",
     category: "forca_maxima",
-    finding: "IMTP Baixo (< 30 N/kg Masc / < 22 N/kg Fem)",
-    targetBenchmark: "≥ 34 N/kg (Masc) | ≥ 26 N/kg (Fem)",
-    context: "Atleta de esportes com colisão, duelos ou acelerações intensas",
-    hypothesis: "Déficit de força máxima estrutural absoluta e baixa densidade miofibrilar",
-    priority: "Alta",
-    intervention: "Bloco de Força Máxima: Agachamento Pesado (3-5 reps @ 80-88% 1RM), Levantamento Terra e Isometria Superada (Overcoming Isometrics)",
+    finding: "IMTP em Construção de Base (< 1.80 kgf/kg / < 18 N/kg Masc | < 1.50 kgf/kg / < 15 N/kg Fem)",
+    targetBenchmark: "Faixa Estável: ≥ 1.80 kgf/kg (≥ 18 N/kg Masc) | ≥ 1.50 kgf/kg (≥ 15 N/kg Fem)",
+    context: "Atleta em formação motora ou retornando de transição/pausa prolongada",
+    hypothesis: "Força de suporte abaixo da faixa funcional estável; necessita de lastro miofibrilar para amortecer impactos e aterrissagens",
+    priority: "Media",
+    intervention: "Bloco de Base Estrutural e Força Geral: Agachamento progressivo (70-80% 1RM), Levantamento Terra/Trap Bar e fortalecimento de cadeia posterior",
     practicalDetails: [
-      "Agachamento Traseiro: 4 séries x 3-5 reps @ 85% 1RM (3 min descanso)",
-      "Isometria Superada no Rack: 3 séries x 5 segundos de força máxima",
-      "Puxada Alta / Trapézio sob carga: 3 séries x 6 reps"
+      "Agachamento Traseiro / Trap Bar: 3-4 séries x 5-6 reps @ 75-80% 1RM com controle excêntrico",
+      "Isometria Superada no Rack (posição do IMTP a 130-140°): 3 séries x 5 segundos de contração firme",
+      "Acessórios de Cadeia Posterior (RDL, Elevação Pélvica, Panturrilha): 3 séries x 8 reps"
     ],
     monitoring: "IMTP a cada 3 a 4 semanas (reavaliação com célula de carga)",
-    transfer: "Sustentação física em choques mecânicos, acelerações de saída e prevenção de lesões articulares",
-    evidenceReference: "Stone et al. (2004), Comfort et al. (2019, 2024)"
+    transfer: "Sustentação física em aterrissagens, estabilidade pélvica e resiliência articular",
+    evidenceReference: "Suchomel et al. (2016), Comfort et al. (2019, 2024), Parâmetros LB Sports"
   },
   {
     id: "master-imtp-normal-estavel",
     category: "forca_maxima",
-    finding: "IMTP Adequado / Alto (≥ 37 N/kg Masc)",
-    targetBenchmark: "≥ 37 N/kg (Elite)",
-    context: "Atleta com excelente base estrutural de força de suporte",
-    hypothesis: "Base de força máxima consolidada; capacidade de produção de tensão máxima preservada",
+    finding: "IMTP Funcional Estável (1.80 a 2.60 kgf/kg Masc | 1.50 a 2.20 kgf/kg Fem)",
+    targetBenchmark: "Faixa Estável: 1.80 a 2.60 kgf/kg (Masc) | 1.50 a 2.20 kgf/kg (Fem)",
+    context: "Atleta com excelente equilíbrio de força relativa para esportes coletivos e de salto",
+    hypothesis: "Força de suporte consolidada e segura; janela ideal para priorizar taxa de subida de força (RFD), aceleração e potência reativa",
     priority: "Normal",
-    intervention: "Manutenção de Força Máxima (1x/sem com alta intensidade e baixo volume) e migração para Potência Rápida",
+    intervention: "Manutenção Econômica de Força com Foco em Força Rápida e RFD: Cargas submáximas (75-82% 1RM) com foco na máxima intenção concêntrica e transferências balísticas",
     practicalDetails: [
-      "Agachamento Pesado: 3 séries x 3 reps @ 85% 1RM (manutenção)",
-      "Transferência imediata para balísticos (Jump Squats com 20-30% de 1RM)"
+      "Agachamento com Foco em Velocidade: 3 séries x 3-4 reps @ 75-80% 1RM com fase concêntrica máxima",
+      "Jump Squats com Barra Hexagonal ou Halteres (15-20% peso corporal)",
+      "Pliometria e Treinamento do Ciclo Alongamento-Encurtamento (CAE)"
     ],
-    monitoring: "Monitoramento de manutenção mensal",
-    transfer: "Preservação da robustez sem gerar fadiga residual desnecessária para gestos técnicos",
-    evidenceReference: "Suchomel et al. (2016)"
+    monitoring: "Monitoramento de manutenção a cada 4 a 6 semanas",
+    transfer: "Eficiência mecânica nos saltos e sprints sem acúmulo de peso morto ou lentidão",
+    evidenceReference: "Suchomel et al. (2016), Turner et al. (2020)"
+  },
+  {
+    id: "master-imtp-otimizado",
+    category: "forca_maxima",
+    finding: "IMTP Otimizado / Alto Nível (≥ 2.60 kgf/kg Masc | ≥ 2.20 kgf/kg Fem)",
+    targetBenchmark: "≥ 2.60 kgf/kg (≥ 26 N/kg Masc) | ≥ 2.20 kgf/kg (≥ 22 N/kg Fem)",
+    context: "Atleta com níveis superiores de força relativa em relação ao peso corporal",
+    hypothesis: "Força máxima consolidada em patamar de elite; não constitui gargalo para gestos esportivos",
+    priority: "Normal",
+    intervention: "Manutenção em Microdoses e Foco Pleno em Potência Balística e Reatividade Elástica",
+    practicalDetails: [
+      "Agachamento Pesado de Manutenção: 2 séries x 2-3 reps @ 85% 1RM (1x/semana)",
+      "Pliometria de Alto Nível (Drop Jumps e Saltos Reativos)",
+      "Transferência específica para velocidade e impulsão"
+    ],
+    monitoring: "Reavaliação a cada 6 a 8 semanas",
+    transfer: "Preservação da robustez mecânica com prontidão neural máxima para velocidade e impulsão",
+    evidenceReference: "Stone et al. (2004), Suchomel et al. (2016)"
   },
 
   // 2. TAXA DE DESENVOLVIMENTO DE FORÇA (TDF / RFD)
@@ -322,32 +341,101 @@ export function generateAthleteDecisionMatrix(
   // 1. ANÁLISE DE IMTP
   const latestImtp = assessments.imtp?.slice(-1)[0];
   if (latestImtp) {
-    const relForce = latestImtp.relativePeakForce || 0;
+    const rawRelForce = latestImtp.relativePeakForce || 0;
     const timeToPeak = latestImtp.timeToPeakForce || 0;
-    const thresholdMin = gender === "F" ? 22 : 30;
-    const thresholdTarget = gender === "F" ? 26 : 34;
+    const peakForce = latestImtp.peakForce || 0;
+    const athleteWeight = athlete.weight || latestImtp.weight || 75;
 
-    if (relForce > 0 && relForce < thresholdMin) {
-      activeRows.push({
-        id: "dyn-imtp-baixo",
-        category: "forca_maxima",
-        finding: `IMTP Baixo: ${relForce.toFixed(2)} N/kg`,
-        metricValue: `${relForce.toFixed(2)} N/kg`,
-        targetBenchmark: `≥ ${thresholdTarget} N/kg`,
-        context: `${athlete.modality || "Esporte"} / ${gender === "M" ? "Masculino" : "Feminino"}`,
-        hypothesis: "Déficit marcante de força máxima absoluta e taxa de recrutamento miofibrilar",
-        priority: "Alta",
-        intervention: "Bloco de Força Máxima: Agachamento com sobrecarga (80-88% 1RM) e Isometria Máxima Superada",
-        practicalDetails: [
-          "Agachamento Pesado: 4 séries x 3-5 reps @ 85% 1RM",
-          "Isometria Superada no Rack: 3 séries x 5 segundos máximos",
-          "Levantamento Terra / Trap Bar: 3 séries x 4 reps"
-        ],
-        monitoring: "IMTP a cada 3-4 semanas",
-        transfer: "Melhora de sustentação nos choques mecânicos e arranque de velocidade",
-        evidenceReference: "Stone et al. (2004), Comfort et al. (2024)",
-        status: "detectado"
-      });
+    // Normalização rigorosa das unidades:
+    // Se o valor armazenado for < 10 (ex: 1.91), trata-se de kgf/kg (quilograma-força / kg corporal).
+    // Se for >= 10 (ex: 18.7 ou 34.0), trata-se de N/kg.
+    let relForceKgf = 0;
+    if (rawRelForce > 0) {
+      relForceKgf = rawRelForce < 10 ? rawRelForce : rawRelForce / 9.80665;
+    } else if (peakForce > 0 && athleteWeight > 0) {
+      relForceKgf = peakForce / athleteWeight;
+    }
+    const relForceNkg = relForceKgf * 9.80665;
+
+    // Benchmarks calibrados para esportes coletivos e quadra/campo (Futebol, Vôlei, Basquete, Handebol):
+    // - Faixa Estável: Masc 1.80 a 2.60 kgf/kg (~18 a 25.5 N/kg) | Fem 1.50 a 2.20 kgf/kg (~15 a 21.5 N/kg)
+    // - Faixa Otimizada: Masc ≥ 2.60 kgf/kg (≥ 25.5 N/kg) | Fem ≥ 2.20 kgf/kg (≥ 21.5 N/kg)
+    // - Base em Construção: Masc < 1.80 kgf/kg | Fem < 1.50 kgf/kg
+    const isFemale = gender === "F";
+    const minEstavelKgf = isFemale ? 1.50 : 1.80;
+    const minEstavelNkg = isFemale ? 15.0 : 18.0;
+    const targetOtimizadoKgf = isFemale ? 2.20 : 2.60;
+    const targetOtimizadoNkg = isFemale ? 21.5 : 25.5;
+
+    if (relForceKgf > 0) {
+      if (relForceKgf < minEstavelKgf) {
+        const isCritico = relForceKgf < (isFemale ? 1.20 : 1.40);
+
+        activeRows.push({
+          id: "dyn-imtp-base",
+          category: "forca_maxima",
+          finding: `IMTP em Construção de Base: ${relForceKgf.toFixed(2)} kgf/kg (${relForceNkg.toFixed(1)} N/kg)`,
+          metricValue: `${relForceKgf.toFixed(2)} kgf/kg (${relForceNkg.toFixed(1)} N/kg)`,
+          targetBenchmark: `Faixa Estável: ≥ ${minEstavelKgf.toFixed(2)} kgf/kg (≥ ${minEstavelNkg.toFixed(0)} N/kg)`,
+          context: `${athlete.modality || "Esporte"} / ${gender === "M" ? "Masculino" : "Feminino"} • Força Relativa: ${relForceKgf.toFixed(2)}x peso corporal`,
+          hypothesis: `Atleta em fase de estruturação de força de base (< ${minEstavelKgf.toFixed(2)} kgf/kg). Necessidade de lastro miofibrilar e estabilidade articular antes de elevar volumes de pliometria de alta intensidade.`,
+          priority: isCritico ? "Alta" : "Media",
+          intervention: "Bloco de Base Estrutural e Força Funcional: Agachamento progressivo (70-80% 1RM), Levantamento Terra/Trap Bar e fortalecimento de cadeia posterior.",
+          practicalDetails: [
+            "Agachamento Traseiro / Trap Bar: 3-4 séries x 5-6 reps @ 75-80% 1RM com controle excêntrico",
+            "Isometria Superada no Rack (posição do IMTP a 130-140°): 3 séries x 5 segundos de contração firme",
+            "Acessórios de Cadeia Posterior (RDL, Elevação Pélvica, Panturrilha): 3 séries x 8 reps"
+          ],
+          monitoring: "IMTP a cada 3-4 semanas (célula de carga)",
+          transfer: "Suporte articular em aterrissagens, estabilidade pélvica e resiliência mecânica",
+          evidenceReference: "Suchomel et al. (2016), Comfort et al. (2024)",
+          status: "detectado"
+        });
+      } else if (relForceKgf >= minEstavelKgf && relForceKgf < targetOtimizadoKgf) {
+        // Faixa Funcional Estável (ex: 1.91 kgf/kg no Voleibol)
+        activeRows.push({
+          id: "dyn-imtp-estavel",
+          category: "forca_maxima",
+          finding: `IMTP Funcional Estável: ${relForceKgf.toFixed(2)} kgf/kg (${relForceNkg.toFixed(1)} N/kg)`,
+          metricValue: `${relForceKgf.toFixed(2)} kgf/kg (${relForceNkg.toFixed(1)} N/kg)`,
+          targetBenchmark: `Faixa Estável: ${minEstavelKgf.toFixed(2)} a ${targetOtimizadoKgf.toFixed(2)} kgf/kg (${minEstavelNkg.toFixed(0)} a ${targetOtimizadoNkg.toFixed(0)} N/kg)`,
+          context: `${athlete.modality || "Esporte"} / ${gender === "M" ? "Masculino" : "Feminino"} • Força de Suporte Consolidada`,
+          hypothesis: `Força relativa adequada e equilibrada para as demandas do ${athlete.modality || "esporte"}. A base de suporte estável permite priorizar o desenvolvimento de taxa de subida de força (RFD), aceleração e potência reativa no salto.`,
+          priority: "Normal",
+          intervention: "Manutenção de Força com Foco em Força Rápida e RFD: Cargas submáximas (75-82% 1RM) com foco na máxima intenção concêntrica e transferências balísticas.",
+          practicalDetails: [
+            "Agachamento com Foco em Velocidade: 3 séries x 3 reps @ 75-80% 1RM (máxima velocidade concêntrica)",
+            "Jump Squats com Barra Hexagonal (15-20% peso corporal): 3 séries x 4 reps",
+            "Transferência direta para aterrissagens e impulsão específica da modalidade"
+          ],
+          monitoring: "Monitoramento a cada 4 a 6 semanas",
+          transfer: "Eficiência mecânica nos saltos e sprints sem sobrepeso de massa muscular não-funcional",
+          evidenceReference: "Suchomel et al. (2016), Turner et al. (2020)",
+          status: "normal"
+        });
+      } else {
+        // Faixa Otimizada / Alta Performance
+        activeRows.push({
+          id: "dyn-imtp-otimizado",
+          category: "forca_maxima",
+          finding: `IMTP Otimizado / Alto Nível: ${relForceKgf.toFixed(2)} kgf/kg (${relForceNkg.toFixed(1)} N/kg)`,
+          metricValue: `${relForceKgf.toFixed(2)} kgf/kg (${relForceNkg.toFixed(1)} N/kg)`,
+          targetBenchmark: `≥ ${targetOtimizadoKgf.toFixed(2)} kgf/kg (≥ ${targetOtimizadoNkg.toFixed(0)} N/kg)`,
+          context: `${athlete.modality || "Esporte"} / ${gender === "M" ? "Masculino" : "Feminino"} • Força Relativa de Elite`,
+          hypothesis: "Excelente capacidade de produção de força máxima em relação à massa corporal. Força não atua como fator limitante para a modalidade.",
+          priority: "Normal",
+          intervention: "Manutenção Econômica (1x/semana em microdoses) e Foco em Potência Balística e Reatividade Elástica",
+          practicalDetails: [
+            "Agachamento Pesado de Manutenção: 2 séries x 2-3 reps @ 85% 1RM (1x/semana)",
+            "Jump Squats e Pliometria de Alto Nível (Drop Jumps)",
+            "Transferência direta para gestos esportivos de explosão máxima"
+          ],
+          monitoring: "Reavaliação a cada 6 a 8 semanas",
+          transfer: "Preservação da estabilidade mecânica com prontidão neural para velocidade e saltos",
+          evidenceReference: "Suchomel et al. (2016), Comfort et al. (2024)",
+          status: "otimo"
+        });
+      }
     }
 
     if (timeToPeak > 400) {

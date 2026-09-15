@@ -16176,7 +16176,12 @@ const AssessmentView: FC<{
                     <DataRow label="Peso" value={`${item.weight || 0} kg`} />
                     <DataRow
                       label="Altura do Salto"
-                      value={`${(item.height > 0 && item.height < 15 ? item.height * 10 : item.height || 0)} cm (${((item.height > 0 && item.height < 15 ? item.height * 10 : item.height || 0) * 10).toFixed(0)} mm)`}
+                      value={(() => {
+                        const h = item.height > 0 && item.height < 15 ? item.height * 10 : (item.height || 0);
+                        const hFormatted = Number.isInteger(h) ? h.toString() : h.toFixed(1);
+                        const mmFormatted = Number.isInteger(h * 10) ? (h * 10).toString() : (h * 10).toFixed(1);
+                        return `${hFormatted} cm (${mmFormatted} mm)`;
+                      })()}
                       diff={renderDiff(
                         item.height > 0 && item.height < 15 ? item.height * 10 : item.height,
                         prevItem?.height > 0 && prevItem?.height < 15 ? prevItem?.height * 10 : prevItem?.height

@@ -2594,7 +2594,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 // Criteria
                 const isCmjLow = !latestCmj || latestCmj.height < 36;
                 const isRsiLow = !latestDrop || latestDrop.rsi < 2.0;
-                const isImtpLow = !latestImtp || (latestImtp.relativePeakForce && latestImtp.relativePeakForce < 30) || (latestImtp.peakForce && latestImtp.peakForce < 200);
+                
+                const rawImtpRel = latestImtp?.relativePeakForce || 0;
+                const imtpRelKgf = rawImtpRel > 0 
+                  ? (rawImtpRel < 10 ? rawImtpRel : rawImtpRel / 9.80665) 
+                  : (latestImtp?.peakForce && athlete?.weight ? latestImtp.peakForce / athlete.weight : 0);
+                const imtpRelNkg = imtpRelKgf * 9.80665;
+                const minImtpKgf = athlete?.gender === "F" ? 1.50 : 1.80;
+                const isImtpLow = !latestImtp || (imtpRelKgf > 0 && imtpRelKgf < minImtpKgf) || (latestImtp.peakForce && latestImtp.peakForce < 140);
                 
                 let isAsymmetryHigh = false;
                 let asymmetryValue = 0;
@@ -2636,7 +2643,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     status: isImtpLow ? "DEFICIT DETECTADO" : "LIVRE / OK",
                     statusColor: isImtpLow ? "text-red-400 bg-red-400/5 border-red-500/20" : "text-emerald-400 bg-emerald-400/5 border-emerald-500/20",
                     isDetected: isImtpLow,
-                    metric: latestImtp ? `Força Relativa: ${latestImtp.relativePeakForce || latestImtp.peakForce} KGF/kg` : "Nenhum IMTP cadastrado",
+                    metric: latestImtp ? `Força Relativa: ${imtpRelKgf.toFixed(2)} kgf/kg (${imtpRelNkg.toFixed(1)} N/kg)` : "Nenhum IMTP cadastrado",
                     desc: "Dificuldade em atingir altos picos de força em curtos intervalos de tempo. Recomenda-se isometria pesada multiarticular ou força pura.",
                     exercises: ["Agachamento Traseiro", "Isometric Mid-Thigh Pull", "Spanish Squat"],
                   },

@@ -265,21 +265,20 @@ export const calculatePerformanceScore = (athleteOrAssessments: any) => {
     const list = [...assessments.imtp].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const lastImtp = list[0];
     if (lastImtp.relativePeakForce) {
-      let targetImtpRel = 4.5; // default elite target
-      if (isFutebol) {
-        if (isFemale) {
-          if (athleteAge <= 15) targetImtpRel = 2.5;
-          else if (athleteAge <= 17) targetImtpRel = 2.7;
-          else if (athleteAge <= 20) targetImtpRel = 2.9;
-          else targetImtpRel = 3.2;
-        } else {
-          if (athleteAge <= 15) targetImtpRel = 3.5;
-          else if (athleteAge <= 17) targetImtpRel = 4.0;
-          else if (athleteAge <= 20) targetImtpRel = 4.3;
-          else targetImtpRel = 5.0;
-        }
+      const relKgf = lastImtp.relativePeakForce > 10 ? lastImtp.relativePeakForce / 9.80665 : lastImtp.relativePeakForce;
+      let targetImtpRel = isFemale ? 2.2 : 2.6; // meta calibrada para esportes coletivos e quadra
+      if (isFemale) {
+        if (athleteAge <= 15) targetImtpRel = 1.6;
+        else if (athleteAge <= 17) targetImtpRel = 1.8;
+        else if (athleteAge <= 20) targetImtpRel = 2.0;
+        else targetImtpRel = 2.2;
+      } else {
+        if (athleteAge <= 15) targetImtpRel = 1.8;
+        else if (athleteAge <= 17) targetImtpRel = 2.1;
+        else if (athleteAge <= 20) targetImtpRel = 2.3;
+        else targetImtpRel = 2.6;
       }
-      strengthScore = Math.min((lastImtp.relativePeakForce / targetImtpRel) * 100, 100);
+      strengthScore = Math.min((relKgf / targetImtpRel) * 100, 100);
       hasStrength = true;
     } else if (lastImtp.peakForce) {
       let targetPeakForce = isFemale ? 260 : 350;
