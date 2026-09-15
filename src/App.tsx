@@ -2076,7 +2076,7 @@ const EliteHubApp: FC<{
               )}
               {/* Dashboard Contextual Header / Hero Area */}
               <section className="mb-8 md:mb-10">
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 p-6 sm:p-8 md:p-9 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-slate-900/80 to-slate-900/40 border border-slate-800/50 backdrop-blur-3xl relative group overflow-hidden">
+                <div className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center gap-6 p-6 sm:p-8 md:p-9 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-slate-900/80 to-slate-900/40 border border-slate-800/50 backdrop-blur-3xl relative group overflow-hidden">
                   {/* Abstract decorative elements */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-primary/10 transition-all duration-700 pointer-events-none"></div>
 
@@ -2089,13 +2089,13 @@ const EliteHubApp: FC<{
                           alt="Logo"
                         />
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[8px] sm:text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] leading-none mb-1 neon-text-glow truncate">
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-[8px] sm:text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] leading-tight mb-1 neon-text-glow break-words">
                           {user.role === "coach"
                             ? "Portal do Treinador"
                             : "Perfil do Atleta"}
                         </span>
-                        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black italic uppercase tracking-tighter text-white leading-tight truncate">
+                        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black italic uppercase tracking-tighter text-white leading-tight break-words">
                           {activeTab === "dash" && "Performance Lab"}
                           {activeTab === "training" && "Training Zone"}
                           {activeTab === "assessment" && "Elite Testing"}
