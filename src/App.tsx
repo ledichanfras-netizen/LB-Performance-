@@ -732,13 +732,13 @@ const EliteHubApp: FC<{
       const acwr = computedAcwr.ratio;
       
       let status = "ZONA IDEAL";
-      let statusColor = "bg-emerald-950/60 text-emerald-450 border border-emerald-500/20";
+      let statusColor = "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/30";
       if (acwr < 0.85) {
         status = "RISCO BAIXO";
-        statusColor = "bg-amber-950/60 text-amber-500 border border-amber-900/20";
+        statusColor = "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/30";
       } else if (acwr > 1.3) {
         status = "RISCO ALTO";
-        statusColor = "bg-red-950/60 text-red-450 border border-red-500/20";
+        statusColor = "bg-red-100 text-red-700 border-red-300 dark:bg-red-500/25 dark:text-red-200 dark:border-red-500/40 shadow-sm";
       }
 
       const todayWell = (ath.wellness || []).find((w) => w.date && w.date.startsWith(today));
@@ -8507,10 +8507,13 @@ const SpeedReport: FC<{
   const sGender = athlete.gender;
   const sAge = calculateAge(athlete.dob);
   const sSpeed30m = data.speed30m || 0;
+  const sSpeed20m = data.speed20m || 0;
   const sSpeed10m = data.speed10m || 0;
   const sSpeed5m = data.speed5m || 0;
   const sTime30m = data.time30m || 0;
+  const sTime20m = data.time20m || 0;
   const sTime10m = data.time10m || 0;
+  const sTime5m = data.time5m || 0;
 
   // 1. STATUS DE SPRINT GERAL (RESUMO EXECUTIVO)
   let speedClass = "Regular";
@@ -8614,8 +8617,7 @@ const SpeedReport: FC<{
     sAcellAnalysis = "Fase de aceleração lenta. Perda de rigidez no tornozelo e tempo de contato prolongado na saída limitando a projeção corporal horizontal.";
   }
 
-  const sSpeed20m = data.speed20m || 1;
-  if (sSpeed30m / sSpeed20m >= 1.05) {
+  if (sSpeed30m / (sSpeed20m || 1) >= 1.05) {
     sFatiqueAnalysis = "Excelente resistência à velocidade e manutenção de velocidade linear. Atleta sustenta o teto neuromuscular sem desaceleração precoce indesejada.";
   } else {
     sFatiqueAnalysis = "Catástrofe de desaceleração prematura pós-20m. Excesso de fadiga central ou limitações de rigidez do core impedem a sustentação do pico de velocidade.";
@@ -8662,21 +8664,51 @@ const SpeedReport: FC<{
     accRatioText = "Atleta de velocidade máxima dominante. Demanda maior raio e distância para expressar sua potência motora real; excelente para transições longas em campo aberto.";
   }
 
-  // 8. PLANO DE AÇÃO PARA VELOCIDADE
-  let sActionPlanFocus = "Foco em Força Explosiva Horizontal, Rigidez de Tornozelo e Técnica de Passada";
-  let sActionItems = [
-    { title: "Sprints com Sobrecarga Leve (Resistidos)", desc: "Tiros de 10m a 15m tracionando elástico ou trenó com 10% do peso corporal, 2x por semana (5 repetições de altíssima intensidade)." },
-    { title: "Ankle Pogo Jumps Rápidos", desc: "Saltos de tornozelo contínuos (3 séries de 20 reps) mantendo joelhos firmes e tornozelos ativados para encurtar o tempo de contato e gerar elasticidade." },
-    { title: "Drills de Mecânica de Sprint (A-Skips)", desc: "Exercícios de coordenação postural e elevação de joelhos mantendo o pé em dorsiflexão para otimizar os ângulos de ataque ao solo." },
-    { title: "Hipertrofia Excêntrica de Isquiotibiais", desc: "Treino de Flexão de Joelhos (Mesa Flexora ou Nórdico) focando na descida lenta para blindar e proteger a musculatura posterior contra estiramentos." }
+  // 8. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
+  let sSpeedInterventionDirectives = [
+    { 
+      pillar: "Prioridade 1: Aceleração Inicial & Vetor Horizontal (SDF)", 
+      directive: "Trabalhar a inclinação postural de saída e a capacidade de empurrar o solo para trás nos primeiros apoios, maximizando a produção de força horizontal." 
+    },
+    { 
+      pillar: "Prioridade 2: Mecânica de Velocidade Máxima & Stiffness", 
+      directive: "Refinar a ação de tornozelo rígido na fase de contato rápida, reduzindo o tempo de frenagem e otimizando a frequência de passada." 
+    },
+    { 
+      pillar: "Prioridade 3: Tolerância Excêntrica de Isquiotibiais", 
+      directive: "Fortalecer a musculatura posterior da coxa em ângulos específicos de frenagem, prevenindo lesões musculares durante a fase de balanço terminal da corrida." 
+    }
   ];
 
   if (speedClass === "Elite" || speedClass === "Excelente") {
-    sActionPlanFocus = "Polimento Neuromuscular de Elite, Velocidade de Reação e Coordenação em Velocidade Máxima";
-    sActionItems = [
-      { title: "Sprints Assistidos (Decolagem Facilitada)", desc: "Tiros curtos a favor do vento ou com leve elástico de tração frontal para recrutar frequências de passada acima de 110% do teto." },
-      { title: "Pliometria Unilateral de Alta Intensidade", desc: "Saltos de agilidade e saltos triplos alternados buscando projeção horizontal máxima no menor tempo de solo ativo." },
-      { title: "Sprints com Transição Gradual", desc: "Aceleração suave de 15m seguida por 10m de velocidade máxima com braços relaxados e queixo baixo (drills de velocidade sobrevoada)." }
+    sSpeedInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Polimento Neuromuscular & Velocidade Máxima", 
+        directive: "Aplicar estímulos de corrida supramáxima e facilitação neural para recrutar frequências de passada elevadas sob técnica fluida e relaxada." 
+      },
+      { 
+        pillar: "Prioridade 2: Pliometria Unilateral Horizontal Reativa", 
+        directive: "Trabalhar saltos de projeção horizontal contínuos com tempo mínimo de contato no solo para maximizar a stiffness dinâmica." 
+      },
+      { 
+        pillar: "Prioridade 3: Gestão de Carga e Micro-Ciclos de Velocidade", 
+        directive: "Garantir recuperação completa entre repetições e blocos de sprints para preservar a qualidade máxima do sistema nervoso central." 
+      }
+    ];
+  } else if (speedClass === "Abaixo da Média" || speedClass === "Necessita Atenção") {
+    sSpeedInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Força Explosiva de Base e Extensão de Quadril", 
+        directive: "Desenvolver a capacidade de tripla extensão agressiva e potência de membros inferiores para vencer a inércia do corpo na saída." 
+      },
+      { 
+        pillar: "Prioridade 2: Drills Posturais e Ângulos de Ataque", 
+        directive: "Corrigir a postura de corrida e o posicionamento do pé em dorsiflexão antes do contato com o solo para evitar forças de frenagem excessivas." 
+      },
+      { 
+        pillar: "Prioridade 3: Condicionamento de Tendões e Pliometria Básica", 
+        directive: "Fortalecer o complexo tendão calcâneo-panturrilha com estímulos elásticos repetitivos de baixa intensidade." 
+      }
     ];
   }
 
@@ -9053,171 +9085,81 @@ const SpeedReport: FC<{
             </div>
           </ReportPage>
 
-          {/* Page 3: Diagnóstico de Elite & Prescrição */}
+          {/* Page 3: Diagnóstico de Sprint & Diretrizes */}
           <ReportPage pageNumber={3} totalPages={3}>
             <ReportHeader
               title="RELATÓRIO DE VELOCIDADE"
-              subTitle="DIAGNÓSTICO ESPORTIVO & PRESCRIÇÃO AVANÇADA"
+              subTitle="DIAGNÓSTICO CINEMÁTICO & DIRETRIZES"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[{ label: "PERFIL", value: speedClass.toUpperCase() }, { label: "PÁGINA", value: "03 DE 03" }]}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 font-sans">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
               
-              {/* Column 1: Executive Summary & Performance Indexes */}
-              <div className="space-y-6 overflow-hidden">
+              {/* Column 1: Executive Summary & Kinematic Metrics */}
+              <div className="space-y-5 overflow-hidden">
                 
                 {/* 1. STATUS DE SPRINT GERAL */}
                 <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
                   <div className="absolute right-3 bottom-3 opacity-5">
                     <Sparkles className="w-16 h-16 text-indigo-400" />
                   </div>
-                  <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono">
-                    🔥 1. Status de Sprint Geral
+                  <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono pb-1 border-b border-indigo-455/20">
+                    🔥 STATUS DIAGNÓSTICO GERAL
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-3 leading-tight border-b border-slate-800 pb-2">
-                    Veredito do Especialista
+                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-2 leading-tight text-white">
+                    Veredito Cinemático
                   </h4>
                   <p className="text-[10px] text-slate-200 leading-relaxed font-bold uppercase">
                     {veredictoResumo}
                   </p>
                 </div>
 
-                {/* 2. SCORE DE VELOCIDADE */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-1 font-mono">
-                    🎯 2. Score de Velocidade
+                {/* 2. PARÂMETROS CINEMÁTICOS DO SPRINT */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm space-y-3 font-sans">
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block font-mono font-bold font-sans">
+                    📊 PARÂMETROS CINEMÁTICOS COLETADOS
                   </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900">
-                      Pontuação de Sprint
-                    </h4>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${speedScoreColor}`}>
-                      {speedScoreClass}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 py-2">
-                    <div className="relative flex items-center justify-center font-sans">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
-                        <circle cx="32" cy="32" r="28" stroke="#4f46e5" strokeWidth="6" fill="transparent"
-                          strokeDasharray={175.9}
-                          strokeDashoffset={175.9 - (175.9 * speedScore) / 100}
-                          className="transition-all duration-1000 ease-out"
-                        />
-                      </svg>
-                      <span className="absolute text-lg font-black text-slate-900 italic">
-                        {speedScore}
-                      </span>
-                    </div>
-                    <div className="flex-grow space-y-1">
-                      <span className="text-[7px] text-slate-500 font-bold uppercase leading-none block">
-                        Base de cálculo:
-                      </span>
-                      <p className="text-[8px] text-slate-400 font-medium leading-relaxed uppercase">
-                        Percentual de aceleração pura nos 10m, sustentação pós-20m e velocidade de decolagem inicial.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 🧬 ÍNDICE DE PERFORMANCE DE VELOCIDADE (IVA) */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-2 font-mono">
-                    🧬 Índice de Aceleração & Velocidade (IVA)
-                  </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2">
-                    Eficiência Dinâmica
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
+                    Métricas de Arranque & Velocidade
                   </h4>
-                  <div className={`p-3 rounded-2xl border ${efficiencyColor} flex items-center justify-between mb-4 transition-all duration-300`}>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
-                      STATUS DE EFICIÊNCIA:
-                    </span>
-                    <span className="text-xs font-black uppercase italic tracking-widest">
-                      {totalEfficiency}% ({efficiencyLevel})
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50">
-                      <span className="text-slate-400 uppercase font-black">Eficiência de Aceleração</span>
-                      <span className="text-slate-900 italic font-black font-sans">{accelEff}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50">
-                      <span className="text-slate-400 uppercase font-black">Manutenção de Velocidade</span>
-                      <span className="text-slate-900 italic font-black font-sans">{speedMaint}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px]">
-                      <span className="text-slate-400 uppercase font-black">Índice Inicial (5m)</span>
-                      <span className="text-slate-900 italic font-black font-sans">{sSpeed5m > 0 ? Math.round((sSpeed5m/5.5)*100) : 0}%</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Column 2: Technical Interpretation (Coach focus) */}
-              <div className="space-y-6">
-                
-                {/* 3. INTERPRETAÇÃO TÉCNICA */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono">
-                    📊 3. Interpretação Técnica (Treinador)
-                  </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900">
-                      Metabolismo & Rampa de Velocidade
-                    </h4>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                      {sNeuromuscularProfile.toUpperCase()}
-                    </span>
-                  </div>
                   
-                  <div className="space-y-4 text-[9px] leading-relaxed">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1">Aceleração e SDF:</span>
-                      <p className="text-slate-800 font-extrabold uppercase">{sAcellAnalysis}</p>
+                  <div className="space-y-2 font-sans text-[9.5px]">
+                    {sTime5m > 0 && (
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="font-bold text-slate-600 uppercase">Tempo 0-5m (Arranque):</span>
+                        <span className="font-black text-slate-900 italic text-sm">{sTime5m}s ({sSpeed5m.toFixed(2)} m/s)</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Tempo 0-10m (Aceleração):</span>
+                      <span className="font-black text-brand-primary italic text-sm">{sTime10m}s ({sSpeed10m.toFixed(2)} m/s)</span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1">Manutenção e Fadiga:</span>
-                      <p className="text-slate-800 font-extrabold uppercase">{sFatiqueAnalysis}</p>
-                    </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1">Impactos Articulares & Eficácia:</span>
-                      <p className="text-slate-800 font-extrabold uppercase">{sVelocityEfect}</p>
-                    </div>
+                    {sTime20m > 0 && (
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="font-bold text-slate-600 uppercase">Tempo 0-20m (Transição):</span>
+                        <span className="font-black text-slate-900 italic text-sm">{sTime20m}s ({sSpeed20m.toFixed(2)} m/s)</span>
+                      </div>
+                    )}
+                    {sTime30m > 0 && (
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="font-bold text-slate-600 uppercase">Tempo 0-30m (Velocidade Máxima):</span>
+                        <span className="font-black text-emerald-600 italic text-sm">{sTime30m}s ({sSpeed30m.toFixed(2)} m/s)</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* 6. IMPACTO NA PERFORMANCE */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest block mb-2 font-mono">
-                    ⚡ 6. Impacto na Performance
-                  </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2">
-                    Respostas Motoras
-                  </h4>
-                  <div className="flex gap-3 items-start bg-rose-50/20 p-3 rounded-2xl border border-rose-100/30">
-                    <Zap className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-[8px] font-black text-slate-500 uppercase block mb-1">Diferencial Competitivo Direto:</span>
-                      <p className="text-[9px] text-slate-800 font-bold uppercase leading-relaxed">
-                        {sPerformanceImpactText}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 7. RAZÕES DE ACELERAÇÃO (Análise de Segmentação) */}
+                {/* 3. SEGMENTAÇÃO ACC vs VELOCIDADE MÁXIMA */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                   <span className="text-[7px] font-black text-green-600 uppercase tracking-widest block mb-2 font-mono">
-                    🧬 7. Divisão de Potência Linear
+                    🧬 DIVISÃO DE POTÊNCIA LINEAR
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2">
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-2 border-b pb-1">
                     Aceleração vs Velocidade Máxima
                   </h4>
-                  <p className="text-[9px] text-slate-600 font-bold uppercase leading-relaxed font-sans">
+                  <p className="text-[9.5px] text-slate-700 font-bold uppercase leading-relaxed font-sans">
                     {accRatioText}
                   </p>
                   <div className="grid grid-cols-2 gap-3 mt-3 text-center">
@@ -9234,62 +9176,83 @@ const SpeedReport: FC<{
 
               </div>
 
-              {/* Column 3: Actions, Metas & Translations */}
-              <div className="space-y-6">
-
-                {/* 8. PLANO DE AÇÃO */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm">
-                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono">
-                    🚀 8. Plano de Ação (4-8 Semanas)
+              {/* Column 2: Technical Interpretation & Directives */}
+              <div className="space-y-5 flex flex-col justify-between h-full">
+                
+                {/* 4. INTERPRETAÇÃO TÉCNICA */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
+                  <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono">
+                    📊 INTERPRETAÇÃO TÉCNICA (TREINADOR)
                   </span>
-                  <div className="flex justify-between items-baseline border-b pb-2 mb-3">
-                    <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900">
-                      Estratégia Imediata
+                  <div className="flex justify-between items-baseline mb-2 border-b pb-1">
+                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900">
+                      Mecânica & Rampa de Velocidade
                     </h4>
                   </div>
-                  <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest block mb-3 font-semibold font-mono">
-                    Foco: {sActionPlanFocus}
-                  </p>
                   
-                  <div className="space-y-3">
-                    {sActionItems.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-start text-[9px] border-b border-slate-5 pb-2 last:border-0 last:pb-0">
-                        <span className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[8px] font-black text-slate-600 shrink-0 mt-0.5 font-mono">
+                  <div className="space-y-2.5 text-[9.5px] leading-relaxed">
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Aceleração e SDF (Horizontal):</span>
+                      <p className="text-slate-800 font-bold uppercase">{sAcellAnalysis}</p>
+                    </div>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Manutenção & Desaceleração:</span>
+                      <p className="text-slate-800 font-bold uppercase">{sFatiqueAnalysis}</p>
+                    </div>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Impactos Articulares & Eficácia:</span>
+                      <p className="text-slate-800 font-bold uppercase">{sVelocityEfect}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. DIRETRIZES METODOLÓGICAS */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm font-sans">
+                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono font-semibold">
+                    🚀 METODOLOGIA DE TREINO
+                  </span>
+                  <div className="flex justify-between items-baseline border-b pb-2 mb-3">
+                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
+                      Diretrizes de Intervenção para o Treinador
+                    </h4>
+                  </div>
+                  
+                  <div className="space-y-3 font-sans">
+                    {sSpeedInterventionDirectives.map((item, idx) => (
+                      <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 font-sans font-bold">
+                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[8px] font-black shrink-0 mt-0.5 font-mono">
                           {idx + 1}
                         </span>
                         <div>
-                          <span className="font-bold text-slate-800 uppercase block leading-tight">{item.title}</span>
-                          <span className="text-slate-500 font-medium text-[8px] leading-tight block mt-0.5 uppercase font-bold">{item.desc}</span>
+                          <span className="font-bold text-slate-900 uppercase block leading-tight text-[10px]">{item.pillar}</span>
+                          <span className="text-slate-600 font-medium text-[9px] leading-relaxed block mt-0.5 uppercase">{item.directive}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 9. METAS DE EVOLUÇÃO */}
+                {/* 6. METAS DE EVOLUÇÃO */}
                 <div className="bg-slate-950 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden">
                   <div className="absolute right-3 top-3 opacity-5">
                     <Target className="w-16 h-16 text-emerald-400" />
                   </div>
                   <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono">
-                    🎯 9. Metas de Evolução
+                    🎯 METAS DE EVOLUÇÃO
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider text-white mb-3 border-b border-slate-800 pb-2">
-                    Objetivos Realistas
-                  </h4>
                   
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">Meta Tempo 10m</span>
+                  <div className="grid grid-cols-2 gap-3 mb-2">
+                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">META TEMPO 10M</span>
                       <span className="text-base font-black text-brand-primary italic font-sans">{bioTargetTime10m}s</span>
                     </div>
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">Meta Tempo 30m</span>
+                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">META TEMPO 30M</span>
                       <span className="text-base font-black text-emerald-400 italic font-sans">{bioTargetTime30m}s</span>
                     </div>
                   </div>
-                  <div className="text-center bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-[8px] font-black uppercase tracking-widest text-slate-400">
-                    Prazo Estimado: <span className="text-white font-bold">{bioTargetTimeframe}</span>
+                  <div className="text-center bg-slate-900 p-1.5 rounded-xl border border-slate-800 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                    Prazo sugerido: <span className="text-white font-bold">{bioTargetTimeframe}</span>
                   </div>
                 </div>
 
@@ -9379,6 +9342,7 @@ const Vo2maxReport: FC<{
   const sGender = athlete.gender;
   const sAge = calculateAge(athlete.dob);
   const sVo2max = data.vo2max || 0;
+  const sFcMax = data.maxHeartRate || 0;
   const sVam = data.vam || 0;
   const sRec60s = data.rec60s || 0;
 
@@ -9553,13 +9517,53 @@ const Vo2maxReport: FC<{
     efficiencyColorVo2 = "text-amber-600 border-amber-100 bg-amber-50/50 hover:bg-amber-55";
   }
 
-  // 8. PLANO DE AÇÃO AERÓBICO
-  let sVo2ActionPlanFocus = "Foco em Expansão de VAM, Intervalado de Alta Intensidade e Limiar de Lactato";
-  let sVo2ActionItems = [
-    { title: "Protocolo HIIT Intermitente VAM (105%)", desc: "Tiros de 30s de corrida na velocidade de VAM seguidos de 30s de descanso passivo, repetindo por 8-12 ciclos para hipertrofia mitocondrial direta." },
-    { title: "Corrida Contínua Limiar (Z3)", desc: "Trabalho aeróbico de ritmo sustentado (tempo run) por 20 a 30 minutos em intensidade equivalente a 80-85% da frequência máxima registrada." },
-    { title: "Treino de Capacidade Regenerativa (Z1-Z2)", desc: "Volume de regeneração muscular leve de 40 a 50 minutos (ciclismo ou corrida leve) focado em densidade capilar integrada." }
+  // 8. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
+  let sVo2InterventionDirectives = [
+    { 
+      pillar: "Prioridade 1: Potência Aeróbica & VAM (High-Intensity)", 
+      directive: "Estimular o tempo gasto próximo ao VO2 Máx através de blocos intervalados fracionados prescritos com base na VAM, elevando o teto fisiológico e o débito cardíaco máximo." 
+    },
+    { 
+      pillar: "Prioridade 2: Limiar Anaeróbio & Sustentação de Ritmo", 
+      directive: "Trabalhar em faixas de transição metabólica para postergar o acúmulo de íons H+, ampliando a capacidade de tolerar e sustentar altas velocidades sem fadiga precoce." 
+    },
+    { 
+      pillar: "Prioridade 3: Cinética de Recuperação & Densidade Mitocondrial", 
+      directive: "Desenvolver a capacidade de remoção de metabólitos e restauração energética nos intervalos, acelerando a reativação parassimpática pós-esforço." 
+    }
   ];
+
+  if (sVo2max < 45) {
+    sVo2InterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Base Aeróbica & Densidade Capilar", 
+        directive: "Priorizar volume progressivo contínuo e fracionado extensivo para aumentar a capilarização muscular e a eficiência do transporte periférico de oxigênio." 
+      },
+      { 
+        pillar: "Prioridade 2: Economia de Corrida & Mecânica", 
+        directive: "Ajustar cadência e oscilação vertical para reduzir o custo energético por metro percorrido nas velocidades submáximas." 
+      },
+      { 
+        pillar: "Prioridade 3: Condicionamento Cardiovascular Central", 
+        directive: "Estímulos aeróbicos controlados com monitoramento cardíaco contínuo para ganho gradual de complacência ventricular." 
+      }
+    ];
+  } else if (sVo2max >= 60) {
+    sVo2InterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Treinamento Supramáximo & Anaeróbio Láctico", 
+        directive: "Aplicar estímulos curtos acima de 100% da VAM com micro-pausas para desafiar a capacidade máxima de tamponamento intracelular." 
+      },
+      { 
+        pillar: "Prioridade 2: Manutenção da Economia em Fadiga", 
+        directive: "Sessões específicas de manutenção técnica sob condições de acidose metabólica controlada." 
+      },
+      { 
+        pillar: "Prioridade 3: Periodização e Carga Competitiva", 
+        directive: "Adequar o volume e intensidade de acordo com o calendário competitivo para evitar overreaching e otimizar o tapering." 
+      }
+    ];
+  }
 
   const StatCard = ({
     icon: Icon,
@@ -10004,11 +10008,11 @@ const Vo2maxReport: FC<{
             </div>
           </ReportPage>
 
-          {/* Page 3: Diagnóstico de Elite & Prescrição */}
+          {/* Page 3: Diagnóstico Cardiorrespiratório & Diretrizes */}
           <ReportPage pageNumber={3} totalPages={3}>
             <ReportHeader
               title="RELATÓRIO DE VO2 MAX"
-              subTitle="DIAGNÓSTICO ESPORTIVO & PRESCRIÇÃO AVANÇADA"
+              subTitle="DIAGNÓSTICO CARDIORRESPIRATÓRIO & DIRETRIZES"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[{ label: "PERFIL", value: vo2Class.toUpperCase() }, { label: "PÁGINA", value: "03 DE 03" }]}
@@ -10016,8 +10020,8 @@ const Vo2maxReport: FC<{
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
               
-              {/* Column 1: Executive Summary & Performance Indexes */}
-              <div className="space-y-6 overflow-hidden">
+              {/* Column 1: Diagnóstico Fisiológico & Métricas Reais */}
+              <div className="space-y-5 overflow-hidden">
                 
                 {/* 1. STATUS AERÓBICO GERAL */}
                 <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
@@ -10025,166 +10029,122 @@ const Vo2maxReport: FC<{
                     <Sparkles className="w-16 h-16 text-indigo-400" />
                   </div>
                   <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono pb-1 border-b border-indigo-455/20">
-                    🔥 RESUMO EXECUTIVO
+                    🔥 STATUS DIAGNÓSTICO GERAL
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-3 leading-tight text-white">
-                    Veredito do Especialista
+                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-2 leading-tight text-white">
+                    Veredito Cardiorrespiratório
                   </h4>
                   <p className="text-[10px] text-slate-200 leading-relaxed font-bold uppercase font-sans">
                     {veredictoResumo}
                   </p>
                 </div>
 
-                {/* 2. SCORE DE CAPACIDADE AERÓBICA */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-1 font-mono font-bold">
-                    🎯 SCORE CARDIOVASCULAR
+                {/* 2. PARÂMETROS FISIOLÓGICOS DO TESTE */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm space-y-3 font-sans">
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block font-mono font-bold font-sans">
+                    📊 PARÂMETROS FISIOLÓGICOS COLETADOS
                   </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900">
-                      Pontuação de VO2 Max
-                    </h4>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${vo2ScoreColor}`}>
-                      {vo2ScoreClass}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 py-2 font-sans">
-                    <div className="relative flex items-center justify-center font-sans">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
-                        <circle cx="32" cy="32" r="28" stroke="#4f46e5" strokeWidth="6" fill="transparent"
-                          strokeDasharray={175.9}
-                          strokeDashoffset={175.9 - (175.9 * vo2Score) / 100}
-                          className="transition-all duration-1000 ease-out"
-                        />
-                      </svg>
-                      <span className="absolute text-lg font-black text-slate-900 italic font-sans">
-                        {vo2Score}
-                      </span>
-                    </div>
-                    <div className="flex-grow space-y-1">
-                      <span className="text-[7px] text-slate-500 font-bold uppercase leading-none block">
-                        Base de cálculo:
-                      </span>
-                      <p className="text-[8px] text-slate-450 font-black leading-relaxed uppercase">
-                        Percentual de consumo de oxigênio relativo, velocidade de limiar e delta de recuperação parassimpática (bpm/min).
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 🧬 ÍNDICE DE EFICIÊNCIA AERÓBICA (IEA) */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-2 font-mono font-bold">
-                    🧬 ÍNDICE DE EFICIÊNCIA AERÓBICA (IEA)
-                  </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2">
-                    Eficiência Cardiorrespiratória
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
+                    Métricas de Consumo & Dinâmica
                   </h4>
-                  <div className={`p-3 rounded-2xl border ${efficiencyColorVo2} flex items-center justify-between mb-4 transition-all duration-300 font-sans`}>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
-                      STATUS DE EFICIÊNCIA:
-                    </span>
-                    <span className="text-xs font-black uppercase italic tracking-widest">
-                      {totalEfficiencyVo2}% ({efficiencyLevelVo2.toUpperCase()})
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50 font-sans">
-                      <span className="text-slate-400 uppercase font-black text-[8px]">Eficiência de VAM</span>
-                      <span className="text-slate-900 italic font-black">{vamEff}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50 font-sans">
-                      <span className="text-slate-400 uppercase font-black text-[8px]">Constante de Recuperação</span>
-                      <span className="text-slate-900 italic font-black">{recEff}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] font-sans">
-                      <span className="text-slate-400 uppercase font-black text-[8px]">Score Cardiovascular</span>
-                      <span className="text-slate-900 italic font-black">{vo2Score}%</span>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Column 2: Technical Interpretation (Coach focus) */}
-              <div className="space-y-6">
-                
-                {/* 3. INTERPRETAÇÃO TÉCNICA */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans">
-                  <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono font-bold">
-                    📊 INTERPRETAÇÃO TÉCNICA (TREINADOR)
-                  </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
-                      Capilarização & Delta Cardíaco
-                    </h4>
-                  </div>
                   
-                  <div className="space-y-4 text-[9px] leading-relaxed">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1 text-[8px]">Capilarização Periférica:</span>
-                      <p className="text-slate-800 font-extrabold uppercase">{sCapillaryAnalysis}</p>
+                  <div className="space-y-2 font-sans text-[9.5px]">
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">VO2 Máx Estimado:</span>
+                      <span className="font-black text-brand-primary italic text-sm">{sVo2max} ml/kg/min</span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1 text-[8px]">Eficiência de Limiar de Lactato:</span>
-                      <p className="text-slate-800 font-extrabold uppercase">{sMetabolicEfficiencyStr}</p>
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Velocidade Aeróbica Máxima (VAM):</span>
+                      <span className="font-black text-emerald-600 italic text-sm">{sVam} km/h</span>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1 text-[8px]">Delta Heart Recovery (60s):</span>
-                      <p className="text-slate-800 font-extrabold uppercase">{sCardiacRecoveryStr}</p>
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Frequência Cardíaca Máxima:</span>
+                      <span className="font-black text-slate-900 italic text-sm">{sFcMax} bpm</span>
                     </div>
+                    {sRec60s > 0 && (
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="font-bold text-slate-600 uppercase">Recuperação Cardíaca (60s):</span>
+                        <span className="font-black text-indigo-600 italic text-sm">-{sRec60s} bpm</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* 6. IMPACTO NA PERFORMANCE */}
+                {/* 3. IMPACTO NA PERFORMANCE */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                   <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest block mb-2 font-mono select-none">
                     ⚡ PERFORMANCE & ECONOMIA
                   </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2 font-bold">
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-2 border-b pb-1 font-bold">
                     Economia de Corrida
                   </h4>
                   <div className="flex gap-3 items-start bg-rose-50/20 p-3 rounded-2xl border border-rose-100/30">
                     <Zap className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="text-[8px] font-black text-slate-500 uppercase block mb-1">Diferencial de Intensidade:</span>
-                      <p className="text-[9px] text-slate-800 font-bold uppercase leading-relaxed font-sans">
+                      <p className="text-[9.5px] text-slate-800 font-bold uppercase leading-relaxed font-sans">
                         {sVo2PerformanceImpactText}
                       </p>
                     </div>
                   </div>
                 </div>
 
-              <div className="space-y-6 flex flex-col justify-between h-full">
-                {/* 8. PLANO DE AÇÃO AERÓBICO */}
+              </div>
+
+              {/* Column 2: Diretrizes & Metas */}
+              <div className="space-y-5 flex flex-col justify-between h-full">
+                
+                {/* 4. INTERPRETAÇÃO TÉCNICA */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans">
+                  <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono font-bold">
+                    📊 INTERPRETAÇÃO FISIOLÓGICA (TREINADOR)
+                  </span>
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold mb-3 border-b pb-2">
+                    Capilarização & Delta Cardíaco
+                  </h4>
+                  
+                  <div className="space-y-2.5 text-[9.5px] leading-relaxed">
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-1 text-[7.5px]">Capilarização Periférica:</span>
+                      <p className="text-slate-800 font-bold uppercase">{sCapillaryAnalysis}</p>
+                    </div>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-1 text-[7.5px]">Eficiência de Limiar de Lactato:</span>
+                      <p className="text-slate-800 font-bold uppercase">{sMetabolicEfficiencyStr}</p>
+                    </div>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-1 text-[7.5px]">Delta Heart Recovery (60s):</span>
+                      <p className="text-slate-800 font-bold uppercase">{sCardiacRecoveryStr}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. DIRETRIZES METODOLÓGICAS */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm font-sans">
                   <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono font-semibold">
-                    🚀 PRESCRIÇÃO E TREINO
+                    🚀 METODOLOGIA DE TREINO
                   </span>
                   <div className="flex justify-between items-baseline border-b pb-2 mb-3">
                     <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
-                      Plano de Ação Imediato
+                      Diretrizes de Intervenção para o Treinador
                     </h4>
                   </div>
                   
                   <div className="space-y-3 font-sans">
-                    {sVo2ActionItems.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-start text-[9px] border-b border-slate-5 pb-2 last:border-0 last:pb-0 font-sans font-bold">
-                        <span className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[8px] font-black text-slate-600 shrink-0 mt-0.5 font-mono font-bold">
+                    {sVo2InterventionDirectives.map((item, idx) => (
+                      <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 font-sans font-bold">
+                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[8px] font-black shrink-0 mt-0.5 font-mono">
                           {idx + 1}
                         </span>
                         <div>
-                          <span className="font-bold text-slate-800 uppercase block leading-tight">{item.title}</span>
-                          <span className="text-slate-450 font-bold text-[8px] leading-tight block mt-0.5 uppercase">{item.desc}</span>
+                          <span className="font-bold text-slate-900 uppercase block leading-tight text-[10px]">{item.pillar}</span>
+                          <span className="text-slate-600 font-medium text-[9px] leading-relaxed block mt-0.5 uppercase">{item.directive}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* 9. METAS DE EVOLUÇÃO CARDIOVASCULAR */}
+                {/* 6. METAS DE EVOLUÇÃO CARDIOVASCULAR */}
                 <div className="bg-slate-950 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden">
                   <div className="absolute right-3 top-3 opacity-5">
                     <Target className="w-16 h-16 text-emerald-400" />
@@ -10193,24 +10153,23 @@ const Vo2maxReport: FC<{
                     🎯 METAS DE EVOLUÇÃO
                   </span>
                   
-                  <div className="grid grid-cols-2 gap-3 mb-3 font-sans">
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1 font-mono font-bold">VO2 Max</span>
+                  <div className="grid grid-cols-2 gap-3 mb-2 font-sans">
+                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1 font-mono font-bold">META VO2 MAX</span>
                       <span className="text-base font-black text-brand-primary italic font-sans">{bioTargetVo2} ml</span>
                     </div>
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-455 uppercase block mb-1 font-mono font-bold font-semibold">Parâmetro VAM</span>
+                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
+                      <span className="text-[7px] font-black text-slate-455 uppercase block mb-1 font-mono font-bold font-semibold">META VAM</span>
                       <span className="text-base font-black text-emerald-400 italic font-sans">{bioTargetVam} km/h</span>
                     </div>
                   </div>
-                  <div className="text-center bg-slate-900 p-2 text-[8px] font-black uppercase tracking-widest text-slate-400">
-                    Prazo ideal: <span className="text-white font-bold">{bioTargetTimeframeVo2}</span>
+                  <div className="text-center bg-slate-900 p-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                    Prazo sugerido: <span className="text-white font-bold">{bioTargetTimeframeVo2}</span>
                   </div>
                 </div>
 
               </div>
 
-            </div>
             </div>
           </ReportPage>
 
@@ -10457,31 +10416,58 @@ const CmjReport: FC<{
     sCmjParentsExplanation = `Monitoramos a potência muscular do seu filho com foco total na segurança articular. O teste mostra que ele desenvolve uma boa impulsão (${cmjHeight} cm) de forma equilibrada, protegendo joelhos e tornozelos contra sobrecargas típicas do crescimento.`;
   }
 
-  // Action Plan Items:
-  let sCmjActionItems = [
-    { title: "Pliometria Bilateral Intensiva", desc: "Saltos com transição rápida sobre barreiras de 30-40cm, focando no tempo mínimo de contato no solo para maximizar a stiffness." },
-    { title: "Agachamento Dinâmico com Carga Mod.", desc: "Execução concêntrica o mais rápida possível (máxima intenção de velocidade) a 50-60% de 1RM para ganho de RFD." },
-    { title: "Saltos Unilaterais (Drop Lands)", desc: "Trabalho de amortecimento controlado caindo de caixas de 30cm para fortificar a fase excêntrica de frenagem concêntrica." }
+  // Diretrizes de Intervenção Metodológica (Sem receitas de bolo - Caminhos de treino):
+  let sCmjInterventionDirectives = [
+    { 
+      pillar: "Prioridade 1: Taxa de Desenvolvimento de Força (RFD)", 
+      directive: "Trabalhar ações de máxima intenção de aceleração na fase concêntrica, desenvolvendo a capacidade de aplicar altos picos de força em janelas temporais curtas." 
+    },
+    { 
+      pillar: "Prioridade 2: Transição Amortecimento-Propulsão (CAE)", 
+      directive: "Otimizar a fase de contra-movimento, evitando desacelerações excessivamente lentas para maximizar o reaproveitamento de energia elástica muscular." 
+    },
+    { 
+      pillar: "Prioridade 3: Transferência Dinâmica e Estabilidade", 
+      directive: "Conectar a impulsão vertical à mecânica de desaceleração e aterrissagem equilibrada, blindando articulações de joelho e tornozelo." 
+    }
   ];
 
   if (cmjHeight < 30) {
-    sCmjActionItems = [
-      { title: "Fortalecimento de Base (Squats)", desc: "Consolidação de força máxima concêntrica de membros inferiores (3 séries de 6 reps a 80% 1RM)." },
-      { title: "Pliometria Extensiva Leve", desc: "Saltinhos repetitivos no lugar (pular corda, saltar obstáculos pequenos) para adaptação elástica inicial sem impacto excessivo." },
-      { title: "Treino de Tripla Extensão Básica", desc: "Saltos livres focando na extensão coordenada de tornozelos, joelhos e quadril." }
+    sCmjInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Consolidação da Força de Base", 
+        directive: "Elevar a capacidade máxima de produção de força nos extensores de membros inferiores, criando a fundação estrutural necessária para impulsionar a massa corporal." 
+      },
+      { 
+        pillar: "Prioridade 2: Padrão Motor de Tripla Extensão", 
+        directive: "Refinar a sincronização coordenada entre tornozelos, joelhos e quadril durante o contra-movimento preparatório." 
+      },
+      { 
+        pillar: "Prioridade 3: Pliometria Extensiva e Condicionamento Tendíneo", 
+        directive: "Utilizar estímulos elásticos de baixa e média intensidade com alto volume para preparar o aparelho locomotor para maiores sobrecargas dinâmicas." 
+      }
     ];
   } else if (cmjHeight >= 45) {
-    sCmjActionItems = [
-      { title: "Contrast Training Avançado", desc: "Alternar agachamento pesado (2 reps a 85% 1RM) com 3 saltos livres máximos para facilitação pós-ativação (PAP)." },
-      { title: "Saltos Assistidos (Cords)", desc: "Saltos verticais com tração elástica de alívio para super-estimulação neuromuscular sob velocidade de take-off supra-máxima." },
-      { title: "Reatividade Unilateral Avançada", desc: "Saltos pliométricos unilaterais horizontais alternados contínuos com foco em rigidez máxima de calcanhar." }
+    sCmjInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Métodos de Contraste e Potenciação (PAP)", 
+        directive: "Utilizar combinações de sobrecarga seguidas de impulsões máximas para otimizar o recrutamento de unidades motoras de altíssimo limiar." 
+      },
+      { 
+        pillar: "Prioridade 2: Transferência para Situações Esportivas", 
+        directive: "Integrar a capacidade de salto vertical com deslocamentos rápidos, fintas e demandas reativas típicas da modalidade do atleta." 
+      },
+      { 
+        pillar: "Prioridade 3: Monitoramento de Prontidão e Carga Aguda", 
+        directive: "Acompanhar a variabilidade da altura de salto ao longo da semana como indicador sensível de fadiga central e prontidão competitiva." 
+      }
     ];
   }
 
   // Target Evolution Metas:
   const targetCmjHeight = cmjHeight + (cmjHeight < 30 ? 5 : cmjHeight < 45 ? 4 : 2);
   const targetCmjPower = Math.round(cmjPowerRel * 1.08);
-  const targetTimeframeCmj = cmjHeight < 35 ? "4-6 semanas" : "6-8 semanas";
+  const targetTimeframeCmj = cmjHeight < 35 ? "4 a 6 semanas" : "6 a 8 semanas";
 
   const handleExportJpeg = async () => {
     if (!reportRef.current) return;
@@ -10996,7 +10982,7 @@ const CmjReport: FC<{
             </div>
           </ReportPage>
 
-          {/* Page 3: Diagnóstico de Elite & Prescrição */}
+          {/* Page 3: Diagnóstico Neuromuscular & Análise */}
           <ReportPage pageNumber={3} totalPages={4}>
             <ReportHeader
               title="RELATÓRIO DE SALTO VERTICAL"
@@ -11008,8 +10994,8 @@ const CmjReport: FC<{
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
               
-              {/* Column 1: Executive Summary & Performance Indexes */}
-              <div className="space-y-6 overflow-hidden">
+              {/* Column 1: Resumo Executivo & Parâmetros Mecânicos */}
+              <div className="space-y-5 overflow-hidden">
                 
                 {/* 1. STATUS GERAL */}
                 <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
@@ -11017,83 +11003,61 @@ const CmjReport: FC<{
                     <Sparkles className="w-16 h-16 text-indigo-400" />
                   </div>
                   <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono pb-1 border-b border-indigo-450/20">
-                    🔥 RESUMO EXECUTIVO
+                    🔥 STATUS DIAGNÓSTICO GERAL
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-3 leading-tight text-white">
-                    Veredito do Cientista
+                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-2 leading-tight text-white">
+                    Veredito Neuromuscular
                   </h4>
                   <p className="text-[10px] text-slate-200 leading-relaxed font-bold uppercase font-sans">
                     {veredictoResumoCmj}
                   </p>
                 </div>
 
-                {/* 2. SCORE CARDIOVASCULAR/EXP */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-1 font-mono font-bold font-sans">
-                    🎯 SCORE DE EXPLOSIVIDADE
+                {/* 2. PARÂMETROS MECÂNICOS COLETADOS */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm space-y-3 font-sans">
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block font-mono font-bold font-sans">
+                    📊 PARÂMETROS MECÂNICOS COLETADOS
                   </span>
-                  <div className="flex justify-between items-baseline mb-3 font-sans">
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900">
-                      Pontuação de Salto CMJ
-                    </h4>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${cmjScoreColor}`}>
-                      {cmjScoreClass}
-                    </span>
-                  </div>
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
+                    Métricas de Impulsão & Força
+                  </h4>
                   
-                  <div className="flex items-center gap-4 py-2 font-sans">
-                    <div className="relative flex items-center justify-center font-sans">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
-                        <circle cx="32" cy="32" r="28" stroke="#f97316" strokeWidth="6" fill="transparent"
-                          strokeDasharray={175.9}
-                          strokeDashoffset={175.9 - (175.9 * cmjScore) / 100}
-                          className="transition-all duration-1000 ease-out"
-                        />
-                      </svg>
-                      <span className="absolute text-lg font-black text-slate-900 italic font-sans">
-                        {cmjScore}
-                      </span>
+                  <div className="space-y-2 font-sans text-[9.5px]">
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Altura de Salto (CMJ):</span>
+                      <span className="font-black text-slate-900 italic text-sm">{cmjHeight} cm</span>
                     </div>
-                    <div className="flex-grow space-y-1">
-                      <span className="text-[7px] text-slate-500 font-bold uppercase leading-none block">
-                        Composição do score:
-                      </span>
-                      <p className="text-[8px] text-slate-450 font-black leading-relaxed uppercase">
-                        Razão direta entre deslocamento de centro de gravidade (cm) e produção de wattagem relativa (W/kg).
-                      </p>
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Potência Relativa:</span>
+                      <span className="font-black text-orange-600 italic text-sm">{cmjPowerRel.toFixed(1)} W/kg</span>
                     </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Tempo de Voo Estimado:</span>
+                      <span className="font-black text-slate-900 italic text-sm">{data.flightTime || 0} ms</span>
+                    </div>
+                    {data.averageForce && data.averageForce > 0 && (
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="font-bold text-slate-600 uppercase">Força Média de Propulsão:</span>
+                        <span className="font-black text-slate-900 italic text-sm">{data.averageForce} N</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* 🧬 ÍNDICE DE EFICIÊNCIA DE POTÊNCIA (IEP) */}
+                {/* 3. IMPACTO NA PERFORMANCE */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-2 font-mono">
-                    🧬 ÍNDICE DE EFICIÊNCIA DE POTÊNCIA (IEP)
+                  <span className="text-[7.5px] font-black text-rose-500 uppercase tracking-widest block mb-1 font-mono select-none">
+                    ⚡ TRANSFERÊNCIA PARA O ESPORTE
                   </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2">
-                    Aproveitamento Dinâmico
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-2 border-b pb-1 font-bold">
+                    Eficiência Dinâmica Relativa
                   </h4>
-                  <div className={`p-3 rounded-2xl border ${efficiencyColorCmj} flex items-center justify-between mb-4 transition-all duration-300 font-sans`}>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
-                      STATUS DE EFICIÊNCIA:
-                    </span>
-                    <span className="text-xs font-black uppercase italic tracking-widest">
-                      {totalEfficiencyCmj}% ({efficiencyLevelCmj.toUpperCase()})
-                    </span>
-                  </div>
-                  <div className="space-y-3 font-sans">
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50 font-sans">
-                      <span className="text-slate-400 uppercase font-black text-[8px]">Fase aérea (Aceleração)</span>
-                      <span className="text-slate-900 italic font-black">{fTimeEff}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50 font-sans">
-                      <span className="text-slate-400 uppercase font-black text-[8px]">Potência Relativa exc/con</span>
-                      <span className="text-slate-900 italic font-black">{pRelEff}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px] font-sans">
-                      <span className="text-slate-400 uppercase font-black text-[8px]">Propulsão Mecânica</span>
-                      <span className="text-slate-900 italic font-black">{cmjStiffnessEff}%</span>
+                  <div className="flex gap-3 items-start bg-rose-50/20 p-3 rounded-2xl border border-rose-100/30">
+                    <Zap className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[9.5px] text-slate-800 font-bold uppercase leading-relaxed font-sans">
+                        O atleta desenvolve um perfil cinético com potência de <span className="text-orange-600 font-black">{cmjPowerRel.toFixed(1)} W/kg</span>, favorecendo desacelerações rápidas seguidas de saídas e impulsões verticais em quadra ou campo.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -11101,50 +11065,31 @@ const CmjReport: FC<{
               </div>
 
               {/* Column 2: Technical Interpretation (Coach focus) */}
-              <div className="space-y-6">
+              <div className="space-y-5">
                 
-                {/* 3. INTERPRETAÇÃO TÉCNICA */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans">
-                  <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono font-bold">
-                    📊 INTERPRETAÇÃO TÉCNICA (TREINADOR)
-                  </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
+                {/* 4. INTERPRETAÇÃO TÉCNICA */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans h-full flex flex-col justify-between">
+                  <div>
+                    <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono font-bold">
+                      📊 INTERPRETAÇÃO TÉCNICA (TREINADOR)
+                    </span>
+                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold mb-3 border-b pb-2">
                       Fase Excêntrica & Acionamento
                     </h4>
-                  </div>
-                  
-                  <div className="space-y-4 text-[9.5px] leading-relaxed text-slate-700">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Produção de Força (Average Force):</span>
-                      <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjExcExc}</p>
-                    </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Ciclo Alongamento Encurtamento (CEA):</span>
-                      <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjAproveitamentoElastico}</p>
-                    </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Fatores Neuromusculares (Fibras II):</span>
-                      <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjFatoresNeuromusculares}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 6. IMPACTO NA PERFORMANCE */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7.5px] font-black text-rose-500 uppercase tracking-widest block mb-1 font-mono select-none">
-                    ⚡ ACELERAÇÃO & SALTO
-                  </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2 font-bold">
-                    Eficiência Dinâmica Relativa
-                  </h4>
-                  <div className="flex gap-3 items-start bg-rose-50/20 p-3 rounded-2xl border border-rose-100/30">
-                    <Zap className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-[8px] font-black text-slate-500 uppercase block mb-1">Diferencial Explosivo:</span>
-                      <p className="text-[9px] text-slate-800 font-extrabold uppercase leading-relaxed font-sans">
-                        O atleta desenvolve um perfil cinético que o permite atingir uma potência de <span className="text-orange-600 font-extrabold">{cmjPowerRel.toFixed(1)} W/kg</span>. Isso otimiza desacelerações rápidas seguidas de acelerações verticais instantâneas em quadra ou campo.
-                      </p>
+                    
+                    <div className="space-y-3 text-[9.5px] leading-relaxed text-slate-700">
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Produção e Aplicação de Força:</span>
+                        <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjExcExc}</p>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Ciclo Alongamento Encurtamento (CAE):</span>
+                        <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjAproveitamentoElastico}</p>
+                      </div>
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Recrutamento Neuromuscular de Alto Limiar:</span>
+                        <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjFatoresNeuromusculares}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -11154,11 +11099,11 @@ const CmjReport: FC<{
             </div>
           </ReportPage>
 
-          {/* Page 4: Prescrição & Metas */}
+          {/* Page 4: Diretrizes Metodológicas & Metas */}
           <ReportPage pageNumber={4} totalPages={4}>
             <ReportHeader
               title="RELATÓRIO DE SALTO VERTICAL"
-              subTitle="PRESCRIÇÃO & METAS DE DESENVOLVIMENTO"
+              subTitle="DIRETRIZES DE INTERVENÇÃO & METAS"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[{ label: "PRAZO", value: targetTimeframeCmj.toUpperCase() }, { label: "PÁGINA", value: "04 DE 04" }]}
@@ -11166,29 +11111,29 @@ const CmjReport: FC<{
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 font-sans">
               
-              {/* Column 1 & 2 (Span 2): Actions & Technical Prescriptions */}
+              {/* Column 1 & 2 (Span 2): Diretrizes Metodológicas */}
               <div className="md:col-span-2 space-y-6">
 
-                {/* 8. PLANO DE AÇÃO DE CORDA/IMPULSO */}
+                {/* DIRETRIZES METODOLÓGICAS */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm font-sans">
                   <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono font-semibold">
-                    🚀 PRESCRIÇÃO E TREINO
+                    🚀 METODOLOGIA DE TREINO
                   </span>
                   <div className="flex justify-between items-baseline border-b pb-2 mb-3">
                     <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
-                      Plano de Ação Imediato
+                      Diretrizes de Intervenção para o Treinador
                     </h4>
                   </div>
                   
                   <div className="space-y-3 font-sans">
-                    {sCmjActionItems.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-start text-[9px] border-b border-slate-5 pb-2 last:border-0 last:pb-0 font-sans font-bold">
-                        <span className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[8px] font-black text-slate-600 shrink-0 mt-0.5 font-mono font-bold">
+                    {sCmjInterventionDirectives.map((item, idx) => (
+                      <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-3 last:border-0 last:pb-0 font-sans font-bold">
+                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[9px] font-black shrink-0 mt-0.5 font-mono">
                           {idx + 1}
                         </span>
                         <div>
-                          <span className="font-bold text-slate-800 uppercase block leading-tight">{item.title}</span>
-                          <span className="text-slate-450 font-bold text-[8px] leading-tight block mt-0.5 uppercase">{item.desc}</span>
+                          <span className="font-bold text-slate-900 uppercase block leading-tight text-[10px]">{item.pillar}</span>
+                          <span className="text-slate-600 font-medium text-[9px] leading-relaxed block mt-1 uppercase">{item.directive}</span>
                         </div>
                       </div>
                     ))}
@@ -11200,7 +11145,7 @@ const CmjReport: FC<{
               {/* Column 3: Metas de Evolução Sidebar */}
               <div className="space-y-6">
 
-                {/* 9. METAS DE EVOLUÇÃO NEUROMUSCULAR */}
+                {/* METAS DE EVOLUÇÃO NEUROMUSCULAR */}
                 <div className="bg-slate-950 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden font-sans">
                   <div className="absolute right-3 top-3 opacity-5">
                     <Target className="w-16 h-16 text-emerald-400" />
@@ -11215,12 +11160,12 @@ const CmjReport: FC<{
                       <span className="text-base font-black text-brand-primary italic font-sans">{targetCmjHeight} CM</span>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1 font-mono font-bold font-semibold">POTÊNCIA REL.</span>
+                      <span className="text-[7px] font-black text-slate-455 uppercase block mb-1 font-mono font-bold font-semibold">POTÊNCIA REL.</span>
                       <span className="text-base font-black text-emerald-400 italic font-sans">{targetCmjPower} W/KG</span>
                     </div>
                   </div>
                   <div className="text-center bg-slate-900 p-2 text-[8px] font-black uppercase tracking-widest text-slate-400 font-sans">
-                    Prazo esperado: <span className="text-white font-bold">{targetTimeframeCmj}</span>
+                    Prazo sugerido: <span className="text-white font-bold">{targetTimeframeCmj}</span>
                   </div>
                 </div>
 
@@ -11418,32 +11363,56 @@ const DropJumpReport: FC<{
     sSportsImpact = "A exemplar reatividade elástica do atleta se traduz diretamente em picos de aceleração de elite e mudanças de direção ágeis e extremamente dinâmicas em competições reais. O atleta consome menos energia física interna para acelerar, mantendo sua potência máxima de sprint por muito mais tempo graças ao eficiente aproveitamento elástico.";
   }
 
-  // PLANO DE AÇÃO (4 SEMANAS)
+  // PLANO DE AÇÃO METODOLÓGICO (Sem receitas de bolo - Caminhos de treino)
   let sTrainFocus = "";
-  let sExercisesList: { name: string; sets: string; focus: string }[] = [];
+  let sDropInterventionDirectives: { pillar: string; directive: string }[] = [];
   if (sTcVal >= 200) {
-    sTrainFocus = "Redução do Tempo de Contato, Ativação do Reflexo de Mola e Enrijecimento de Tornozelo";
-    sExercisesList = [
-      { name: "Drop Jump da Caixa de 20 cm", sets: "3 séries x 5 repetições", focus: "Foco em reatividade máxima: tocar o solo e decolar instantaneamente. Evitar flexionar joelhos" },
-      { name: "Ankle Pogo Jumps (Saltos de Tornozelo)", sets: "3 séries x 10 repetições", focus: "Joelhos estáticos, focar na flexão plantar ultra-rápida do tornozelo sem contato do calcanhar" },
-      { name: "Saltos Rápidos em Corda", sets: "2 séries x 30 segundos contínuos", focus: "Manter frequência cíclica e estabilidade vertical rígida sem rebotes intermediários" },
-      { name: "Isometria de Tornozelo / Sóleo sob carga", sets: "3 séries x 20 segundos sustentados", focus: "Enrijecimento tensional e estrutural do tendão de Aquiles para suportar cargas de impacto" }
+    sTrainFocus = "Redução do Tempo de Contato, Ativação do Reflexo de Mola e Rigidez de Tornozelo (Stiffness)";
+    sDropInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Rigidez do Tornozelo (Ankle Stiffness)", 
+        directive: "Trabalhar a pré-ativação em dorsiflexão antes do contato com o solo para impedir que o calcanhar encoste no chão e dissipa energia elástica." 
+      },
+      { 
+        pillar: "Prioridade 2: Estímulo do Ciclo Alongamento-Encurtamento Curto (Fast SSC)", 
+        directive: "Priorizar estímulos pliométricos de transição ultrarrápida (<200ms), focando na intenção de descolar do solo instantaneamente sem grande flexão de joelhos." 
+      },
+      { 
+        pillar: "Prioridade 3: Gestão de Densidade e Qualidade", 
+        directive: "Limitar o volume por série a repetições de altíssima qualidade técnica e descanso completo, evitando que a fadiga neuromuscular prolongue o tempo de contato." 
+      }
     ];
   } else if (sRsiVal < 2.0) {
-    sTrainFocus = "Otimização de Transição Excêntrica-Concêntrica, Ampliação de Força Reativa e Propriocepção";
-    sExercisesList = [
-      { name: "Drop Jump da Caixa de 30 cm", sets: "3-4 séries x 5 repetições de qualidade", focus: "Manter excelente retenção do impacto e buscar a maior altura aérea possível" },
-      { name: "Single Leg Pogo Jumps (Pogo Jump Unilateral)", sets: "3 séries x 10 repetições por lado", focus: "Estabilizar a cadeia cinética lateral do tornozelo, promovendo simetria de mola" },
-      { name: "Hurdle Jumps Reativos (Saltos em barreiras baixas)", sets: "3 séries x 6 barreiras", focus: "Transições consecutivas de solo batendo e disparando sem rebote" },
-      { name: "Isometria Unilateral de Calcanhar Elevado", sets: "3 séries x 25 segundos sustentados", focus: "Aprimoramento da estabilidade e rigidez tensional do tríceps sural" }
+    sTrainFocus = "Otimização da Transição Excêntrica-Concêntrica e Eficiência de Propulsão";
+    sDropInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Absorção e Re-aceleração sob Carga Gravitacional", 
+        directive: "Progredir gradualmente a altura de queda para desafiar a capacidade do complexo músculo-tendíneo de tolerar impacto e converter energia elástica em impulsão." 
+      },
+      { 
+        pillar: "Prioridade 2: Estabilidade Reativa Unilateral", 
+        directive: "Integrar estímulos reativos com apoio unilateral para equalizar a resposta elástica entre os membros e blindar tornozelos contra entorses em mudanças de direção." 
+      },
+      { 
+        pillar: "Prioridade 3: Combinação com Força Máxima Dinâmica", 
+        directive: "Associar o trabalho reativo ao desenvolvimento da força de base, garantindo que o atleta tenha tônus muscular para sustentar a rigidez da mola biológica." 
+      }
     ];
   } else {
-    sTrainFocus = "Sustentabilidade de Elite, Potência Sob Carga e Pliometria Multidirecional Avançada";
-    sExercisesList = [
-      { name: "Depth Jump de 40-50cm com Foco de Impulsão Vertical Máxima", sets: "4 séries x 4 repetições de qualidade", focus: "Desenvolver a capacidade elástica em alturas maiores de estímulo gravitacional" },
-      { name: "Weighted Pogo Jumps (Saltos de tornozelo portando cargas leves de 3-5kg)", sets: "3 séries x 15 contatos precisos", focus: "Recrutar potência elástica sob condições de compressão adicional acelerada" },
-      { name: "Broad Jumps Reativos consecutivos (Saltos pliométricos horizontais)", sets: "3 séries x 5 saltos explosivos", focus: "Integrar reatividade rápida ao vetor horizontal, essencial para corridas e sprints" },
-      { name: "Transition Sprints (Salto reativo inicial seguido de aceleração de 15m)", sets: "4 séries de máxima intensidade", focus: "Converter a energia pliométrica armazenada em potência dinâmica linear" }
+    sTrainFocus = "Transferência para Vetores Esportivos, Potência Multidirecional e Manutenção de Elite";
+    sDropInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Transferência Horizontal e Multidirecional", 
+        directive: "Canalizar a excelente reatividade vertical para sprints, desacelerações curtas e fintas de alta velocidade, conectando a rigidez do tendão à mecânica de campo." 
+      },
+      { 
+        pillar: "Prioridade 2: Manutenção da Reatividade sob Fadiga Específica", 
+        directive: "Testar a capacidade do atleta de manter tempos de contato curtos em momentos finais de treinos táticos e situações de estresse competitivo." 
+      },
+      { 
+        pillar: "Prioridade 3: Monitoramento Profilático do Tendão de Aquiles", 
+        directive: "Acompanhar a resposta de rigidez matinal e tônus do tríceps sural para evitar sobrecargas inflamatórias decorrentes do alto volume de impacto." 
+      }
     ];
   }
 
@@ -12023,104 +11992,100 @@ const DropJumpReport: FC<{
               extraStats={[{ label: "PÁGINA", value: "03 DE 03" }]}
             />
 
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 font-sans text-slate-800 text-[10.5px]">
-              {/* Left Column: Status, Score, Metas de Evolução */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3.5 font-sans text-slate-800 text-[10.5px]">
+              {/* Left Column: Diagnóstico Mecânico e Metas */}
               <div className="md:col-span-1 space-y-3 flex flex-col justify-between">
                 
-                {/* 1. 🔥 STATUS GERAL (RESUMO EXECUTIVO) */}
+                {/* 1. STATUS GERAL (RESUMO EXECUTIVO) */}
                 <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 relative overflow-hidden shadow-sm">
                   <div className="absolute right-1 top-1 text-orange-500 opacity-20">
                     <Flame className="w-8 h-8" />
                   </div>
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1.5 flex items-center gap-1 font-bold">
-                    🔥 1. Status Geral (Resumo)
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1 font-bold">
+                    🔥 1. Status Diagnóstico Geral
                   </h4>
                   <p className="font-medium leading-relaxed text-[10px]">
                     {statusExecutivo}
                   </p>
                 </div>
 
-                {/* 2. 🎯 SCORE DE PERFORMANCE (0 a 100) */}
-                <div className="bg-white border border-slate-200/80 p-3.5 rounded-xl shadow-sm flex flex-col items-center text-center">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 font-bold w-full text-left">
-                    🎯 2. Score de Performance
+                {/* 2. DIAGNÓSTICO MECÂNICO DE CONTATO E REATIVIDADE */}
+                <div className="bg-white border border-slate-200/80 p-3.5 rounded-xl shadow-sm space-y-2">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
+                    ⏱️ 2. Diagnóstico Mecânico do Contato
                   </h4>
-                  <div className="relative flex items-center justify-center my-1.5">
-                    {/* Ring background */}
-                    <div className="w-16 h-16 rounded-full border-4 border-slate-100 flex items-center justify-center bg-slate-50">
-                      <span className="text-xl font-black italic text-slate-900">{perfScore}</span>
+                  <div className="space-y-1.5 text-[9.5px]">
+                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="font-bold text-slate-700 uppercase">Tempo de Contato (Tc):</span>
+                      <span className={`font-black ${sTcVal >= 250 ? "text-rose-600" : sTcVal >= 200 ? "text-amber-600" : "text-emerald-700"}`}>
+                        {sTcVal} ms ({sTcVal >= 200 ? "Lento / Amortecido" : "Rápido / Reativo"})
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="font-bold text-slate-700 uppercase">Índice de Força Reativa (RSI):</span>
+                      <span className={`font-black ${sRsiVal < 1.5 ? "text-amber-600" : "text-emerald-700"}`}>
+                        {sRsiVal.toFixed(2)} ({sRsiVal >= 2.0 ? "Excelente" : sRsiVal >= 1.5 ? "Bom" : "Em Desenvolvimento"})
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="font-bold text-slate-700 uppercase">Altura de Salto Reativo:</span>
+                      <span className="font-black text-slate-900">
+                        {sJhVal.toFixed(1)} cm
+                      </span>
                     </div>
                   </div>
-                  <div className={`mt-1 text-[8.5px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full border ${perfScoreColor}`}>
-                    {perfScoreClass}
-                  </div>
-                  <p className="text-[9px] text-slate-500 mt-2 leading-relaxed">
-                    Pontuação ponderada de RSI (50%), Tempo de Contato (30%) e Rigidez Dinâmica (20%).
-                  </p>
                 </div>
 
-                {/* 8. 🎯 META DE EVOLUÇÃO */}
-                <div className="bg-orange-50/50 border border-orange-100 p-3.5 rounded-xl shadow-sm">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-700 mb-2 flex items-center gap-1 font-bold">
-                    📈 Metas de Evolução
+                {/* 3. METAS DE EVOLUÇÃO E CRITÉRIOS */}
+                <div className="bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-xl shadow-sm">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-amber-900 mb-1.5 flex items-center gap-1 font-bold">
+                    🎯 3. Critérios e Metas de Reavaliação
                   </h4>
-                  <div className="space-y-1.5 text-[9.5px] font-bold text-slate-700 uppercase tracking-wide">
-                    <div className="flex justify-between border-b border-orange-100/50 pb-1">
-                      <span>RSI Alvo:</span>
-                      <span className="text-emerald-700 font-black italic">{sRsiVal.toFixed(2)} ➔ {sTargetRsiVal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-orange-100/50 pb-1">
-                      <span>Contato Alvo:</span>
-                      <span className="text-emerald-700 font-black italic">{sTcVal} ms ➔ &lt;{sTargetTcVal} ms</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Altura Salto:</span>
-                      <span className="text-slate-600 font-extrabold italic">Manter / Aumentar ({sJhVal} cm)</span>
-                    </div>
+                  <div className="space-y-1 text-[9px] text-slate-700 font-medium leading-relaxed">
+                    <p>• <strong>Alvo de RSI:</strong> Evoluir de <strong>{sRsiVal.toFixed(2)}</strong> para <strong>{sTargetRsiVal.toFixed(2)}</strong>.</p>
+                    <p>• <strong>Tempo de Contato Alvo:</strong> Reduzir para patamar inferior a <strong>&lt;{sTargetTcVal} ms</strong>.</p>
+                    <p>• <strong>Janela de Reavaliação Sugerida:</strong> Nova coleta de Drop Jump em <strong>4 a 6 semanas</strong>.</p>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Técnico, Plano de Ação */}
+              {/* Right Column: Técnico e Diretrizes Metodológicas */}
               <div className="md:col-span-1 space-y-3 flex flex-col justify-between">
                 
-                {/* 3. 📊 INTERPRETAÇÃO TÉCNICA (TREINADOR) */}
+                {/* 4. INTERPRETAÇÃO TÉCNICA (TREINADOR) */}
                 <div className="bg-white border border-slate-200/80 p-3.5 rounded-xl shadow-sm space-y-2 flex-grow">
                   <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
-                     3. Interpretação Técnica
+                    📊 4. Interpretação Mecânica para o Treinador
                   </h4>
                   <div>
-                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Perfil Neuromuscular:</span>
-                    <p className="text-slate-600 text-[10px] leading-relaxed mt-0.5">{sNeuromuscularProfile}</p>
+                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Perfil Neuromuscular e Rigidez (Stiffness):</span>
+                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sNeuromuscularProfile}</p>
                   </div>
                   <div>
-                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Eficiência do CAE (SSC):</span>
-                    <p className="text-slate-600 text-[10px] leading-relaxed mt-0.5">{sSscEfficiency}</p>
+                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Eficiência do Ciclo Alongamento-Encurtamento (CAE):</span>
+                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sSscEfficiency}</p>
                   </div>
                   <div>
-                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Relação Força vs Velocidade:</span>
-                    <p className="text-slate-600 text-[10px] leading-relaxed mt-0.5">{sForceVelRelation}</p>
+                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Comportamento de Frenagem e Propulsão:</span>
+                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sForceVelRelation}</p>
                   </div>
                 </div>
 
-                {/* 7. 🚀 PLANO DE AÇÃO (4 SEMANAS) */}
-                <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 flex-grow flex flex-col justify-between shadow-sm">
-                  <div>
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-2 flex items-center gap-1 font-bold">
-                      🚀 Plano de Ação (4 Semanas)
-                    </h4>
-                    <p className="text-[8px] font-extrabold text-slate-400 mb-2 uppercase tracking-wide">
-                      FOCO: {sTrainFocus}
-                    </p>
-                    <div className="space-y-2">
-                      {sExercisesList.map((ex, idx) => (
-                        <div key={idx} className="border-l-2 border-orange-500/50 pl-2">
-                          <span className="font-extrabold text-slate-200 text-[10px] block">{idx + 1}. {ex.name}</span>
-                          <span className="text-[8px] text-slate-400 uppercase tracking-wide block">{ex.sets}</span>
-                          <span className="text-[9px] text-orange-300 italic block">{ex.focus}</span>
-                        </div>
-                      ))}
-                    </div>
+                {/* 5. DIRETRIZES METODOLÓGICAS DE INTERVENÇÃO */}
+                <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 shadow-sm">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1 font-bold">
+                    🚀 5. Diretrizes Metodológicas de Intervenção
+                  </h4>
+                  <p className="text-[8px] font-extrabold text-slate-400 mb-2 uppercase tracking-wide">
+                    FOCO PRINCIPAL: {sTrainFocus}
+                  </p>
+                  <div className="space-y-2">
+                    {sDropInterventionDirectives.map((item, idx) => (
+                      <div key={idx} className="border-l-2 border-orange-500/60 pl-2">
+                        <span className="font-extrabold text-slate-100 text-[9.5px] block">{item.pillar}</span>
+                        <span className="text-[9px] text-slate-300 leading-normal block mt-0.5">{item.directive}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -12300,16 +12265,18 @@ const StrengthReport: FC<{
 
   // 4. INTERPRETAÇÃO TÉCNICA (Treinador)
   const sStrExcExc = data.quadricepsR > data.quadricepsL 
-    ? `Déficit de extensão no membro esquerdo (-${asymQuad.value}%). Risco mecânico aumentado de compensação patelofemoral direita.`
+    ? `Déficit de extensão no membro esquerdo (-${asymQuad.value}%). Risco biomecânico de sobrecarga patelofemoral contralateral em aterrissagens e frenagens.`
     : data.quadricepsL > data.quadricepsR
-      ? `Déficit de extensão no membro direito (-${asymQuad.value}%). Recomenda-se treinar flexões e extensões com ênfase isolateral.`
-      : `Perfeita paridade simétrica de extensão em joelhos bilaterais (${asymQuad.value}%).`;
+      ? `Déficit de extensão no membro direito (-${asymQuad.value}%). Risco biomecânico de sobrecarga patelofemoral contralateral em aterrissagens e frenagens.`
+      : `Excelente simetria de extensão bilateral em joelhos (diferença de apenas ${asymQuad.value}%).`;
 
   const sStrAproveitamentoElastico = (iqR.ratio < 50 || iqL.ratio < 50)
-    ? `Razão I/Q suboptimal bilateral. Isquiotibiais enfraquecidos em relação aos extensores primários, predispondo a cisalhamentos de LCA.`
-    : `Razão I/Q protetora dentro da zona ideal (50-60%). Sinergia agonist-antagonist considerar exemplar que estabiliza o joelho.`;
+    ? `Razão I/Q abaixo do limiar de segurança (<50%). Isquiotibiais com déficit relativo de contenção frente ao quadríceps, aumentando o estresse no LCA em desacelerações.`
+    : `Razão I/Q dentro da zona funcional protetora (50-65%). Boa coativação e sinergia entre agonistas e antagonistas para estabilização articular do joelho.`;
 
-  const sStrFatoresNeuromusculares = `Excelente taxa de sustentação voluntária máxima isométrica (MIVC), sinalizando ótima densidade funcional mitocondrial e recrutamento de alto limiar.`;
+  const sStrFatoresNeuromusculares = (asymHam.value >= 10)
+    ? `Assimetria em flexores (${asymHam.value}%). Membro mais fraco apresenta menor capacidade de frenagem excêntrica em corridas de alta velocidade.`
+    : `Capacidade de produção de força isométrica estável entre os membros, favorecendo acelerações e mudanças de direção sem compensações posturais.`;
 
   // 5. TRADUÇÃO SIMPLES (Atleta)
   let sStrAthleteTranslation = `Seus músculos das pernas são muito fortes! No momento, só precisamos equilibrar a força entre as pernas esquerda e direita para que você corra sem compensações.`;
@@ -12325,24 +12292,57 @@ const StrengthReport: FC<{
     sStrParentsExplanation = `Com foco na saúde articular do seu filho, o teste de força isométrica ajuda a verificar se ele está distribuindo o peso igualmente. Isso blinda seus joelhos contra lesões típicas do estirão do crescimento e do estresse de treino.`;
   }
 
-  // 7. PLANO DE AÇÃO PRESCRIBED
-  let sStrActionItems = [
-    { title: "Cadeira Extensora Isométrica", desc: "Sustentação isométrica em cadeira extensora com carga submáxima a 60º de flexão de joelho (3 séries de 15 segundos)." },
-    { title: "Nórdico Posterior de Coxa", desc: "Frenagem de queda excêntrica para recrutar força máxima protetora de isquiotibiais (3 séries de 6 reps)." },
-    { title: "Elevação Pélvica Pesada", desc: "Construção de força extensora de quadril e glúteo para maior estabilização mecânica." }
+  // 7. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
+  let sStrInterventionDirectives = [
+    { 
+      pillar: "Ênfase Isolateral Unilateral", 
+      directive: "Igualar a capacidade de produção de força entre os membros iniciando o estímulo pelo lado deficitário, mantendo volume controlado sem chegar à falha neuromuscular excessiva." 
+    },
+    { 
+      pillar: "Capacidade de Frenagem da Cadeia Posterior", 
+      directive: "Fortalecer a força de desaceleração dos isquiotibiais para equilibrar a razão I/Q, reduzindo o estresse anterior da tíbia em mudanças de direção." 
+    },
+    { 
+      pillar: "Recrutamento Neuromuscular de Alto Limiar", 
+      directive: "Priorizar intenção de velocidade máxima na contração (RFD) e tempos de sustentação isométrica em ângulos articulares críticos da modalidade esportiva." 
+    }
   ];
 
   if (asymQuad.value >= 10 || asymHam.value >= 10) {
-    sStrActionItems = [
-      { title: "Agachamento Unilateral Bulgaro", desc: "Excelente exercício para correção bilateral, com foco na perna mais fraca (4 séries de 8 repetições)." },
-      { title: "Leg Press Unilateral Lento", desc: "Instalação de simetria concêntrica de extensão isolando individualmente cada coxa (3 séries de 10 reps)." },
-      { title: "Flexora Unilateral Focada", desc: "Corrigir a razão I/Q do membro desequilibrado focado com carga isolada (3 séries de 12 repetições)." }
+    sStrInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Correção do Déficit de Simetria", 
+        directive: `Priorizar sobrecarga isolateral direcionada ao membro ${data.quadricepsR > data.quadricepsL ? "esquerdo" : "direito"} com volume adicional de 1 a 2 séries de qualidade, evitando compensações bilaterais.` 
+      },
+      { 
+        pillar: "Prioridade 2: Estabilidade e Frenagem Articular", 
+        directive: "Desenvolver a tolerância à carga excêntrica e desaceleração na cadeia posterior para blindar o joelho contra torque de rotação e translação anterior." 
+      },
+      { 
+        pillar: "Prioridade 3: Gestão de Carga e Fadiga", 
+        directive: "Executar o trabalho de força com o atleta descansado (início da sessão ou dia dedicado), evitando que a fadiga agrave o padrão de movimento compensatório." 
+      }
+    ];
+  } else if (iqR.ratio < 50 || iqL.ratio < 50) {
+    sStrInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Elevação da Força de Isquiotibiais", 
+        directive: "Aumentar a proporção de estímulo específico para flexores de joelho e extensores de quadril, buscando restabelecer a razão I/Q acima de 55%." 
+      },
+      { 
+        pillar: "Prioridade 2: Força em Comprimentos Musculares Longos", 
+        directive: "Trabalhar ações de desaceleração com o quadril flexionado para preparar os isquiotibiais para sprints e aterrissagens de alto impacto." 
+      },
+      { 
+        pillar: "Prioridade 3: Manutenção da Simetria Bilateral", 
+        directive: "Preservar o ótimo equilíbrio bilateral já conquistado, monitorando qualquer sinal de sobrecarga assimétrica nos treinos técnicos de campo." 
+      }
     ];
   }
 
-  // 8. METAS DE EVOLUÇÃO
+  // 8. METAS E CRITÉRIOS DE REAVALIAÇÃO
   const targetStrAsym = 5;
-  const targetTimeframeStr = "6-8 semanas";
+  const targetTimeframeStr = (asymQuad.value >= 10 || asymHam.value >= 10) ? "4 a 6 semanas" : "6 a 8 semanas";
 
   const SymmetryGauge = ({ sideA, sideB }: { sideA: number; sideB: number }) => {
     if (!sideA || !sideB) return null;
@@ -12915,93 +12915,97 @@ const StrengthReport: FC<{
             />
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3.5 font-sans text-slate-800 text-[10.5px]">
-              {/* Left Column: Status, Score */}
-              <div className="md:col-span-1 space-y-3.5 flex flex-col h-full">
+              {/* Left Column: Diagnóstico, Riscos e Metas */}
+              <div className="md:col-span-1 space-y-3 flex flex-col h-full">
                 
-                {/* 1. 🔥 STATUS GERAL (RESUMO EXECUTIVO) */}
+                {/* 1. STATUS GERAL (RESUMO EXECUTIVO) */}
                 <div className="bg-slate-900 text-white p-3 rounded-xl border border-slate-800 relative overflow-hidden shadow-sm">
                   <div className="absolute right-1 top-1 text-orange-500 opacity-20">
                     <Flame className="w-8 h-8" />
                   </div>
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1.5 flex items-center gap-1 font-bold">
-                    🔥 1. Status Geral (Resumo)
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1 font-bold">
+                    🔥 1. Status Diagnóstico Geral
                   </h4>
                   <p className="font-medium leading-relaxed text-[10px]">
                     {veredictoResumoStr}
                   </p>
                 </div>
 
-                {/* 2. 🎯 SCORE DE PERFORMANCE (0 a 100) */}
-                <div className="bg-white border border-slate-200/80 p-3 rounded-xl shadow-sm flex flex-col items-center text-center">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 font-bold w-full text-left">
-                    🎯 2. MIVC Score de Performance
+                {/* 2. JANELA DE RISCO E DÉFICITS ARTICULARES */}
+                <div className="bg-white border border-slate-200/80 p-3 rounded-xl shadow-sm space-y-2">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
+                    ⚠️ 2. Mapeamento de Riscos Articulares
                   </h4>
-                  <div className="relative flex items-center justify-center my-1">
-                    {/* Ring background */}
-                    <div className="w-14 h-14 rounded-full border-4 border-slate-100 flex items-center justify-center bg-slate-50">
-                      <span className="text-lg font-black italic text-slate-900">{strengthScore}</span>
+                  <div className="space-y-1.5 text-[9.5px]">
+                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="font-bold text-slate-700 uppercase">Assimetria de Quadríceps:</span>
+                      <span className={`font-black ${asymQuad.value >= 10 ? "text-rose-600" : "text-emerald-700"}`}>
+                        {asymQuad.value}% ({asymQuad.value >= 10 ? "Alerta Clínico" : "Dentro do Padrão"})
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="font-bold text-slate-700 uppercase">Assimetria de Isquiotibiais:</span>
+                      <span className={`font-black ${asymHam.value >= 10 ? "text-rose-600" : "text-emerald-700"}`}>
+                        {asymHam.value}% ({asymHam.value >= 10 ? "Alerta Clínico" : "Dentro do Padrão"})
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                      <span className="font-bold text-slate-700 uppercase">Razão I/Q (Dir / Esq):</span>
+                      <span className={`font-black ${(iqR.ratio < 50 || iqL.ratio < 50) ? "text-amber-600" : "text-emerald-700"}`}>
+                        {iqR.ratio}% / {iqL.ratio}% (Alvo: 55-65%)
+                      </span>
                     </div>
                   </div>
-                  <div className={`mt-1 text-[8px] font-black tracking-widest uppercase px-2 py-0.5 rounded-full border ${strengthScoreColor}`}>
-                    {strengthScoreClass}
+                </div>
+
+                {/* 3. CRITÉRIOS DE REAVALIAÇÃO E ALVOS */}
+                <div className="bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl shadow-sm">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-amber-900 mb-1.5 flex items-center gap-1 font-bold">
+                    🎯 3. Critérios e Metas de Reavaliação
+                  </h4>
+                  <div className="space-y-1 text-[9px] text-slate-700 font-medium leading-relaxed">
+                    <p>• <strong>Alvo de Simetria:</strong> Reduzir assimetrias bilaterais para patamar inferior a <strong>{targetStrAsym}%</strong>.</p>
+                    <p>• <strong>Equilíbrio Agonista/Antagonista:</strong> Consolidar razão I/Q funcional mínima de <strong>55%</strong>.</p>
+                    <p>• <strong>Janela de Reavaliação Sugerida:</strong> Nova coleta programada para <strong>{targetTimeframeStr}</strong>.</p>
                   </div>
-                  <p className="text-[9px] text-slate-500 mt-1.5 leading-relaxed">
-                    Pontuação ponderada de Extensores (40%), Flexores (40%) e Simetria Geral (20%).
-                  </p>
                 </div>
 
               </div>
 
-              {/* Right Column: Técnico, Co-contração e Plano de Ação */}
-              <div className="md:col-span-1 space-y-3.5 flex flex-col h-full">
+              {/* Right Column: Técnico e Diretrizes Metodológicas */}
+              <div className="md:col-span-1 space-y-3 flex flex-col h-full">
                 
-                {/* 3. 📊 INTERPRETAÇÃO TÉCNICA (TREINADOR) */}
+                {/* 4. INTERPRETAÇÃO TÉCNICA (TREINADOR) */}
                 <div className="bg-white border border-slate-200/80 p-3 rounded-xl shadow-sm space-y-2 flex-grow">
                   <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
-                     3. Interpretação Técnica
+                    📊 4. Interpretação Mecânica para o Treinador
                   </h4>
                   <div>
-                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Déficits de Extensão:</span>
-                    <p className="text-slate-600 text-[10px] leading-relaxed mt-0.5">{sStrExcExc}</p>
+                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Déficits de Extensão (Quadríceps):</span>
+                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sStrExcExc}</p>
                   </div>
                   <div>
-                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Relação Isquiotibiais / Quadríceps:</span>
-                    <p className="text-slate-600 text-[10px] leading-relaxed mt-0.5">{sStrAproveitamentoElastico}</p>
+                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Relação Isquiotibiais / Quadríceps (I/Q):</span>
+                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sStrAproveitamentoElastico}</p>
                   </div>
                   <div>
-                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Taxa de Recrutamento MIVC:</span>
-                    <p className="text-slate-600 text-[10px] leading-relaxed mt-0.5">{sStrFatoresNeuromusculares}</p>
+                    <span className="font-extrabold text-slate-900 block text-[9.5px] uppercase">Capacidade de Sustentação Neuromuscular:</span>
+                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sStrFatoresNeuromusculares}</p>
                   </div>
                 </div>
 
-                {/* 6. ⚡ ÍNDICE DE EFICIÊNCIA MECÂNICA (IEM) */}
-                <div className="bg-emerald-50 text-emerald-950 border border-emerald-100 p-3 rounded-xl shadow-sm">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-emerald-850 mb-1 flex items-center gap-1 font-bold font-sans">
-                     6. Índice de Co-contração (IEM)
+                {/* 5. DIRETRIZES METODOLÓGICAS DE INTERVENÇÃO */}
+                <div className="bg-slate-900 text-white p-3 rounded-xl border border-slate-800 shadow-sm">
+                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-2 flex items-center gap-1 font-bold">
+                    🚀 5. Diretrizes Metodológicas de Intervenção
                   </h4>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-[14px] font-black italic">{iemPct}%</span>
-                    <span className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border border-emerald-600/20 ${iemStrColor}`}>{iemStrClass}</span>
-                  </div>
-                  <p className="text-slate-600 leading-relaxed text-[9.5px] mt-1.5">
-                    Proximidade da razão I/Q bilateral à zona de proteção articular ideal (60%).
-                  </p>
-                </div>
-
-                {/* 7. 🚀 PLANO DE AÇÃO (4 SEMANAS) */}
-                <div className="bg-slate-900 text-white p-3 rounded-xl border border-slate-800 flex-grow flex flex-col justify-between shadow-sm">
-                  <div>
-                    <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1.5 flex items-center gap-1 font-bold">
-                       7. Plano de Ação Prescrito
-                    </h4>
-                    <div className="space-y-1.5">
-                      {sStrActionItems.map((ex, idx) => (
-                        <div key={idx} className="border-l-2 border-orange-500/50 pl-2">
-                          <span className="font-extrabold text-slate-200 text-[10px] block">{idx + 1}. {ex.title}</span>
-                          <span className="text-[9px] text-slate-400 leading-normal block">{ex.desc}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="space-y-2">
+                    {sStrInterventionDirectives.map((item, idx) => (
+                      <div key={idx} className="border-l-2 border-orange-500/60 pl-2">
+                        <span className="font-extrabold text-slate-100 text-[9.5px] block">{item.pillar}</span>
+                        <span className="text-[9px] text-slate-300 leading-normal block mt-0.5">{item.directive}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -13622,35 +13626,35 @@ const ImtpReport: FC<{
     }
   ];
 
-  // Training Action Priorities
+  // Training Action Priorities (Methodological Directives)
   const trainingPriorities = [];
   if ((data.timeToPeakForce || 350) > 320 || (data.rfd100 || 0) < 6500) {
     trainingPriorities.push({
       priority: "PRIORIDADE 1: RFD PRECOCE & CEA RÁPIDO",
-      desc: "Saltos pliométricos de baixo tempo de contato (Drop Jumps 30-40cm) e lançamentos balísticos focando no disparo inicial em <100ms."
+      desc: "Desenvolver a taxa de produção de força inicial em <100ms através de estímulos de ciclo encurtamento-alongamento rápido e decolagens reativas."
     });
   } else {
     trainingPriorities.push({
       priority: "PRIORIDADE 1: MANUTENÇÃO DE POTÊNCIA REATIVO-ELÁSTICA",
-      desc: "Manter bloco de saltos em profundidade e sprints resistidos curtos com foco na taxa de decolagem."
+      desc: "Sustentar a capacidade de transferência tensional instantânea e aceleração inicial com ênfase na taxa de disparo neuromuscular."
     });
   }
 
   if ((data.relativePeakForce || 0) < relOptTarget) {
     trainingPriorities.push({
-      priority: "PRIORIDADE 2: FORÇA MÁXIMA RELATIVA & SOBRECARGA ISOMÉTRICA",
-      desc: "Agachamento com sobrecarga (80-90% 1RM) e puxadas isométricas IMTP em posição crítica para elevar a força tensional sem ganho excessivo de massa."
+      priority: "PRIORIDADE 2: FORÇA MÁXIMA RELATIVA & RECRUTAMENTO",
+      desc: "Elevar o limiar de produção tensional máxima e sincronização de unidades motoras, otimizando a relação de força por quilo de peso corporal."
     });
   } else {
     trainingPriorities.push({
       priority: "PRIORIDADE 2: MANUTENÇÃO DE FORÇA TENSIONAL MÁXIMA",
-      desc: "Treino de força em contraste (Complex Training) combinando agachamento pesado com saltos sem pausa."
+      desc: "Manter a densidade de força submáxima e máxima com controle de fadiga residual e preservação da velocidade contrátil."
     });
   }
 
   trainingPriorities.push({
     priority: "PRIORIDADE 3: RIGIDEZ TENDÍNEA & CONTROLE EXCÊNTRICO",
-    desc: "Aterrissagens unilaterais controladas e agachamento búlgaro com pausa isométrica para reforçar o ligamento patelar e tendão de Aquiles."
+    desc: "Aprimorar a absorção de impacto miotendínea e estabilização articular sob altas taxas de deformação mecânica."
   });
 
   const totalPages = (data.aiDetails && includeAiLaudo) ? 4 : 2;
@@ -15042,35 +15046,56 @@ const BioimpedanceReport: FC<{
   }
 
 
-  // 8. PLANO DE AÇÃO (4–8 SEMANAS)
-  let bioActionPlanFocus = "";
-  let bioActionItems: { title: string; desc: string }[] = [];
+  // 8. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
+  let bioInterventionDirectives: { pillar: string; directive: string }[] = [];
 
   const isMuscleLow = sGender === "M" ? (sMuscle / sWeight < 0.41) : (sMuscle / sWeight < 0.31);
   const isFatHigh = sGender === "M" ? (sFatPct > 18) : (sFatPct > 28);
 
   if (isFatHigh) {
-    bioActionPlanFocus = "Foco em Queima Lipídica, Preservação Contráctil e Déficit Calórico Controlado";
-    bioActionItems = [
-      { title: "Déficit Dietético Otimizado", desc: "Ajuste na ingestão calórica diária com redução calculada de 15% para preservação máxima de fibra muscular, reduzindo unicamente tecidos gordurosos." },
-      { title: "Saturação de Ingestão Proteica", desc: "Fornecimento de 2.0g de proteína por kg diariamente, garantindo reposição de aminoácidos estruturais e evitando estados catabólicos." },
-      { title: "Protocolo HIIT pós-treino", desc: "Sessões curtas e exigentes de corrida intermitente (30s sprint por 30s caminhada, totalizando 10 min) 3x por semana para otimizar respiração celular mitocondrial." },
-      { title: "Estímulo Resistido de Alta Tensão", desc: "Exercícios compostos básicos sob cargas elevadas (3 a 4 séries de 6 a 8 repetições) para sinalizar hipertrofia preventiva." }
+    bioInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Recomposição Corporal & Déficit Energético Controlado", 
+        directive: "Ajustar o balanço calórico para redução progressiva do percentual de gordura, preservando integralmente o tecido muscular ativo." 
+      },
+      { 
+        pillar: "Prioridade 2: Manutenção de Sobrecarga Tensional e Força", 
+        directive: "Preservar a intensidade nos treinos de força para sinalizar retenção de massa magra e ativação neuromuscular durante a perda de peso." 
+      },
+      { 
+        pillar: "Prioridade 3: Aporte Hídrico e Recuperação Metabólica", 
+        directive: "Otimizar a hidratação diária para acelerar a excreção de subprodutos metabólicos e manter a taxa de filtração celular eficiente." 
+      }
     ];
   } else if (isMuscleLow) {
-    bioActionPlanFocus = "Metodologia Hipertrófica Funcional, Superávit Proteico e Densidade Energética";
-    bioActionItems = [
-      { title: "Hipertrofia de Tensão Mecânica", desc: "Priorizar tempos sob tensão altos. Realizar treinos focando em contrações excêntricas cadenciadas (fase de descida de 3 segundos) em repetições de 8 a 12." },
-      { title: "Reforço Proteico e Hidratação Extrema", desc: "Consumo diário de pelo menos 2.2g de proteína/kg associado a uma hidratação intensa de 50ml de água purificada por kg de peso corporal." },
-      { title: "Ingestão Nutricional Hipercalórica Limpa", desc: "Inserção de gorduras saudáveis (azeite de oliva, abacate) e carboidratos de alta qualidade para amparar a taxa metabólica basal ativa." },
-      { title: "Recuperação Terapêutica Ativa", desc: "Sono de pelo menos 8 horas focadas e banhos frios regeneradores para manter os níveis séricos hormonais de regeneração ativos." }
+    bioInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Estímulo Tensional & Sobrecarga Mecânica Progressiva", 
+        directive: "Trabalhar em faixas de tensão mecânica sustentada com foco em recrutamento de unidades motoras de alto limiar para hipertrofia funcional." 
+      },
+      { 
+        pillar: "Prioridade 2: Suporte Energético e Síntese Proteica", 
+        directive: "Garantir densidade calórica e fracionamento proteico adequado para suportar o estado anabólico e a recuperação muscular entre as sessões." 
+      },
+      { 
+        pillar: "Prioridade 3: Correção de Assimetrias Segmentares", 
+        directive: "Introduzir blocos de exercícios unilaterais para equalizar a massa magra entre membros e proteger as articulações." 
+      }
     ];
   } else {
-    bioActionPlanFocus = "Polimento Corporal de Elite, Nutrição Concorrente e Estabilização de Força";
-    bioActionItems = [
-      { title: "Sincronização Nutricional de Carboidratos", desc: "Distribuir carboidratos em janelas imediatas pré e pós-treino intenso para saturar as reservas de glicogênio sem picos de insulina gordurosa." },
-      { title: "Exercícios de Potência Unilaterais", desc: "Adicionar movimentos dinâmicos como Agachamento Búlgaro e subidas explosivas em caixas de forma unilateral para polir estabilidade unilateral." },
-      { title: "Eletrólitos Pós-Esforço Avançados", desc: "Reposição mineral precisa (sódio, magnésio e potássio) pós-sessão de suor extremo, impulsionando a água celular total e evitando cãibras." }
+    bioInterventionDirectives = [
+      { 
+        pillar: "Prioridade 1: Polimento da Relação Força/Peso (Potência Relativa)", 
+        directive: "Sustentar os níveis ideais de composição corporal focando em transferir a massa muscular existente para potência e agilidade desportiva." 
+      },
+      { 
+        pillar: "Prioridade 2: Equalização Muscular Unilateral e Estabilidade", 
+        directive: "Manter o controle sobre assimetrias periféricas para blindar a mecânica articular contra sobrecargas durante gestos esportivos exigentes." 
+      },
+      { 
+        pillar: "Prioridade 3: Periodização Nutricional Conforme Calendário", 
+        directive: "Ajustar o aporte de substratos energéticos de acordo com a intensidade das fases de treino (acumulação, choque e polimento competitivo)." 
+      }
     ];
   }
 
@@ -15699,190 +15724,175 @@ const BioimpedanceReport: FC<{
 
 
 
-          {/* Page 3: Diagnóstico de Elite & Prescrição */}
+          {/* Page 3: Diagnóstico de Composição & Diretrizes */}
           <ReportPage pageNumber={3} totalPages={3}>
             <ReportHeader
               title="RELATÓRIO DE COMPOSIÇÃO CORPORAL"
-              subTitle="DIAGNÓSTICO ESPORTIVO & PRESCRIÇÃO AVANÇADA"
+              subTitle="DIAGNÓSTICO BIOMÉTRICO & DIRETRIZES"
               athlete={athlete}
               date={formatDate(data.date)}
-              extraStats={[{ label: "PERFIL", value: "ELITE" }, { label: "PÁGINA", value: "03 DE 03" }]}
+              extraStats={[{ label: "PERFIL", value: fatClass.toUpperCase() }, { label: "PÁGINA", value: "03 DE 03" }]}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 font-sans">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
               
-              {/* Column 1: Executive Summary & Performance Indexes */}
-              <div className="space-y-6">
+              {/* Column 1: Diagnóstico Fisiológico & Métricas Reais */}
+              <div className="space-y-5 overflow-hidden">
                 
-                {/* 2. SCORE CORPORAL */}
-                <div id="score-corp-card" className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-1 font-mono">
-                    🎯 2. Score Corporal
-                  </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900">
-                      Pontuação de Composição
-                    </h4>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${bodyScoreColor}`}>
-                      {bodyScoreClass}
-                    </span>
+                {/* 1. STATUS CORPORAL GERAL */}
+                <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
+                  <div className="absolute right-3 bottom-3 opacity-5">
+                    <Sparkles className="w-16 h-16 text-indigo-400" />
                   </div>
-                  
-                  <div className="flex items-center gap-4 py-2">
-                    <div className="relative flex items-center justify-center font-sans">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        <circle cx="32" cy="32" r="28" stroke="#f1f5f9" strokeWidth="6" fill="transparent" />
-                        <circle cx="32" cy="32" r="28" stroke="#4f46e5" strokeWidth="6" fill="transparent"
-                          strokeDasharray={175.9}
-                          strokeDashoffset={175.9 - (175.9 * bodyScore) / 100}
-                          className="transition-all duration-1000 ease-out"
-                        />
-                      </svg>
-                      <span className="absolute text-lg font-black text-slate-900 italic">
-                        {bodyScore}
-                      </span>
-                    </div>
-                    <div className="flex-grow space-y-1">
-                      <span className="text-[9px] text-slate-500 font-bold uppercase leading-none block">
-                        Base de cálculo:
-                      </span>
-                      <p className="text-[8px] text-slate-400 font-medium leading-relaxed uppercase">
-                        Peso relativo de gordura, distribuição intramuscular, água e taxas de estresse visceral de repouso.
-                      </p>
-                    </div>
-                  </div>
-                </div>
- 
-                {/* 🧬 ÍNDICE DE PERFORMANCE CORPORAL (IPC) */}
-                <div id="index-perf-card" className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block mb-2 font-mono">
-                    🧬 Índice de Performance Corporal
+                  <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono pb-1 border-b border-indigo-455/20">
+                    🔥 STATUS DIAGNÓSTICO GERAL
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900 mb-3 border-b pb-2">
-                    Eficiência Corporal
+                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-2 leading-tight text-white">
+                    Veredito de Composição
                   </h4>
-                  <div className={`p-3 rounded-2xl border ${efficiencyColor} flex items-center justify-between mb-4 transition-all duration-300`}>
-                    <span className="text-[9px] font-black uppercase tracking-wider">
-                      STATUS DE EFICIÊNCIA:
-                    </span>
-                    <span className="text-xs font-black uppercase italic tracking-widest">
-                      {totalEfficiency}% ({efficiencyLevel})
-                    </span>
+                  <p className="text-[10px] text-slate-200 leading-relaxed font-bold uppercase">
+                    {bioMuscleFatRatio}
+                  </p>
+                </div>
+
+                {/* 2. PARÂMETROS BIOMÉTRICOS PRINCIPAIS */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm space-y-3 font-sans">
+                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block font-mono font-bold font-sans">
+                    📊 PARÂMETROS BIOMÉTRICOS COLETADOS
+                  </span>
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
+                    Métricas de Tecido & Estrutura
+                  </h4>
+                  
+                  <div className="space-y-2 font-sans text-[9.5px]">
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Massa Muscular Total:</span>
+                      <span className="font-black text-emerald-600 italic text-sm">{sMuscle} kg ({(sMuscle/sWeight*100).toFixed(1)}%)</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Percentual de Gordura:</span>
+                      <span className="font-black text-brand-primary italic text-sm">{sFatPct}% ({currentFatKg.toFixed(1)} kg)</span>
+                    </div>
+                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-bold text-slate-600 uppercase">Gordura Visceral:</span>
+                      <span className="font-black text-slate-900 italic text-sm">Nível {data.visceralFat || 0}</span>
+                    </div>
+                    {data.hydration ? (
+                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span className="font-bold text-slate-600 uppercase">Água Corporal Total:</span>
+                        <span className="font-black text-indigo-600 italic text-sm">{data.hydration}%</span>
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50">
-                      <span className="text-slate-400 uppercase font-black">Relação Massa Magra / Peso</span>
-                      <span className="text-slate-900 italic font-black font-sans">{leanMassPct}%</span>
+                </div>
+
+                {/* 3. ANÁLISE DE ASSIMETRIA SEGMENTAR */}
+                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
+                  <span className="text-[7px] font-black text-purple-600 uppercase tracking-widest block mb-2 font-mono">
+                    🧬 ASSIMETRIA SEGMENTAR & ALINHAMENTO
+                  </span>
+                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-2 border-b pb-1">
+                    Equilíbrio Muscular Periférico
+                  </h4>
+                  <p className="text-[9.5px] text-slate-700 font-bold uppercase leading-relaxed font-sans">
+                    {sSegmentationText}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mt-3 text-center">
+                    <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block">Delta Membros Superiores</span>
+                      <span className="text-xs font-black text-slate-800 italic">{armAsymmetry.toFixed(1)}%</span>
                     </div>
-                    <div className="flex justify-between items-center text-[9px] border-b pb-1.5 border-slate-50">
-                      <span className="text-slate-400 uppercase font-black">Índice Gordura Funcional</span>
-                      <span className="text-slate-900 italic font-black font-sans">{functionalFatIdx}%</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[9px]">
-                      <span className="text-slate-400 uppercase font-black">S. Eficiência Metabólica</span>
-                      <span className="text-slate-900 italic font-black font-sans">{metabolicEfficiencyScore}%</span>
+                    <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block">Delta Membros Inferiores</span>
+                      <span className="text-xs font-black text-slate-800 italic">{legAsymmetry.toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>
- 
+
               </div>
- 
-              {/* Column 2: Technical Interpretation (Coach focus) */}
-              <div className="space-y-6">
+
+              {/* Column 2: Diretrizes & Metas */}
+              <div className="space-y-5 flex flex-col justify-between h-full">
                 
-                {/* 3. INTERPRETAÇÃO TÉCNICA */}
+                {/* 4. INTERPRETAÇÃO TÉCNICA */}
                 <div id="tech-interpretation-card" className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                   <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono">
-                    📊 3. Interpretação Técnica (Treinador)
+                    📊 INTERPRETAÇÃO METABÓLICA (TREINADOR)
                   </span>
-                  <div className="flex justify-between items-baseline mb-3">
-                    <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900">
+                  <div className="flex justify-between items-baseline mb-2 border-b pb-1">
+                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900">
                       Metabolismo & Tecido Ativo
                     </h4>
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest font-mono">
-                      {bioNeuromuscularProfile.toUpperCase()}
-                    </span>
                   </div>
                   
-                  <div className="space-y-4 text-[9px] leading-relaxed">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-400 uppercase block mb-1">Massa Muscular vs Gordura:</span>
-                      <p className="text-slate-600 font-bold uppercase">{bioMuscleFatRatio}</p>
+                  <div className="space-y-2.5 text-[9.5px] leading-relaxed">
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Relação Tecidual:</span>
+                      <p className="text-slate-800 font-bold uppercase">{bioMuscleFatRatio}</p>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-400 uppercase block mb-1">Eficiência de Metabolismo:</span>
-                      <p className="text-slate-600 font-bold uppercase">{sMetabolicDescription}</p>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Taxa Metabólica Basal:</span>
+                      <p className="text-slate-800 font-bold uppercase">{sMetabolicDescription}</p>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-400 uppercase block mb-1">Indicador de Risco Fisiológico:</span>
-                      <p className="text-slate-650 font-bold uppercase">{sPhysiologicalRisk}</p>
+                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                      <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Risco Fisiológico Articular:</span>
+                      <p className="text-slate-800 font-bold uppercase">{sPhysiologicalRisk}</p>
                     </div>
                   </div>
                 </div>
- 
-              </div>
- 
-              {/* Column 3: Actions, Metas & Translations */}
-              <div className="space-y-6">
-                
-                {/* 8. PLANO DE AÇÃO */}
-                <div id="action-plan-card" className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm">
-                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono">
-                    🚀 8. Plano de Ação (4-8 Semanas)
+
+                {/* 5. DIRETRIZES METODOLÓGICAS */}
+                <div id="action-plan-card" className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm font-sans">
+                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono font-semibold">
+                    🚀 METODOLOGIA DE INTERVENÇÃO
                   </span>
-                  <div className="flex justify-between items-baseline mb-3 border-b pb-2">
-                    <h4 className="text-sm font-black uppercase italic tracking-wider text-slate-900">
-                      Estratégia Imediata
+                  <div className="flex justify-between items-baseline border-b pb-2 mb-3">
+                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
+                      Diretrizes de Intervenção para o Treinador
                     </h4>
                   </div>
-                  <p className="text-[8px] font-black text-indigo-500 uppercase tracking-widest block mb-3 font-semibold font-mono">
-                    Foco: {bioActionPlanFocus}
-                  </p>
                   
-                  <div className="space-y-3">
-                    {bioActionItems.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-start text-[9px] border-b border-slate-50 pb-2 last:border-0 last:pb-0">
-                        <span className="w-4 h-4 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[8px] font-black text-slate-600 shrink-0 mt-0.5 font-mono">
+                  <div className="space-y-3 font-sans">
+                    {bioInterventionDirectives.map((item, idx) => (
+                      <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 font-sans font-bold">
+                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[8px] font-black shrink-0 mt-0.5 font-mono">
                           {idx + 1}
                         </span>
                         <div>
-                          <span className="font-bold text-slate-800 uppercase block leading-tight">{item.title}</span>
-                          <span className="text-slate-400 font-medium text-[8px] leading-tight block mt-0.5 uppercase font-bold">{item.desc}</span>
+                          <span className="font-bold text-slate-900 uppercase block leading-tight text-[10px]">{item.pillar}</span>
+                          <span className="text-slate-600 font-medium text-[9px] leading-relaxed block mt-0.5 uppercase">{item.directive}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
- 
-                {/* 9. METAS DE EVOLUÇÃO */}
+
+                {/* 6. METAS DE EVOLUÇÃO */}
                 <div id="future-goals-card" className="bg-slate-950 text-white p-5 rounded-[2rem] border border-slate-800 shadow-xl relative overflow-hidden">
                   <div className="absolute right-3 top-3 opacity-5">
                     <Target className="w-16 h-16 text-emerald-400" />
                   </div>
                   <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono">
-                    🎯 9. Metas de Evolução
+                    🎯 METAS DE EVOLUÇÃO
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider text-white mb-3 border-b border-slate-800 pb-2">
-                    Objetivos Realistas
-                  </h4>
                   
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">Gordura Alvo</span>
+                  <div className="grid grid-cols-2 gap-3 mb-2">
+                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">META GORDURA</span>
                       <span className="text-base font-black text-brand-primary italic font-sans">{bioTargetFat}%</span>
                     </div>
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">Músculo Alvo</span>
+                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
+                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">META MÚSCULO</span>
                       <span className="text-base font-black text-emerald-400 italic font-sans">{bioTargetMuscle} kg</span>
                     </div>
                   </div>
-                  <div className="text-center bg-slate-900 p-2.5 rounded-xl border border-slate-800 text-[8px] font-black uppercase tracking-widest text-slate-400">
-                    Prazo Estimado: <span className="text-white font-bold">{bioTargetTimeframe}</span>
+                  <div className="text-center bg-slate-900 p-1.5 rounded-xl border border-slate-800 text-[8px] font-black uppercase tracking-widest text-slate-400">
+                    Prazo sugerido: <span className="text-white font-bold">{bioTargetTimeframe}</span>
                   </div>
                 </div>
- 
+
               </div>
- 
+
             </div>
           </ReportPage>
 
