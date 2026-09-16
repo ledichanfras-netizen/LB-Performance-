@@ -5,13 +5,22 @@ import {
   Smile, Dumbbell, Clock, Timer, Sparkles, Flame, ShieldAlert,
   Sliders, ArrowRight, ArrowLeft, X, ChevronUp, ChevronDown, Plus, Trash2,
   Video, ExternalLink, Search, Image as ImageIcon,
-  ListOrdered, CheckCircle2, Circle, Target, Layers, Maximize2, LayoutGrid, ClipboardList, Share2
+  ListOrdered, CheckCircle2, Circle, Target, Layers, Maximize2, LayoutGrid, ClipboardList, Share2,
+  Info
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "react-hot-toast";
-import { Workout, PrescribedExercise, ExerciseSet } from "../types";
+import { Workout, PrescribedExercise, ExerciseSet, AdvancedExecutionMethod } from "../types";
 import { ENRICHED_LIBRARY } from "../data/exercises";
-import { calculateWorkoutLoad, isTimeExercise, getEmbedVideoInfo } from "../utils";
+import { 
+  calculateWorkoutLoad, 
+  isTimeExercise, 
+  getEmbedVideoInfo,
+  parseRepetitions,
+  parseWeightValue,
+  detectSpecialMethod,
+  getSpecialMethodMeta
+} from "../utils";
 
 // TTS Voice announcer
 const speakText = (text: string, enabled: boolean) => {
@@ -35,28 +44,264 @@ const MOTIVATIONAL_QUOTES = [
 
 // Helper functions to parse reps and weights from arbitrary strings
 const parseReps = (repsStr: string | number | undefined | null): number => {
-  if (repsStr === undefined || repsStr === null) return 10;
-  if (typeof repsStr === "number") return repsStr;
-  const cleaned = repsStr.trim();
-  const match = cleaned.match(/\d+/);
-  if (match) {
-    const val = parseInt(match[0], 10);
-    return isNaN(val) ? 10 : val;
-  }
-  return 10;
+  return parseRepetitions(repsStr);
 };
 
 const parseWeight = (weightStr: string | number | undefined | null): number => {
-  if (weightStr === undefined || weightStr === null) return 0;
-  if (typeof weightStr === "number") return weightStr;
-  const cleaned = weightStr.trim();
-  const withDot = cleaned.replace(",", ".");
-  const match = withDot.match(/\d+(\.\d+)?/);
-  if (match) {
-    const val = parseFloat(match[0]);
-    return isNaN(val) ? 0 : val;
+  return parseWeightValue(weightStr);
+};
+
+// Interactive Special Method Component for Guided & Full views
+const SpecialMethodInteractiveGuide: FC<{
+  exercise: PrescribedExercise;
+  onStartTimer: (secs: number, label: string) => void;
+  activeSetIndex?: number;
+}> = ({ exercise, onStartTimer, activeSetIndex = 0 }) => {
+  const method = exercise.executionMethod || "standard";
+  if (method === "standard") return null;
+
+  const meta = getSpecialMethodMeta(method);
+
+  if (method === "cluster") {
+    const clusterPattern = exercise.clusterReps || exercise.reps || "2+2+2";
+    const blocks = clusterPattern.split("+").map((s) => s.trim()).filter(Boolean);
+    const intraRest = exercise.intraSetRest ?? 20;
+    const totalRepsPerSet = parseRepetitions(clusterPattern);
+
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#13092b]/90 border border-purple-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-500/25 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
+              <span>🎯</span>
+              <span>MÉTODO CLUSTER SET ({clusterPattern})</span>
+            </span>
+            <span className="text-[10px] font-bold text-purple-300/80">
+              Total: {totalRepsPerSet} reps/série • Pausa Inter-Séries: {exercise.rest || "2m30s"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onStartTimer(intraRest, `⏱️ Micro-Pausa Cluster (${intraRest}s) - Repouso na Barra`)}
+            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-600 hover:bg-purple-500 text-white flex items-center gap-1.5 shadow-md shadow-purple-900/40 transition-all cursor-pointer active:scale-95"
+          >
+            <Timer className="w-3.5 h-3.5 animate-pulse" />
+            <span>Disparar Micro-Pausa ({intraRest}s)</span>
+          </button>
+        </div>
+
+        {/* Visual Stepper of the Cluster Set */}
+        <div className="p-2.5 bg-purple-950/40 border border-purple-500/20 rounded-xl">
+          <div className="text-[9px] font-black uppercase text-purple-300 tracking-wider mb-2 flex items-center justify-between">
+            <span>Passo a Passo de Cada Série (Série {activeSetIndex + 1}):</span>
+            <span className="text-purple-400 font-bold">{blocks.length} Mini-Blocos</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {blocks.map((blockReps, bIdx) => (
+              <React.Fragment key={bIdx}>
+                <div className="px-3 py-1.5 bg-purple-900/60 border border-purple-500/40 rounded-lg text-center font-mono">
+                  <span className="text-[8px] font-black uppercase text-purple-300 block">Bloco {bIdx + 1}</span>
+                  <span className="text-xs font-black text-white">{blockReps} reps</span>
+                </div>
+                {bIdx < blocks.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => onStartTimer(intraRest, `⏱️ Micro-Pausa ${bIdx + 1}/${blocks.length - 1} (${intraRest}s)`)}
+                    className="px-2 py-1 bg-purple-950 hover:bg-purple-900 border border-dashed border-purple-400/50 hover:border-purple-300 rounded-lg text-[9px] font-black text-purple-200 flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                    title="Clique para iniciar o cronômetro da micro-pausa"
+                  >
+                    <Timer className="w-3 h-3 text-purple-400" />
+                    <span>{intraRest}s micro-pausa</span>
+                    <span>➔</span>
+                  </button>
+                )}
+              </React.Fragment>
+            ))}
+            <span className="text-[9px] font-black text-purple-300 pl-1">
+              ➔ ✅ Fechar Série ({totalRepsPerSet} reps) ➔ ⏱️ {exercise.rest || "2m30s"}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-purple-200/70 italic leading-relaxed">
+          💡 <strong>Diretriz de Execução:</strong> Realize as repetições de cada bloco com máxima velocidade intencional. Ao pausar {intraRest}s, solte a pegada ou descanse a barra no suporte para re-síntese de fosfocreatina (ATP-CP).
+        </p>
+      </div>
+    );
   }
-  return 0;
+
+  if (method === "rest_pause") {
+    const intraRest = exercise.intraSetRest ?? 15;
+    const totalRepsPerSet = parseRepetitions(exercise.reps);
+
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#260810]/90 border border-rose-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-500/25 text-rose-300 border border-rose-500/40 flex items-center gap-1.5">
+              <span>🔥</span>
+              <span>MÉTODO REST-PAUSE</span>
+            </span>
+            <span className="text-[10px] font-bold text-rose-300/80">
+              Alvo: {exercise.reps} reps • Micro-Pausa: {intraRest}s • Inter-Séries: {exercise.rest || "2min"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onStartTimer(intraRest, `🔥 Micro-Pausa Rest-Pause (${intraRest}s)`)}
+            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1.5 shadow-md shadow-rose-900/40 transition-all cursor-pointer active:scale-95"
+          >
+            <Timer className="w-3.5 h-3.5 animate-pulse" />
+            <span>Disparar Micro-Pausa ({intraRest}s)</span>
+          </button>
+        </div>
+
+        <div className="p-2.5 bg-rose-950/40 border border-rose-500/20 rounded-xl flex flex-wrap items-center gap-2">
+          <div className="px-3 py-1.5 bg-rose-900/60 border border-rose-500/40 rounded-lg text-center font-mono">
+            <span className="text-[8px] font-black uppercase text-rose-300 block">Série Principal</span>
+            <span className="text-xs font-black text-white">RPE 9</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onStartTimer(intraRest, `🔥 Micro-Pausa Rest-Pause (${intraRest}s)`)}
+            className="px-2 py-1 bg-rose-950 hover:bg-rose-900 border border-dashed border-rose-400/50 rounded-lg text-[9px] font-black text-rose-200 flex items-center gap-1 cursor-pointer"
+          >
+            <Timer className="w-3 h-3 text-rose-400" />
+            <span>{intraRest}s pausa</span>
+            <span>➔</span>
+          </button>
+          <div className="px-3 py-1.5 bg-rose-900/60 border border-rose-500/40 rounded-lg text-center font-mono">
+            <span className="text-[8px] font-black uppercase text-rose-300 block">Mini-Série</span>
+            <span className="text-xs font-black text-white">+ Reps até Falha</span>
+          </div>
+          <span className="text-[9px] font-black text-rose-300 pl-1">
+            ➔ ✅ Fechar Série ({totalRepsPerSet} reps) ➔ ⏱️ {exercise.rest || "2min"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (method === "drop_set") {
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#261908]/90 border border-amber-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-amber-500/25 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+            <span>📉</span>
+            <span>MÉTODO DROP-SET</span>
+          </span>
+          <span className="text-[10px] font-bold text-amber-300/80">
+            Sem pausa entre as reduções • Inter-Séries: {exercise.rest || "2min"}
+          </span>
+        </div>
+        <div className="p-2.5 bg-amber-950/40 border border-amber-500/20 rounded-xl flex flex-wrap items-center gap-2">
+          <div className="px-3 py-1.5 bg-amber-900/60 border border-amber-500/40 rounded-lg text-center font-mono">
+            <span className="text-[8px] font-black uppercase text-amber-300 block">Carga Base</span>
+            <span className="text-xs font-black text-white">100%</span>
+          </div>
+          <span className="text-[9px] font-black text-amber-400">➔ (Sem pausa) ➔</span>
+          <div className="px-3 py-1.5 bg-amber-900/60 border border-amber-500/40 rounded-lg text-center font-mono">
+            <span className="text-[8px] font-black uppercase text-amber-300 block">Drop 1</span>
+            <span className="text-xs font-black text-white">-20% a -25%</span>
+          </div>
+          <span className="text-[9px] font-black text-amber-400">➔ (Sem pausa) ➔</span>
+          <div className="px-3 py-1.5 bg-amber-900/60 border border-amber-500/40 rounded-lg text-center font-mono">
+            <span className="text-[8px] font-black uppercase text-amber-300 block">Drop 2</span>
+            <span className="text-xs font-black text-white">Até a Falha</span>
+          </div>
+          <span className="text-[9px] font-black text-amber-300 pl-1">
+            ➔ ✅ Fechar Série ➔ ⏱️ {exercise.rest || "2min"}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (method === "bi_set" || method === "tri_set" || method === "super_set") {
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#081a26]/90 border border-blue-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-blue-500/25 text-blue-300 border border-blue-500/40 flex items-center gap-1.5">
+            <span>{meta.icon}</span>
+            <span>MÉTODO {meta.name.toUpperCase()}</span>
+          </span>
+          <span className="text-[10px] font-bold text-blue-300/80">
+            Transição Imediata (0-10s) • Pausa do Bloco: {exercise.rest || "90s"}
+          </span>
+        </div>
+        <p className="text-[10px] text-blue-200/80 italic">
+          Execute este exercício e passe imediatamente para o próximo exercício pareado sem descanso. Ao finalizar a rodada completa, execute a pausa inter-séries.
+        </p>
+      </div>
+    );
+  }
+
+  if (method === "gvt") {
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#262408]/90 border border-yellow-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-yellow-500/25 text-yellow-300 border border-yellow-500/40 flex items-center gap-1.5">
+            <span>🇩🇪</span>
+            <span>GERMAN VOLUME TRAINING (GVT 10x10)</span>
+          </span>
+          <span className="text-[10px] font-bold text-yellow-300/80">
+            10 Séries x 10 Reps @ 60% 1RM • Pausa Estrita: 60s
+          </span>
+        </div>
+        <p className="text-[10px] text-yellow-200/80 italic">
+          Mantenha rigorosamente os 60 segundos de intervalo entre cada uma das 10 séries. O foco é a densidade metabólica e a sobrecarga de volume.
+        </p>
+      </div>
+    );
+  }
+
+  if (method === "myo_reps") {
+    const intraRest = exercise.intraSetRest ?? 10;
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#082622]/90 border border-teal-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-teal-500/25 text-teal-300 border border-teal-500/40 flex items-center gap-1.5">
+            <span>🧬</span>
+            <span>MÉTODO MYO-REPS</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onStartTimer(intraRest, `🧬 Respirações Myo-Reps (${intraRest}s)`)}
+            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-teal-600 hover:bg-teal-500 text-white flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+          >
+            <Timer className="w-3.5 h-3.5 animate-pulse" />
+            <span>Pausa Respiratória ({intraRest}s)</span>
+          </button>
+        </div>
+        <p className="text-[10px] text-teal-200/80 italic">
+          Série de ativação (12-15 reps até 1-2 RIR) ➔ Pausa de 5 respirações profundas (10s) ➔ 4 a 5 mini-séries de 3-5 reps.
+        </p>
+      </div>
+    );
+  }
+
+  if (method === "wave_loading") {
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#1b0826]/90 border border-violet-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-violet-500/25 text-violet-300 border border-violet-500/40 flex items-center gap-1.5">
+            <span>🌊</span>
+            <span>MÉTODO WAVE LOADING (ONDULATÓRIA)</span>
+          </span>
+          <span className="text-[10px] font-bold text-violet-300/80">
+            Pausa Inter-Séries: {exercise.rest || "3min"}
+          </span>
+        </div>
+        <p className="text-[10px] text-violet-200/80 italic">
+          Onda 1: 3-2-1 reps @ 85-90-95% ➔ Onda 2: 3-2-1 reps @ 87-92-97%. A cada onda, a facilitação neuromuscular eleva a capacidade de carga.
+        </p>
+      </div>
+    );
+  }
+
+  return null;
 };
 
 interface SessionTrackerPremiumProps {
@@ -76,46 +321,58 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 }) => {
   const isEditingCompleted = workout.status === "completed";
 
-  const [session, setSession] = useState<Workout>({
-    ...workout,
-    status: "in_progress",
-    date: workout.date?.split("T")[0] || new Date().toISOString().split("T")[0],
-    durationMinutes: workout.durationMinutes || 60,
-    exercises: (Array.isArray(workout.exercises) ? [...workout.exercises] : [])
+  const [session, setSession] = useState<Workout>(() => {
+    const rawExercises = (Array.isArray(workout.exercises) ? [...workout.exercises] : [])
       .sort((a: any, b: any) => {
         const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
         const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
         return aIdx - bIdx;
-      })
-      .map(
-      (ex, idx) => {
-        const targetReps = parseReps(ex.reps);
-        const targetWeight = parseWeight(ex.weight);
-        const initialSets = ex.performedSets && ex.performedSets.length > 0
-          ? ex.performedSets.map((s) => ({
-              ...s,
-              reps: (s.reps === 0 || !s.reps) ? targetReps : s.reps,
-              weight: (s.weight === 0 || !s.weight) ? targetWeight : s.weight,
-              isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
-            }))
-          : Array.from({ length: ex.sets || 3 }).map((_, i) => ({
-              id: `s-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 4)}`,
-              reps: targetReps,
-              weight: targetWeight,
-              rpe: 0,
-              isCompleted: isEditingCompleted ? true : false // New flag for state tracking
-            }));
+      });
 
-        const isTime = isTimeExercise(ex);
-        return {
-          ...ex,
-          repsType: isTime ? ("time" as const) : ("reps" as const),
-          isSimpleEntry: ex.isSimpleEntry !== undefined ? ex.isSimpleEntry : true,
-          painLevel: ex.painLevel || 0,
-          performedSets: initialSets,
-        };
-      }
-    ),
+    const normalizedExercises = rawExercises.map((ex, idx) => {
+      const special = detectSpecialMethod(ex);
+      const targetReps = parseRepetitions(special.clusterReps || ex.reps);
+      const targetWeight = parseWeightValue(ex.weight);
+
+      const initialSets = ex.performedSets && ex.performedSets.length > 0
+        ? ex.performedSets.map((s) => ({
+            ...s,
+            reps: (s.reps === 0 || !s.reps) ? targetReps : s.reps,
+            weight: (s.weight === 0 || !s.weight) ? targetWeight : s.weight,
+            isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
+          }))
+        : Array.from({ length: ex.sets || 3 }).map((_, i) => ({
+            id: `s-${Date.now()}-${idx}-${i}-${Math.random().toString(36).substr(2, 4)}`,
+            reps: targetReps,
+            weight: targetWeight,
+            rpe: 0,
+            isCompleted: isEditingCompleted ? true : false
+          }));
+
+      const isTime = isTimeExercise(ex);
+      return {
+        ...ex,
+        order_index: idx,
+        executionMethod: special.method,
+        clusterReps: ex.clusterReps || special.clusterReps,
+        intraSetRest: ex.intraSetRest ?? special.intraSetRest,
+        blockTag: ex.blockTag || special.blockTag,
+        blockRole: ex.blockRole || special.blockRole,
+        rest: ex.rest || special.rest,
+        repsType: isTime ? ("time" as const) : ("reps" as const),
+        isSimpleEntry: ex.isSimpleEntry !== undefined ? ex.isSimpleEntry : true,
+        painLevel: ex.painLevel || 0,
+        performedSets: initialSets,
+      };
+    });
+
+    return {
+      ...workout,
+      status: "in_progress",
+      date: workout.date?.split("T")[0] || new Date().toISOString().split("T")[0],
+      durationMinutes: workout.durationMinutes || 60,
+      exercises: normalizedExercises,
+    };
   });
 
   // UI state managers
@@ -629,6 +886,17 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
   const progressPercent = totalSetsCount > 0 ? Math.round((completedSetsCount / totalSetsCount) * 100) : 0;
 
+  const currentTotalLoad = useMemo(() => {
+    return calculateWorkoutLoad(session, athleteWeight);
+  }, [session, athleteWeight]);
+
+  const completedRepsTotal = useMemo(() => {
+    return session.exercises.reduce((acc, ex) => {
+      const sets = ex.performedSets || [];
+      return acc + sets.filter((s: any) => s.isCompleted).reduce((sum: number, s: any) => sum + (Number(s.reps) || 0), 0);
+    }, 0);
+  }, [session.exercises]);
+
   // Finishing the entire session
   const triggerFinish = (shareSocial?: boolean | React.SyntheticEvent) => {
     const isSocial = typeof shareSocial === "boolean" ? shareSocial : false;
@@ -852,21 +1120,15 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                         {idx + 1}
                       </span>
                       <span className="break-words leading-tight">{ex.name}</span>
-                      {ex.executionMethod === "complex_contrast" && (
-                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                          🇫🇷 {ex.blockTag || "1A"}
-                        </span>
-                      )}
-                      {ex.executionMethod === "cluster" && (
-                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                          🎯 Cluster {ex.clusterReps || ex.reps}
-                        </span>
-                      )}
-                      {ex.executionMethod === "rest_pause" && (
-                        <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                          🔥 Rest-Pause
-                        </span>
-                      )}
+                      {ex.executionMethod && ex.executionMethod !== "standard" && (() => {
+                        const meta = getSpecialMethodMeta(ex.executionMethod);
+                        return (
+                          <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1">
+                            <span>{meta.icon}</span>
+                            <span>{meta.name} {ex.executionMethod === "cluster" ? (ex.clusterReps || ex.reps) : ""}</span>
+                          </span>
+                        );
+                      })()}
                     </h4>
                     <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
                       Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {prescribedSets}x{isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ {prescribedWeight}
@@ -1129,9 +1391,18 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       {/* SESSION PROGRESSION TIMELINE */}
       {!isHeaderCollapsed && (
         <div className="space-y-1.5 shrink-0">
-          <div className="flex justify-between items-center text-[10px] font-black uppercase text-slate-500 tracking-wider px-1">
-            <span>PROGRESSO DA SESSÃO</span>
-            <span className="text-[#39FF14]">{completedSetsCount} DE {totalSetsCount} SÉRIES ({progressPercent}%)</span>
+          <div className="flex flex-wrap justify-between items-center text-[10px] font-black uppercase text-slate-400 tracking-wider px-1 gap-2">
+            <div className="flex items-center gap-2">
+              <span>PROGRESSO: <strong className="text-[#39FF14]">{completedSetsCount}/{totalSetsCount} SÉRIES ({progressPercent}%)</strong></span>
+              <span>•</span>
+              <span>REPS: <strong className="text-cyan-400">{completedRepsTotal} REPS</strong></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>TONELAGEM ATUAL:</span>
+              <span className="text-[#39FF14] font-black bg-[#39FF14]/10 border border-[#39FF14]/25 px-2 py-0.5 rounded-md font-mono">
+                {currentTotalLoad.toLocaleString("pt-BR")} kg
+              </span>
+            </div>
           </div>
           <div className="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-950">
             <div 
@@ -1452,66 +1723,36 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                         {ex.name}
                       </h3>
 
-                      {/* Special Method Badges & Controls in Full View */}
-                      {ex.executionMethod && ex.executionMethod !== "standard" && (
+                      {/* Special Method Badges & Interactive Guide in Full View */}
+                      <SpecialMethodInteractiveGuide 
+                        exercise={ex} 
+                        onStartTimer={startRestTimer} 
+                        activeSetIndex={(ex.performedSets || []).findIndex((s: any) => !s.isCompleted) >= 0 ? (ex.performedSets || []).findIndex((s: any) => !s.isCompleted) : 0} 
+                      />
+
+                      {ex.executionMethod === "complex_contrast" && (
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          {ex.executionMethod === "complex_contrast" && (
-                            <>
-                              <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
-                                (ex.blockTag || "").endsWith("A")
-                                  ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                                  : (ex.blockTag || "").endsWith("B")
-                                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
-                                  : (ex.blockTag || "").endsWith("C")
-                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                              }`}>
-                                <span>🇫🇷</span>
-                                <span>ESTÁGIO {ex.blockTag || "1A"}</span>
-                              </span>
-                              {ex.blockRole && (
-                                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl">
-                                  {ex.blockRole}
-                                </span>
-                              )}
-                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1">
-                                <span>⚡ Transição: {ex.intraSetRest ?? 20}s</span>
-                                {ex.blockRest && <span>• Round: {ex.blockRest}</span>}
-                              </span>
-                            </>
+                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
+                            (ex.blockTag || "").endsWith("A")
+                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                              : (ex.blockTag || "").endsWith("B")
+                              ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                              : (ex.blockTag || "").endsWith("C")
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          }`}>
+                            <span>🇫🇷</span>
+                            <span>ESTÁGIO {ex.blockTag || "1A"}</span>
+                          </span>
+                          {ex.blockRole && (
+                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl">
+                              {ex.blockRole}
+                            </span>
                           )}
-                          {ex.executionMethod === "cluster" && (
-                            <>
-                              <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
-                                <span>🎯</span>
-                                <span>CLUSTER SET: {ex.clusterReps || ex.reps}</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => startRestTimer(ex.intraSetRest ?? 20, `⏱️ Micro-Pausa Intra-Cluster (${ex.clusterReps || "2+2+2"})`)}
-                                className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-950/60 hover:bg-purple-900/60 text-purple-200 border border-purple-500/30 hover:border-purple-400 flex items-center gap-1 cursor-pointer transition-all shadow-sm"
-                              >
-                                <Timer className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-                                <span>Disparar Micro-Pausa ({ex.intraSetRest ?? 20}s)</span>
-                              </button>
-                            </>
-                          )}
-                          {ex.executionMethod === "rest_pause" && (
-                            <>
-                              <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1.5">
-                                <span>🔥</span>
-                                <span>REST-PAUSE</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => startRestTimer(ex.intraSetRest ?? 15, "🔥 Micro-Pausa Rest-Pause")}
-                                className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-950/60 hover:bg-rose-900/60 text-rose-200 border border-rose-500/30 hover:border-rose-400 flex items-center gap-1 cursor-pointer transition-all shadow-sm"
-                              >
-                                <Timer className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-                                <span>Disparar Micro-Pausa ({ex.intraSetRest ?? 15}s)</span>
-                              </button>
-                            </>
-                          )}
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1">
+                            <span>⚡ Transição: {ex.intraSetRest ?? 20}s</span>
+                            {ex.blockRest && <span>• Round: {ex.blockRest}</span>}
+                          </span>
                         </div>
                       )}
 
@@ -1767,118 +2008,88 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     })()}
                   </h3>
 
-                  {/* Special Method Badges & Controls in Guided View */}
-                  {activeEx.executionMethod && activeEx.executionMethod !== "standard" && (
-                    <div className="flex flex-col gap-2.5 mt-3">
-                      {activeEx.executionMethod === "complex_contrast" && (() => {
-                        const blockExs = session.exercises.filter(
-                          e => e.blockGroupId && e.blockGroupId === activeEx.blockGroupId
-                        );
-                        return (
-                          <div className="w-full space-y-2.5">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
-                                (activeEx.blockTag || "").endsWith("A")
-                                  ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
-                                  : (activeEx.blockTag || "").endsWith("B")
-                                  ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
-                                  : (activeEx.blockTag || "").endsWith("C")
-                                  ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                                  : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                              }`}>
-                                <span>🇫🇷</span>
-                                <span>COMPLEXO FRANCÊS: {activeEx.blockTag || "1A"}</span>
-                              </span>
-                              {activeEx.blockRole && (
-                                <span className="text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl">
-                                  {activeEx.blockRole}
-                                </span>
-                              )}
-                              <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl flex items-center gap-1">
-                                <span>⚡ Transição: {activeEx.intraSetRest ?? 20}s</span>
-                                {activeEx.blockRest && <span>• Descanso Pós-Round: {activeEx.blockRest}</span>}
-                              </span>
-                            </div>
+                  {/* Special Method Badges & Interactive Guide in Guided View */}
+                  <SpecialMethodInteractiveGuide 
+                    exercise={activeEx} 
+                    onStartTimer={startRestTimer} 
+                    activeSetIndex={currentSetIndexForActiveEx} 
+                  />
 
-                            {/* Trilha Sequencial dos 4 Estágios do Complexo */}
-                            {blockExs.length > 1 && (
-                              <div className="p-3 bg-[#070c18] border border-cyan-500/20 rounded-2xl space-y-1.5">
-                                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-cyan-400">
-                                  <span>Trilha do Bloco (1 Série por Estágio):</span>
-                                  <span className="text-amber-400 font-bold">Round {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}</span>
-                                </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                  {blockExs.map((bEx) => {
-                                    const isCurrentStage = bEx.id === activeEx.id;
-                                    const bIndex = session.exercises.findIndex(e => e.id === bEx.id);
-                                    return (
-                                      <button
-                                        key={bEx.id}
-                                        type="button"
-                                        onClick={() => bIndex !== -1 && navigateToExercise(bIndex)}
-                                        className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
-                                          isCurrentStage
-                                            ? "bg-cyan-500/15 border-cyan-400 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-950/40"
-                                            : "bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-700 hover:text-slate-300"
-                                        }`}
-                                      >
-                                        <div className="flex items-center justify-between text-[9px] font-black uppercase">
-                                          <span className={isCurrentStage ? "text-cyan-300" : "text-slate-500"}>
-                                            {bEx.blockTag || "Estágio"}
-                                          </span>
-                                          {isCurrentStage && (
-                                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                                          )}
-                                        </div>
-                                        <p className="text-[10px] font-bold truncate mt-0.5 text-white">
-                                          {bEx.name}
-                                        </p>
-                                        <span className="text-[8px] text-slate-500 truncate block mt-0.5">
-                                          {bEx.blockRole || "Exercício"}
-                                        </span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
+                  {activeEx.executionMethod === "complex_contrast" && (() => {
+                    const blockExs = session.exercises.filter(
+                      e => e.blockGroupId && e.blockGroupId === activeEx.blockGroupId
+                    );
+                    return (
+                      <div className="w-full space-y-2.5 mt-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
+                            (activeEx.blockTag || "").endsWith("A")
+                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                              : (activeEx.blockTag || "").endsWith("B")
+                              ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                              : (activeEx.blockTag || "").endsWith("C")
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          }`}>
+                            <span>🇫🇷</span>
+                            <span>COMPLEXO FRANCÊS: {activeEx.blockTag || "1A"}</span>
+                          </span>
+                          {activeEx.blockRole && (
+                            <span className="text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl">
+                              {activeEx.blockRole}
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl flex items-center gap-1">
+                            <span>⚡ Transição: {activeEx.intraSetRest ?? 20}s</span>
+                            {activeEx.blockRest && <span>• Descanso Pós-Round: {activeEx.blockRest}</span>}
+                          </span>
+                        </div>
+
+                        {/* Trilha Sequencial dos 4 Estágios do Complexo */}
+                        {blockExs.length > 1 && (
+                          <div className="p-3 bg-[#070c18] border border-cyan-500/20 rounded-2xl space-y-1.5">
+                            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-cyan-400">
+                              <span>Trilha do Bloco (1 Série por Estágio):</span>
+                              <span className="text-amber-400 font-bold">Round {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}</span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                              {blockExs.map((bEx) => {
+                                const isCurrentStage = bEx.id === activeEx.id;
+                                const bIndex = session.exercises.findIndex(e => e.id === bEx.id);
+                                return (
+                                  <button
+                                    key={bEx.id}
+                                    type="button"
+                                    onClick={() => bIndex !== -1 && navigateToExercise(bIndex)}
+                                    className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
+                                      isCurrentStage
+                                        ? "bg-cyan-500/15 border-cyan-400 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-950/40"
+                                        : "bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between text-[9px] font-black uppercase">
+                                      <span className={isCurrentStage ? "text-cyan-300" : "text-slate-500"}>
+                                        {bEx.blockTag || "Estágio"}
+                                      </span>
+                                      {isCurrentStage && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] font-bold truncate mt-0.5 text-white">
+                                      {bEx.name}
+                                    </p>
+                                    <span className="text-[8px] text-slate-500 truncate block mt-0.5">
+                                      {bEx.blockRole || "Exercício"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        );
-                      })()}
-                      {activeEx.executionMethod === "cluster" && (
-                        <>
-                          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
-                            <span>🎯</span>
-                            <span>CLUSTER SET: {activeEx.clusterReps || activeEx.reps}</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => startRestTimer(activeEx.intraSetRest ?? 20, `⏱️ Micro-Pausa Intra-Cluster (${activeEx.clusterReps || "2+2+2"})`)}
-                            className="px-3 py-1.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider bg-purple-950/70 hover:bg-purple-900 text-purple-200 border border-purple-500/40 hover:border-purple-300 flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
-                          >
-                            <Timer className="w-4 h-4 text-purple-400 animate-pulse" />
-                            <span>Iniciar Micro-Pausa ({activeEx.intraSetRest ?? 20}s)</span>
-                          </button>
-                        </>
-                      )}
-                      {activeEx.executionMethod === "rest_pause" && (
-                        <>
-                          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1.5">
-                            <span>🔥</span>
-                            <span>REST-PAUSE</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => startRestTimer(activeEx.intraSetRest ?? 15, "🔥 Micro-Pausa Rest-Pause")}
-                            className="px-3 py-1.5 rounded-xl text-[10.5px] font-black uppercase tracking-wider bg-rose-950/70 hover:bg-rose-900 text-rose-200 border border-rose-500/40 hover:border-rose-300 flex items-center gap-1.5 cursor-pointer transition-all shadow-md"
-                          >
-                            <Timer className="w-4 h-4 text-rose-400 animate-pulse" />
-                            <span>Iniciar Micro-Pausa ({activeEx.intraSetRest ?? 15}s)</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {activeEx.notes && (
                     <p className="text-xs text-slate-400 font-semibold mt-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-900 italic">

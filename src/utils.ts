@@ -1,5 +1,331 @@
 
-import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete } from './types';
+import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete, PrescribedExercise, AdvancedExecutionMethod } from './types';
+
+// Enhanced Repetitions Parser: supports cluster "2+2+2", rest-pause "8+3+2", ranges "8-10", "4x4", etc.
+export const parseRepetitions = (repsStr: string | number | undefined | null): number => {
+  if (repsStr === undefined || repsStr === null) return 10;
+  if (typeof repsStr === "number") return isNaN(repsStr) ? 10 : repsStr;
+  const cleaned = String(repsStr).trim();
+  if (!cleaned) return 10;
+
+  // Handle cluster/rest-pause with '+' (e.g. "2+2+2" = 6, "8 + 3 + 2" = 13)
+  if (cleaned.includes("+")) {
+    const parts = cleaned.split("+").map(p => {
+      const match = p.match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    });
+    const sum = parts.reduce((acc, curr) => acc + curr, 0);
+    return sum > 0 ? sum : 10;
+  }
+
+  // Handle range "8-10" or "8 a 10" -> take target (upper or single)
+  if (cleaned.includes("-") || cleaned.toLowerCase().includes(" a ")) {
+    const matches = cleaned.match(/\d+/g);
+    if (matches && matches.length >= 2) {
+      const maxVal = Math.max(...matches.map(m => parseInt(m, 10)));
+      return maxVal > 0 ? maxVal : 10;
+    }
+  }
+
+  // Match regular single integer
+  const match = cleaned.match(/\d+/);
+  if (match) {
+    const val = parseInt(match[0], 10);
+    return isNaN(val) ? 10 : val;
+  }
+  return 10;
+};
+
+// Enhanced Weight Value Parser: supports numbers, commas, "85% 1RM", "BW", "100kg"
+export const parseWeightValue = (weightStr: string | number | undefined | null): number => {
+  if (weightStr === undefined || weightStr === null) return 0;
+  if (typeof weightStr === "number") return isNaN(weightStr) ? 0 : weightStr;
+  const cleaned = String(weightStr).trim().replace(",", ".");
+  if (!cleaned || cleaned.toLowerCase() === "bw" || cleaned.toLowerCase() === "pc") return 0;
+  const match = cleaned.match(/\d+(\.\d+)?/);
+  if (match) {
+    const val = parseFloat(match[0]);
+    return isNaN(val) ? 0 : val;
+  }
+  return 0;
+};
+
+// Automatic Detection and Normalization of Special Training Methods
+export const detectSpecialMethod = (ex: Partial<PrescribedExercise>): {
+  method: AdvancedExecutionMethod;
+  clusterReps?: string;
+  intraSetRest?: number;
+  blockTag?: string;
+  blockRole?: string;
+  rest?: string;
+} => {
+  if (ex.executionMethod && ex.executionMethod !== 'standard') {
+    return {
+      method: ex.executionMethod,
+      clusterReps: ex.clusterReps || (ex.executionMethod === 'cluster' ? (ex.reps || "2+2+2") : undefined),
+      intraSetRest: ex.intraSetRest ?? (ex.executionMethod === 'cluster' ? 20 : ex.executionMethod === 'rest_pause' ? 15 : 20),
+      blockTag: ex.blockTag,
+      blockRole: ex.blockRole,
+      rest: ex.rest
+    };
+  }
+
+  const nameLower = (ex.name || "").toLowerCase();
+  const notesLower = (ex.notes || "").toLowerCase();
+  const repsStr = String(ex.reps || "");
+
+  // 1. Cluster Set detection
+  if (
+    ex.clusterReps ||
+    (repsStr.includes("+") && !nameLower.includes("rest") && !notesLower.includes("rest-pause")) ||
+    nameLower.includes("cluster") ||
+    notesLower.includes("cluster")
+  ) {
+    const clusterReps = ex.clusterReps || (repsStr.includes("+") ? repsStr : "2+2+2");
+    return {
+      method: 'cluster',
+      clusterReps,
+      intraSetRest: ex.intraSetRest ?? 20,
+      rest: ex.rest || "2m30s"
+    };
+  }
+
+  // 2. Rest-Pause detection
+  if (
+    nameLower.includes("rest-pause") ||
+    nameLower.includes("rest pause") ||
+    notesLower.includes("rest-pause") ||
+    notesLower.includes("rest pause") ||
+    (repsStr.includes("+") && (repsStr.includes("8") || repsStr.includes("10") || repsStr.includes("12")))
+  ) {
+    return {
+      method: 'rest_pause',
+      intraSetRest: ex.intraSetRest ?? 15,
+      rest: ex.rest || "2min"
+    };
+  }
+
+  // 3. Complex Contrast / French Contrast / PAP detection
+  if (
+    ex.blockTag ||
+    nameLower.includes("contraste") ||
+    nameLower.includes("french contrast") ||
+    notesLower.includes("contraste") ||
+    notesLower.includes("pap") ||
+    notesLower.includes("complexo")
+  ) {
+    return {
+      method: 'complex_contrast',
+      blockTag: ex.blockTag || "1A",
+      blockRole: ex.blockRole || "1A: Carga Pesada (PAP)",
+      intraSetRest: ex.intraSetRest ?? 20,
+      rest: ex.rest || "20s"
+    };
+  }
+
+  // 4. Drop-Set detection
+  if (nameLower.includes("drop-set") || nameLower.includes("dropset") || notesLower.includes("drop-set") || notesLower.includes("dropset")) {
+    return {
+      method: 'drop_set',
+      intraSetRest: 0,
+      rest: ex.rest || "2min"
+    };
+  }
+
+  // 5. Bi-Set detection
+  if (nameLower.includes("bi-set") || nameLower.includes("biset") || notesLower.includes("bi-set") || notesLower.includes("biset")) {
+    return {
+      method: 'bi_set',
+      intraSetRest: 0,
+      rest: ex.rest || "90s"
+    };
+  }
+
+  // 6. Tri-Set detection
+  if (nameLower.includes("tri-set") || nameLower.includes("triset") || notesLower.includes("tri-set") || notesLower.includes("triset")) {
+    return {
+      method: 'tri_set',
+      intraSetRest: 0,
+      rest: ex.rest || "2min"
+    };
+  }
+
+  // 7. Super-Set detection
+  if (nameLower.includes("super-set") || nameLower.includes("superset") || notesLower.includes("super-set") || notesLower.includes("superset")) {
+    return {
+      method: 'super_set',
+      intraSetRest: 0,
+      rest: ex.rest || "90s"
+    };
+  }
+
+  // 8. German Volume Training (GVT) detection
+  if (nameLower.includes("gvt") || notesLower.includes("gvt") || (ex.sets === 10 && repsStr === "10")) {
+    return {
+      method: 'gvt',
+      intraSetRest: 60,
+      rest: ex.rest || "60s"
+    };
+  }
+
+  // 9. Myo-Reps detection
+  if (nameLower.includes("myo-rep") || nameLower.includes("myorep") || notesLower.includes("myo-rep") || notesLower.includes("myorep")) {
+    return {
+      method: 'myo_reps',
+      intraSetRest: 10,
+      rest: ex.rest || "2min"
+    };
+  }
+
+  // 10. Wave Loading detection
+  if (nameLower.includes("wave") || nameLower.includes("onda") || notesLower.includes("onda") || notesLower.includes("wave loading")) {
+    return {
+      method: 'wave_loading',
+      intraSetRest: 120,
+      rest: ex.rest || "3min"
+    };
+  }
+
+  return { method: 'standard', rest: ex.rest || "90s" };
+};
+
+// Metadata for rendering special training methods
+export const getSpecialMethodMeta = (method?: AdvancedExecutionMethod) => {
+  switch (method) {
+    case 'cluster':
+      return {
+        id: 'cluster',
+        name: 'Cluster Set',
+        badge: '🎯 Cluster Set',
+        icon: '🎯',
+        bg: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+        activeRing: 'ring-purple-500/40 border-purple-500',
+        description: 'Sub-blocos com micro-pausa na barra (15-20s) para preservar a velocidade e recrutamento de motoneurônios de alto limiar sem acúmulo excessivo de lactato.',
+        defaultIntraRest: 20,
+        defaultInterRest: '2m30s'
+      };
+    case 'complex_contrast':
+      return {
+        id: 'complex_contrast',
+        name: 'Contraste Francês / Complex PAP',
+        badge: '🇫🇷 Complexo PAP',
+        icon: '🇫🇷',
+        bg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+        activeRing: 'ring-cyan-500/40 border-cyan-500',
+        description: 'Potenciação pós-ativação (PAP) combinando carga pesada (>80% 1RM), pliometria com carga, velocidade balística e pliometria reativa.',
+        defaultIntraRest: 20,
+        defaultInterRest: '3m30s'
+      };
+    case 'rest_pause':
+      return {
+        id: 'rest_pause',
+        name: 'Rest-Pause',
+        badge: '🔥 Rest-Pause',
+        icon: '🔥',
+        bg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+        activeRing: 'ring-rose-500/40 border-rose-500',
+        description: 'Série levada à fadiga seguida de micro-pausas curtas (15s) para recrutar o máximo de unidades motoras com alto estresse metabólico.',
+        defaultIntraRest: 15,
+        defaultInterRest: '2min'
+      };
+    case 'drop_set':
+      return {
+        id: 'drop_set',
+        name: 'Drop-Set',
+        badge: '📉 Drop-Set',
+        icon: '📉',
+        bg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        activeRing: 'ring-amber-500/40 border-amber-500',
+        description: 'Redução imediata de carga (-20% a -25%) sem descanso entre as quedas para esgotamento das fibras musculares.',
+        defaultIntraRest: 0,
+        defaultInterRest: '2min'
+      };
+    case 'bi_set':
+      return {
+        id: 'bi_set',
+        name: 'Bi-Set',
+        badge: '⚡ Bi-Set',
+        icon: '⚡',
+        bg: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+        activeRing: 'ring-blue-500/40 border-blue-500',
+        description: 'Dois exercícios executados em sequência contínua sem descanso para o mesmo grupo muscular ou agonista/antagonista.',
+        defaultIntraRest: 0,
+        defaultInterRest: '90s'
+      };
+    case 'tri_set':
+      return {
+        id: 'tri_set',
+        name: 'Tri-Set',
+        badge: '🔱 Tri-Set',
+        icon: '🔱',
+        bg: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+        activeRing: 'ring-indigo-500/40 border-indigo-500',
+        description: 'Três exercícios sequenciais sem pausa entre eles, aumentando a densidade e o volume por unidade de tempo.',
+        defaultIntraRest: 0,
+        defaultInterRest: '2min'
+      };
+    case 'super_set':
+      return {
+        id: 'super_set',
+        name: 'Super-Set',
+        badge: '⚔️ Super-Set',
+        icon: '⚔️',
+        bg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        activeRing: 'ring-emerald-500/40 border-emerald-500',
+        description: 'Combinação alternada de músculos agonistas e antagonistas (ex: Extensão + Flexão) otimizando tempo e recuperação neuromuscular recíproca.',
+        defaultIntraRest: 0,
+        defaultInterRest: '90s'
+      };
+    case 'gvt':
+      return {
+        id: 'gvt',
+        name: 'German Volume Training (GVT)',
+        badge: '🇩🇪 GVT 10x10',
+        icon: '🇩🇪',
+        bg: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
+        activeRing: 'ring-yellow-500/40 border-yellow-500',
+        description: '10 séries de 10 repetições com 60% de 1RM e intervalo estrito de 60s, promovendo hipertrofia e capacidade de trabalho extraordinárias.',
+        defaultIntraRest: 60,
+        defaultInterRest: '60s'
+      };
+    case 'myo_reps':
+      return {
+        id: 'myo_reps',
+        name: 'Myo-Reps',
+        badge: '🧬 Myo-Reps',
+        icon: '🧬',
+        bg: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+        activeRing: 'ring-teal-500/40 border-teal-500',
+        description: 'Série de ativação (12-15 reps) seguida de 4-5 mini-séries de 3-5 reps com pausas de 5 respirações profundas (10s).',
+        defaultIntraRest: 10,
+        defaultInterRest: '2min'
+      };
+    case 'wave_loading':
+      return {
+        id: 'wave_loading',
+        name: 'Wave Loading (Ondulatória)',
+        badge: '🌊 Wave Loading',
+        icon: '🌊',
+        bg: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+        activeRing: 'ring-violet-500/40 border-violet-500',
+        description: 'Estrutura em ondas de repetições decrescentes e cargas crescentes (ex: 3-2-1 @ 85-90-95%) para facilitação neural progressiva.',
+        defaultIntraRest: 120,
+        defaultInterRest: '3min'
+      };
+    default:
+      return {
+        id: 'standard',
+        name: 'Tradicional',
+        badge: 'Série Tradicional',
+        icon: '🏋️‍♂️',
+        bg: 'bg-slate-800 text-slate-300 border-slate-700',
+        activeRing: 'ring-slate-700 border-slate-600',
+        description: 'Execução linear de séries com intervalo inter-séries completo para recuperação dos estoques de fosfocreatina.',
+        defaultIntraRest: 0,
+        defaultInterRest: '90s'
+      };
+  }
+};
 
 export const calculateAge = (dob: string): number => {
   if (!dob) return 0;
@@ -261,16 +587,31 @@ export const getReadinessCardTheme = (score: number | null | undefined, isPendin
 
 export const calculateWorkoutLoad = (workout: Workout, athleteWeight?: number): number => {
   let total = 0;
+  if (!workout || !workout.exercises) return 0;
+  
   workout.exercises.forEach(ex => {
-    if (ex.performedSets) {
+    const special = detectSpecialMethod(ex);
+    const defaultReps = parseRepetitions(special.clusterReps || ex.reps);
+    const defaultWeight = parseWeightValue(ex.weight);
+
+    if (ex.performedSets && ex.performedSets.length > 0) {
       ex.performedSets.forEach(set => {
-        // If weight is 0 and we have athlete weight, use athlete weight (BW)
-        const effectiveWeight = (set.weight === 0 && athleteWeight) ? athleteWeight : (set.weight || 0);
-        total += (set.reps || 0) * effectiveWeight;
+        // Effective reps: if set.reps is specified and > 0, use set.reps; otherwise fallback to prescribed default reps
+        const reps = (set.reps && set.reps > 0) ? set.reps : defaultReps;
+        // Effective weight: if set.weight is 0 and athleteWeight provided, use BW; otherwise set.weight or defaultWeight
+        const rawWeight = (set.weight !== undefined && set.weight !== null) ? set.weight : defaultWeight;
+        const effectiveWeight = (rawWeight === 0 && athleteWeight) ? athleteWeight : rawWeight;
+        
+        total += reps * effectiveWeight;
       });
+    } else {
+      // Fallback for planned or unrecorded sets
+      const numSets = ex.sets || 3;
+      const effectiveWeight = (defaultWeight === 0 && athleteWeight) ? athleteWeight : defaultWeight;
+      total += numSets * defaultReps * effectiveWeight;
     }
   });
-  return total;
+  return Math.round(total);
 };
 
 export const calculateWorkoutInternalLoad = (workout: Workout): number => {

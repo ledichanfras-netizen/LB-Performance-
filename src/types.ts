@@ -196,7 +196,18 @@ export interface ExerciseSet {
   isCompleted?: boolean;
 }
 
-export type AdvancedExecutionMethod = 'standard' | 'cluster' | 'rest_pause' | 'complex_contrast';
+export type AdvancedExecutionMethod = 
+  | 'standard' 
+  | 'cluster' 
+  | 'rest_pause' 
+  | 'complex_contrast'
+  | 'drop_set'
+  | 'bi_set'
+  | 'tri_set'
+  | 'super_set'
+  | 'gvt'
+  | 'myo_reps'
+  | 'wave_loading';
 
 export interface PrescribedExercise {
   id: string;

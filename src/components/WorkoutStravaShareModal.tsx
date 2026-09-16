@@ -44,6 +44,7 @@ type AspectRatio = "9:16" | "1:1";
 type ThemePreset = "cyber-lime" | "dark-stealth" | "titanium-gold" | "electric-blue";
 type CardBgStyle = "transparent" | "glass" | "solid";
 type CardPosition = "top" | "center" | "bottom";
+type TextColorMode = "white" | "black";
 
 const THEME_STYLES: Record<
   ThemePreset,
@@ -116,6 +117,7 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
   const [cardBgStyle, setCardBgStyle] = useState<CardBgStyle>("transparent"); // Sem Fundo (Padrão para encaixar na foto)
   const [cardPosition, setCardPosition] = useState<CardPosition>("bottom"); // Topo, Centro, Rodapé
   const [cardScale, setCardScale] = useState<number>(100); // 60% a 130%
+  const [textColorMode, setTextColorMode] = useState<TextColorMode>("white"); // "white" ou "black"
   const [overlayDarkness, setOverlayDarkness] = useState<number>(15); // 0 - 90 % (suave para fotos)
   const [caption, setCaption] = useState<string>(
     workout.socialCaption || workout.feedback || "Treino concluído com foco total na performance! ⚡"
@@ -130,6 +132,7 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
   if (!isOpen) return null;
 
   const currentTheme = THEME_STYLES[theme];
+  const isBlackText = textColorMode === "black";
 
   // Calculate training stats
   const duration = workout.durationMinutes || 60;
@@ -393,26 +396,44 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                   maxHeight: aspectRatio === "9:16" ? "540px" : "420px",
                   maxWidth: aspectRatio === "9:16" ? "304px" : "420px",
                   width: "100%",
-                  backgroundColor: photoUrl ? "#030712" : (cardBgStyle === "transparent" ? "#0f172a" : "#030712"),
-                  backgroundImage: (!photoUrl && cardBgStyle === "transparent")
-                    ? `linear-gradient(45deg, #1e293b 25%, transparent 25%),
-                       linear-gradient(-45deg, #1e293b 25%, transparent 25%),
-                       linear-gradient(45deg, transparent 75%, #1e293b 75%),
-                       linear-gradient(-45deg, transparent 75%, #1e293b 75%)`
-                    : undefined,
-                  backgroundSize: (!photoUrl && cardBgStyle === "transparent") ? "24px 24px" : undefined,
-                  backgroundPosition: (!photoUrl && cardBgStyle === "transparent") ? "0 0, 0 12px, 12px -12px, -12px 0px" : undefined,
+                  backgroundColor: photoUrl
+                    ? "#030712"
+                    : cardBgStyle === "transparent"
+                    ? isBlackText
+                      ? "#f1f5f9"
+                      : "#0f172a"
+                    : "#030712",
+                  backgroundImage:
+                    !photoUrl && cardBgStyle === "transparent"
+                      ? isBlackText
+                        ? `linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
+                           linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
+                           linear-gradient(45deg, transparent 75%, #cbd5e1 75%),
+                           linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)`
+                        : `linear-gradient(45deg, #1e293b 25%, transparent 25%),
+                           linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+                           linear-gradient(45deg, transparent 75%, #1e293b 75%),
+                           linear-gradient(-45deg, transparent 75%, #1e293b 75%)`
+                      : undefined,
+                  backgroundSize: !photoUrl && cardBgStyle === "transparent" ? "24px 24px" : undefined,
+                  backgroundPosition: !photoUrl && cardBgStyle === "transparent" ? "0 0, 0 12px, 12px -12px, -12px 0px" : undefined,
                 }}
               >
                 {/* Mode Indicator Badge */}
                 <div className="absolute top-3 left-3 z-20 pointer-events-none">
                   {!photoUrl && cardBgStyle === "transparent" ? (
-                    <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-950/80 text-[#39FF14] border border-[#39FF14]/40 backdrop-blur-sm shadow">
-                      Fundo 100% Transparente
+                    <span
+                      className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm shadow border ${
+                        isBlackText
+                          ? "bg-white/90 text-slate-950 border-slate-300"
+                          : "bg-slate-950/80 text-[#39FF14] border-[#39FF14]/40"
+                      }`}
+                    >
+                      Fundo 100% Transparente • {isBlackText ? "Dados em Preto" : "Dados em Branco"}
                     </span>
                   ) : photoUrl ? (
                     <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-950/80 text-white border border-white/20 backdrop-blur-sm shadow">
-                      Foto Ativa
+                      Foto Ativa • {isBlackText ? "Dados em Preto" : "Dados em Branco"}
                     </span>
                   ) : null}
                 </div>
@@ -425,7 +446,9 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                   style={{
                     backgroundColor: photoUrl
                       ? undefined
-                      : (cardBgStyle === "transparent" ? "transparent" : "#030712"),
+                      : cardBgStyle === "transparent"
+                      ? "transparent"
+                      : "#030712",
                   }}
                 >
                   {/* Photo Layer if uploaded */}
@@ -480,26 +503,42 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                       <div
                         className={`w-full flex flex-col items-center transition-all ${
                           cardBgStyle === "glass"
-                            ? "bg-black/45 backdrop-blur-md rounded-3xl p-4 border border-white/20 shadow-2xl"
+                            ? isBlackText
+                              ? "bg-white/75 backdrop-blur-md rounded-3xl p-4 border border-slate-300 shadow-2xl"
+                              : "bg-black/45 backdrop-blur-md rounded-3xl p-4 border border-white/20 shadow-2xl"
                             : cardBgStyle === "solid" && photoUrl
-                            ? "bg-slate-950/85 rounded-3xl p-4 border border-slate-800 shadow-2xl"
-                            : "p-1" // 100% LIMPO E TRANSPARENTE: Sem caixas escuras, sem fundos bloqueando a foto
+                            ? isBlackText
+                              ? "bg-white/90 rounded-3xl p-4 border border-slate-200 shadow-2xl"
+                              : "bg-slate-950/85 rounded-3xl p-4 border border-slate-800 shadow-2xl"
+                            : "p-1" // 100% LIMPO E TRANSPARENTE
                         }`}
                       >
-                        {/* 1. LOGO CENTRALIZADA COM O NOME LB SPORTS */}
+                        {/* 1. LOGO CENTRALIZADA COM O NOME LB SPORTS (SEM O BRILHO VERDE ENVOLTA) */}
                         <div className="flex flex-col items-center justify-center text-center w-full mb-3">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-1 drop-shadow-[0_4px_16px_rgba(0,0,0,0.95)]">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-1">
                             <img
                               src="/pwa-192x192.svg"
                               alt="LB Sports"
-                              className="app-logo filter drop-shadow-[0_0_15px_rgba(57,255,20,0.7)]"
+                              className="app-logo w-full h-full object-contain"
                             />
                           </div>
                           <div className="flex items-center gap-1.5 justify-center">
-                            <span className="text-white font-black text-lg sm:text-xl tracking-wider uppercase italic drop-shadow-[0_2px_10px_rgba(0,0,0,0.98)]">
+                            <span
+                              className={`font-black text-lg sm:text-xl tracking-wider uppercase italic ${
+                                isBlackText
+                                  ? "text-slate-950 drop-shadow-[0_1px_4px_rgba(255,255,255,0.95)]"
+                                  : "text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.98)]"
+                              }`}
+                            >
                               LB SPORTS
                             </span>
-                            <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-[#39FF14] text-slate-950 font-mono shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                            <span
+                              className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded font-mono ${
+                                isBlackText
+                                  ? "bg-slate-950 text-white shadow-[0_1px_4px_rgba(255,255,255,0.8)]"
+                                  : "bg-[#39FF14] text-slate-950 shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
+                              }`}
+                            >
                               HUB
                             </span>
                           </div>
@@ -509,26 +548,62 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                         <div className="w-full grid grid-cols-2 gap-x-6 gap-y-3.5 my-2.5 text-center">
                           {/* TEMPO */}
                           <div className="flex flex-col items-center">
-                            <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-[#39FF14] uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]">
+                            <div
+                              className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
+                                isBlackText
+                                  ? "text-slate-900 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
+                                  : "text-[#39FF14] drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                              }`}
+                            >
                               <Clock className="w-3.5 h-3.5" />
                               <span>TEMPO</span>
                             </div>
-                            <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)] leading-none mt-0.5">
+                            <span
+                              className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none mt-0.5 ${
+                                isBlackText
+                                  ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
+                                  : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                              }`}
+                            >
                               {duration}
-                              <span className="text-xs font-bold text-slate-200 ml-1">min</span>
+                              <span
+                                className={`text-xs font-bold ml-1 ${
+                                  isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                }`}
+                              >
+                                min
+                              </span>
                             </span>
                           </div>
 
                           {/* VOLUME */}
                           {showVolume && (
                             <div className="flex flex-col items-center">
-                              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-[#39FF14] uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]">
+                              <div
+                                className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
+                                  isBlackText
+                                    ? "text-slate-900 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
+                                    : "text-[#39FF14] drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                                }`}
+                              >
                                 <Dumbbell className="w-3.5 h-3.5" />
                                 <span>VOLUME</span>
                               </div>
-                              <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)] leading-none mt-0.5">
+                              <span
+                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none mt-0.5 ${
+                                  isBlackText
+                                    ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
+                                    : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                                }`}
+                              >
                                 {totalLoad.toLocaleString()}
-                                <span className="text-xs font-bold text-slate-200 ml-1">kg</span>
+                                <span
+                                  className={`text-xs font-bold ml-1 ${
+                                    isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                  }`}
+                                >
+                                  kg
+                                </span>
                               </span>
                             </div>
                           )}
@@ -536,16 +611,40 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                           {/* ESFORÇO */}
                           {showRpe && (
                             <div className="flex flex-col items-center">
-                              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]">
+                              <div
+                                className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
+                                  isBlackText
+                                    ? "text-amber-950 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
+                                    : "text-amber-400 drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                                }`}
+                              >
                                 <Activity className="w-3.5 h-3.5" />
                                 <span>ESFORÇO</span>
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5 leading-none">
-                                <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)] leading-none">
+                                <span
+                                  className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none ${
+                                    isBlackText
+                                      ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
+                                      : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                                  }`}
+                                >
                                   {rpe}
-                                  <span className="text-xs font-bold text-slate-200">/10</span>
+                                  <span
+                                    className={`text-xs font-bold ${
+                                      isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                    }`}
+                                  >
+                                    /10
+                                  </span>
                                 </span>
-                                <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 uppercase tracking-wider shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
+                                <span
+                                  className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                    isBlackText
+                                      ? "bg-slate-950 text-amber-300 shadow-[0_1px_4px_rgba(255,255,255,0.8)]"
+                                      : "bg-amber-400 text-slate-950 shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
+                                  }`}
+                                >
                                   {rpe <= 3 ? "Leve" : rpe <= 6 ? "Mod." : rpe <= 8 ? "Intenso" : "Máx."}
                                 </span>
                               </div>
@@ -555,13 +654,31 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                           {/* CARGA */}
                           {showInternalLoad && (
                             <div className="flex flex-col items-center">
-                              <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-black text-yellow-400 uppercase tracking-widest drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]">
+                              <div
+                                className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
+                                  isBlackText
+                                    ? "text-yellow-950 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
+                                    : "text-yellow-400 drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                                }`}
+                              >
                                 <Zap className="w-3.5 h-3.5" />
                                 <span>CARGA INT.</span>
                               </div>
-                              <span className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)] leading-none mt-0.5">
+                              <span
+                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none mt-0.5 ${
+                                  isBlackText
+                                    ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
+                                    : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                                }`}
+                              >
                                 {internalLoad.toLocaleString()}
-                                <span className="text-xs font-bold text-slate-200 ml-1">u.a.</span>
+                                <span
+                                  className={`text-xs font-bold ml-1 ${
+                                    isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                  }`}
+                                >
+                                  u.a.
+                                </span>
                               </span>
                             </div>
                           )}
@@ -570,7 +687,13 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                         {/* 3. A FRASE ABAIXO DAS MÉTRICAS */}
                         {caption && (
                           <div className="w-full text-center px-4 mt-2">
-                            <p className="text-xs sm:text-sm text-white italic font-semibold leading-snug drop-shadow-[0_2px_8px_rgba(0,0,0,0.98)] max-w-xs mx-auto">
+                            <p
+                              className={`text-xs sm:text-sm italic font-bold leading-snug max-w-xs mx-auto ${
+                                isBlackText
+                                  ? "text-slate-950 drop-shadow-[0_1px_4px_rgba(255,255,255,0.95)]"
+                                  : "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.98)]"
+                              }`}
+                            >
                               "{caption}"
                             </p>
                           </div>
@@ -696,11 +819,63 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
               )}
             </div>
 
-            {/* 2. Posição no Card / Foto (Topo, Centro, Rodapé) */}
+            {/* 2. Cor dos Dados & Texto (Branco vs Preto) */}
+            <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#39FF14]" />
+                  2. Cor dos Dados & Texto
+                </label>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {textColorMode === "white" ? "⚪ Modo Branco (Fotos Escuras)" : "⚫ Modo Preto (Fotos Claras)"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTextColorMode("white");
+                    toast.success("Dados em Branco selecionados!");
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    textColorMode === "white"
+                      ? "bg-white text-slate-950 shadow-[0_0_20px_rgba(255,255,255,0.35)] ring-2 ring-white/80"
+                      : "bg-slate-900 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-white border-2 border-slate-400 shadow-sm shrink-0" />
+                  <span>Dados em Branco</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTextColorMode("black");
+                    toast.success("Dados em Preto selecionados!");
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                    textColorMode === "black"
+                      ? "bg-slate-950 text-white border-2 border-[#39FF14] shadow-[0_0_20px_rgba(57,255,20,0.25)] ring-2 ring-[#39FF14]/50"
+                      : "bg-slate-900 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-slate-950 border-2 border-slate-300 shadow-sm shrink-0" />
+                  <span>Dados em Preto</span>
+                </button>
+              </div>
+              <p className="text-[9.5px] text-slate-400 mt-2 font-medium">
+                {textColorMode === "white"
+                  ? "💡 Use a cor Branca quando sua foto ou fundo for escuro para contraste perfeito."
+                  : "💡 Use a cor Preta quando sua foto ou fundo for claro, branco ou ao ar livre."}
+              </p>
+            </div>
+
+            {/* 3. Posição no Card / Foto (Topo, Centro, Rodapé) */}
             <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
               <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5 mb-2.5">
                 <MoveVertical className="w-3.5 h-3.5 text-[#39FF14]" />
-                2. Localização na Foto (Posição)
+                3. Localização na Foto (Posição)
               </label>
               <div className="grid grid-cols-3 gap-2">
                 <button
@@ -742,12 +917,12 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
               </div>
             </div>
 
-            {/* 3. Tamanho / Escala do Sticker */}
+            {/* 4. Tamanho / Escala do Sticker */}
             <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
                   <Maximize2 className="w-3.5 h-3.5 text-[#39FF14]" />
-                  3. Tamanho do Sticker
+                  4. Tamanho do Sticker
                 </label>
                 <span className="text-[11px] font-mono text-[#39FF14] font-black">
                   {cardScale}%
@@ -799,11 +974,11 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
               />
             </div>
 
-            {/* 4. Formato (Story 9:16 vs Feed 1:1) */}
+            {/* 5. Formato (Story 9:16 vs Feed 1:1) */}
             <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
               <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5 mb-2.5">
                 <Sliders className="w-3.5 h-3.5 text-[#39FF14]" />
-                4. Formato da Imagem
+                5. Formato da Imagem
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -833,11 +1008,11 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
               </div>
             </div>
 
-            {/* 5. Frase Abaixo das Métricas */}
+            {/* 6. Frase Abaixo das Métricas */}
             <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
               <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5 mb-2">
                 <Flame className="w-3.5 h-3.5 text-amber-400" />
-                5. Frase Abaixo das Métricas
+                6. Frase Abaixo das Métricas
               </label>
               <textarea
                 value={caption}

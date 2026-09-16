@@ -3501,9 +3501,16 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             <div className="flex flex-wrap items-center gap-1.5">
                               {[
                                 { id: "standard", label: "Padrão" },
-                                { id: "complex_contrast", label: "🇫🇷 Contraste Francês / Complex" },
+                                { id: "complex_contrast", label: "🇫🇷 Contraste Francês" },
                                 { id: "cluster", label: "🎯 Cluster Set" },
                                 { id: "rest_pause", label: "🔥 Rest-Pause" },
+                                { id: "drop_set", label: "📉 Drop-Set" },
+                                { id: "bi_set", label: "🔗 Bi-Set" },
+                                { id: "tri_set", label: "🔺 Tri-Set" },
+                                { id: "super_set", label: "⚡ Super-Set" },
+                                { id: "gvt", label: "🇩🇪 GVT (10x10)" },
+                                { id: "myo_reps", label: "🧬 Myo-Reps" },
+                                { id: "wave_loading", label: "🌊 Wave Loading" },
                               ].map((m) => {
                                 const isCurrent = (ex.executionMethod || "standard") === m.id;
                                 return (
@@ -3579,6 +3586,43 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                           rest: ex.rest && ex.rest !== "20s" ? ex.rest : "2min"
                                         });
                                         toast.success("🔥 Configurado como Rest-Pause (15s micro-pausa)!", { icon: "🔥" });
+                                      } else if (m.id === "drop_set") {
+                                        updateExFields(ex.id, {
+                                          executionMethod: "drop_set",
+                                          intraSetRest: 5,
+                                          rest: "2min",
+                                          notes: ex.notes ? ex.notes : "Reduzir carga em 20-30% sem descanso entre drops"
+                                        });
+                                        toast.success("📉 Configurado como Drop-Set!", { icon: "📉" });
+                                      } else if (m.id === "bi_set" || m.id === "tri_set" || m.id === "super_set") {
+                                        updateExFields(ex.id, {
+                                          executionMethod: m.id as any,
+                                          intraSetRest: 10,
+                                          rest: "2min"
+                                        });
+                                        toast.success(`Configurado como ${m.label}!`);
+                                      } else if (m.id === "gvt") {
+                                        updateExFields(ex.id, {
+                                          executionMethod: "gvt",
+                                          sets: 10,
+                                          reps: "10",
+                                          rest: "60s",
+                                          notes: ex.notes ? ex.notes : "Volume Alemão (GVT): 10 séries de 10 reps a 60% 1RM"
+                                        });
+                                        toast.success("🇩🇪 Configurado como German Volume Training (10x10)!", { icon: "🇩🇪" });
+                                      } else if (m.id === "myo_reps") {
+                                        updateExFields(ex.id, {
+                                          executionMethod: "myo_reps",
+                                          intraSetRest: 15,
+                                          notes: ex.notes ? ex.notes : "Série de ativação + 4 a 5 mini-sets de 3-5 reps (15s pausa)"
+                                        });
+                                        toast.success("🧬 Configurado como Myo-Reps!", { icon: "🧬" });
+                                      } else if (m.id === "wave_loading") {
+                                        updateExFields(ex.id, {
+                                          executionMethod: "wave_loading",
+                                          notes: ex.notes ? ex.notes : "Ondulação de cargas (ex: Onda 1: 7-5-3 reps | Onda 2: 7-5-3 reps + carga)"
+                                        });
+                                        toast.success("🌊 Configurado como Wave Loading!", { icon: "🌊" });
                                       } else {
                                         updateExFields(ex.id, {
                                           executionMethod: "standard",
