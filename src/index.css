@@ -272,9 +272,41 @@ body.light-theme [class*="from-[#1e1c0c]"] {
   border-color: #f59e0b !important;
 }
 
-body.light-theme [class*="from-[#021d15]"] {
+body.light-theme [class*="from-[#021d15]"],
+body.light-theme [class*="from-[#022818]"] {
   background: linear-gradient(to bottom right, #ecfdf5, #ffffff) !important;
   border-color: #10b981 !important;
+}
+
+body.light-theme [class*="from-[#022424]"] {
+  background: linear-gradient(to bottom right, #f0fdfa, #ccfbf1) !important;
+  border-color: #14b8a6 !important;
+}
+
+body.light-theme [class*="from-[#2a1b02]"] {
+  background: linear-gradient(to bottom right, #fffbeb, #fef3c7) !important;
+  border-color: #f59e0b !important;
+}
+
+/* Risco de Sobrecarga (Critical Overload) - Fundo Vermelho Claro com Alta Legibilidade em ambos os temas */
+.readiness-critical-card,
+body.light-theme .readiness-critical-card {
+  background: linear-gradient(135deg, #fee2e2 0%, #fff1f2 50%, #fecdd3 100%) !important;
+  border: 2px solid #ef4444 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 35px -5px rgba(239, 68, 68, 0.35) !important;
+}
+
+.readiness-critical-card .readiness-subtext,
+body.light-theme .readiness-critical-card .readiness-subtext {
+  color: #7f1d1d !important;
+}
+
+.readiness-critical-card .readiness-status-badge,
+body.light-theme .readiness-critical-card .readiness-status-badge {
+  background-color: #fecdd3 !important;
+  border-color: #f87171 !important;
+  color: #7f1d1d !important;
 }
 
 /* SVG Dials & Radial Chart Background Rings in Light Mode */

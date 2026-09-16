@@ -133,6 +133,132 @@ export const getReadinessInsight = (score: number): { text: string; color: strin
   }
 };
 
+export interface ReadinessCardTheme {
+  level: "elite" | "good" | "moderate" | "critical" | "pending";
+  label: string;
+  badgeText: string;
+  scoreColor: string;
+  cardClasses: string;
+  glowColor: string;
+  iconBgClasses: string;
+  insightBoxClasses: string;
+  insightTitleClasses: string;
+  insightTextClasses: string;
+  buttonClasses: string;
+  buttonText: string;
+  coachGuidance: string;
+  shortStatus: string;
+  subtextColor: string;
+  statusBadgeClasses: string;
+  dividerColor: string;
+}
+
+export const getReadinessCardTheme = (score: number | null | undefined, isPending: boolean): ReadinessCardTheme => {
+  if (isPending || score === null || score === undefined) {
+    return {
+      level: "pending",
+      label: "Check-in Pendente",
+      badgeText: "CHECK-IN DE HOJE PENDENTE",
+      scoreColor: "text-amber-400",
+      cardClasses: "bg-gradient-to-br from-[#241a02] via-[#140e01] to-slate-950 border-2 border-amber-500/70 shadow-[0_0_35px_rgba(245,158,11,0.25)] hover:border-amber-400",
+      glowColor: "bg-amber-500/20",
+      iconBgClasses: "bg-amber-500/20 border-amber-400/50 text-amber-400 animate-bounce",
+      insightBoxClasses: "bg-amber-950/40 border border-amber-500/35 text-amber-200",
+      insightTitleClasses: "text-amber-400",
+      insightTextClasses: "text-amber-200/90",
+      buttonClasses: "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 font-black border border-amber-300 shadow-amber-500/40 hover:brightness-110",
+      buttonText: "REALIZAR CHECK-IN AGORA!",
+      coachGuidance: "Check-in de prontidão pendente para hoje. Solicite que o atleta responda os dados de recuperação (sono, fadiga e dor muscular) antes de liberar as cargas principais do treino.",
+      shortStatus: "Aguardando Check-in",
+      subtextColor: "text-slate-400",
+      statusBadgeClasses: "bg-slate-950/60 border-current/30 text-amber-400",
+      dividerColor: "border-b border-white/10",
+    };
+  }
+
+  if (score >= 85) {
+    return {
+      level: "elite",
+      label: "Prontidão Máxima (Elite)",
+      badgeText: "PRONTIDÃO MÁXIMA (ELITE)",
+      scoreColor: "text-emerald-400",
+      cardClasses: "bg-gradient-to-br from-[#022818] via-[#041910] to-[#010e08] border-2 border-emerald-500/70 shadow-[0_0_40px_rgba(16,185,129,0.3)] hover:border-emerald-400",
+      glowColor: "bg-emerald-500/25",
+      iconBgClasses: "bg-emerald-500/20 border-emerald-500/50 text-emerald-400",
+      insightBoxClasses: "bg-emerald-950/45 border border-emerald-500/35 text-emerald-100",
+      insightTitleClasses: "text-emerald-400",
+      insightTextClasses: "text-emerald-200/90",
+      buttonClasses: "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500 hover:text-slate-950",
+      buttonText: "ATUALIZAR PRONTIDÃO",
+      coachGuidance: "Atleta em pico de recuperação fisiológica e neuromuscular. Totalmente liberado para cargas máximas, tiros de alta velocidade, saltos com máxima reatividade e testes de PR. Cumprir 100% da planilha com intensidade máxima.",
+      shortStatus: "100% Liberado para Alta Carga",
+      subtextColor: "text-slate-400",
+      statusBadgeClasses: "bg-slate-950/60 border-current/30 text-emerald-400",
+      dividerColor: "border-b border-white/10",
+    };
+  } else if (score >= 70) {
+    return {
+      level: "good",
+      label: "Boa Prontidão",
+      badgeText: "BOA PRONTIDÃO (REGULAR)",
+      scoreColor: "text-teal-300",
+      cardClasses: "bg-gradient-to-br from-[#022424] via-[#041617] to-[#010e0f] border-2 border-teal-400/70 shadow-[0_0_35px_rgba(20,184,166,0.25)] hover:border-teal-300",
+      glowColor: "bg-teal-400/20",
+      iconBgClasses: "bg-teal-500/20 border-teal-500/50 text-teal-300",
+      insightBoxClasses: "bg-teal-950/45 border border-teal-500/35 text-teal-100",
+      insightTitleClasses: "text-teal-300",
+      insightTextClasses: "text-teal-200/90",
+      buttonClasses: "bg-teal-500/15 border border-teal-500/40 text-teal-300 hover:bg-teal-500 hover:text-slate-950",
+      buttonText: "ATUALIZAR PRONTIDÃO",
+      coachGuidance: "Condição física e tônus muscular adequados. O treino planejado pode ser seguido integralmente sem alterações estruturais. Monitorar apenas caso o atleta aponte desconforto muscular localizado durante o aquecimento.",
+      shortStatus: "Planilha 100% Liberada",
+      subtextColor: "text-slate-400",
+      statusBadgeClasses: "bg-slate-950/60 border-current/30 text-teal-300",
+      dividerColor: "border-b border-white/10",
+    };
+  } else if (score >= 50) {
+    return {
+      level: "moderate",
+      label: "Estado de Atenção",
+      badgeText: "ATENÇÃO (PRONTIDÃO MODERADA)",
+      scoreColor: "text-amber-400",
+      cardClasses: "bg-gradient-to-br from-[#2a1b02] via-[#170e01] to-[#0d0700] border-2 border-amber-500/80 shadow-[0_0_40px_rgba(245,158,11,0.3)] hover:border-amber-400",
+      glowColor: "bg-amber-500/25",
+      iconBgClasses: "bg-amber-500/20 border-amber-500/50 text-amber-400",
+      insightBoxClasses: "bg-amber-950/50 border border-amber-500/40 text-amber-100",
+      insightTitleClasses: "text-amber-400",
+      insightTextClasses: "text-amber-200/90",
+      buttonClasses: "bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500 hover:text-slate-950",
+      buttonText: "ATUALIZAR PRONTIDÃO",
+      coachGuidance: "Prontidão moderada indicando fadiga neuromuscular residual ou sono não reparador. Reduzir o volume de séries em 20% a 30% ou a intensidade (RPE) em 1-2 pontos. Priorizar técnica, mobilidade articular e aquecimento minucioso.",
+      shortStatus: "Reduzir Volume (-20% a -30%)",
+      subtextColor: "text-slate-400",
+      statusBadgeClasses: "bg-slate-950/60 border-current/30 text-amber-400",
+      dividerColor: "border-b border-white/10",
+    };
+  } else {
+    return {
+      level: "critical",
+      label: "Risco de Sobrecarga",
+      badgeText: "RISCO DE SOBRECARGA (CRÍTICO)",
+      scoreColor: "text-red-700",
+      cardClasses: "readiness-critical-card bg-gradient-to-br from-[#fee2e2] via-[#fff1f2] to-[#fecdd3] border-2 border-red-500 shadow-[0_0_35px_rgba(239,68,68,0.35)] hover:border-red-600 text-slate-950",
+      glowColor: "bg-red-400/25",
+      iconBgClasses: "bg-red-600 border-red-700 text-white shadow-md animate-pulse",
+      insightBoxClasses: "bg-white/95 border border-red-300 shadow-sm text-slate-900",
+      insightTitleClasses: "text-red-700",
+      insightTextClasses: "text-red-950",
+      buttonClasses: "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-black border border-red-700 shadow-md shadow-red-500/30",
+      buttonText: "ATUALIZAR PRONTIDÃO",
+      coachGuidance: "ALERTA DE SOBRECARGA CRÍTICA: Risco elevado de lesão musculoesquelética ou esgotamento do SNC. Vete tiros em velocidade máxima, saltos de alto impacto e cargas pesadas. Substitua por protocolo regenerativo, liberação miofascial suave ou descanso total.",
+      shortStatus: "Treino Regenerativo / Repouso",
+      subtextColor: "text-red-950/80 font-bold",
+      statusBadgeClasses: "bg-red-200/90 border-red-400 text-red-950 font-black",
+      dividerColor: "border-b border-red-200",
+    };
+  }
+};
+
 export const calculateWorkoutLoad = (workout: Workout, athleteWeight?: number): number => {
   let total = 0;
   workout.exercises.forEach(ex => {

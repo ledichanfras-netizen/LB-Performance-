@@ -55,6 +55,7 @@ import {
   calculateRSI,
   calculateReadiness,
   getReadinessInsight,
+  getReadinessCardTheme,
   getDiff,
   getPreviousAssessment,
   calculatePerformanceScore,
@@ -123,6 +124,7 @@ import {
   EyeOff,
   Brain,
   Shield,
+  ShieldAlert,
   Check,
   ClipboardCheck,
   LayoutDashboard,
@@ -2942,36 +2944,45 @@ const EliteHubApp: FC<{
 
                         {/* 2. Controle de Prontidão Card */}
                         {(() => {
-                          const hasWellnessToday = selected.wellness && selected.wellness.some((w: any) => w.date && w.date.startsWith(getLocalDateString()));
-                          const todayReadiness = selected.wellness && selected.wellness[0]?.date && selected.wellness[0].date.startsWith(getLocalDateString()) ? selected.wellness[0].readinessScore : null;
+                          const todayWellness = Array.isArray(selected.wellness)
+                            ? selected.wellness.find((w: any) => w.date && w.date.startsWith(getLocalDateString()))
+                            : undefined;
+                          const hasWellnessToday = !!todayWellness;
+                          const todayReadiness = todayWellness?.readinessScore ?? null;
+                          const theme = getReadinessCardTheme(todayReadiness, !hasWellnessToday);
 
                           return (
                             <div 
                               onClick={() => setModalState({ type: "wellness" })}
-                              className={`flex flex-col justify-between p-6 rounded-[2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.01] ${
-                                hasWellnessToday
-                                  ? "bg-gradient-to-br from-[#111827] to-[#0b0f19] border border-emerald-500/40 hover:border-emerald-500/60"
-                                  : "bg-gradient-to-br from-[#241a02] via-[#0f0a00] to-slate-950 border-2 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.25)] animate-pulse"
-                              }`}
+                              className={`flex flex-col justify-between p-6 rounded-[2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.01] ${theme.cardClasses}`}
                             >
                               <div className="flex items-start gap-4">
-                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shrink-0 ${
-                                  hasWellnessToday 
-                                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
-                                    : "bg-amber-550 border-amber-400 text-slate-950 animate-bounce shadow-[0_0_15px_rgba(245,158,11,0.6)] font-bold scale-115"
-                                }`}>
+                                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shrink-0 ${theme.iconBgClasses}`}>
                                   <Activity className="w-7 h-7" />
                                 </div>
                                 <div className="flex flex-col min-w-0 flex-grow">
-                                  <span className={`text-[10px] font-black tracking-widest uppercase ${hasWellnessToday ? "text-slate-500" : "text-amber-400 font-black animate-pulse"}`}>CONTROLE DE PRONTIDÃO</span>
-                                  <span className={`text-lg font-black uppercase italic tracking-tight mt-0.5 leading-tight ${hasWellnessToday ? "text-white" : "text-amber-300 font-black"}`}>
-                                    {hasWellnessToday ? `CHECK-IN CONCLUÍDO (${todayReadiness}%)` : "CHECK-IN DE HOJE PENDENTE"}
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-[10px] font-black tracking-widest uppercase ${theme.subtextColor}`}>CONTROLE DE PRONTIDÃO</span>
+                                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md border ${theme.statusBadgeClasses}`}>
+                                      {theme.shortStatus}
+                                    </span>
+                                  </div>
+                                  <span className={`text-lg font-black uppercase italic tracking-tight mt-1 leading-tight ${theme.scoreColor}`}>
+                                    {hasWellnessToday ? `${theme.label} (${todayReadiness}%)` : "CHECK-IN DE HOJE PENDENTE"}
                                   </span>
-                                  <p className="text-[10px] font-medium text-slate-400 mt-1.5 leading-relaxed">
-                                    {hasWellnessToday 
-                                      ? "Sua prontidão diária foi registrada com sucesso! Ótimo treino." 
-                                      : "Atenção: atualize seus dados de recuperação antes do treino para medir seu score de prontidão."}
-                                  </p>
+
+                                  {/* Orientação ao Treinador */}
+                                  <div className={`mt-3 p-3 rounded-xl border ${theme.insightBoxClasses} text-left`}>
+                                    <div className={`flex items-center gap-1.5 mb-1 pb-1 ${theme.dividerColor}`}>
+                                      <ShieldAlert className={`w-3.5 h-3.5 ${theme.insightTitleClasses} shrink-0`} />
+                                      <span className={`text-[9px] font-black uppercase tracking-wider ${theme.insightTitleClasses}`}>
+                                        Orientação ao Treinador
+                                      </span>
+                                    </div>
+                                    <p className={`text-[10.5px] leading-relaxed font-medium ${theme.insightTextClasses}`}>
+                                      {theme.coachGuidance}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
 
@@ -2980,13 +2991,9 @@ const EliteHubApp: FC<{
                                   e.stopPropagation();
                                   setModalState({ type: "wellness" });
                                 }}
-                                className={`w-full py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.25em] mt-5 transition-all active:scale-95 shadow-lg ${
-                                  hasWellnessToday
-                                    ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950"
-                                    : "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 text-slate-950 font-black border border-amber-300 shadow-amber-500/40 hover:brightness-110 animate-pulse-subtle scale-[1.01]"
-                                }`}
+                                className={`w-full py-3.5 rounded-xl text-[10px] font-black uppercase tracking-[0.25em] mt-4 transition-all active:scale-95 shadow-lg ${theme.buttonClasses}`}
                               >
-                                {hasWellnessToday ? "ATUALIZAR PRONTIDÃO" : "REALIZAR CHECK-IN AGORA!"}
+                                {theme.buttonText}
                               </button>
                             </div>
                           );
@@ -3102,74 +3109,72 @@ const EliteHubApp: FC<{
                       </Card>
 
                       {activeTab === "training" && (() => {
-                        const hasWellnessToday = selected.wellness && selected.wellness.some((w: any) => w.date && w.date.startsWith(getLocalDateString()));
-                        const todayReadiness = selected.wellness && selected.wellness[0]?.date && selected.wellness[0].date.startsWith(getLocalDateString()) ? selected.wellness[0].readinessScore : null;
+                        const todayWellness = Array.isArray(selected.wellness)
+                          ? selected.wellness.find((w: any) => w.date && w.date.startsWith(getLocalDateString()))
+                          : undefined;
+                        const hasWellnessToday = !!todayWellness;
+                        const todayReadiness = todayWellness?.readinessScore ?? null;
+                        const theme = getReadinessCardTheme(todayReadiness, !hasWellnessToday);
 
                         return (
                           <Card
-                            className={`flex flex-col justify-center items-center text-center p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group cursor-pointer rounded-[2.5rem] border-2 transition-all duration-550 hover:scale-[1.02] ${
-                              hasWellnessToday 
-                                ? "bg-gradient-to-br from-[#021d15] via-[#04100c] to-brand-dark border-emerald-500/50 shadow-[0_0_35px_rgba(16,185,129,0.2)]"
-                                : "bg-gradient-to-br from-[#1e1c0c] via-[#100e05] to-[#0d0a02] border-amber-500 shadow-[0_0_45px_rgba(245,158,11,0.35)] animate-pulse"
-                            }`}
+                            className={`flex flex-col justify-between items-center text-center p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:scale-[1.01] ${theme.cardClasses}`}
                             onClick={() => setModalState({ type: "wellness" })}
                           >
-                            {/* Background animation element */}
-                            <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] translate-x-1/2 -translate-y-1/2 group-hover:scale-125 transition-all duration-700 ${
-                              hasWellnessToday ? "bg-emerald-500/10" : "bg-amber-500/20"
-                            }`}></div>
+                            {/* Background ambient glow element */}
+                            <div className={`absolute top-0 right-0 w-36 h-36 rounded-full blur-[65px] translate-x-1/2 -translate-y-1/2 group-hover:scale-125 transition-all duration-700 ${theme.glowColor}`}></div>
 
                             <div className="relative z-10 w-full flex flex-col items-center">
-                              {hasWellnessToday ? (
-                                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/40 mb-2.5">
-                                  <Check className="w-5 h-5 text-emerald-400 stroke-[3]" />
-                                </div>
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-400/55 mb-2.5 animate-bounce">
-                                  <Brain className="w-5 h-5 text-amber-400 stroke-[3]" />
-                                </div>
-                              )}
-
-                              <p className={`text-[12px] font-black uppercase tracking-[0.25em] mb-3 relative z-10 ${hasWellnessToday ? "text-emerald-400" : "text-amber-400 font-extrabold"}`}>
-                                {hasWellnessToday ? "RECUPERAÇÃO ENVIADA ✅" : "⚠️ PREENCHER PRONTIDÃO"}
-                              </p>
-
-                              <div className="relative z-10 mb-6 font-mono flex flex-col items-center">
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Score Diário</span>
-                                <div className={`text-6xl md:text-7xl font-black tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.15)] ${
-                                  hasWellnessToday ? "text-emerald-400" : "text-amber-400"
-                                }`}>
-                                  {todayReadiness !== null ? todayReadiness : "--"}
-                                  <span className="text-2xl text-slate-700">%</span>
-                                </div>
+                              {/* Status Icon */}
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center border mb-2.5 shadow-md ${theme.iconBgClasses}`}>
+                                {theme.level === "elite" && <Sparkles className="w-6 h-6 stroke-[2.5]" />}
+                                {theme.level === "good" && <Check className="w-6 h-6 stroke-[3]" />}
+                                {theme.level === "moderate" && <AlertTriangle className="w-6 h-6 stroke-[2.5]" />}
+                                {theme.level === "critical" && <ShieldAlert className="w-6 h-6 stroke-[2.5]" />}
+                                {theme.level === "pending" && <Brain className="w-6 h-6 stroke-[2.5]" />}
                               </div>
 
-                              {hasWellnessToday ? (
-                                <div className="w-full px-6 py-4 bg-emerald-950/25 rounded-2xl border border-emerald-500/20 relative z-10 mb-8">
-                                  <p className="text-[10.5px] font-extrabold uppercase leading-tight tracking-[0.1em] text-emerald-300">
-                                    {getReadinessInsight(todayReadiness || 0).text}
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="w-full px-6 py-4 bg-amber-950/25 rounded-2xl border border-amber-500/30 relative z-10 mb-8">
-                                  <p className="text-[10px] font-black uppercase leading-relaxed tracking-[0.1em] text-amber-300 animate-pulse">
-                                    REGISTRO PENDENTE! CLIQUE PARA ENVIAR AGORA.
-                                  </p>
-                                </div>
-                              )}
+                              {/* Badge Tag */}
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border shadow-sm ${theme.statusBadgeClasses}`}>
+                                  {theme.badgeText}
+                                </span>
+                              </div>
 
+                              {/* Score Diário */}
+                              <div className="relative z-10 my-2 font-mono flex flex-col items-center">
+                                <span className={`text-[10px] font-black uppercase tracking-widest block mb-0.5 ${theme.subtextColor}`}>Score de Prontidão</span>
+                                <div className={`text-6xl sm:text-7xl font-black tracking-tighter ${theme.scoreColor}`}>
+                                  {todayReadiness !== null ? todayReadiness : "--"}
+                                  <span className={`text-2xl ${theme.level === "critical" ? "text-red-800" : "text-slate-600"}`}>%</span>
+                                </div>
+                                <span className={`text-[11px] font-black uppercase tracking-wider mt-1 ${theme.scoreColor}`}>
+                                  {theme.shortStatus}
+                                </span>
+                              </div>
+
+                              {/* ORIENTAÇÃO DE TREINO AO TREINADOR */}
+                              <div className={`w-full p-4 rounded-2xl border ${theme.insightBoxClasses} relative z-10 my-4 text-left backdrop-blur-sm shadow-inner`}>
+                                <div className={`flex items-center gap-2 mb-1.5 pb-1 ${theme.dividerColor}`}>
+                                  <ShieldAlert className={`w-4 h-4 ${theme.insightTitleClasses} shrink-0`} />
+                                  <span className={`text-[10px] font-black uppercase tracking-widest ${theme.insightTitleClasses}`}>
+                                    ORIENTAÇÃO AO TREINADOR
+                                  </span>
+                                </div>
+                                <p className={`text-[11px] leading-relaxed font-semibold ${theme.insightTextClasses}`}>
+                                  {theme.coachGuidance}
+                                </p>
+                              </div>
+
+                              {/* Action Button */}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setModalState({ type: "wellness" });
                                 }}
-                                className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] relative z-10 transition-all active:scale-95 shadow-xl ${
-                                  hasWellnessToday
-                                    ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950 hover:shadow-emerald-500/20"
-                                    : "bg-gradient-to-r from-amber-500 to-yellow-500 border border-yellow-400 text-slate-950 shadow-amber-500/30 hover:brightness-110 hover:scale-[1.01]"
-                                }`}
+                                className={`w-full py-4 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] relative z-10 transition-all active:scale-95 shadow-xl ${theme.buttonClasses}`}
                               >
-                                {hasWellnessToday ? "ATUALIZAR PRONTIDÃO" : "ENVIAR PRONTIDÃO!"}
+                                {theme.buttonText}
                               </button>
                             </div>
                           </Card>
@@ -6278,6 +6283,87 @@ const DashboardView: FC<{
               </div>
             </div>
           </section>
+
+          {/* Status Atual de Prontidão Card */}
+          {(() => {
+            const todayWellness = Array.isArray(athlete.wellness)
+              ? athlete.wellness.find((w: any) => w.date && w.date.startsWith(getLocalDateString()))
+              : undefined;
+            const hasWellnessToday = !!todayWellness;
+            const latestWellness = Array.isArray(athlete.wellness) && athlete.wellness.length > 0 ? athlete.wellness[0] : undefined;
+            const activeScore = todayWellness?.readinessScore ?? (latestWellness?.readinessScore ?? null);
+            const theme = getReadinessCardTheme(activeScore, !hasWellnessToday && !activeScore);
+
+            return (
+              <div 
+                onClick={() => onAddWellness?.()}
+                className={`p-6 sm:p-7 rounded-[2.2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.005] ${theme.cardClasses}`}
+              >
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div className="flex items-start gap-4 sm:gap-5 flex-1">
+                    <div className={`w-14 sm:w-16 h-14 sm:h-16 rounded-2xl flex items-center justify-center border shrink-0 ${theme.iconBgClasses}`}>
+                      <Activity className="w-7 sm:w-8 h-7 sm:h-8" />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${theme.subtextColor}`}>
+                          CONTROLE DE PRONTIDÃO DIÁRIA
+                        </span>
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md border ${theme.statusBadgeClasses}`}>
+                          {hasWellnessToday ? "Check-in de Hoje" : latestWellness ? "Último Registro" : "Pendente"}
+                        </span>
+                        <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md border ${theme.statusBadgeClasses}`}>
+                          {theme.shortStatus}
+                        </span>
+                      </div>
+                      <h4 className={`text-xl sm:text-2xl font-black uppercase italic tracking-tight leading-tight ${theme.scoreColor}`}>
+                        {theme.label} {activeScore !== null ? `(${activeScore}%)` : ""}
+                      </h4>
+                      <p className={`text-xs mt-1 font-medium ${theme.subtextColor}`}>
+                        {hasWellnessToday
+                          ? "Avaliação neuromuscular e de recuperação fisiológica sincronizada para a data de hoje."
+                          : latestWellness
+                          ? `Atenção: check-in de hoje ainda não preenchido. Exibindo último registro de ${latestWellness.date || "data anterior"}.`
+                          : "Atenção: nenhum registro de prontidão encontrado. Realize o primeiro check-in."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 shrink-0 w-full md:w-auto justify-between md:justify-end">
+                    <div className="text-right">
+                      <span className={`text-[9px] font-black uppercase tracking-widest block ${theme.subtextColor}`}>Score</span>
+                      <span className={`text-4xl sm:text-5xl font-black font-mono tracking-tighter ${theme.scoreColor}`}>
+                        {activeScore !== null ? `${activeScore}%` : "--"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddWellness?.();
+                      }}
+                      className={`py-3.5 px-5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg ${theme.buttonClasses}`}
+                    >
+                      {theme.buttonText}
+                    </button>
+                  </div>
+                </div>
+
+                {/* ORIENTAÇÃO DE TREINO AO TREINADOR */}
+                <div className={`mt-5 p-4 rounded-2xl border ${theme.insightBoxClasses} text-left backdrop-blur-sm`}>
+                  <div className={`flex items-center gap-2 mb-1.5 pb-1 ${theme.dividerColor}`}>
+                    <ShieldAlert className={`w-4 h-4 ${theme.insightTitleClasses} shrink-0`} />
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${theme.insightTitleClasses}`}>
+                      ORIENTAÇÃO DE TREINO AO TREINADOR
+                    </span>
+                  </div>
+                  <p className={`text-xs leading-relaxed font-semibold ${theme.insightTextClasses}`}>
+                    {theme.coachGuidance}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Muscle Status / Bio Card */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
