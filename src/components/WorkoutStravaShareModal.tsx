@@ -24,7 +24,6 @@ import {
   ArrowUp,
   ArrowDown,
   MoveVertical,
-  Maximize2,
   Minimize2,
   Eye,
 } from "lucide-react";
@@ -116,8 +115,9 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
   const [photoUrl, setPhotoUrl] = useState<string | null>(workout.photoUrl || null);
   const [cardBgStyle, setCardBgStyle] = useState<CardBgStyle>("transparent"); // Sem Fundo (Padrão para encaixar na foto)
   const [cardPosition, setCardPosition] = useState<CardPosition>("bottom"); // Topo, Centro, Rodapé
-  const [cardScale, setCardScale] = useState<number>(100); // 60% a 130%
+  const cardScale = 75; // Fixo no tamanho Pequeno (75%)
   const [textColorMode, setTextColorMode] = useState<TextColorMode>("white"); // "white" ou "black"
+  const [glassOpacity, setGlassOpacity] = useState<number>(20); // 10% a 50% de transparência do vidro
   const [overlayDarkness, setOverlayDarkness] = useState<number>(15); // 0 - 90 % (suave para fotos)
   const [caption, setCaption] = useState<string>(
     workout.socialCaption || workout.feedback || "Treino concluído com foco total na performance! ⚡"
@@ -185,7 +185,7 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
   // Generate Image Blob (supports transparent PNG or high-res JPEG)
   const generateImageBlob = async (forcePng?: boolean): Promise<{ blob: Blob; dataUrl: string; isPng: boolean } | null> => {
     if (!cardRef.current) return null;
-    const isTransparent = forcePng ?? (!photoUrl || cardBgStyle === "transparent");
+    const isTransparent = forcePng ?? (!photoUrl || cardBgStyle === "transparent" || cardBgStyle === "glass");
     const toastId = toast.loading(
       isTransparent ? "Renderizando Sticker Transparente (PNG)..." : "Renderizando Imagem do Treino HD..."
     );
@@ -398,13 +398,13 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                   width: "100%",
                   backgroundColor: photoUrl
                     ? "#030712"
-                    : cardBgStyle === "transparent"
+                    : cardBgStyle === "transparent" || cardBgStyle === "glass"
                     ? isBlackText
                       ? "#f1f5f9"
                       : "#0f172a"
                     : "#030712",
                   backgroundImage:
-                    !photoUrl && cardBgStyle === "transparent"
+                    !photoUrl && (cardBgStyle === "transparent" || cardBgStyle === "glass")
                       ? isBlackText
                         ? `linear-gradient(45deg, #cbd5e1 25%, transparent 25%),
                            linear-gradient(-45deg, #cbd5e1 25%, transparent 25%),
@@ -415,13 +415,13 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                            linear-gradient(45deg, transparent 75%, #1e293b 75%),
                            linear-gradient(-45deg, transparent 75%, #1e293b 75%)`
                       : undefined,
-                  backgroundSize: !photoUrl && cardBgStyle === "transparent" ? "24px 24px" : undefined,
-                  backgroundPosition: !photoUrl && cardBgStyle === "transparent" ? "0 0, 0 12px, 12px -12px, -12px 0px" : undefined,
+                  backgroundSize: !photoUrl && (cardBgStyle === "transparent" || cardBgStyle === "glass") ? "24px 24px" : undefined,
+                  backgroundPosition: !photoUrl && (cardBgStyle === "transparent" || cardBgStyle === "glass") ? "0 0, 0 12px, 12px -12px, -12px 0px" : undefined,
                 }}
               >
                 {/* Mode Indicator Badge */}
                 <div className="absolute top-3 left-3 z-20 pointer-events-none">
-                  {!photoUrl && cardBgStyle === "transparent" ? (
+                  {!photoUrl && (cardBgStyle === "transparent" || cardBgStyle === "glass") ? (
                     <span
                       className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full backdrop-blur-sm shadow border ${
                         isBlackText
@@ -429,16 +429,16 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                           : "bg-slate-950/80 text-[#39FF14] border-[#39FF14]/40"
                       }`}
                     >
-                      Fundo 100% Transparente • {isBlackText ? "Dados em Preto" : "Dados em Branco"}
+                      {cardBgStyle === "glass" ? "Vidro Fosco Transparente" : "Fundo 100% Transparente"} • {isBlackText ? "Dados em Preto" : "Dados em Branco"}
                     </span>
                   ) : photoUrl ? (
                     <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-950/80 text-white border border-white/20 backdrop-blur-sm shadow">
-                      Foto Ativa • {isBlackText ? "Dados em Preto" : "Dados em Branco"}
+                      Foto Ativa {cardBgStyle === "glass" ? "• Vidro Fosco" : ""} • {isBlackText ? "Dados em Preto" : "Dados em Branco"}
                     </span>
                   ) : null}
                 </div>
 
-                {/* The Capturable Element (NO DARK BACKGROUND when transparent!) */}
+                {/* The Capturable Element (NO DARK BACKGROUND when transparent or glass!) */}
                 <div
                   ref={cardRef}
                   id="strava-share-card"
@@ -446,9 +446,9 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                   style={{
                     backgroundColor: photoUrl
                       ? undefined
-                      : cardBgStyle === "transparent"
-                      ? "transparent"
-                      : "#030712",
+                      : cardBgStyle === "solid"
+                      ? "#030712"
+                      : "transparent",
                   }}
                 >
                   {/* Photo Layer if uploaded */}
@@ -486,11 +486,11 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                         : "justify-end pb-6 sm:pb-8"
                     }`}
                   >
-                    {/* The Clean Sticker Element with Scale Control */}
+                    {/* The Clean Sticker Element with Fixed 75% Scale (Pequeno) */}
                     <div
                       className="w-full pointer-events-auto transition-all duration-200 flex flex-col items-center"
                       style={{
-                        transform: cardScale !== 100 ? `scale(${cardScale / 100})` : undefined,
+                        transform: "scale(0.75)",
                         transformOrigin:
                           cardPosition === "top"
                             ? "top center"
@@ -504,40 +504,51 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                         className={`w-full flex flex-col items-center transition-all ${
                           cardBgStyle === "glass"
                             ? isBlackText
-                              ? "bg-white/75 backdrop-blur-md rounded-3xl p-4 border border-slate-300 shadow-2xl"
-                              : "bg-black/45 backdrop-blur-md rounded-3xl p-4 border border-white/20 shadow-2xl"
+                              ? "rounded-3xl p-4 sm:p-5 border border-black/10"
+                              : "rounded-3xl p-4 sm:p-5 border border-white/15"
                             : cardBgStyle === "solid" && photoUrl
                             ? isBlackText
-                              ? "bg-white/90 rounded-3xl p-4 border border-slate-200 shadow-2xl"
-                              : "bg-slate-950/85 rounded-3xl p-4 border border-slate-800 shadow-2xl"
-                            : "p-1" // 100% LIMPO E TRANSPARENTE
+                              ? "bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-lg"
+                              : "bg-black rounded-3xl p-4 sm:p-5 border border-slate-800 shadow-lg"
+                            : "p-1 bg-transparent" // 100% LIMPO E TRANSPARENTE
                         }`}
+                        style={
+                          cardBgStyle === "glass"
+                            ? {
+                                backgroundColor: isBlackText
+                                  ? `rgba(255, 255, 255, ${glassOpacity / 100})`
+                                  : `rgba(0, 0, 0, ${glassOpacity / 100})`,
+                                backdropFilter: "blur(12px)",
+                                WebkitBackdropFilter: "blur(12px)",
+                              }
+                            : undefined
+                        }
                       >
-                        {/* 1. LOGO CENTRALIZADA COM O NOME LB SPORTS (SEM O BRILHO VERDE ENVOLTA) */}
+                        {/* 1. LOGO OFICIAL LB SPORTS (SEM FUNDO PRETO E SEM BRILHOS) */}
                         <div className="flex flex-col items-center justify-center text-center w-full mb-3">
-                          <div className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mb-1">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center mb-1">
                             <img
-                              src="/pwa-192x192.svg"
+                              src="/lb-logo-clean.png"
                               alt="LB Sports"
-                              className="app-logo w-full h-full object-contain"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                           <div className="flex items-center gap-1.5 justify-center">
                             <span
-                              className={`font-black text-lg sm:text-xl tracking-wider uppercase italic ${
-                                isBlackText
-                                  ? "text-slate-950 drop-shadow-[0_1px_4px_rgba(255,255,255,0.95)]"
-                                  : "text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.98)]"
+                              data-color={isBlackText ? "black" : "white"}
+                              className={`font-black text-xl sm:text-2xl tracking-wider uppercase italic ${
+                                isBlackText ? "text-black" : "text-white"
                               }`}
+                              style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                             >
                               LB SPORTS
                             </span>
                             <span
-                              className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded font-mono ${
-                                isBlackText
-                                  ? "bg-slate-950 text-white shadow-[0_1px_4px_rgba(255,255,255,0.8)]"
-                                  : "bg-[#39FF14] text-slate-950 shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
-                              }`}
+                              className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded font-mono"
+                              style={{
+                                backgroundColor: isBlackText ? "#000000" : "#39FF14",
+                                color: isBlackText ? "#ffffff" : "#020617",
+                              }}
                             >
                               HUB
                             </span>
@@ -545,31 +556,33 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                         </div>
 
                         {/* 2. AS 4 INFORMAÇÕES MAIS IMPORTANTES DO TREINO (TEMPO, VOLUME, ESFORÇO, CARGA) */}
-                        <div className="w-full grid grid-cols-2 gap-x-6 gap-y-3.5 my-2.5 text-center">
+                        <div className="w-full grid grid-cols-2 gap-x-6 gap-y-3.5 my-2 text-center">
                           {/* TEMPO */}
                           <div className="flex flex-col items-center">
                             <div
-                              className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
-                                isBlackText
-                                  ? "text-slate-900 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
-                                  : "text-[#39FF14] drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                              data-color={isBlackText ? "black" : "white"}
+                              className={`flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${
+                                isBlackText ? "text-black" : "text-white"
                               }`}
+                              style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                             >
-                              <Clock className="w-3.5 h-3.5" />
+                              <Clock className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: isBlackText ? "#000000" : "#ffffff" }} />
                               <span>TEMPO</span>
                             </div>
                             <span
-                              className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none mt-0.5 ${
-                                isBlackText
-                                  ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
-                                  : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                              data-color={isBlackText ? "black" : "white"}
+                              className={`text-3xl sm:text-4xl font-black font-mono tracking-tight leading-none mt-0.5 ${
+                                isBlackText ? "text-black" : "text-white"
                               }`}
+                              style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                             >
                               {duration}
                               <span
-                                className={`text-xs font-bold ml-1 ${
-                                  isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                data-color={isBlackText ? "black" : "white"}
+                                className={`text-xs sm:text-sm font-black ml-1 ${
+                                  isBlackText ? "text-black/80" : "text-white/90"
                                 }`}
+                                style={{ color: isBlackText ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)" }}
                               >
                                 min
                               </span>
@@ -580,27 +593,29 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                           {showVolume && (
                             <div className="flex flex-col items-center">
                               <div
-                                className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
-                                  isBlackText
-                                    ? "text-slate-900 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
-                                    : "text-[#39FF14] drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                                data-color={isBlackText ? "black" : "white"}
+                                className={`flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${
+                                  isBlackText ? "text-black" : "text-white"
                                 }`}
+                                style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                               >
-                                <Dumbbell className="w-3.5 h-3.5" />
+                                <Dumbbell className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: isBlackText ? "#000000" : "#ffffff" }} />
                                 <span>VOLUME</span>
                               </div>
                               <span
-                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none mt-0.5 ${
-                                  isBlackText
-                                    ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
-                                    : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                                data-color={isBlackText ? "black" : "white"}
+                                className={`text-3xl sm:text-4xl font-black font-mono tracking-tight leading-none mt-0.5 ${
+                                  isBlackText ? "text-black" : "text-white"
                                 }`}
+                                style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                               >
                                 {totalLoad.toLocaleString()}
                                 <span
-                                  className={`text-xs font-bold ml-1 ${
-                                    isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                  data-color={isBlackText ? "black" : "white"}
+                                  className={`text-xs sm:text-sm font-black ml-1 ${
+                                    isBlackText ? "text-black/80" : "text-white/90"
                                   }`}
+                                  style={{ color: isBlackText ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)" }}
                                 >
                                   kg
                                 </span>
@@ -612,38 +627,40 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                           {showRpe && (
                             <div className="flex flex-col items-center">
                               <div
-                                className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
-                                  isBlackText
-                                    ? "text-amber-950 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
-                                    : "text-amber-400 drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                                data-color={isBlackText ? "black" : "white"}
+                                className={`flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${
+                                  isBlackText ? "text-black" : "text-white"
                                 }`}
+                                style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                               >
-                                <Activity className="w-3.5 h-3.5" />
+                                <Activity className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: isBlackText ? "#000000" : "#ffffff" }} />
                                 <span>ESFORÇO</span>
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5 leading-none">
                                 <span
-                                  className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none ${
-                                    isBlackText
-                                      ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
-                                      : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                                  data-color={isBlackText ? "black" : "white"}
+                                  className={`text-3xl sm:text-4xl font-black font-mono tracking-tight leading-none ${
+                                    isBlackText ? "text-black" : "text-white"
                                   }`}
+                                  style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                                 >
                                   {rpe}
                                   <span
-                                    className={`text-xs font-bold ${
-                                      isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                    data-color={isBlackText ? "black" : "white"}
+                                    className={`text-xs sm:text-sm font-black ${
+                                      isBlackText ? "text-black/80" : "text-white/90"
                                     }`}
+                                    style={{ color: isBlackText ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)" }}
                                   >
                                     /10
                                   </span>
                                 </span>
                                 <span
-                                  className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                    isBlackText
-                                      ? "bg-slate-950 text-amber-300 shadow-[0_1px_4px_rgba(255,255,255,0.8)]"
-                                      : "bg-amber-400 text-slate-950 shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
-                                  }`}
+                                  className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider"
+                                  style={{
+                                    backgroundColor: isBlackText ? "#000000" : "#39FF14",
+                                    color: isBlackText ? "#ffffff" : "#020617",
+                                  }}
                                 >
                                   {rpe <= 3 ? "Leve" : rpe <= 6 ? "Mod." : rpe <= 8 ? "Intenso" : "Máx."}
                                 </span>
@@ -655,27 +672,29 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                           {showInternalLoad && (
                             <div className="flex flex-col items-center">
                               <div
-                                className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${
-                                  isBlackText
-                                    ? "text-yellow-950 drop-shadow-[0_1px_3px_rgba(255,255,255,0.9)]"
-                                    : "text-yellow-400 drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]"
+                                data-color={isBlackText ? "black" : "white"}
+                                className={`flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${
+                                  isBlackText ? "text-black" : "text-white"
                                 }`}
+                                style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                               >
-                                <Zap className="w-3.5 h-3.5" />
+                                <Zap className="w-3.5 h-3.5 stroke-[2.5]" style={{ color: isBlackText ? "#000000" : "#ffffff" }} />
                                 <span>CARGA INT.</span>
                               </div>
                               <span
-                                className={`text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none mt-0.5 ${
-                                  isBlackText
-                                    ? "text-slate-950 drop-shadow-[0_2px_6px_rgba(255,255,255,0.95)]"
-                                    : "text-white drop-shadow-[0_3px_10px_rgba(0,0,0,0.98)]"
+                                data-color={isBlackText ? "black" : "white"}
+                                className={`text-3xl sm:text-4xl font-black font-mono tracking-tight leading-none mt-0.5 ${
+                                  isBlackText ? "text-black" : "text-white"
                                 }`}
+                                style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                               >
                                 {internalLoad.toLocaleString()}
                                 <span
-                                  className={`text-xs font-bold ml-1 ${
-                                    isBlackText ? "text-slate-700 font-extrabold" : "text-slate-200"
+                                  data-color={isBlackText ? "black" : "white"}
+                                  className={`text-xs sm:text-sm font-black ml-1 ${
+                                    isBlackText ? "text-black/80" : "text-white/90"
                                   }`}
+                                  style={{ color: isBlackText ? "rgba(0, 0, 0, 0.8)" : "rgba(255, 255, 255, 0.9)" }}
                                 >
                                   u.a.
                                 </span>
@@ -688,11 +707,11 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                         {caption && (
                           <div className="w-full text-center px-4 mt-2">
                             <p
-                              className={`text-xs sm:text-sm italic font-bold leading-snug max-w-xs mx-auto ${
-                                isBlackText
-                                  ? "text-slate-950 drop-shadow-[0_1px_4px_rgba(255,255,255,0.95)]"
-                                  : "text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.98)]"
+                              data-color={isBlackText ? "black" : "white"}
+                              className={`text-xs sm:text-sm italic font-black leading-snug max-w-xs mx-auto ${
+                                isBlackText ? "text-black" : "text-white"
                               }`}
+                              style={{ color: isBlackText ? "#000000" : "#ffffff" }}
                             >
                               "{caption}"
                             </p>
@@ -774,7 +793,7 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                 </button>
               </div>
 
-              {/* Style: Transparent vs Glass (if photo is present) */}
+              {/* Style: Transparent vs Glass */}
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80">
                 <button
                   type="button"
@@ -796,9 +815,33 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                       : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
                   }`}
                 >
-                  Vidro Fosco Suave
+                  Vidro Fosco Transparente
                 </button>
               </div>
+
+              {/* Glass Opacity Slider when glass is selected */}
+              {cardBgStyle === "glass" && (
+                <div className="pt-2 mt-2 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-1">
+                    <span>Opacidade do Vidro (Fundo Transparente)</span>
+                    <span className="font-mono text-[#39FF14]">{glassOpacity}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="50"
+                    step="5"
+                    value={glassOpacity}
+                    onChange={(e) => setGlassOpacity(Number(e.target.value))}
+                    className="w-full accent-[#39FF14] bg-slate-800 h-1.5 rounded-lg cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-500 mt-0.5 font-mono">
+                    <span>10% (Ultra translúcido)</span>
+                    <span>20% (Padrão)</span>
+                    <span>50% (Contraste)</span>
+                  </div>
+                </div>
+              )}
 
               {/* Photo Darkness Overlay Slider */}
               {photoUrl && (
@@ -824,10 +867,10 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
               <div className="flex items-center justify-between mb-2">
                 <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#39FF14]" />
-                  2. Cor dos Dados & Texto
+                  2. Cor dos Dados & Números
                 </label>
                 <span className="text-[10px] font-bold text-slate-400">
-                  {textColorMode === "white" ? "⚪ Modo Branco (Fotos Escuras)" : "⚫ Modo Preto (Fotos Claras)"}
+                  {textColorMode === "white" ? "⚪ Modo Branco" : "⚫ Modo Preto"}
                 </span>
               </div>
 
@@ -836,35 +879,36 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                   type="button"
                   onClick={() => {
                     setTextColorMode("white");
-                    toast.success("Dados em Branco selecionados!");
+                    toast.success("Números em Branco selecionados!");
                   }}
                   className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                     textColorMode === "white"
-                      ? "bg-white text-slate-950 shadow-[0_0_20px_rgba(255,255,255,0.35)] ring-2 ring-white/80"
+                      ? "bg-white text-slate-950 ring-2 ring-white"
                       : "bg-slate-900 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700"
                   }`}
                 >
-                  <div className="w-4 h-4 rounded-full bg-white border-2 border-slate-400 shadow-sm shrink-0" />
-                  <span>Dados em Branco</span>
+                  <div className="w-4 h-4 rounded-full bg-white border-2 border-slate-400 shrink-0" />
+                  <span>Números em Branco</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
                     setTextColorMode("black");
-                    toast.success("Dados em Preto selecionados!");
+                    toast.success("Números em Preto selecionados!");
                   }}
                   className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                     textColorMode === "black"
-                      ? "bg-slate-950 text-white border-2 border-[#39FF14] shadow-[0_0_20px_rgba(57,255,20,0.25)] ring-2 ring-[#39FF14]/50"
+                      ? "bg-slate-950 text-white border-2 border-[#39FF14]"
                       : "bg-slate-900 text-slate-300 hover:text-white border border-slate-800 hover:border-slate-700"
                   }`}
                 >
-                  <div className="w-4 h-4 rounded-full bg-slate-950 border-2 border-slate-300 shadow-sm shrink-0" />
-                  <span>Dados em Preto</span>
+                  <div className="w-4 h-4 rounded-full bg-black border-2 border-white shrink-0" />
+                  <span>Números em Preto</span>
                 </button>
               </div>
-              <p className="text-[9.5px] text-slate-400 mt-2 font-medium">
+
+              <p className="text-[9.5px] text-slate-400 mt-2.5 font-medium">
                 {textColorMode === "white"
                   ? "💡 Use a cor Branca quando sua foto ou fundo for escuro para contraste perfeito."
                   : "💡 Use a cor Preta quando sua foto ou fundo for claro, branco ou ao ar livre."}
@@ -917,68 +961,11 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
               </div>
             </div>
 
-            {/* 4. Tamanho / Escala do Sticker */}
-            <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5">
-                  <Maximize2 className="w-3.5 h-3.5 text-[#39FF14]" />
-                  4. Tamanho do Sticker
-                </label>
-                <span className="text-[11px] font-mono text-[#39FF14] font-black">
-                  {cardScale}%
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-2 mb-2.5">
-                <button
-                  type="button"
-                  onClick={() => setCardScale(75)}
-                  className={`py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    cardScale === 75
-                      ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40"
-                      : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
-                  }`}
-                >
-                  Pequeno (75%)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardScale(100)}
-                  className={`py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    cardScale === 100
-                      ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40"
-                      : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
-                  }`}
-                >
-                  Médio (100%)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCardScale(125)}
-                  className={`py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    cardScale === 125
-                      ? "bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40"
-                      : "bg-slate-900 text-slate-400 hover:text-white border border-slate-800"
-                  }`}
-                >
-                  Grande (125%)
-                </button>
-              </div>
-              <input
-                type="range"
-                min="50"
-                max="140"
-                step="5"
-                value={cardScale}
-                onChange={(e) => setCardScale(Number(e.target.value))}
-                className="w-full accent-[#39FF14] bg-slate-800 h-1.5 rounded-lg cursor-pointer"
-              />
-            </div>
-
-            {/* 5. Formato (Story 9:16 vs Feed 1:1) */}
+            {/* 4. Formato (Story 9:16 vs Feed 1:1) */}
             <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
               <label className="text-[11px] font-black uppercase text-slate-300 tracking-wider flex items-center gap-1.5 mb-2.5">
                 <Sliders className="w-3.5 h-3.5 text-[#39FF14]" />
-                5. Formato da Imagem
+                4. Formato da Imagem
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button

@@ -372,6 +372,29 @@ body.light-theme .bg-brand-primary .text-white {
   color: #ffffff !important;
 }
 
+/* Preservação das cores do Card/Sticker de Treino Strava & Stories em qualquer tema */
+#strava-share-card {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+body.light-theme #strava-share-card .text-white,
+body.light-theme #strava-share-card [data-color="white"] {
+  color: #ffffff !important;
+}
+body.light-theme #strava-share-card .text-black,
+body.light-theme #strava-share-card [data-color="black"] {
+  color: #000000 !important;
+}
+body.light-theme #strava-share-card .text-white\/90 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+body.light-theme #strava-share-card .text-white\/80 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+body.light-theme #strava-share-card .text-black\/80 {
+  color: rgba(0, 0, 0, 0.8) !important;
+}
+
 body.light-theme .text-white\/90,
 body.light-theme .text-white\/80,
 body.light-theme .text-white\/70,
