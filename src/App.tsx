@@ -13399,34 +13399,10 @@ const ImtpReport: FC<{
   const timeDelta = getLongitudinalDelta(data.timeToPeakForce || 0, previousImtp?.timeToPeakForce, true);
   const impulse100Delta = getLongitudinalDelta(data.impulse100 || 0, previousImtp?.impulse100);
 
-  // Semáforos de Desempenho (Traffic Light Indicators)
-  const getTrafficLight = (val: number, optMin: number, modMin: number, lowerIsBetter = false) => {
-    if (lowerIsBetter) {
-      if (val <= optMin) return { status: "VERDE", color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30", dot: "🟢", label: "ÓTIMO" };
-      if (val <= modMin) return { status: "AMARELO", color: "bg-amber-500/10 text-amber-700 border-amber-500/30", dot: "🟡", label: "ATENÇÃO MODERADA" };
-      return { status: "VERMELHO", color: "bg-red-500/10 text-red-700 border-red-500/30", dot: "🔴", label: "PRIORIDADE DE AJUSTE" };
-    } else {
-      if (val >= optMin) return { status: "VERDE", color: "bg-emerald-500/10 text-emerald-700 border-emerald-500/30", dot: "🟢", label: "ÓTIMO" };
-      if (val >= modMin) return { status: "AMARELO", color: "bg-amber-500/10 text-amber-700 border-amber-500/30", dot: "🟡", label: "ATENÇÃO MODERADA" };
-      return { status: "VERMELHO", color: "bg-red-500/10 text-red-700 border-red-500/30", dot: "🔴", label: "PRIORIDADE DE AJUSTE" };
-    }
-  };
-
-  // Contextual Targets e Thresholds (Normas Internacionais NSCA / Haff & Stone)
-  const relOptTarget = isFemale ? 3.0 : 4.0;
-  const relModTarget = isFemale ? 2.4 : 3.2;
-
-  const peakLight = getTrafficLight(data.peakForce || 0, isFemale ? 220 : 320, isFemale ? 170 : 250);
-  const relLight = getTrafficLight(data.relativePeakForce || 0, relOptTarget, relModTarget);
-  const rfd100Light = getTrafficLight(data.rfd100 || 0, 7000, 5000);
-  const rfdPeakLight = getTrafficLight(data.rfdPeak || 0, 14000, 9500);
-  const timeLight = getTrafficLight(data.timeToPeakForce || 350, 260, 350, true);
-  const impulse100Light = getTrafficLight(data.impulse100 || 0, 100, 75);
-  const impulse200Light = getTrafficLight(data.impulse200 || 0, 200, 150);
-
-  // Perfil Neuromuscular Funcional Padrão Ouro (Taxa de Disparo vs Teto de Força)
-  const isHighForce = (data.relativePeakForce || 0) >= relModTarget;
-  const isFastDischarge = (data.rfd100 || 0) >= 6000 && (data.timeToPeakForce || 350) <= 320;
+  // Perfil Neuromuscular Funcional (Taxa de Disparo vs Capacidade Tensional)
+  // Baseado em equilíbrio funcional entre tempo de recrutamento e força relativa à massa
+  const isHighForce = (data.relativePeakForce || 0) >= (isFemale ? 1.8 : 2.2);
+  const isFastDischarge = (data.rfd100 || 0) >= 4500 || (data.timeToPeakForce || 350) <= 300;
 
   let neuromuscularProfile = {
     quadrant: "Q1",
@@ -13498,8 +13474,8 @@ const ImtpReport: FC<{
           ? "Sobrecarga isométrica pesada (IMTP específico em ângulo articular de 120-135° do joelho, 3-4 séries de 3-5 segundos com intenção máxima) e agachamentos pesados (85-92% 1RM) para maximizar o recrutamento de motoneurônios sem ganho excessivo de massa gorda."
           : "Manutenção da densidade de força tensional com ênfase em acelerações e sprints curtos (0-15m), preservando a integridade neural e a prontidão para a competição.",
       kpi: (!isFastDischarge)
-        ? "Reduzir o tempo até o pico de força para < 280ms e elevar o RFD @ 100ms acima de 7.000 N/s."
-        : `Elevar a força relativa para > ${relOptTarget} kgf/kg (${(relOptTarget * 9.80665).toFixed(1)} N/kg).`
+        ? "Reduzir a latência contrátil e acelerar a taxa de produção de força nos primeiros 100ms com intenção balística."
+        : "Progredir na força máxima relativa e sustentação neuromuscular sob carga com base no histórico do atleta."
     },
     {
       pillar: "DIRETRIZ 2: MÉTODO DE CONTRASTE & TRANSFERÊNCIA (PAP)",
@@ -13573,16 +13549,26 @@ const ImtpReport: FC<{
               </div>
             </div>
 
-            {/* Painel Central dos 6 Resultados Padrão Ouro */}
+            {/* Cabeçalho da Seção de Dados da Avaliação */}
+            <div className="flex justify-between items-center mb-2 px-0.5 select-none font-sans">
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                DADOS DA AVALIAÇÃO NEUROMUSCULAR
+              </span>
+              <span className="text-[7.5px] font-bold text-slate-500 uppercase">
+                Monitoramento Individual • Foco em Resolução de Problemas
+              </span>
+            </div>
+
+            {/* Painel Central dos 6 Resultados da Avaliação */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 mb-4.5 select-none font-sans">
               
               {/* Resultado 1: Pico de Força Absoluto */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">Pico de Força Absoluto</span>
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${peakLight.color}`}>
-                      {peakLight.dot} {peakLight.label}
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Pico de Força Absoluto</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Força Máxima
                     </span>
                   </div>
                   <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
@@ -13593,7 +13579,7 @@ const ImtpReport: FC<{
                   </span>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[7px] font-bold text-slate-400 uppercase">Referência: &gt; {isFemale ? "220" : "320"} kgf</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Capacidade Tensional</span>
                   {peakDelta ? (
                     <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${peakDelta.color}`}>
                       {peakDelta.icon} {peakDelta.text}
@@ -13608,9 +13594,9 @@ const ImtpReport: FC<{
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">Força Relativa à Massa</span>
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${relLight.color}`}>
-                      {relLight.dot} {relLight.label}
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Força Relativa à Massa</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 uppercase">
+                      Força / Peso
                     </span>
                   </div>
                   <strong className="text-2xl font-black text-emerald-600 block italic mt-1 leading-none">
@@ -13621,7 +13607,7 @@ const ImtpReport: FC<{
                   </span>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[7px] font-bold text-slate-400 uppercase">Meta Elite: ≥ {relOptTarget}x</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Eficiência Relativa</span>
                   {relDelta ? (
                     <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${relDelta.color}`}>
                       {relDelta.icon} {relDelta.text}
@@ -13636,9 +13622,9 @@ const ImtpReport: FC<{
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">Taxa de Disparo (RFD @ 100ms)</span>
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${rfd100Light.color}`}>
-                      {rfd100Light.dot} {rfd100Light.label}
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Taxa de Disparo (RFD @ 100ms)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-lime-200 bg-lime-50 text-lime-900 uppercase">
+                      Disparo Rápido
                     </span>
                   </div>
                   <strong className="text-2xl font-black text-brand-primary block italic mt-1 leading-none">
@@ -13649,7 +13635,7 @@ const ImtpReport: FC<{
                   </span>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[7px] font-bold text-slate-400 uppercase">Referência: &gt; 7.000 N/s</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Taxa de Produção</span>
                   {rfd100Delta ? (
                     <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${rfd100Delta.color}`}>
                       {rfd100Delta.icon} {rfd100Delta.text}
@@ -13664,9 +13650,9 @@ const ImtpReport: FC<{
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">Tempo até o Pico de Força</span>
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${timeLight.color}`}>
-                      {timeLight.dot} {timeLight.label}
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Tempo até o Pico de Força</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Latência Neural
                     </span>
                   </div>
                   <strong className="text-2xl font-black text-slate-900 block italic mt-1 leading-none">
@@ -13677,7 +13663,7 @@ const ImtpReport: FC<{
                   </span>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[7px] font-bold text-slate-400 uppercase">Alvo: &le; 260 ms</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Tempo de Ativação</span>
                   {timeDelta ? (
                     <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${timeDelta.color}`}>
                       {timeDelta.icon} {timeDelta.text}
@@ -13692,20 +13678,20 @@ const ImtpReport: FC<{
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">Pico de RFD (Aceleração Máx)</span>
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${rfdPeakLight.color}`}>
-                      {rfdPeakLight.dot} {rfdPeakLight.label}
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Pico de RFD (Aceleração Máx)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Pico de Potência
                     </span>
                   </div>
                   <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
                     {data.rfdPeak || 0} <span className="text-xs font-bold text-slate-500">N/s</span>
                   </strong>
                   <span className="text-[8px] text-slate-500 font-semibold block mt-1">
-                    Gradiente Tensional: <strong className="text-slate-800 font-black">Pico de Potência Contratil</strong>
+                    Gradiente Tensional: <strong className="text-slate-800 font-black">Pico Contratil</strong>
                   </span>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[7px] font-bold text-slate-400 uppercase">Referência: &gt; 14.000 N/s</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Gradiente de Força</span>
                   {rfdDelta ? (
                     <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${rfdDelta.color}`}>
                       {rfdDelta.icon} {rfdDelta.text}
@@ -13720,9 +13706,9 @@ const ImtpReport: FC<{
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-wider">Impulso Mecânico (Área da Curva)</span>
-                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border ${impulse100Light.color}`}>
-                      {impulse100Light.dot} {impulse100Light.label}
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Impulso Mecânico (Área da Curva)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Trabalho Mecânico
                     </span>
                   </div>
                   <div className="flex items-baseline gap-2 mt-1">
@@ -13735,7 +13721,7 @@ const ImtpReport: FC<{
                   </span>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[7px] font-bold text-slate-400 uppercase">Fator Direto de Decolagem</span>
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Propulsão Direta</span>
                   {impulse100Delta ? (
                     <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${impulse100Delta.color}`}>
                       {impulse100Delta.icon} {impulse100Delta.text}
