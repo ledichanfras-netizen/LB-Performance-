@@ -13320,28 +13320,105 @@ const ImtpReport: FC<{
 }> = ({ athlete, data, onClose, history }) => {
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const handleExportJpeg = async () => {
+  // Helper para baixar uma página específica de forma 100% confiável
+  const downloadSinglePage = async (pageIndex: number, customToastId?: string) => {
     if (!reportRef.current) return;
-    const toastId = toast.loading("Otimizando layout para exportação...");
+    const pages = reportRef.current.querySelectorAll(".report-page");
+    const page = pages[pageIndex] as HTMLElement;
+    if (!page) {
+      toast.error(`Página ${pageIndex + 1} não encontrada.`);
+      return;
+    }
+
+    const tId = customToastId || toast.loading(`Renderizando Página ${pageIndex + 1} em alta resolução...`);
     try {
-      const pages = reportRef.current.querySelectorAll(".report-page");
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
-        const link = document.createElement("a");
-        link.download = `relatorio-imtp-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
-        link.href = dataUrl;
-        link.click();
-        await new Promise((r) => setTimeout(r, 400));
-      }
-      toast.success("Arquivos gerados com sucesso!", { id: toastId });
+      const dataUrl = await toJpeg(page, {
+        quality: 0.96,
+        backgroundColor: "#FFFFFF",
+        pixelRatio: 2.5,
+      });
+
+      // Conversão para Blob garante que navegadores como Chrome, Safari e Android não cancelem o download
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const athleteSlug = athlete.name.toLowerCase().replace(/\s+/g, "-");
+      const pageLabel = pageIndex === 0 ? "dados-avaliacao" : "diretrizes-treinamento";
+      const filename = `relatorio-imtp-${athleteSlug}-pag-${pageIndex + 1}-${pageLabel}.jpg`;
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = blobUrl;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 1500);
+
+      toast.success(`Página ${pageIndex + 1} baixada com sucesso!`, { id: tId });
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao gerar imagens.", { id: toastId });
+      toast.error(`Erro ao baixar Página ${pageIndex + 1}.`, { id: tId });
+    }
+  };
+
+  // Helper para baixar todas as páginas com intervalo seguro anti-bloqueio do navegador
+  const handleExportAllPages = async () => {
+    if (!reportRef.current) return;
+    const toastId = toast.loading("Iniciando exportação das 2 páginas...");
+    try {
+      const pages = reportRef.current.querySelectorAll(".report-page");
+      if (pages.length === 0) {
+        toast.error("Nenhuma página encontrada.", { id: toastId });
+        return;
+      }
+
+      for (let i = 0; i < pages.length; i++) {
+        toast.loading(`Gerando e baixando Página ${i + 1} de ${pages.length}...`, { id: toastId });
+        const page = pages[i] as HTMLElement;
+        const dataUrl = await toJpeg(page, {
+          quality: 0.96,
+          backgroundColor: "#FFFFFF",
+          pixelRatio: 2.5,
+        });
+
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const athleteSlug = athlete.name.toLowerCase().replace(/\s+/g, "-");
+        const pageLabel = i === 0 ? "dados-avaliacao" : "diretrizes-treinamento";
+        const filename = `relatorio-imtp-${athleteSlug}-pag-${i + 1}-${pageLabel}.jpg`;
+
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = blobUrl;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        }, 2000);
+
+        // Intervalo de segurança (1.2s) para o navegador registrar e iniciar o download da página 1 antes de disparar a página 2
+        if (i < pages.length - 1) {
+          await new Promise((r) => setTimeout(r, 1200));
+        }
+      }
+
+      toast.success("Download das 2 páginas enviado! Você também pode baixar cada uma pelos botões dedicados.", {
+        id: toastId,
+        duration: 5000,
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao gerar imagens das páginas.", { id: toastId });
     }
   };
 
@@ -13504,6 +13581,67 @@ const ImtpReport: FC<{
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
         
+        {/* Barra Superior Flutuante de Ações Rápidas */}
+        <div className="sticky top-2 z-50 mb-4 mx-2 md:mx-0 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-white no-print">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#39FF14] animate-pulse shrink-0" />
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-100 block leading-tight">
+                Relatório IMTP • {athlete.name}
+              </span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase">
+                {totalPages} Páginas A4 • Monitoramento Neuromuscular
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportAllPages}
+              className="flex items-center gap-1.5 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-md cursor-pointer"
+              title="Baixar ambas as páginas sequencialmente"
+            >
+              <Download size={14} />
+              <span>Baixar Todas (1 e 2)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(0)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 1 (Dados e Avaliação)"
+            >
+              <FileText size={14} className="text-[#39FF14]" />
+              <span>Pág. 1 (Dados)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(1)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 2 (Diretrizes e Treinamento)"
+            >
+              <FileText size={14} className="text-emerald-400" />
+              <span>Pág. 2 (Diretrizes)</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Imprimir ou Salvar em PDF"
+            >
+              <Printer size={14} />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 bg-slate-800/90 hover:bg-red-500/20 hover:text-red-400 text-slate-300 p-2 rounded-xl active:scale-95 transition-all border border-slate-700 cursor-pointer ml-1"
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
           
@@ -14039,30 +14177,59 @@ const ImtpReport: FC<{
         </div>
 
         {/* Buttons Row (Controls) */}
-        <div className="flex flex-col sm:flex-row gap-4 mt-8 no-print pb-20 px-4 md:px-0 font-sans select-none justify-between items-center w-full">
-          <div className="flex gap-4 w-full sm:w-auto">
-            <button
-              onClick={handleExportJpeg}
-              className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2 bg-brand-primary text-white py-4 px-6 rounded-xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-brand-primary/25 hover:bg-brand-dark transition-all active:scale-95 cursor-pointer font-sans"
-            >
-              <Download size={20} /> Baixar Páginas (JPEG)
-            </button>
-            <button
-              onClick={handlePrint}
-              className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2 bg-slate-800 text-white py-4 px-6 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 cursor-pointer font-sans"
-            >
-              <Printer size={20} /> Imprimir / PDF
-            </button>
-          </div>
+        <div className="mt-8 no-print pb-24 px-4 md:px-0 font-sans select-none w-full">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col text-center lg:text-left">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center justify-center lg:justify-start gap-2">
+                <Sparkles size={14} className="text-[#39FF14]" /> Exportação do Relatório IMTP
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-xl">
+                Baixe o relatório completo de 2 páginas ou selecione individualmente a página desejada em alta definição (JPEG).
+              </p>
+            </div>
 
-          <div className="flex gap-4 w-full sm:w-auto mt-4 sm:mt-0">
-            <button
-              onClick={onClose}
-              className="flex-grow sm:flex-grow-0 flex items-center justify-center gap-2 bg-slate-700 text-white py-4 px-6 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-600 transition-all active:scale-95 cursor-pointer font-sans"
-            >
-              Fechar
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 w-full lg:w-auto">
+              <button
+                onClick={handleExportAllPages}
+                className="flex items-center justify-center gap-2 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 py-3.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-xl shadow-[#39FF14]/15 cursor-pointer"
+              >
+                <Download size={16} /> Baixar Ambas (Pág. 1 e 2)
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(0)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 1 (Dados e Avaliação)"
+              >
+                <FileText size={15} className="text-[#39FF14]" /> Baixar Pág. 1
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(1)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 2 (Diretrizes e Treinamento)"
+              >
+                <FileText size={15} className="text-emerald-400" /> Baixar Pág. 2
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 hover:text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+              >
+                <Printer size={16} /> Imprimir / PDF
+              </button>
+
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
+          <p className="text-[10px] text-slate-400 text-center mt-3 font-mono">
+            💡 Dica: Se o navegador solicitar autorização para múltiplos downloads, clique em "Permitir", ou utilize os botões individuais de cada página acima.
+          </p>
         </div>
       </div>
     </div>
