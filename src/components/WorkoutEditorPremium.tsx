@@ -1839,23 +1839,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-[#161b26] border border-slate-850 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold text-slate-200 outline-none focus:ring-2 focus:ring-[#39FF14]/10 focus:border-[#39FF14] transition-all"
                   placeholder="Pesquisar por nome, músculo, equipamento..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleAiSearch();
-                  }}
                 />
               </div>
-              <button
-                onClick={handleAiSearch}
-                disabled={isAiSearching}
-                className="bg-[#39FF14]/10 hover:bg-[#39FF14]/20 disabled:bg-slate-900 border border-[#39FF14]/30 text-[#39FF14] px-3.5 rounded-xl transition-colors flex items-center justify-center shrink-0"
-                title="Pesquisa Científica com IA Gemini"
-              >
-                {isAiSearching ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Brain className="w-4 h-4" />
-                )}
-              </button>
             </div>
 
             {/* AI SEARCH RESULTS REASONING BANNER */}
