@@ -72,10 +72,27 @@ async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000
   throw lastError || new Error("Falha inesperada no processamento da IA de treino.");
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://nkxsqhkxgwpjdcmcetav.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_N62oQfMBES5KX1YK8VKV8w_gbC7lmHv';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === 'production' ? '' : 'dev-only-change-me');
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET é obrigatório em produção.');
+}
+
+const ALLOW_LEGACY_DOB_LOGIN = process.env.ALLOW_LEGACY_DOB_LOGIN === 'true';
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('[Supabase] URL/chave pública não configuradas. O acesso principal deve ocorrer via DATABASE_URL no servidor.');
+}
+
+const supabase = createClient(
+  supabaseUrl || 'http://127.0.0.1:54321',
+  supabaseAnonKey || 'disabled-in-server-only-mode'
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -348,6 +365,13 @@ const authMiddleware = (req: any, res: any, next: any) => {
   }
 };
 
+const requireCoach = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'coach') {
+    return res.status(403).json({ error: 'Ação restrita ao treinador.' });
+  }
+  next();
+};
+
 // Health check
 apiRouter.get('/health', async (req, res) => {
   const dbUrl = process.env.DATABASE_URL || '';
@@ -391,20 +415,8 @@ apiRouter.post('/auth/login', async (req, res) => {
 
   console.log(`[LOGIN] Tentativa: usuário=[${trimmedUsername}]`);
 
-  // 1. Hardcoded fallback
-  if (trimmedUsername.toLowerCase() === 'leandro' && trimmedPassword === 'techno10') {
-    console.log(`[LOGIN] SUCESSO: Hardcoded Coach [${trimmedUsername}]`);
-    try {
-      const token = jwt.sign({ username: 'Leandro', role: 'coach', plan: 'pro' }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ role: 'coach', token, plan: 'pro' });
-    } catch (jwtErr: any) {
-      console.error("[LOGIN] Erro ao gerar JWT:", jwtErr.message);
-      return res.status(500).json({ error: "Erro interno na geração do token." });
-    }
-  }
-
   try {
-    // 2. Local Database
+    // 1. Banco de dados do servidor
     if (process.env.DATABASE_URL && isDbConnected) {
       try {
         console.log(`[LOGIN] Buscando no banco local: [${trimmedUsername}]`);
@@ -429,7 +441,9 @@ apiRouter.post('/auth/login', async (req, res) => {
           }
         }
 
-        const athletesRes = await pool.query('SELECT * FROM athletes WHERE LOWER(TRIM(name)) = LOWER($1)', [trimmedUsername]);
+        const athletesRes = ALLOW_LEGACY_DOB_LOGIN
+          ? await pool.query('SELECT * FROM athletes WHERE LOWER(TRIM(name)) = LOWER($1)', [trimmedUsername])
+          : { rows: [] as any[] };
         if (athletesRes.rows.length > 0) {
           const athlete = athletesRes.rows[0];
           if (athlete.dob) {
@@ -481,6 +495,9 @@ apiRouter.post('/auth/login', async (req, res) => {
       }
 
       let sbAthlete: any = null;
+      if (!ALLOW_LEGACY_DOB_LOGIN) {
+        throw new Error('LEGACY_DOB_LOGIN_DISABLED');
+      }
       const { data: directAth } = await supabase
         .from('athletes')
         .select('*')
@@ -1056,6 +1073,18 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
 apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   const athletes = req.body;
+  const actingUser = (req as any).user;
+
+  if (!Array.isArray(athletes)) {
+    return res.status(400).json({ error: 'Payload inválido.' });
+  }
+
+  if (
+    actingUser?.role === 'athlete' &&
+    (athletes.length !== 1 || athletes[0]?.id !== actingUser.athleteId)
+  ) {
+    return res.status(403).json({ error: 'Atleta só pode sincronizar o próprio registro.' });
+  }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
   if (!isDbConnected && process.env.DATABASE_URL) {
@@ -1830,7 +1859,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 });
 
 // Deletion endpoints
-apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/atletas/:id', authMiddleware, requireCoach, async (req, res) => {
   const { id } = req.params;
   const dbConfigured = !!process.env.DATABASE_URL;
 
@@ -1908,7 +1937,7 @@ apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/workouts/:id', authMiddleware, requireCoach, async (req, res) => {
   const { id } = req.params;
   console.log(`[API] Solicitando exclusão do treino: ${id}`);
   
@@ -2015,7 +2044,7 @@ apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/assessments/:type/:id', authMiddleware, requireCoach, async (req, res) => {
   const { type, id } = req.params;
   const tableMap: Record<string, string> = {
     'bioimpedance': 'bioimpedance',
@@ -3070,12 +3099,7 @@ async function runSetup(retries = 1) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
     
-    // Create default coach user if not exists
-    await client.query(`
-      INSERT INTO users (id, username, password, role, plan) 
-      VALUES ('coach-1', 'Leandro', 'techno10', 'coach', 'pro') 
-      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, plan = EXCLUDED.plan
-    `);
+    // Usuários são provisionados explicitamente. Nunca criar credenciais padrão no boot.
 
     // Create performance indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wellness_athlete_date ON wellness (athlete_id, date DESC);`).catch(() => {});
