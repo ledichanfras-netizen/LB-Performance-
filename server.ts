@@ -424,7 +424,7 @@ apiRouter.post('/auth/login', async (req, res) => {
         if (userRes.rows.length > 0) {
           const user = userRes.rows[0];
           let isMatch = false;
-          if (user.password && user.password.startsWith('$2a$')) {
+          if (user.password && /^\$2[aby]\$/.test(user.password)) {
             isMatch = await bcrypt.compare(trimmedPassword, user.password);
           } else if (user.password) {
             isMatch = user.password === trimmedPassword;
@@ -481,7 +481,7 @@ apiRouter.post('/auth/login', async (req, res) => {
 
       if (sbUser) {
         let isMatch = false;
-        if (sbUser.password && sbUser.password.startsWith('$2a$')) {
+        if (sbUser.password && /^\$2[aby]\$/.test(sbUser.password)) {
           isMatch = await bcrypt.compare(trimmedPassword, sbUser.password);
         } else if (sbUser.password) {
           isMatch = sbUser.password === trimmedPassword;
