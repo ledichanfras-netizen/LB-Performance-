@@ -38,6 +38,8 @@ export default function LbAssessmentSession() {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -61,6 +63,42 @@ export default function LbAssessmentSession() {
   const toggleTest = (code: string) => setSelectedTests(prev => prev.includes(code) ? prev.filter(x => x !== code) : [...prev, code]);
   const canContinue = Boolean(athleteId && selectedTests.length && protocolVersion.trim());
 
+  const startSession = async () => {
+    if (!canContinue || saving) return;
+    const user = readStoredUser();
+    if (!user?.token) { setLoadError("Sessão expirada. Faça login novamente."); return; }
+    setSaving(true);
+    setLoadError("");
+    setSaveMessage("");
+    try {
+      const response = await fetch("/api/lb/assessment-sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${user.token}`
+        },
+        body: JSON.stringify({
+          athleteId,
+          testTypes: selectedTests,
+          protocolVersion,
+          qualityFlag,
+          comparableToBaseline: qualityFlag === "VALID" || qualityFlag === "CAUTION",
+          device,
+          operatorName: operator,
+          notes,
+          context: { source: "lb-assessment-session-ui", methodStage: "AVALIAR" }
+        })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+      setSaveMessage(`Sessão LB criada com ${payload?.sessions?.length || selectedTests.length} teste(s). Núcleo AVALIAR conectado.`);
+    } catch (error: any) {
+      setLoadError(`Não foi possível iniciar a Sessão LB: ${error?.message || "erro desconhecido"}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!lbFeatureFlags.coreWorkflow) {
     return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6"><div className="max-w-lg text-center"><ShieldCheck className="w-12 h-12 text-emerald-400 mx-auto mb-4"/><h1 className="text-2xl font-black uppercase">Método LB protegido</h1><p className="text-slate-400 mt-3">O módulo AVALIAR ainda não está habilitado neste ambiente.</p></div></div>;
   }
@@ -83,6 +121,7 @@ export default function LbAssessmentSession() {
         </section>
 
         {loadError && <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">{loadError}</div>}
+        {saveMessage && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300 flex items-center gap-3"><CheckCircle2 className="w-5 h-5 shrink-0"/>{saveMessage}</div>}
 
         <section className="grid lg:grid-cols-[1.35fr_.65fr] gap-6">
           <div className="space-y-6">
@@ -116,8 +155,8 @@ export default function LbAssessmentSession() {
               <div className="pb-4 border-b border-slate-800"><p className="text-slate-500 text-xs">Qualidade</p><p className="font-black mt-1">{QUALITY.find(q=>q.value===qualityFlag)?.label}</p></div>
               <div><p className="text-slate-500 text-xs">Comparabilidade automática</p><p className={`font-black mt-1 ${qualityFlag==="VALID"||qualityFlag==="CAUTION" ? "text-emerald-400" : "text-amber-400"}`}>{qualityFlag==="VALID"||qualityFlag==="CAUTION" ? "Pode ser avaliada" : "Bloqueada por qualidade"}</p></div>
             </div>
-            <button disabled={!canContinue} onClick={()=>alert("Etapa de métricas será conectada na próxima entrega do staging.")} className="w-full mt-6 py-4 rounded-2xl bg-emerald-400 text-slate-950 font-black uppercase tracking-widest text-xs disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"><Plus className="w-4 h-4"/> Iniciar Sessão LB</button>
-            <p className="text-[10px] text-slate-600 mt-3 leading-relaxed">Nesta primeira ativação, nenhum dado legado é alterado. A gravação no núcleo LB será habilitada após a validação visual e funcional desta tela.</p>
+            <button disabled={!canContinue || saving} onClick={startSession} className="w-full mt-6 py-4 rounded-2xl bg-emerald-400 text-slate-950 font-black uppercase tracking-widest text-xs disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"><Plus className="w-4 h-4"/> {saving ? "Criando Sessão..." : "Iniciar Sessão LB"}</button>
+            <p className="text-[10px] text-slate-600 mt-3 leading-relaxed">A sessão é gravada exclusivamente pelo servidor no núcleo privado LB. Os registros legados permanecem intactos.</p>
           </aside>
         </section>
       </main>
