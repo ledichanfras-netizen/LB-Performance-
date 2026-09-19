@@ -615,6 +615,7 @@ const EliteHubApp: FC<{
   user: UserWithPlan | null;
   setUser: (u: UserWithPlan | null) => void;
 }> = ({ user, setUser }) => {
+  const navigate = useNavigate();
   const {
     athletes,
     loading,
