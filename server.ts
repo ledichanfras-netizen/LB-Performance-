@@ -26,14 +26,24 @@ function safeNum(val: any, fallback: number = 0): number {
   return fallback;
 }
 
-const aiGenClient = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+let aiGenClient: GoogleGenAI | null = null;
+
+function getAiGenClient(): GoogleGenAI {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY não configurada.');
   }
-});
+  if (!aiGenClient) {
+    aiGenClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiGenClient;
+}
 
 // Helper function to call generateContent with automatic retries, exponential backoff, and robust model fallback
 async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000) {
@@ -50,7 +60,7 @@ async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000
           ...params,
           model: model
         };
-        const response = await aiGenClient.models.generateContent(finalParams);
+        const response = await getAiGenClient().models.generateContent(finalParams);
         console.log(`[Gemini API] Sucesso com o modelo: ${model}`);
         return response;
       } catch (error: any) {
