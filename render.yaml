@@ -14,7 +14,25 @@ services:
         generateValue: true
       - key: GEMINI_API_KEY
         sync: false
+      - key: ALLOW_LEGACY_DOB_LOGIN
+        value: "false"
+      - key: VITE_LB_CORE_WORKFLOW
+        value: "false"
+      - key: VITE_LB_INTERPRETATION
+        value: "false"
+      - key: VITE_LB_DECISION
+        value: "false"
+      - key: VITE_LB_PRESCRIPTION
+        value: "false"
+      - key: VITE_LB_MONITORING
+        value: "false"
+      - key: VITE_LB_REASSESSMENT
+        value: "false"
+      - key: VITE_LB_TRANSFER
+        value: "false"
+      - key: VITE_LB_PREMIUM_REPORTS
+        value: "false"
       - key: VITE_SUPABASE_URL
-        value: https://nkxsqhkxgwpjdcmcetav.supabase.co
+        sync: false
       - key: VITE_SUPABASE_ANON_KEY
-        value: sb_publishable_N62oQfMBES5KX1YK8VKV8w_gbC7lmHv
+        sync: false
