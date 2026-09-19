@@ -98,7 +98,8 @@ export default function LbAssessmentSession() {
       if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
       const createdSession = { sessionGroupId: payload.sessionGroupId, sessions: payload.sessions || [] };
       setActiveSession(createdSession);
-      setSaveMessage(`Sessão LB iniciada com ${createdSession.sessions.length || selectedTests.length} avaliação(ões).`);
+      setSaveMessage(`Sessão LB iniciada com ${createdSession.sessions.length || selectedTests.length} avaliação(ões). Abrindo resultados...`);
+      if (createdSession.sessionGroupId) navigate(`/hub/metodo-lb/avaliar/${encodeURIComponent(createdSession.sessionGroupId)}`);
     } catch (error: any) {
       setLoadError(`Não foi possível iniciar a Sessão LB: ${error?.message || "erro desconhecido"}`);
     } finally {
