@@ -841,11 +841,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       return res.json(formatted);
     }
 
-    // SE NÃO HOUVER ATLETAS NO BANCO LOCAL, TENTAR SUPABASE
+    // No staging/arquitetura server-only, banco vazio é um estado válido.
     if (athletesRes.rows.length === 0) {
-      console.warn("[SERVIÇO] Banco local conectado mas está VAZIO. Tentando Supabase...");
-      const formatted = await loadFromSupabase();
-      return res.json(formatted);
+      console.log("[SERVIÇO] Banco server-side conectado e sem atletas. Retornando conjunto vazio.");
+      return res.json([]);
     }
 
     const groupById = (rows: any[], key = 'athlete_id') => {
