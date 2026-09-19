@@ -165,6 +165,7 @@ import Home from "./pages/Home";
 import Venda from "./pages/Venda";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
+import LbAssessmentSession from "./pages/LbAssessmentSession";
 import { UserWithPlan, isPro } from "./utils/plan";
 
 // Safely wrapped localStorage to prevent crashes on restricted engines/mobile frames/iframes
@@ -18399,6 +18400,16 @@ const App: FC = () => {
               <Ranking />
             ) : (
               <Navigate to="/venda" replace />
+            )
+          }
+        />
+        <Route
+          path="/hub/metodo-lb/avaliar"
+          element={
+            user && user.plan === "pro" ? (
+              <LbAssessmentSession />
+            ) : (
+              <Navigate to="/hub" replace />
             )
           }
         />
