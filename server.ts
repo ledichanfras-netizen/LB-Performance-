@@ -390,21 +390,19 @@ apiRouter.get('/health', async (req, res) => {
     if (dbUrl) host = new URL(dbUrl).host;
   } catch (e) {}
 
-  let supabase_test = 'pending';
-  try {
-    const { data, error } = await supabase.from('athletes').select('count', { count: 'exact', head: true });
-    supabase_test = error ? `error: ${error.message}` : `ok (count: ${data || 0})`;
-  } catch (e: any) {
-    supabase_test = `exception: ${e.message}`;
-  }
+  // O staging usa acesso server-only ao Postgres. O Data API para anon/authenticated
+  // permanece bloqueado por RLS/grants e não deve ser usado como health probe.
+  const databaseConfigured = !!process.env.DATABASE_URL;
+  const healthy = databaseConfigured && isDbConnected;
   
-  res.json({ 
-    status: 'ok', 
-    database_configured: !!process.env.DATABASE_URL,
+  res.status(healthy ? 200 : 503).json({ 
+    status: healthy ? 'ok' : 'degraded', 
+    database_configured: databaseConfigured,
     db_connected: isDbConnected,
     db_host: host,
     supabase_configured: !!(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY),
-    supabase_test,
+    data_access_mode: 'server_only',
+    direct_client_access: 'blocked_by_design',
     is_stale_host: host === 'db.zycnwaqswrunzptyeaso.supabase.co',
     env: {
       supabase_url: (process.env.VITE_SUPABASE_URL || '').substring(0, 15) + '...',
