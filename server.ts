@@ -496,6 +496,70 @@ apiRouter.post('/lb/assessment-sessions', authMiddleware, requireCoach, async (r
 });
 
 // Auth Routes
+
+apiRouter.get('/lb/assessment-sessions/:groupId', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  try {
+    const result = await pool.query(
+      `select s.id, s.athlete_id, a.name as athlete_name, s.test_type, s.assessed_at, s.protocol_version,
+              s.quality_flag, s.comparable_to_baseline, s.device, s.operator_name, s.context, s.notes,
+              coalesce(json_agg(json_build_object(
+                'id', m.id, 'metricCode', m.metric_code, 'valueNumeric', m.value_numeric,
+                'valueText', m.value_text, 'unit', m.unit, 'trialNo', m.trial_no, 'isValid', m.is_valid
+              ) order by m.created_at) filter (where m.id is not null), '[]'::json) as metrics
+       from lb_core.assessment_sessions s
+       join public.athletes a on a.id = s.athlete_id
+       left join lb_core.assessment_metrics m on m.session_id = s.id
+       where s.context->>'sessionGroupId' = $1
+       group by s.id, a.name
+       order by s.test_type`,
+      [req.params.groupId]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Sessão LB não encontrada.' });
+    return res.json({ sessionGroupId: req.params.groupId, sessions: result.rows });
+  } catch (error: any) {
+    console.error('[LB] Falha ao carregar Sessão:', error.message);
+    return res.status(500).json({ error: 'Não foi possível carregar a Sessão LB.' });
+  }
+});
+
+apiRouter.put('/lb/assessment-sessions/:sessionId/metrics', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  const metrics = Array.isArray(req.body?.metrics) ? req.body.metrics : [];
+  if (!metrics.length) return res.status(400).json({ error: 'Informe ao menos uma métrica.' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const exists = await client.query('select id from lb_core.assessment_sessions where id=$1', [req.params.sessionId]);
+    if (!exists.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Avaliação não encontrada.' }); }
+    await client.query('delete from lb_core.assessment_metrics where session_id=$1', [req.params.sessionId]);
+    const saved:any[]=[];
+    for (const metric of metrics) {
+      const code=String(metric.metricCode||'').trim();
+      if(!code) continue;
+      const raw=metric.valueNumeric;
+      const numeric=raw === '' || raw === null || raw === undefined ? null : Number(raw);
+      if(numeric !== null && !Number.isFinite(numeric)) { await client.query('ROLLBACK'); return res.status(400).json({error:`Valor inválido em ${code}.`}); }
+      const id=`lb-metric-${crypto.randomUUID()}`;
+      const q=await client.query(
+        `insert into lb_core.assessment_metrics(id,session_id,metric_code,value_numeric,value_text,unit,trial_no,is_valid)
+         values($1,$2,$3,$4,$5,$6,$7,$8)
+         returning id,metric_code,value_numeric,value_text,unit,trial_no,is_valid`,
+        [id,req.params.sessionId,code,numeric,metric.valueText ? String(metric.valueText).trim():null,
+         metric.unit ? String(metric.unit).trim():null,metric.trialNo ? Number(metric.trialNo):null,metric.isValid !== false]
+      );
+      saved.push(q.rows[0]);
+    }
+    if(!saved.length){ await client.query('ROLLBACK'); return res.status(400).json({error:'Nenhuma métrica válida informada.'}); }
+    await client.query('COMMIT');
+    return res.json({sessionId:req.params.sessionId,metrics:saved});
+  } catch(error:any){
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao salvar métricas:',error.message);
+    return res.status(500).json({error:'Não foi possível salvar os resultados.'});
+  } finally { client.release(); }
+});
+
 apiRouter.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
   const trimmedUsername = (username || '').trim();
