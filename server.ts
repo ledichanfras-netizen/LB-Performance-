@@ -26,14 +26,24 @@ function safeNum(val: any, fallback: number = 0): number {
   return fallback;
 }
 
-const aiGenClient = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+let aiGenClient: GoogleGenAI | null = null;
+
+function getAiGenClient(): GoogleGenAI {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY não configurada.');
   }
-});
+  if (!aiGenClient) {
+    aiGenClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiGenClient;
+}
 
 // Helper function to call generateContent with automatic retries, exponential backoff, and robust model fallback
 async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000) {
@@ -50,7 +60,7 @@ async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000
           ...params,
           model: model
         };
-        const response = await aiGenClient.models.generateContent(finalParams);
+        const response = await getAiGenClient().models.generateContent(finalParams);
         console.log(`[Gemini API] Sucesso com o modelo: ${model}`);
         return response;
       } catch (error: any) {
@@ -72,10 +82,27 @@ async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000
   throw lastError || new Error("Falha inesperada no processamento da IA de treino.");
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://nkxsqhkxgwpjdcmcetav.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_N62oQfMBES5KX1YK8VKV8w_gbC7lmHv';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === 'production' ? '' : 'dev-only-change-me');
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET é obrigatório em produção.');
+}
+
+const ALLOW_LEGACY_DOB_LOGIN = process.env.ALLOW_LEGACY_DOB_LOGIN === 'true';
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('[Supabase] URL/chave pública não configuradas. O acesso principal deve ocorrer via DATABASE_URL no servidor.');
+}
+
+const supabase = createClient(
+  supabaseUrl || 'http://127.0.0.1:54321',
+  supabaseAnonKey || 'disabled-in-server-only-mode'
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -348,6 +375,13 @@ const authMiddleware = (req: any, res: any, next: any) => {
   }
 };
 
+const requireCoach = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'coach') {
+    return res.status(403).json({ error: 'Ação restrita ao treinador.' });
+  }
+  next();
+};
+
 // Health check
 apiRouter.get('/health', async (req, res) => {
   const dbUrl = process.env.DATABASE_URL || '';
@@ -356,21 +390,19 @@ apiRouter.get('/health', async (req, res) => {
     if (dbUrl) host = new URL(dbUrl).host;
   } catch (e) {}
 
-  let supabase_test = 'pending';
-  try {
-    const { data, error } = await supabase.from('athletes').select('count', { count: 'exact', head: true });
-    supabase_test = error ? `error: ${error.message}` : `ok (count: ${data || 0})`;
-  } catch (e: any) {
-    supabase_test = `exception: ${e.message}`;
-  }
+  // O staging usa acesso server-only ao Postgres. O Data API para anon/authenticated
+  // permanece bloqueado por RLS/grants e não deve ser usado como health probe.
+  const databaseConfigured = !!process.env.DATABASE_URL;
+  const healthy = databaseConfigured && isDbConnected;
   
-  res.json({ 
-    status: 'ok', 
-    database_configured: !!process.env.DATABASE_URL,
+  res.status(healthy ? 200 : 503).json({ 
+    status: healthy ? 'ok' : 'degraded', 
+    database_configured: databaseConfigured,
     db_connected: isDbConnected,
     db_host: host,
     supabase_configured: !!(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY),
-    supabase_test,
+    data_access_mode: 'server_only',
+    direct_client_access: 'blocked_by_design',
     is_stale_host: host === 'db.zycnwaqswrunzptyeaso.supabase.co',
     env: {
       supabase_url: (process.env.VITE_SUPABASE_URL || '').substring(0, 15) + '...',
@@ -383,6 +415,86 @@ apiRouter.get('/test', (req, res) => {
   res.send('Server is alive');
 });
 
+apiRouter.post('/lb/assessment-sessions', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) {
+    return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  }
+
+  const {
+    athleteId,
+    testTypes,
+    protocolVersion,
+    qualityFlag,
+    comparableToBaseline,
+    device,
+    operatorName,
+    notes,
+    context
+  } = req.body || {};
+
+  const allowedQuality = new Set(['VALID', 'CAUTION', 'NON_COMPARABLE', 'REPEAT']);
+  const tests = Array.isArray(testTypes)
+    ? Array.from(new Set(testTypes.map((value: unknown) => String(value || '').trim()).filter(Boolean)))
+    : [];
+
+  if (!athleteId || !protocolVersion || tests.length === 0 || !allowedQuality.has(qualityFlag)) {
+    return res.status(400).json({ error: 'Dados obrigatórios da Sessão LB estão incompletos.' });
+  }
+
+  const canCompare = qualityFlag === 'VALID' || qualityFlag === 'CAUTION';
+  if (!canCompare && comparableToBaseline === true) {
+    return res.status(400).json({ error: 'Sessão não comparável não pode ser marcada como comparável ao baseline.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const athlete = await client.query('select id from public.athletes where id = $1 limit 1', [athleteId]);
+    if (athlete.rowCount !== 1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Atleta não encontrado.' });
+    }
+
+    const groupId = `lb-session-${crypto.randomUUID()}`;
+    const created: any[] = [];
+    for (const testType of tests) {
+      const id = `${groupId}-${String(testType).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      const sessionContext = {
+        ...(context && typeof context === 'object' ? context : {}),
+        sessionGroupId: groupId,
+        selectedTests: tests
+      };
+      const result = await client.query(
+        `insert into lb_core.assessment_sessions
+          (id, athlete_id, test_type, protocol_version, quality_flag, comparable_to_baseline, device, operator_name, context, notes)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+         returning id, athlete_id, test_type, assessed_at, protocol_version, quality_flag, comparable_to_baseline`,
+        [
+          id,
+          athleteId,
+          testType,
+          String(protocolVersion).trim(),
+          qualityFlag,
+          canCompare && comparableToBaseline !== false,
+          device ? String(device).trim() : null,
+          operatorName ? String(operatorName).trim() : null,
+          JSON.stringify(sessionContext),
+          notes ? String(notes).trim() : null
+        ]
+      );
+      created.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    return res.status(201).json({ sessionGroupId: groupId, sessions: created });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao criar Sessão de Avaliação:', error.message);
+    return res.status(500).json({ error: 'Não foi possível criar a Sessão LB.' });
+  } finally {
+    client.release();
+  }
+});
+
 // Auth Routes
 apiRouter.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
@@ -391,20 +503,8 @@ apiRouter.post('/auth/login', async (req, res) => {
 
   console.log(`[LOGIN] Tentativa: usuário=[${trimmedUsername}]`);
 
-  // 1. Hardcoded fallback
-  if (trimmedUsername.toLowerCase() === 'leandro' && trimmedPassword === 'techno10') {
-    console.log(`[LOGIN] SUCESSO: Hardcoded Coach [${trimmedUsername}]`);
-    try {
-      const token = jwt.sign({ username: 'Leandro', role: 'coach', plan: 'pro' }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ role: 'coach', token, plan: 'pro' });
-    } catch (jwtErr: any) {
-      console.error("[LOGIN] Erro ao gerar JWT:", jwtErr.message);
-      return res.status(500).json({ error: "Erro interno na geração do token." });
-    }
-  }
-
   try {
-    // 2. Local Database
+    // 1. Banco de dados do servidor
     if (process.env.DATABASE_URL && isDbConnected) {
       try {
         console.log(`[LOGIN] Buscando no banco local: [${trimmedUsername}]`);
@@ -412,7 +512,7 @@ apiRouter.post('/auth/login', async (req, res) => {
         if (userRes.rows.length > 0) {
           const user = userRes.rows[0];
           let isMatch = false;
-          if (user.password && user.password.startsWith('$2a$')) {
+          if (user.password && /^\$2[aby]\$/.test(user.password)) {
             isMatch = await bcrypt.compare(trimmedPassword, user.password);
           } else if (user.password) {
             isMatch = user.password === trimmedPassword;
@@ -429,7 +529,9 @@ apiRouter.post('/auth/login', async (req, res) => {
           }
         }
 
-        const athletesRes = await pool.query('SELECT * FROM athletes WHERE LOWER(TRIM(name)) = LOWER($1)', [trimmedUsername]);
+        const athletesRes = ALLOW_LEGACY_DOB_LOGIN
+          ? await pool.query('SELECT * FROM athletes WHERE LOWER(TRIM(name)) = LOWER($1)', [trimmedUsername])
+          : { rows: [] as any[] };
         if (athletesRes.rows.length > 0) {
           const athlete = athletesRes.rows[0];
           if (athlete.dob) {
@@ -467,7 +569,7 @@ apiRouter.post('/auth/login', async (req, res) => {
 
       if (sbUser) {
         let isMatch = false;
-        if (sbUser.password && sbUser.password.startsWith('$2a$')) {
+        if (sbUser.password && /^\$2[aby]\$/.test(sbUser.password)) {
           isMatch = await bcrypt.compare(trimmedPassword, sbUser.password);
         } else if (sbUser.password) {
           isMatch = sbUser.password === trimmedPassword;
@@ -481,6 +583,9 @@ apiRouter.post('/auth/login', async (req, res) => {
       }
 
       let sbAthlete: any = null;
+      if (!ALLOW_LEGACY_DOB_LOGIN) {
+        throw new Error('LEGACY_DOB_LOGIN_DISABLED');
+      }
       const { data: directAth } = await supabase
         .from('athletes')
         .select('*')
@@ -816,11 +921,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       return res.json(formatted);
     }
 
-    // SE NÃO HOUVER ATLETAS NO BANCO LOCAL, TENTAR SUPABASE
+    // No staging/arquitetura server-only, banco vazio é um estado válido.
     if (athletesRes.rows.length === 0) {
-      console.warn("[SERVIÇO] Banco local conectado mas está VAZIO. Tentando Supabase...");
-      const formatted = await loadFromSupabase();
-      return res.json(formatted);
+      console.log("[SERVIÇO] Banco server-side conectado e sem atletas. Retornando conjunto vazio.");
+      return res.json([]);
     }
 
     const groupById = (rows: any[], key = 'athlete_id') => {
@@ -1056,6 +1160,18 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
 apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   const athletes = req.body;
+  const actingUser = (req as any).user;
+
+  if (!Array.isArray(athletes)) {
+    return res.status(400).json({ error: 'Payload inválido.' });
+  }
+
+  if (
+    actingUser?.role === 'athlete' &&
+    (athletes.length !== 1 || athletes[0]?.id !== actingUser.athleteId)
+  ) {
+    return res.status(403).json({ error: 'Atleta só pode sincronizar o próprio registro.' });
+  }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
   if (!isDbConnected && process.env.DATABASE_URL) {
@@ -1830,7 +1946,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 });
 
 // Deletion endpoints
-apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/atletas/:id', authMiddleware, requireCoach, async (req, res) => {
   const { id } = req.params;
   const dbConfigured = !!process.env.DATABASE_URL;
 
@@ -1908,7 +2024,7 @@ apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/workouts/:id', authMiddleware, requireCoach, async (req, res) => {
   const { id } = req.params;
   console.log(`[API] Solicitando exclusão do treino: ${id}`);
   
@@ -2015,7 +2131,7 @@ apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/assessments/:type/:id', authMiddleware, requireCoach, async (req, res) => {
   const { type, id } = req.params;
   const tableMap: Record<string, string> = {
     'bioimpedance': 'bioimpedance',
@@ -3070,12 +3186,7 @@ async function runSetup(retries = 1) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
     
-    // Create default coach user if not exists
-    await client.query(`
-      INSERT INTO users (id, username, password, role, plan) 
-      VALUES ('coach-1', 'Leandro', 'techno10', 'coach', 'pro') 
-      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, plan = EXCLUDED.plan
-    `);
+    // Usuários são provisionados explicitamente. Nunca criar credenciais padrão no boot.
 
     // Create performance indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wellness_athlete_date ON wellness (athlete_id, date DESC);`).catch(() => {});
