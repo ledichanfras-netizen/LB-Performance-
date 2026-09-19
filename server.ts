@@ -416,42 +416,6 @@ apiRouter.get('/test', (req, res) => {
 });
 
 // Auth Routes
-apiRouter.post('/auth/staging-bootstrap', async (req, res) => {
-  if (process.env.ENABLE_STAGING_BOOTSTRAP !== 'true' || process.env.NODE_ENV !== 'production') {
-    return res.status(404).json({ error: 'Not found' });
-  }
-
-  const bootstrapSecret = req.header('x-bootstrap-secret') || '';
-  const expectedSecret = process.env.STAGING_BOOTSTRAP_SECRET || '';
-  if (!expectedSecret || bootstrapSecret !== expectedSecret) {
-    return res.status(401).json({ error: 'Não autorizado' });
-  }
-
-  const username = (req.body?.username || '').trim();
-  const password = (req.body?.password || '').trim();
-  if (username.length < 4 || password.length < 12) {
-    return res.status(400).json({ error: 'Credenciais de homologação inválidas.' });
-  }
-  if (!process.env.DATABASE_URL || !isDbConnected) {
-    return res.status(503).json({ error: 'Banco indisponível.' });
-  }
-
-  try {
-    const hashedPassword = await bcrypt.hash(password, 12);
-    await pool.query(
-      `INSERT INTO users (id, username, password, role, plan)
-       VALUES ($1, $2, $3, 'coach', 'pro')
-       ON CONFLICT (username)
-       DO UPDATE SET password = EXCLUDED.password, role = 'coach', athlete_id = NULL, plan = 'pro'`,
-      [`staging-coach-${Date.now()}`, username, hashedPassword]
-    );
-    return res.status(201).json({ ok: true, username, role: 'coach' });
-  } catch (error: any) {
-    console.error('[STAGING BOOTSTRAP] Falha:', error.message);
-    return res.status(500).json({ error: 'Falha ao criar usuário de homologação.' });
-  }
-});
-
 apiRouter.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
   const trimmedUsername = (username || '').trim();
