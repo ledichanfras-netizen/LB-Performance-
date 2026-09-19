@@ -415,6 +415,86 @@ apiRouter.get('/test', (req, res) => {
   res.send('Server is alive');
 });
 
+apiRouter.post('/lb/assessment-sessions', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) {
+    return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  }
+
+  const {
+    athleteId,
+    testTypes,
+    protocolVersion,
+    qualityFlag,
+    comparableToBaseline,
+    device,
+    operatorName,
+    notes,
+    context
+  } = req.body || {};
+
+  const allowedQuality = new Set(['VALID', 'CAUTION', 'NON_COMPARABLE', 'REPEAT']);
+  const tests = Array.isArray(testTypes)
+    ? Array.from(new Set(testTypes.map((value: unknown) => String(value || '').trim()).filter(Boolean)))
+    : [];
+
+  if (!athleteId || !protocolVersion || tests.length === 0 || !allowedQuality.has(qualityFlag)) {
+    return res.status(400).json({ error: 'Dados obrigatórios da Sessão LB estão incompletos.' });
+  }
+
+  const canCompare = qualityFlag === 'VALID' || qualityFlag === 'CAUTION';
+  if (!canCompare && comparableToBaseline === true) {
+    return res.status(400).json({ error: 'Sessão não comparável não pode ser marcada como comparável ao baseline.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const athlete = await client.query('select id from public.athletes where id = $1 limit 1', [athleteId]);
+    if (athlete.rowCount !== 1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Atleta não encontrado.' });
+    }
+
+    const groupId = `lb-session-${crypto.randomUUID()}`;
+    const created: any[] = [];
+    for (const testType of tests) {
+      const id = `${groupId}-${String(testType).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      const sessionContext = {
+        ...(context && typeof context === 'object' ? context : {}),
+        sessionGroupId: groupId,
+        selectedTests: tests
+      };
+      const result = await client.query(
+        `insert into lb_core.assessment_sessions
+          (id, athlete_id, test_type, protocol_version, quality_flag, comparable_to_baseline, device, operator_name, context, notes)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+         returning id, athlete_id, test_type, assessed_at, protocol_version, quality_flag, comparable_to_baseline`,
+        [
+          id,
+          athleteId,
+          testType,
+          String(protocolVersion).trim(),
+          qualityFlag,
+          canCompare && comparableToBaseline !== false,
+          device ? String(device).trim() : null,
+          operatorName ? String(operatorName).trim() : null,
+          JSON.stringify(sessionContext),
+          notes ? String(notes).trim() : null
+        ]
+      );
+      created.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    return res.status(201).json({ sessionGroupId: groupId, sessions: created });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao criar Sessão de Avaliação:', error.message);
+    return res.status(500).json({ error: 'Não foi possível criar a Sessão LB.' });
+  } finally {
+    client.release();
+  }
+});
+
 // Auth Routes
 apiRouter.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
