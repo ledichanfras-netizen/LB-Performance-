@@ -111,39 +111,6 @@ export default function LbAssessmentSession() {
     return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6"><div className="max-w-lg text-center"><ShieldCheck className="w-12 h-12 text-emerald-400 mx-auto mb-4"/><h1 className="text-2xl font-black uppercase">Método LB protegido</h1><p className="text-slate-400 mt-3">O módulo AVALIAR ainda não está habilitado neste ambiente.</p></div></div>;
   }
 
-  if (activeSession) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white">
-        <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20">
-          <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
-            <button onClick={() => navigate("/hub")} className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black uppercase tracking-widest"><ArrowLeft className="w-4 h-4"/> Hub</button>
-            <div className="text-right"><p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Método LB • AVALIAR</p><h1 className="text-lg md:text-xl font-black uppercase italic">Sessão em andamento</h1></div>
-          </div>
-        </header>
-        <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
-          <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 md:p-8">
-            <div className="flex items-start gap-4"><div className="w-12 h-12 rounded-2xl bg-emerald-400 text-slate-950 flex items-center justify-center shrink-0"><CheckCircle2 className="w-6 h-6"/></div><div><p className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em]">Sessão iniciada</p><h2 className="text-2xl md:text-3xl font-black mt-1">{athlete?.name || "Atleta"}</h2><p className="text-slate-400 mt-2">Agora registre cada avaliação da bateria. O núcleo LB já preservou o contexto e a qualidade desta sessão.</p></div></div>
-          </section>
-          <section className="grid md:grid-cols-2 gap-4">
-            {activeSession.sessions.map((session, index) => {
-              const test = TESTS.find(t => t.code === session.test_type);
-              const Icon = test?.icon || ClipboardCheck;
-              return <div key={session.id} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
-                <div className="flex items-start gap-4"><div className="w-11 h-11 rounded-xl bg-slate-950 text-emerald-400 flex items-center justify-center"><Icon className="w-5 h-5"/></div><div className="flex-1"><div className="flex justify-between gap-3"><div><p className="font-black text-lg">{test?.label || session.test_type}</p><p className="text-xs text-slate-500 mt-1">{test?.description}</p></div><span className="h-fit px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[9px] font-black uppercase tracking-wider">Pendente</span></div>
-                <div className="mt-5 grid grid-cols-2 gap-2 text-[10px]"><div className="rounded-xl bg-slate-950 p-3"><p className="text-slate-600 uppercase font-black">Protocolo</p><p className="text-slate-300 mt-1">{session.protocol_version}</p></div><div className="rounded-xl bg-slate-950 p-3"><p className="text-slate-600 uppercase font-black">Qualidade</p><p className="text-slate-300 mt-1">{QUALITY.find(q=>q.value===session.quality_flag)?.label || session.quality_flag}</p></div></div>
-                <button onClick={() => setSaveMessage(`${test?.label || session.test_type}: formulário específico será conectado à avaliação legada na próxima etapa.`)} className="w-full mt-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20">Abrir avaliação {index + 1}</button></div></div>
-              </div>;
-            })}
-          </section>
-          {saveMessage && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300">{saveMessage}</div>}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={() => { setActiveSession(null); setSelectedTests([]); setSaveMessage(""); }} className="px-5 py-3 rounded-xl border border-slate-700 text-slate-300 text-xs font-black uppercase tracking-widest">Nova Sessão</button>
-            <button disabled className="px-5 py-3 rounded-xl bg-slate-800 text-slate-500 text-xs font-black uppercase tracking-widest cursor-not-allowed">INTERPRETAR • após concluir avaliações</button>
-          </div>
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
