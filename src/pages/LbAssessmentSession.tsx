@@ -226,57 +226,6 @@ export default function LbAssessmentSession() {
     return alerts;
   }, [interpretSessions]);
 
-  if (createdSessions.length > 0) {
-    const completedCount = 0;
-    const active = createdSessions.find(s => s.id === activeTestId) || createdSessions[0];
-    return (
-      <div className="min-h-screen bg-slate-950 text-white">
-        <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
-          <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
-            <button onClick={() => navigate("/hub")} className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black uppercase tracking-widest"><ArrowLeft className="w-4 h-4"/> Hub</button>
-            <div className="text-right"><p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Sessão LB em andamento</p><h1 className="text-lg md:text-xl font-black uppercase italic">{athlete?.name || "Atleta"}</h1></div>
-          </div>
-        </header>
-        <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
-          <section className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900 p-6 md:p-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-              <div><p className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em]">AVALIAR • sessão criada</p><h2 className="text-2xl md:text-3xl font-black mt-2">{createdSessions.length} avaliações preparadas</h2><p className="text-slate-400 mt-2">A estrutura da sessão já foi salva. Abra cada teste para registrar suas métricas.</p></div>
-              <div className="min-w-44 rounded-2xl bg-slate-950 border border-slate-800 p-4"><p className="text-[10px] uppercase tracking-widest text-slate-500 font-black">Progresso</p><p className="text-2xl font-black mt-1">{completedCount}/{createdSessions.length}</p><div className="h-2 rounded-full bg-slate-800 mt-3 overflow-hidden"><div className="h-full bg-emerald-400" style={{width: `${createdSessions.length ? completedCount/createdSessions.length*100 : 0}%`}} /></div></div>
-            </div>
-          </section>
-          {saveMessage && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-300 flex items-center gap-3"><CheckCircle2 className="w-5 h-5 shrink-0"/>{saveMessage}</div>}
-          <section className="grid lg:grid-cols-[.8fr_1.2fr] gap-6">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 h-fit">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Avaliações da sessão</p>
-              <div className="space-y-3">{createdSessions.map((session, index) => {
-                const test = TESTS.find(t => t.code === session.test_type);
-                const Icon = test?.icon || ClipboardCheck;
-                const selected = active.id === session.id;
-                return <button key={session.id} onClick={()=>setActiveTestId(session.id)} className={`w-full p-4 rounded-2xl border text-left transition-all ${selected ? "border-emerald-400 bg-emerald-400/10" : "border-slate-800 bg-slate-950"}`}><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center ${selected ? "bg-emerald-400 text-slate-950" : "bg-slate-900 text-slate-400"}`}><Icon className="w-5 h-5"/></div><div className="min-w-0"><p className="font-black text-sm">{index+1}. {test?.label || session.test_type}</p><p className="text-[10px] text-amber-400 font-black uppercase tracking-wider mt-1">Pendente</p></div></div></button>
-              })}</div>
-            </div>
-            <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6 md:p-8">
-              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">Avaliação selecionada</p>
-              <h3 className="text-2xl font-black mt-2">{TESTS.find(t=>t.code===active.test_type)?.label || active.test_type}</h3>
-              <p className="text-slate-400 mt-2">{TESTS.find(t=>t.code===active.test_type)?.description}</p>
-              <div className="grid sm:grid-cols-2 gap-3 mt-6">
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Protocolo</p><p className="font-black mt-2">{active.protocol_version}</p></div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4"><p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Qualidade</p><p className="font-black mt-2">{QUALITY.find(q=>q.value===active.quality_flag)?.label || active.quality_flag}</p></div>
-              </div>
-              <div className="mt-6 rounded-2xl border border-dashed border-slate-700 bg-slate-950 p-6 text-center">
-                <ClipboardCheck className="w-9 h-9 text-emerald-400 mx-auto"/>
-                <h4 className="font-black mt-3">Registro de métricas</h4>
-                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">Esta sessão já está persistida no núcleo LB. O formulário específico de {TESTS.find(t=>t.code===active.test_type)?.label || active.test_type} será conectado nesta etapa.</p>
-                <button disabled className="mt-5 px-5 py-3 rounded-xl bg-slate-800 text-slate-500 font-black uppercase tracking-widest text-xs cursor-not-allowed">Inserir resultados — próximo passo</button>
-              </div>
-              <div className="mt-6 flex flex-wrap gap-3"><button onClick={()=>{setCreatedSessions([]);setSessionGroupId("");setActiveTestId("");setSelectedTests([]);setSaveMessage("");}} className="px-4 py-3 rounded-xl border border-slate-700 text-xs font-black uppercase tracking-widest hover:border-slate-500">Nova sessão</button><span className="self-center text-[10px] text-slate-600">ID do grupo: {sessionGroupId || "registrado"}</span></div>
-            </div>
-          </section>
-        </main>
-      </div>
-    );
-  }
-
   if (!lbFeatureFlags.coreWorkflow) {
     return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6"><div className="max-w-lg text-center"><ShieldCheck className="w-12 h-12 text-emerald-400 mx-auto mb-4"/><h1 className="text-2xl font-black uppercase">Método LB protegido</h1><p className="text-slate-400 mt-3">O módulo AVALIAR ainda não está habilitado neste ambiente.</p></div></div>;
   }
