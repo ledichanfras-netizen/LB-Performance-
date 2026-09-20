@@ -87,6 +87,9 @@ export default function LbAssessmentSession() {
   const [metricInputs, setMetricInputs] = useState<MetricInput[]>([]);
   const [completedSessionIds, setCompletedSessionIds] = useState<string[]>([]);
   const [savingMetrics, setSavingMetrics] = useState(false);
+  const [interpretMode, setInterpretMode] = useState(false);
+  const [interpretSessions, setInterpretSessions] = useState<any[]>([]);
+  const [loadingInterpret, setLoadingInterpret] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -183,6 +186,46 @@ export default function LbAssessmentSession() {
   };
 
 
+
+  const openInterpretation = async () => {
+    if (!activeSession?.sessionGroupId || loadingInterpret) return;
+    const user = readStoredUser();
+    if (!user?.token) { setLoadError("Sessão expirada. Faça login novamente."); return; }
+    setLoadingInterpret(true);
+    setLoadError("");
+    try {
+      const response = await fetch(`/api/lb/assessment-sessions/${encodeURIComponent(activeSession.sessionGroupId)}`, {
+        headers: { Authorization: `Bearer ${user.token}` }
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+      setInterpretSessions(payload.sessions || []);
+      setInterpretMode(true);
+    } catch (error: any) {
+      setLoadError(`Não foi possível abrir INTERPRETAR: ${error?.message || "erro desconhecido"}`);
+    } finally { setLoadingInterpret(false); }
+  };
+
+  const interpretationAlerts = useMemo(() => {
+    const alerts: string[] = [];
+    for (const session of interpretSessions) {
+      const metrics = Array.isArray(session.metrics) ? session.metrics : [];
+      const byCode = Object.fromEntries(metrics.map((m:any) => [m.metricCode, Number(m.valueNumeric)]));
+      if (session.test_type === "ISOMETRIC_STRENGTH" && Number.isFinite(byCode.RIGHT_FORCE) && Number.isFinite(byCode.LEFT_FORCE) && Number.isFinite(byCode.ASYMMETRY)) {
+        const maxForce = Math.max(Math.abs(byCode.RIGHT_FORCE), Math.abs(byCode.LEFT_FORCE));
+        if (maxForce > 0) {
+          const derived = Math.abs(byCode.RIGHT_FORCE - byCode.LEFT_FORCE) / maxForce * 100;
+          if (Math.abs(derived - byCode.ASYMMETRY) > 1) alerts.push(`Força Q/I: assimetria informada (${byCode.ASYMMETRY.toFixed(1)}%) difere do cálculo simples pelo maior lado (${derived.toFixed(1)}%). Revisar fórmula/protocolo antes de interpretar.`);
+        }
+      }
+      if (session.test_type === "IMTP") {
+        const peak = metrics.find((m:any) => m.metricCode === "PEAK_FORCE");
+        if (peak && peak.unit === "N" && Number(peak.valueNumeric) > 0 && Number(peak.valueNumeric) < 300) alerts.push("IMTP: Força pico está registrada em N com magnitude incomum para força total. Confirmar unidade/origem do valor antes de qualquer conclusão.");
+      }
+    }
+    return alerts;
+  }, [interpretSessions]);
+
   if (createdSessions.length > 0) {
     const completedCount = 0;
     const active = createdSessions.find(s => s.id === activeTestId) || createdSessions[0];
@@ -241,6 +284,40 @@ export default function LbAssessmentSession() {
 
   if (activeSession) {
     const testLabel = (code: string) => TESTS.find(t => t.code === code)?.label || code;
+
+    if (interpretMode) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white">
+          <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
+            <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+              <button onClick={() => setInterpretMode(false)} className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black uppercase tracking-widest"><ArrowLeft className="w-4 h-4"/> AVALIAR</button>
+              <div className="text-right"><p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Método LB Performance</p><h1 className="text-lg md:text-xl font-black uppercase italic">INTERPRETAR</h1></div>
+            </div>
+          </header>
+          <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+            <section className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900 p-6 md:p-8">
+              <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em]">INTERPRETAR • etapa 2</p>
+              <h2 className="text-2xl md:text-3xl font-black mt-2">Do número para a evidência.</h2>
+              <p className="text-slate-400 mt-2 max-w-3xl">Primeiro validamos coerência, unidade, comparabilidade e limitações. Nenhum número isolado vira diagnóstico ou decisão automaticamente.</p>
+            </section>
+            {interpretationAlerts.length > 0 && <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Revisar antes de interpretar</p><div className="mt-3 space-y-2">{interpretationAlerts.map((a,i)=><p key={i} className="text-sm text-amber-100">• {a}</p>)}</div></section>}
+            <section className="grid md:grid-cols-2 gap-4">
+              {interpretSessions.map((session:any) => <div key={session.id} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
+                <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Avaliação</p><h3 className="text-xl font-black mt-1">{testLabel(session.test_type)}</h3></div><span className="text-[9px] px-2 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-black uppercase">{session.quality_flag}</span></div>
+                <div className="mt-4 space-y-2">{(session.metrics || []).map((m:any)=><div key={m.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-950 border border-slate-800 px-4 py-3"><span className="text-xs text-slate-400">{m.metricCode}</span><span className="font-black">{m.valueNumeric ?? m.valueText} <span className="text-xs text-slate-500">{m.unit || ""}</span></span></div>)}</div>
+                <div className="mt-4 pt-4 border-t border-slate-800 text-xs text-slate-500">Comparabilidade: <span className="text-white font-bold">{session.comparable_to_baseline ? "elegível" : "bloqueada"}</span></div>
+              </div>)}
+            </section>
+            <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status da interpretação</p>
+              <h3 className="text-xl font-black mt-2">{interpretationAlerts.length ? "Revisão técnica necessária" : "Dados coerentes para análise contextual"}</h3>
+              <p className="text-sm text-slate-400 mt-2">A próxima camada adicionará comparador, ruído/MDC quando disponível, contexto esportivo, convergência entre testes, confiança e conclusão — antes de liberar DECIDIR.</p>
+            </section>
+          </main>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-slate-950 text-white">
         <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
@@ -287,6 +364,7 @@ export default function LbAssessmentSession() {
           </section>
 
           <div className="flex flex-col sm:flex-row gap-3">
+            <button onClick={openInterpretation} disabled={completedSessionIds.length !== activeSession.sessions.length || loadingInterpret} className="px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">{loadingInterpret ? "Carregando..." : "Concluir AVALIAR → INTERPRETAR"}</button>
             <button onClick={() => { setActiveSession(null); setSelectedTests([]); setSaveMessage(""); }} className="px-5 py-3 rounded-xl border border-slate-700 text-xs font-black uppercase tracking-widest">Nova Sessão</button>
             <button onClick={() => navigate("/hub")} className="px-5 py-3 rounded-xl bg-slate-800 text-xs font-black uppercase tracking-widest">Voltar ao Hub</button>
           </div>
