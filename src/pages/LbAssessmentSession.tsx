@@ -6,10 +6,6 @@ import { lbFeatureFlags } from "../metodo-lb/featureFlags";
 type AthleteOption = { id: string; name: string; modality?: string };
 type CreatedSession = { id: string; athlete_id: string; test_type: string; assessed_at?: string; protocol_version: string; quality_flag: string; comparable_to_baseline: boolean };
 type ActiveSession = { sessionGroupId: string; sessions: CreatedSession[] };
-type ActiveLbSession = {
-  sessionGroupId: string;
-  sessions: Array<{ id: string; test_type: string; quality_flag: string; protocol_version: string }>;
-};
 
 const TESTS = [
   { code: "IMTP", label: "IMTP", icon: Dumbbell, description: "Força máxima, impulso e TDF" },
@@ -47,7 +43,6 @@ export default function LbAssessmentSession() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
-  const [activeSession, setActiveSession] = useState<ActiveLbSession | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -101,8 +96,7 @@ export default function LbAssessmentSession() {
       if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
       const createdSession = { sessionGroupId: payload.sessionGroupId, sessions: payload.sessions || [] };
       setActiveSession(createdSession);
-      setSaveMessage(`Sessão LB iniciada com ${createdSession.sessions.length || selectedTests.length} avaliação(ões). Abrindo resultados...`);
-      if (createdSession.sessionGroupId) navigate(`/hub/metodo-lb/avaliar/${encodeURIComponent(createdSession.sessionGroupId)}`);
+      setSaveMessage(`Sessão LB iniciada com ${createdSession.sessions.length || selectedTests.length} avaliação(ões).`);
     } catch (error: any) {
       setLoadError(`Não foi possível iniciar a Sessão LB: ${error?.message || "erro desconhecido"}`);
     } finally {
