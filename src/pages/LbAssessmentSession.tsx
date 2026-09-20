@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { lbFeatureFlags } from "../metodo-lb/featureFlags";
 
 type AthleteOption = { id: string; name: string; modality?: string };
+type CreatedSession = { id: string; athlete_id: string; test_type: string; assessed_at?: string; protocol_version: string; quality_flag: string; comparable_to_baseline: boolean };
+type ActiveSession = { sessionGroupId: string; sessions: CreatedSession[] };
 type ActiveLbSession = {
   sessionGroupId: string;
   sessions: Array<{ id: string; test_type: string; quality_flag: string; protocol_version: string }>;
@@ -44,6 +46,7 @@ export default function LbAssessmentSession() {
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
   const [activeSession, setActiveSession] = useState<ActiveLbSession | null>(null);
 
   useEffect(() => {
@@ -111,6 +114,53 @@ export default function LbAssessmentSession() {
     return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6"><div className="max-w-lg text-center"><ShieldCheck className="w-12 h-12 text-emerald-400 mx-auto mb-4"/><h1 className="text-2xl font-black uppercase">Método LB protegido</h1><p className="text-slate-400 mt-3">O módulo AVALIAR ainda não está habilitado neste ambiente.</p></div></div>;
   }
 
+
+  if (activeSession) {
+    const testLabel = (code: string) => TESTS.find(t => t.code === code)?.label || code;
+    return (
+      <div className="min-h-screen bg-slate-950 text-white">
+        <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
+          <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+            <button onClick={() => navigate("/hub")} className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black uppercase tracking-widest"><ArrowLeft className="w-4 h-4"/> Hub</button>
+            <div className="text-right"><p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Sessão em andamento</p><h1 className="text-lg md:text-xl font-black uppercase italic">LB Performance • AVALIAR</h1></div>
+          </div>
+        </header>
+        <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
+          <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 md:p-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+              <div><p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">Sessão criada com sucesso</p><h2 className="text-2xl md:text-3xl font-black mt-2">{athlete?.name || "Atleta"}</h2><p className="text-slate-400 mt-1">{activeSession.sessions.length} avaliações • {protocolVersion} • {QUALITY.find(q=>q.value===qualityFlag)?.label}</p></div>
+              <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-950 border border-emerald-500/20"><CheckCircle2 className="w-5 h-5 text-emerald-400"/><span className="text-xs font-black uppercase tracking-wider">Núcleo LB conectado</span></div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
+            <div className="flex items-center justify-between gap-4 mb-5"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Bateria da sessão</p><h3 className="font-black text-xl mt-1">Avaliações selecionadas</h3></div><span className="text-xs text-slate-500">0/{activeSession.sessions.length} preenchidas</span></div>
+            <div className="grid md:grid-cols-2 gap-3">
+              {activeSession.sessions.map((session, index) => {
+                const def = TESTS.find(t => t.code === session.test_type);
+                const Icon = def?.icon || Activity;
+                return <div key={session.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+                  <div className="flex items-start gap-4"><div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><Icon className="w-5 h-5"/></div><div className="flex-1"><div className="flex items-center justify-between gap-3"><h4 className="font-black">{index + 1}. {testLabel(session.test_type)}</h4><span className="text-[9px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-black uppercase">Pendente</span></div><p className="text-xs text-slate-500 mt-1">{def?.description || "Avaliação de performance"}</p></div></div>
+                  <button disabled className="w-full mt-4 py-3 rounded-xl border border-slate-700 text-slate-500 text-[10px] font-black uppercase tracking-widest cursor-not-allowed">Abrir avaliação • próxima etapa</button>
+                </div>
+              })}
+            </div>
+          </section>
+
+          <section className="grid md:grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Qualidade</p><p className="font-black mt-1">{QUALITY.find(q=>q.value===qualityFlag)?.label}</p></div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Comparabilidade</p><p className="font-black mt-1">{qualityFlag==="VALID"||qualityFlag==="CAUTION" ? "Elegível para análise" : "Bloqueada"}</p></div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Próxima fase</p><p className="font-black mt-1 text-emerald-400">Coletar métricas</p></div>
+          </section>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button onClick={() => { setActiveSession(null); setSelectedTests([]); setSaveMessage(""); }} className="px-5 py-3 rounded-xl border border-slate-700 text-xs font-black uppercase tracking-widest">Nova Sessão</button>
+            <button onClick={() => navigate("/hub")} className="px-5 py-3 rounded-xl bg-slate-800 text-xs font-black uppercase tracking-widest">Voltar ao Hub</button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
