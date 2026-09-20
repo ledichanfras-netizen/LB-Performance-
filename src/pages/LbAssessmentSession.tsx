@@ -6,6 +6,7 @@ import { lbFeatureFlags } from "../metodo-lb/featureFlags";
 type AthleteOption = { id: string; name: string; modality?: string };
 type CreatedSession = { id: string; athlete_id: string; test_type: string; assessed_at?: string; protocol_version: string; quality_flag: string; comparable_to_baseline: boolean };
 type ActiveSession = { sessionGroupId: string; sessions: CreatedSession[] };
+type MetricInput = { metricCode: string; label: string; unit: string; valueNumeric: string };
 
 const TESTS = [
   { code: "IMTP", label: "IMTP", icon: Dumbbell, description: "Força máxima, impulso e TDF" },
@@ -16,6 +17,41 @@ const TESTS = [
   { code: "VO2", label: "VO₂", icon: HeartPulse, description: "Capacidade cardiorrespiratória" },
   { code: "BIOIMPEDANCE", label: "Bioimpedância", icon: Gauge, description: "Composição corporal" },
 ] as const;
+
+const METRIC_TEMPLATES: Record<string, Array<{ metricCode: string; label: string; unit: string }>> = {
+  IMTP: [
+    { metricCode: "PEAK_FORCE", label: "Força pico", unit: "N" },
+    { metricCode: "IMPULSE", label: "Impulso", unit: "N·s" },
+    { metricCode: "RFD", label: "TDF", unit: "N/s" },
+  ],
+  CMJ: [
+    { metricCode: "JUMP_HEIGHT", label: "Altura do salto", unit: "cm" },
+    { metricCode: "PEAK_POWER", label: "Potência pico", unit: "W" },
+  ],
+  DROP_JUMP: [
+    { metricCode: "JUMP_HEIGHT", label: "Altura do salto", unit: "cm" },
+    { metricCode: "CONTACT_TIME", label: "Tempo de contato", unit: "ms" },
+    { metricCode: "RSI", label: "RSI", unit: "" },
+  ],
+  ISOMETRIC_STRENGTH: [
+    { metricCode: "RIGHT_FORCE", label: "Força direita", unit: "kgf" },
+    { metricCode: "LEFT_FORCE", label: "Força esquerda", unit: "kgf" },
+    { metricCode: "ASYMMETRY", label: "Assimetria", unit: "%" },
+  ],
+  SPEED: [
+    { metricCode: "TIME_20M", label: "Tempo 20 m", unit: "s" },
+    { metricCode: "TIME_30M", label: "Tempo 30 m", unit: "s" },
+  ],
+  VO2: [
+    { metricCode: "VO2MAX", label: "VO₂max", unit: "ml/kg/min" },
+    { metricCode: "VVO2MAX", label: "vVO₂max", unit: "km/h" },
+  ],
+  BIOIMPEDANCE: [
+    { metricCode: "BODY_MASS", label: "Massa corporal", unit: "kg" },
+    { metricCode: "BODY_FAT", label: "Gordura corporal", unit: "%" },
+    { metricCode: "MUSCLE_MASS", label: "Massa muscular", unit: "kg" },
+  ],
+};
 
 const QUALITY = [
   { value: "VALID", label: "Válido", note: "Condições adequadas para interpretação." },
@@ -43,6 +79,10 @@ export default function LbAssessmentSession() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [metricInputs, setMetricInputs] = useState<MetricInput[]>([]);
+  const [completedSessionIds, setCompletedSessionIds] = useState<string[]>([]);
+  const [savingMetrics, setSavingMetrics] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -104,6 +144,40 @@ export default function LbAssessmentSession() {
     }
   };
 
+
+  const openAssessment = (session: CreatedSession) => {
+    const template = METRIC_TEMPLATES[session.test_type] || [{ metricCode: "RESULT", label: "Resultado", unit: "" }];
+    setMetricInputs(template.map(item => ({ ...item, valueNumeric: "" })));
+    setEditingSessionId(session.id);
+    setLoadError("");
+    setSaveMessage("");
+  };
+
+  const saveMetrics = async () => {
+    if (!editingSessionId || savingMetrics) return;
+    const user = readStoredUser();
+    if (!user?.token) { setLoadError("Sessão expirada. Faça login novamente."); return; }
+    const filled = metricInputs.filter(m => m.valueNumeric.trim() !== "");
+    if (!filled.length) { setLoadError("Preencha ao menos uma métrica antes de salvar."); return; }
+    setSavingMetrics(true);
+    setLoadError("");
+    try {
+      const response = await fetch(`/api/lb/assessment-sessions/${encodeURIComponent(editingSessionId)}/metrics`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify({ metrics: filled.map(m => ({ metricCode: m.metricCode, valueNumeric: m.valueNumeric, unit: m.unit, isValid: true })) })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+      setCompletedSessionIds(prev => prev.includes(editingSessionId) ? prev : [...prev, editingSessionId]);
+      setSaveMessage(`${payload.metrics?.length || filled.length} métrica(s) salvas no núcleo LB.`);
+      setEditingSessionId(null);
+      setMetricInputs([]);
+    } catch (error: any) {
+      setLoadError(`Não foi possível salvar a avaliação: ${error?.message || "erro desconhecido"}`);
+    } finally { setSavingMetrics(false); }
+  };
+
   if (!lbFeatureFlags.coreWorkflow) {
     return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6"><div className="max-w-lg text-center"><ShieldCheck className="w-12 h-12 text-emerald-400 mx-auto mb-4"/><h1 className="text-2xl font-black uppercase">Método LB protegido</h1><p className="text-slate-400 mt-3">O módulo AVALIAR ainda não está habilitado neste ambiente.</p></div></div>;
   }
@@ -128,18 +202,27 @@ export default function LbAssessmentSession() {
           </section>
 
           <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-            <div className="flex items-center justify-between gap-4 mb-5"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Bateria da sessão</p><h3 className="font-black text-xl mt-1">Avaliações selecionadas</h3></div><span className="text-xs text-slate-500">0/{activeSession.sessions.length} preenchidas</span></div>
+            <div className="flex items-center justify-between gap-4 mb-5"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Bateria da sessão</p><h3 className="font-black text-xl mt-1">Avaliações selecionadas</h3></div><span className="text-xs text-slate-500">{completedSessionIds.length}/{activeSession.sessions.length} preenchidas</span></div>
             <div className="grid md:grid-cols-2 gap-3">
               {activeSession.sessions.map((session, index) => {
                 const def = TESTS.find(t => t.code === session.test_type);
                 const Icon = def?.icon || Activity;
                 return <div key={session.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
-                  <div className="flex items-start gap-4"><div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><Icon className="w-5 h-5"/></div><div className="flex-1"><div className="flex items-center justify-between gap-3"><h4 className="font-black">{index + 1}. {testLabel(session.test_type)}</h4><span className="text-[9px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 font-black uppercase">Pendente</span></div><p className="text-xs text-slate-500 mt-1">{def?.description || "Avaliação de performance"}</p></div></div>
-                  <button disabled className="w-full mt-4 py-3 rounded-xl border border-slate-700 text-slate-500 text-[10px] font-black uppercase tracking-widest cursor-not-allowed">Abrir avaliação • próxima etapa</button>
+                  <div className="flex items-start gap-4"><div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><Icon className="w-5 h-5"/></div><div className="flex-1"><div className="flex items-center justify-between gap-3"><h4 className="font-black">{index + 1}. {testLabel(session.test_type)}</h4><span className={`text-[9px] px-2 py-1 rounded-full border font-black uppercase ${completedSessionIds.includes(session.id) ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-300" : "bg-amber-500/10 border-amber-500/20 text-amber-300"}`}>{completedSessionIds.includes(session.id) ? "Preenchido" : "Pendente"}</span></div><p className="text-xs text-slate-500 mt-1">{def?.description || "Avaliação de performance"}</p></div></div>
+                  <button onClick={() => openAssessment(session)} className="w-full mt-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20">{completedSessionIds.includes(session.id) ? "Editar resultados" : "Abrir avaliação"}</button>
                 </div>
               })}
             </div>
           </section>
+
+          {editingSessionId && (() => {
+            const current = activeSession.sessions.find(s => s.id === editingSessionId);
+            return <section className="rounded-3xl border border-emerald-500/30 bg-slate-900 p-6">
+              <div className="flex items-center justify-between gap-4 mb-5"><div><p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">Coleta de métricas</p><h3 className="text-xl font-black mt-1">{current ? testLabel(current.test_type) : "Avaliação"}</h3></div><button onClick={()=>{setEditingSessionId(null);setMetricInputs([])}} className="text-xs text-slate-400 hover:text-white">Fechar</button></div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{metricInputs.map((m,index)=><label key={m.metricCode} className="space-y-2"><span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{m.label}</span><div className="flex"><input inputMode="decimal" value={m.valueNumeric} onChange={e=>setMetricInputs(prev=>prev.map((item,i)=>i===index?{...item,valueNumeric:e.target.value.replace(",",".")}:item))} className="min-w-0 flex-1 bg-slate-950 border border-slate-700 rounded-l-xl px-4 py-3 text-sm outline-none focus:border-emerald-400" placeholder="0"/><span className="px-3 py-3 bg-slate-800 border border-l-0 border-slate-700 rounded-r-xl text-xs text-slate-400">{m.unit || "valor"}</span></div></label>)}</div>
+              <div className="flex flex-col sm:flex-row gap-3 mt-6"><button onClick={saveMetrics} disabled={savingMetrics} className="px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest disabled:opacity-40">{savingMetrics ? "Salvando..." : "Salvar resultados"}</button><p className="text-[10px] text-slate-500 self-center">Os valores são armazenados como métricas brutas. A interpretação será uma etapa separada.</p></div>
+            </section>
+          })()}
 
           <section className="grid md:grid-cols-3 gap-3">
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Qualidade</p><p className="font-black mt-1">{QUALITY.find(q=>q.value===qualityFlag)?.label}</p></div>
