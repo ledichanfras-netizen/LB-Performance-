@@ -90,6 +90,10 @@ export default function LbAssessmentSession() {
   const [interpretMode, setInterpretMode] = useState(false);
   const [interpretSessions, setInterpretSessions] = useState<any[]>([]);
   const [loadingInterpret, setLoadingInterpret] = useState(false);
+  const [interpretEditingId, setInterpretEditingId] = useState<string | null>(null);
+  const [interpretForm, setInterpretForm] = useState({ comparator: "", noiseReference: "", contextText: "", convergence: "", confidence: "MODERATE", mainLimitation: "", missingData: "", conclusion: "" });
+  const [savedInterpretationIds, setSavedInterpretationIds] = useState<string[]>([]);
+  const [savingInterpretation, setSavingInterpretation] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -206,6 +210,29 @@ export default function LbAssessmentSession() {
     } finally { setLoadingInterpret(false); }
   };
 
+
+  const saveInterpretation = async () => {
+    if (!interpretEditingId || savingInterpretation) return;
+    const user = readStoredUser();
+    if (!user?.token) { setLoadError("Sessão expirada. Faça login novamente."); return; }
+    setSavingInterpretation(true); setLoadError(""); setSaveMessage("");
+    try {
+      const response = await fetch(`/api/lb/assessment-sessions/${encodeURIComponent(interpretEditingId)}/interpretation`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+        body: JSON.stringify(interpretForm)
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+      setSavedInterpretationIds(prev => prev.includes(interpretEditingId) ? prev : [...prev, interpretEditingId]);
+      setSaveMessage("Interpretação técnica registrada no núcleo LB.");
+      setInterpretEditingId(null);
+      setInterpretForm({ comparator: "", noiseReference: "", contextText: "", convergence: "", confidence: "MODERATE", mainLimitation: "", missingData: "", conclusion: "" });
+    } catch (error:any) {
+      setLoadError(`Não foi possível salvar a interpretação: ${error?.message || "erro desconhecido"}`);
+    } finally { setSavingInterpretation(false); }
+  };
+
   const interpretationAlerts = useMemo(() => {
     const alerts: string[] = [];
     for (const session of interpretSessions) {
@@ -255,6 +282,22 @@ export default function LbAssessmentSession() {
                 <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Avaliação</p><h3 className="text-xl font-black mt-1">{testLabel(session.test_type)}</h3></div><span className="text-[9px] px-2 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-black uppercase">{session.quality_flag}</span></div>
                 <div className="mt-4 space-y-2">{(session.metrics || []).map((m:any)=><div key={m.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-950 border border-slate-800 px-4 py-3"><span className="text-xs text-slate-400">{m.metricCode}</span><span className="font-black">{m.valueNumeric ?? m.valueText} <span className="text-xs text-slate-500">{m.unit || ""}</span></span></div>)}</div>
                 <div className="mt-4 pt-4 border-t border-slate-800 text-xs text-slate-500">Comparabilidade: <span className="text-white font-bold">{session.comparable_to_baseline ? "elegível" : "bloqueada"}</span></div>
+                <button onClick={()=>setInterpretEditingId(session.id)} className="w-full mt-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] font-black uppercase tracking-widest">{savedInterpretationIds.includes(session.id) ? "Editar interpretação" : "Registrar interpretação"}</button>
+                {interpretEditingId===session.id && <div className="mt-4 p-4 rounded-2xl border border-slate-700 bg-slate-950 space-y-3">
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <label className="space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Comparador</span><input value={interpretForm.comparator} onChange={e=>setInterpretForm(v=>({...v,comparator:e.target.value}))} placeholder="Baseline, última avaliação..." className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"/></label>
+                    <label className="space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Ruído / MDC</span><input value={interpretForm.noiseReference} onChange={e=>setInterpretForm(v=>({...v,noiseReference:e.target.value}))} placeholder="Referência quando disponível" className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"/></label>
+                  </div>
+                  <label className="block space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Contexto</span><textarea value={interpretForm.contextText} onChange={e=>setInterpretForm(v=>({...v,contextText:e.target.value}))} rows={2} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder="Fase da temporada, dor, fadiga, objetivo esportivo..."/></label>
+                  <label className="block space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Convergência com outros achados</span><textarea value={interpretForm.convergence} onChange={e=>setInterpretForm(v=>({...v,convergence:e.target.value}))} rows={2} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"/></label>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <label className="space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Confiança</span><select value={interpretForm.confidence} onChange={e=>setInterpretForm(v=>({...v,confidence:e.target.value}))} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"><option value="HIGH">Alta</option><option value="MODERATE">Moderada</option><option value="LOW">Baixa</option></select></label>
+                    <label className="space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Limitação principal</span><input value={interpretForm.mainLimitation} onChange={e=>setInterpretForm(v=>({...v,mainLimitation:e.target.value}))} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"/></label>
+                  </div>
+                  <label className="block space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Dados ausentes</span><input value={interpretForm.missingData} onChange={e=>setInterpretForm(v=>({...v,missingData:e.target.value}))} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs"/></label>
+                  <label className="block space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Conclusão técnica</span><textarea value={interpretForm.conclusion} onChange={e=>setInterpretForm(v=>({...v,conclusion:e.target.value}))} rows={3} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder="Descreva o que o conjunto de evidências sustenta — sem transformar um número isolado em diagnóstico."/></label>
+                  <button disabled={savingInterpretation} onClick={saveInterpretation} className="w-full py-3 rounded-xl bg-emerald-400 text-slate-950 text-[10px] font-black uppercase tracking-widest disabled:opacity-40">{savingInterpretation ? "Salvando..." : "Salvar interpretação"}</button>
+                </div>}
               </div>)}
             </section>
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
