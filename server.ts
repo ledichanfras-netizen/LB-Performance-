@@ -560,6 +560,46 @@ apiRouter.put('/lb/assessment-sessions/:sessionId/metrics', authMiddleware, requ
   } finally { client.release(); }
 });
 
+apiRouter.put('/lb/assessment-sessions/:sessionId/interpretation', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  const { comparator, noiseReference, contextText, convergence, confidence, mainLimitation, missingData, conclusion } = req.body || {};
+  const allowedConfidence = new Set(['HIGH', 'MODERATE', 'LOW']);
+  if (!allowedConfidence.has(confidence)) return res.status(400).json({ error: 'Confiança inválida.' });
+  if (confidence === 'LOW' && !String(mainLimitation || missingData || '').trim()) {
+    return res.status(400).json({ error: 'Confiança baixa exige limitação principal ou dado ausente.' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const session = await client.query('select id from lb_core.assessment_sessions where id=$1', [req.params.sessionId]);
+    if (!session.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Avaliação não encontrada.' }); }
+    await client.query('delete from lb_core.interpretations where session_id=$1', [req.params.sessionId]);
+    const result = await client.query(
+      `insert into lb_core.interpretations
+       (id,session_id,comparator,noise_reference,context_text,convergence,confidence,main_limitation,missing_data,conclusion)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       returning id,session_id,comparator,noise_reference,context_text,convergence,confidence,main_limitation,missing_data,conclusion,created_at`,
+      [
+        `lb-interpretation-${crypto.randomUUID()}`, req.params.sessionId,
+        comparator ? String(comparator).trim() : null,
+        noiseReference ? String(noiseReference).trim() : null,
+        contextText ? String(contextText).trim() : null,
+        convergence ? String(convergence).trim() : null,
+        confidence,
+        mainLimitation ? String(mainLimitation).trim() : null,
+        missingData ? String(missingData).trim() : null,
+        conclusion ? String(conclusion).trim() : null
+      ]
+    );
+    await client.query('COMMIT');
+    return res.json({ interpretation: result.rows[0] });
+  } catch (error:any) {
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao salvar interpretação:', error.message);
+    return res.status(500).json({ error: 'Não foi possível salvar a interpretação.' });
+  } finally { client.release(); }
+});
+
 apiRouter.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
   const trimmedUsername = (username || '').trim();
