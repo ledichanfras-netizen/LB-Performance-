@@ -203,7 +203,12 @@ CREATE TABLE IF NOT EXISTS prescribed_exercises (
   rest VARCHAR(50),
   notes TEXT,
   pain_level INTEGER,
-  order_index INTEGER DEFAULT 0
+  order_index INTEGER DEFAULT 0,
+  training_mode TEXT DEFAULT 'strength',
+  metric_type TEXT DEFAULT 'load',
+  distance_meters NUMERIC,
+  target_intensity NUMERIC,
+  recovery_seconds INTEGER
 );
 
 -- 12. Performed Sets Table
@@ -212,7 +217,10 @@ CREATE TABLE IF NOT EXISTS performed_sets (
   exercise_id TEXT REFERENCES prescribed_exercises(id) ON DELETE CASCADE,
   reps INTEGER,
   weight REAL,
-  rpe INTEGER
+  rpe INTEGER,
+  distance NUMERIC,
+  time_seconds NUMERIC,
+  intensity NUMERIC
 );
 
 -- 13. External Sessions Table

@@ -333,18 +333,27 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       const special = detectSpecialMethod(ex);
       const targetReps = parseRepetitions(special.clusterReps || ex.reps);
       const targetWeight = parseWeightValue(ex.weight);
+      const isPerformanceExercise = ex.trainingMode && ex.trainingMode !== "strength";
+      const targetDistance = ex.distanceMeters || (isPerformanceExercise ? targetReps : 0);
+      const targetTime = ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
 
       const initialSets = ex.performedSets && ex.performedSets.length > 0
         ? ex.performedSets.map((s) => ({
             ...s,
             reps: (s.reps === 0 || !s.reps) ? targetReps : s.reps,
             weight: (s.weight === 0 || !s.weight) ? targetWeight : s.weight,
+            distance: (s as any).distance || targetDistance,
+            timeSeconds: (s as any).timeSeconds || targetTime,
+            intensity: (s as any).intensity || ex.targetIntensity || 0,
             isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
           }))
         : Array.from({ length: ex.sets || 3 }).map((_, i) => ({
             id: `s-${Date.now()}-${idx}-${i}-${Math.random().toString(36).substr(2, 4)}`,
             reps: targetReps,
             weight: targetWeight,
+            distance: targetDistance,
+            timeSeconds: targetTime,
+            intensity: ex.targetIntensity || 0,
             rpe: 0,
             isCompleted: isEditingCompleted ? true : false
           }));
@@ -896,6 +905,19 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       return acc + sets.filter((s: any) => s.isCompleted).reduce((sum: number, s: any) => sum + (Number(s.reps) || 0), 0);
     }, 0);
   }, [session.exercises]);
+  const performanceMetrics = useMemo(() => {
+    const performanceExercises = session.exercises.filter(ex => ex.trainingMode && ex.trainingMode !== "strength");
+    const completedSets = performanceExercises.flatMap(ex => (ex.performedSets || []).filter((set: any) => set.isCompleted));
+    const distances = completedSets.reduce((total, set: any) => total + (Number(set.distance) || 0), 0);
+    const times = completedSets.map((set: any) => Number(set.timeSeconds) || 0).filter(Boolean);
+    const intensities = completedSets.map((set: any) => Number(set.intensity) || 0).filter(Boolean);
+    return {
+      hasPerformance: performanceExercises.length > 0,
+      distance: distances,
+      bestTime: times.length > 0 ? Math.min(...times) : 0,
+      averageIntensity: intensities.length > 0 ? Math.round(intensities.reduce((sum, value) => sum + value, 0) / intensities.length) : 0,
+    };
+  }, [session.exercises]);
 
   // Finishing the entire session
   const triggerFinish = (shareSocial?: boolean | React.SyntheticEvent) => {
@@ -1393,14 +1415,20 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         <div className="space-y-1.5 shrink-0">
           <div className="flex flex-wrap justify-between items-center text-[10px] font-black uppercase text-slate-400 tracking-wider px-1 gap-2">
             <div className="flex items-center gap-2">
-              <span>PROGRESSO: <strong className="text-[#39FF14]">{completedSetsCount}/{totalSetsCount} SÉRIES ({progressPercent}%)</strong></span>
+              <span>PROGRESSO: <strong className="text-[#39FF14]">{completedSetsCount}/{totalSetsCount} REPETIÇÕES ({progressPercent}%)</strong></span>
               <span>•</span>
-              <span>REPS: <strong className="text-cyan-400">{completedRepsTotal} REPS</strong></span>
+              {performanceMetrics.hasPerformance ? (
+                <span>DISTÂNCIA: <strong className="text-cyan-400">{performanceMetrics.distance} m</strong></span>
+              ) : (
+                <span>REPS: <strong className="text-cyan-400">{completedRepsTotal} REPS</strong></span>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <span>TONELAGEM ATUAL:</span>
+              <span>{performanceMetrics.hasPerformance ? "MELHOR TEMPO:" : "TONELAGEM ATUAL:"}</span>
               <span className="text-[#39FF14] font-black bg-[#39FF14]/10 border border-[#39FF14]/25 px-2 py-0.5 rounded-md font-mono">
-                {currentTotalLoad.toLocaleString("pt-BR")} kg
+                {performanceMetrics.hasPerformance
+                  ? (performanceMetrics.bestTime > 0 ? `${performanceMetrics.bestTime.toFixed(2)} s` : "--")
+                  : `${currentTotalLoad.toLocaleString("pt-BR")} kg`}
               </span>
             </div>
           </div>
@@ -1714,7 +1742,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                           </span>
                         ) : (
                           <span className="text-[10px] font-black bg-amber-500/15 border border-amber-500/30 text-amber-400 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                            {(ex.performedSets || []).filter((s: any) => s.isCompleted).length} / {(ex.performedSets || []).length} SÉRIES
+                            {(ex.performedSets || []).filter((s: any) => s.isCompleted).length} / {(ex.performedSets || []).length} {ex.trainingMode && ex.trainingMode !== "strength" ? "REPETIÇÕES" : "SÉRIES"}
                           </span>
                         )}
                       </div>
@@ -1768,7 +1796,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       <div className="flex flex-col items-end mr-1">
                         <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-widest block">PRESCRIÇÃO</span>
                         <span className="text-xs sm:text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-3 py-1 rounded-xl font-mono">
-                          {ex.sets}x{isTime ? `${String(ex.reps).replace(/s/gi, "")}s` : ex.reps} @ {ex.weight}
+                          {ex.trainingMode && ex.trainingMode !== "strength"
+                            ? `${ex.sets} repetições • ${ex.distanceMeters ? `${ex.distanceMeters} m` : ex.reps} • ${ex.targetIntensity || "--"}%`
+                            : `${ex.sets}x${isTime ? `${String(ex.reps).replace(/s/gi, "")}s` : ex.reps} @ ${ex.weight}`}
                         </span>
                       </div>
 
@@ -1820,8 +1850,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   {/* Tabela de Séries */}
                   <div className="space-y-2 mt-4 relative z-10">
                     <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500 px-2">
-                      <span>Séries Executadas</span>
-                      <span>Carga / Reps / PSE / Status</span>
+                      <span>Repetições Executadas</span>
+                      <span>{ex.trainingMode && ex.trainingMode !== "strength" ? "Distância / Tempo / Intensidade" : "Carga / Reps / PSE / Status"}</span>
                     </div>
 
                     {(ex.performedSets || []).map((set: any, sIdx: number) => {
@@ -1853,41 +1883,58 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                             </span>
                           </div>
 
-                          {/* Weight input */}
+                          {/* Metrica principal: carga para forca, distancia para performance */}
                           <div className="col-span-3 flex items-center gap-1">
-                            <input
-                              type="number"
-                              value={set.weight || ""}
-                              onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
-                              placeholder="0"
-                            />
-                            <span className="text-[8.5px] font-black text-slate-500 uppercase">KG</span>
+                            {ex.trainingMode && ex.trainingMode !== "strength" ? (
+                              <>
+                                <input
+                                  type="number"
+                                  value={(set as any).distance || ""}
+                                  onChange={(e) => updateSetField(ex.id, set.id, "distance" as any, parseFloat(e.target.value) || 0)}
+                                  onFocus={(e) => e.target.select()}
+                                  className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
+                                  placeholder={String(ex.distanceMeters || 0)}
+                                />
+                                <span className="text-[8.5px] font-black text-cyan-400 uppercase">M</span>
+                              </>
+                            ) : (
+                              <>
+                                <input
+                                  type="number"
+                                  value={set.weight || ""}
+                                  onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
+                                  onFocus={(e) => e.target.select()}
+                                  className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
+                                  placeholder="0"
+                                />
+                                <span className="text-[8.5px] font-black text-slate-500 uppercase">KG</span>
+                              </>
+                            )}
                           </div>
 
-                          {/* Reps input */}
+                          {/* Tempo para performance, repeticoes para forca */}
                           <div className="col-span-3 flex items-center gap-1">
                             <input
                               type="number"
-                              value={set.reps || ""}
-                              onChange={(e) => updateSetField(ex.id, set.id, "reps", parseInt(e.target.value) || 0)}
+                              step="0.01"
+                              value={ex.trainingMode && ex.trainingMode !== "strength" ? ((set as any).timeSeconds || "") : (set.reps || "")}
+                              onChange={(e) => updateSetField(ex.id, set.id, ex.trainingMode && ex.trainingMode !== "strength" ? "timeSeconds" as any : "reps", parseFloat(e.target.value) || 0)}
                               onFocus={(e) => e.target.select()}
                               className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
-                              placeholder="0"
+                              placeholder={ex.trainingMode && ex.trainingMode !== "strength" ? "tempo" : "0"}
                             />
-                            <span className="text-[8.5px] font-black text-slate-500 uppercase">{isTime ? "SEG" : "REPS"}</span>
+                            <span className="text-[8.5px] font-black text-slate-500 uppercase">{ex.trainingMode && ex.trainingMode !== "strength" ? "S" : (isTime ? "SEG" : "REPS")}</span>
                           </div>
 
                           {/* RPE selector */}
                           <div className="col-span-3 flex items-center gap-1">
-                            <span className="text-[8px] font-black text-slate-500 uppercase">PSE</span>
+                            <span className="text-[8px] font-black text-slate-500 uppercase">{ex.trainingMode && ex.trainingMode !== "strength" ? "%" : "PSE"}</span>
                             <select
-                              value={set.rpe || 0}
-                              onChange={(e) => updateSetField(ex.id, set.id, "rpe", parseInt(e.target.value))}
+                              value={ex.trainingMode && ex.trainingMode !== "strength" ? ((set as any).intensity || 0) : (set.rpe || 0)}
+                              onChange={(e) => updateSetField(ex.id, set.id, ex.trainingMode && ex.trainingMode !== "strength" ? "intensity" as any : "rpe", parseInt(e.target.value))}
                               className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1 text-center font-bold text-xs text-white"
                             >
-                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+                              {(ex.trainingMode && ex.trainingMode !== "strength" ? [0, 70, 75, 80, 85, 90, 95, 100] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((v) => (
                                 <option key={v} value={v}>{v}</option>
                               ))}
                             </select>
@@ -2101,7 +2148,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 <div className="flex flex-col items-end shrink-0">
                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">PRESCRIÇÃO</span>
                   <span className="text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-4 py-2 rounded-xl italic">
-                    {activeEx.sets}x{isTimeExercise(activeEx) ? `${String(activeEx.reps).replace(/s/gi, "")}s` : activeEx.reps} @ {activeEx.weight}
+                    {activeEx.trainingMode && activeEx.trainingMode !== "strength"
+                      ? `${activeEx.sets} repetições • ${activeEx.distanceMeters ? `${activeEx.distanceMeters} m` : activeEx.reps} • ${activeEx.targetIntensity || "--"}%`
+                      : `${activeEx.sets}x${isTimeExercise(activeEx) ? `${String(activeEx.reps).replace(/s/gi, "")}s` : activeEx.reps} @ ${activeEx.weight}`}
                   </span>
                 </div>
               </div>

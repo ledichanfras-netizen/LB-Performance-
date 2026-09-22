@@ -4,6 +4,7 @@ import { POTENCIA_EXERCISES } from "./exercises_potencia";
 import { CORE_EXERCISES } from "./exercises_core";
 import { AGILITY_SPEED_EXERCISES } from "./exercises_agility_speed";
 import { PREVENTIVE_EXERCISES } from "./exercises_preventive";
+import { PERFORMANCE_PROTOCOL_LIBRARY } from "./performanceProtocols";
 
 export interface EnrichedExercise {
   id: string;
@@ -52,6 +53,11 @@ export interface EnrichedExercise {
   defaultSets?: number;
   defaultRepsType?: 'reps' | 'time';
   defaultExecutionTime?: string;
+  trainingMode?: 'strength' | 'speed' | 'court' | 'conditioning';
+  metricType?: 'load' | 'sprint' | 'drill' | 'interval';
+  distanceMeters?: number;
+  targetIntensity?: number;
+  recoverySeconds?: number;
   applicability?: string;
   evidenceLevel?: string;
 }
@@ -1116,7 +1122,8 @@ const ALL_RAW_EXERCISES: EnrichedExercise[] = [
   ...POTENCIA_EXERCISES,
   ...CORE_EXERCISES,
   ...AGILITY_SPEED_EXERCISES,
-  ...PREVENTIVE_EXERCISES
+  ...PREVENTIVE_EXERCISES,
+  ...PERFORMANCE_PROTOCOL_LIBRARY
 ];
 
 const seenNames = new Set<string>();

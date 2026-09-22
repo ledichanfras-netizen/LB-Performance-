@@ -375,6 +375,11 @@ export const supabaseService = {
               painLevel: ex.pain_level,
               repsType: ex.reps_type || 'reps',
               order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
+              trainingMode: ex.training_mode || 'strength',
+              metricType: ex.metric_type || 'load',
+              distanceMeters: ex.distance_meters !== null && ex.distance_meters !== undefined ? Number(ex.distance_meters) : undefined,
+              targetIntensity: ex.target_intensity !== null && ex.target_intensity !== undefined ? Number(ex.target_intensity) : undefined,
+              recoverySeconds: ex.recovery_seconds !== null && ex.recovery_seconds !== undefined ? Number(ex.recovery_seconds) : undefined,
               videoUrl: ex.video_url || '',
               imageUrl: ex.image_url || '',
               performedSets: (ex.performed_sets || [])
@@ -747,7 +752,12 @@ export const supabaseService = {
               notes: ex.notes,
               pain_level: ex.painLevel,
               reps_type: ex.repsType || 'reps',
-              order_index: idx,
+              order_index: typeof ex.order_index === 'number' ? ex.order_index : idx,
+              training_mode: ex.trainingMode || 'strength',
+              metric_type: ex.metricType || 'load',
+              distance_meters: ex.distanceMeters ?? null,
+              target_intensity: ex.targetIntensity ?? null,
+              recovery_seconds: ex.recoverySeconds ?? null,
               video_url: ex.videoUrl ?? null,
               image_url: ex.imageUrl ?? null
             });
@@ -772,6 +782,9 @@ export const supabaseService = {
                     reps: s.reps,
                     weight: s.weight,
                     rpe: s.rpe,
+                    distance: s.distance ?? null,
+                    time_seconds: s.timeSeconds ?? null,
+                    intensity: s.intensity ?? null,
                     is_completed: s.isCompleted ?? false
                   };
                 }));

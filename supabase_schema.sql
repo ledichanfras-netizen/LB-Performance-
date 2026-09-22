@@ -79,6 +79,11 @@ CREATE TABLE IF NOT EXISTS prescribed_exercises (
     notes TEXT,
     pain_level INTEGER,
     order_index INTEGER DEFAULT 0,
+    training_mode TEXT DEFAULT 'strength',
+    metric_type TEXT DEFAULT 'load',
+    distance_meters NUMERIC,
+    target_intensity NUMERIC,
+    recovery_seconds INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -89,6 +94,9 @@ CREATE TABLE IF NOT EXISTS performed_sets (
     reps INTEGER NOT NULL,
     weight NUMERIC NOT NULL,
     rpe INTEGER NOT NULL,
+    distance NUMERIC,
+    time_seconds NUMERIC,
+    intensity NUMERIC,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

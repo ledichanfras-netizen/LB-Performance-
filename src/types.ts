@@ -194,6 +194,10 @@ export interface ExerciseSet {
   weight: number;
   rpe: number; 
   isCompleted?: boolean;
+  distance?: number;
+  timeSeconds?: number;
+  intensity?: number;
+  technicalQuality?: 'excellent' | 'good' | 'attention' | 'poor';
 }
 
 export type AdvancedExecutionMethod = 
@@ -225,6 +229,11 @@ export interface PrescribedExercise {
   order_index?: number;
   videoUrl?: string;
   imageUrl?: string;
+  trainingMode?: 'strength' | 'speed' | 'court' | 'conditioning';
+  metricType?: 'load' | 'sprint' | 'drill' | 'interval';
+  distanceMeters?: number;
+  targetIntensity?: number;
+  recoverySeconds?: number;
 
   // Métodos Avançados de Força & Potência (Cluster, Contraste Francês, Complex PAP, Rest-Pause)
   executionMethod?: AdvancedExecutionMethod;

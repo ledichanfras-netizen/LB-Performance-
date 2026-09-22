@@ -79,6 +79,12 @@ export default async function handler(request, response) {
 
     // Dynamic prescribed_exercises migrations
     await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS pain_level INTEGER;`;
+    await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;`;
+    await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS training_mode TEXT DEFAULT 'strength';`;
+    await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS metric_type TEXT DEFAULT 'load';`;
+    await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS distance_meters NUMERIC;`;
+    await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS target_intensity NUMERIC;`;
+    await sql`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS recovery_seconds INTEGER;`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS performed_sets (
@@ -89,6 +95,9 @@ export default async function handler(request, response) {
         rpe INTEGER
       );
     `;
+    await sql`ALTER TABLE performed_sets ADD COLUMN IF NOT EXISTS distance NUMERIC;`;
+    await sql`ALTER TABLE performed_sets ADD COLUMN IF NOT EXISTS time_seconds NUMERIC;`;
+    await sql`ALTER TABLE performed_sets ADD COLUMN IF NOT EXISTS intensity NUMERIC;`;
 
     await sql`CREATE TABLE IF NOT EXISTS bioimpedance (id TEXT PRIMARY KEY, athlete_id TEXT REFERENCES athletes(id) ON DELETE CASCADE, date VARCHAR(255) NOT NULL, weight REAL, fat_percentage REAL, muscle_mass REAL, visceral_fat REAL, hydration REAL, observations TEXT);`;
     await sql`ALTER TABLE bioimpedance ADD COLUMN IF NOT EXISTS basal_metabolism REAL;`;

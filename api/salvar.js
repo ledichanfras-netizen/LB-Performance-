@@ -24,6 +24,15 @@ export default async function handler(request, response) {
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS goal VARCHAR(255);');
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS weekly_frequency INTEGER;');
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS is_tournament_mode BOOLEAN;');
+    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;');
+    await client.query("ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS training_mode TEXT DEFAULT 'strength';");
+    await client.query("ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS metric_type TEXT DEFAULT 'load';");
+    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS distance_meters NUMERIC;');
+    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS target_intensity NUMERIC;');
+    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS recovery_seconds INTEGER;');
+    await client.query('ALTER TABLE performed_sets ADD COLUMN IF NOT EXISTS distance NUMERIC;');
+    await client.query('ALTER TABLE performed_sets ADD COLUMN IF NOT EXISTS time_seconds NUMERIC;');
+    await client.query('ALTER TABLE performed_sets ADD COLUMN IF NOT EXISTS intensity NUMERIC;');
 
     const athleteIds = (athletes || []).map(a => a.id).filter(Boolean);
     if (athleteIds.length > 0) {
@@ -97,7 +106,7 @@ export default async function handler(request, response) {
         );
         for (const ex of (wk.exercises || [])) {
           await client.query(
-            'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, order_index, training_mode, metric_type, distance_meters, target_intensity, recovery_seconds) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)',
             [
               cleanParam(ex.id),
               cleanParam(wk.id),
@@ -107,7 +116,13 @@ export default async function handler(request, response) {
               cleanParam(ex.reps),
               cleanParam(ex.weight),
               cleanParam(ex.rest),
-              cleanParam(ex.notes)
+              cleanParam(ex.notes),
+              cleanParam(typeof ex.order_index === 'number' ? ex.order_index : (typeof ex.orderIndex === 'number' ? ex.orderIndex : 0)),
+              cleanParam(ex.trainingMode || 'strength'),
+              cleanParam(ex.metricType || 'load'),
+              cleanParam(ex.distanceMeters),
+              cleanParam(ex.targetIntensity),
+              cleanParam(ex.recoverySeconds)
             ]
           );
           
@@ -115,13 +130,16 @@ export default async function handler(request, response) {
             for (const set of ex.performedSets) {
               const setId = set.id || `s-${Date.now()}-${Math.random()}`;
               await client.query(
-                'INSERT INTO performed_sets (id, exercise_id, reps, weight, rpe) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET reps = $3, weight = $4, rpe = $5',
+                'INSERT INTO performed_sets (id, exercise_id, reps, weight, rpe, distance, time_seconds, intensity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET reps = $3, weight = $4, rpe = $5, distance = $6, time_seconds = $7, intensity = $8',
                 [
                   cleanParam(setId),
                   cleanParam(ex.id),
                   cleanParam(set.reps),
                   cleanParam(set.weight),
-                  cleanParam(set.rpe)
+                  cleanParam(set.rpe),
+                  cleanParam(set.distance),
+                  cleanParam(set.timeSeconds),
+                  cleanParam(set.intensity)
                 ]
               );
             }

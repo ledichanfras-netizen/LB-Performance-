@@ -787,6 +787,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       intraSetRest: intraSetVal,
       blockRest: blockRestVal,
       clusterReps: clusterRepsVal,
+      trainingMode: libEx.trainingMode || "strength",
+      metricType: libEx.metricType || "load",
+      distanceMeters: libEx.distanceMeters,
+      targetIntensity: libEx.targetIntensity,
+      recoverySeconds: libEx.recoverySeconds,
       order_index: current.length
     };
 
@@ -926,6 +931,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       weight: matchedEx?.defaultWeight || "BW",
       repsType: repsType,
       rest: matchedEx?.recommendedRest || "60s",
+      trainingMode: matchedEx?.trainingMode || "strength",
+      metricType: matchedEx?.metricType || "load",
+      distanceMeters: matchedEx?.distanceMeters,
+      targetIntensity: matchedEx?.targetIntensity,
+      recoverySeconds: matchedEx?.recoverySeconds,
       videoUrl: matchedEx?.videoUrl || "",
       imageUrl: matchedEx?.imageUrl || "",
       order_index: current.length
