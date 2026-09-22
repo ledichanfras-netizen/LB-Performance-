@@ -98,6 +98,30 @@ const percentChange = (current?: number, baseline?: number) =>
     ? ((current - baseline) / Math.abs(baseline)) * 100
     : undefined;
 
+type PrescriptionSuggestion = {
+  capacity: string;
+  objective: string;
+  method: string;
+  dose: string;
+  quality: string;
+  progression: string;
+  reassessment: string;
+};
+
+const buildPrescriptionSuggestion = (session: any, decision: AutoDecision): PrescriptionSuggestion => {
+  const base = { capacity: session.test_type, objective: decision.title, quality: "Manter técnica e qualidade do movimento; interromper se houver dor ou perda importante de execução.", progression: "Progredir apenas quando o indicador-alvo estiver estável/melhorando e a prontidão permitir.", reassessment: decision.review };
+  if (session.test_type === "IMTP") {
+    if (/TDF|rápid/i.test(decision.reason + decision.title)) return { ...base, capacity:"Força rápida / TDF", objective:"Elevar produção de força nos primeiros 100–200 ms", method:"Isometria explosiva + exercícios balísticos + força com intenção máxima", dose:"2x/sem • 3–5 séries • 2–5 reps/ações explosivas • recuperação 2–4 min" };
+    return { ...base, capacity:"Força máxima / Impulso", objective:"Aumentar força útil e impulso sem perder velocidade", method:"Força máxima/submáxima + isometria específica + transferência balística", dose:"2x/sem • 3–5 séries • 2–6 reps • 75–90% 1RM conforme fase" };
+  }
+  if (session.test_type === "CMJ") return { ...base, capacity:"Potência", objective:"Recuperar/elevar potência vertical e qualidade do CMJ", method:"Complex/contrast training + saltos de alta qualidade", dose:"1–2x/sem • 3–5 séries • 2–5 saltos • pausas completas" };
+  if (session.test_type === "DROP_JUMP") return { ...base, capacity:"Força reativa / CAE", objective:"Melhorar RSI e reduzir tempo de contato sem perder altura", method:"Pogos + Drop Jump baixo + stiffness tornozelo/sóleo", dose:"1–2x/sem • 20–40 contatos de alta qualidade • baixa fadiga" };
+  if (session.test_type === "ISOMETRIC_STRENGTH") return { ...base, capacity:"Força unilateral / Assimetria", objective:"Reduzir assimetria e elevar capacidade do membro deficitário", method:"Força unilateral + isometria + controle de aterrissagem", dose:"2x/sem • 3–4 séries • 5–8 reps • pequeno volume adicional no lado deficitário" };
+  if (session.test_type === "SPEED") return { ...base, capacity:"Velocidade", objective:"Melhorar aceleração/velocidade preservando qualidade mecânica", method:"Sprints máximos com recuperação completa + técnica + resistência específica quando indicada", dose:"1–2x/sem • 4–8 tiros • 10–30 m • recuperação 2–5 min" };
+  if (session.test_type === "VO2") return { ...base, capacity:"Capacidade aeróbia", objective:"Elevar capacidade aeróbia específica sem competir com sessões-chave", method:"Intervalado individualizado por vVO₂/VAM + trabalho extensivo conforme modalidade", dose:"1–2x/sem • dose definida pela velocidade fisiológica e calendário" };
+  return { ...base, capacity:"Monitoramento", objective:"Manter controle longitudinal", method:"Manter prescrição atual", dose:"Sem alteração automática de dose" };
+};
+
 const buildAutoDecision = (session: any): AutoDecision => {
   if (session.quality_flag === "REPEAT") return { level: "CRITICA", title: "Repetir avaliação", reason: "Qualidade insuficiente para sustentar uma decisão de treino.", action: "Não alterar a prescrição com este resultado; repetir o teste em condições padronizadas.", review: "Após nova coleta válida." };
   if (session.quality_flag === "NON_COMPARABLE") return { level: "MEDIA", title: "Usar como dado descritivo", reason: "A sessão foi marcada como não comparável ao baseline.", action: "Preservar o resultado no histórico, sem gerar mudança automática de carga.", review: "Na próxima avaliação comparável." };
@@ -405,6 +429,7 @@ export default function LbAssessmentSession() {
       const decisions = interpretSessions.map((session:any) => ({ session, decision: buildAutoDecision(session) }));
       const rank: Record<AutoDecision["level"], number> = { CRITICA: 4, ALTA: 3, MEDIA: 2, NORMAL: 1 };
       const topPriorities = decisions.filter(x => x.decision.level !== "NORMAL").sort((a,b)=>rank[b.decision.level]-rank[a.decision.level]).slice(0,3);
+      const prescriptionSuggestions = topPriorities.map(x => ({ ...x, prescription: buildPrescriptionSuggestion(x.session, x.decision) }));
       return (
         <div className="min-h-screen bg-slate-950 text-white">
           <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
@@ -458,6 +483,16 @@ export default function LbAssessmentSession() {
                 </div>}
               </div>})}
             </section>
+            {prescriptionSuggestions.length > 0 && <section className="rounded-3xl border border-emerald-500/30 bg-slate-900 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">Prescrição orientada pela decisão</p>
+              <h3 className="text-xl font-black mt-2">Plano sugerido para as prioridades detectadas</h3>
+              <p className="text-xs text-slate-400 mt-2">Sugestões iniciais do Método LB. O treinador continua responsável por ajustar exercícios, carga e calendário ao contexto do atleta.</p>
+              <div className="mt-5 space-y-3">{prescriptionSuggestions.map((item:any,index:number)=><div key={item.session.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
+                <div className="flex items-start justify-between gap-3"><div><p className="text-[9px] uppercase font-black text-emerald-400">Bloco {index+1} • {item.prescription.capacity}</p><h4 className="font-black mt-1">{item.prescription.objective}</h4></div><span className="text-[9px] font-black px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300">{item.decision.level}</span></div>
+                <div className="grid md:grid-cols-2 gap-3 mt-4 text-xs"><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Método</p><p className="mt-1 text-slate-200">{item.prescription.method}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Dose inicial</p><p className="mt-1 text-slate-200">{item.prescription.dose}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Critério de qualidade</p><p className="mt-1 text-slate-200">{item.prescription.quality}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Progressão / reavaliação</p><p className="mt-1 text-slate-200">{item.prescription.progression} {item.prescription.reassessment}</p></div></div>
+              </div>)}</div>
+            </section>}
+
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Decisão LB automática</p>
               <h3 className="text-xl font-black mt-2">{interpretationAlerts.length ? "Atenção antes de prescrever" : "Bateria liberada para decisão de treino"}</h3>
