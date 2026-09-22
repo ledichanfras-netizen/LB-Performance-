@@ -314,6 +314,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     };
   });
 
+  const lbPrescriptionDraft = (workout as any).lbPrescriptionDraft;
   const [searchQuery, setSearchQuery] = useState("");
   const [sidebarTab, setSidebarTab] = useState<"library" | "ai" | "progression" | "deficit">("library");
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
@@ -423,7 +424,26 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     window.addEventListener("custom-library-synced", handleStorageChange);
     // Listen to custom local events if available, or just standard intervals
     const interval = setInterval(handleStorageChange, 2000);
-    return () => {
+    return (
+    <>
+      {lbPrescriptionDraft && (
+        <div className="mx-auto mb-4 max-w-7xl rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-left">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Carregado da Decisão LB • {lbPrescriptionDraft.doseMode === "MICRO" ? "Microdose" : "Dose principal"}</p>
+              <h3 className="mt-1 font-black">{lbPrescriptionDraft.capacity} — {lbPrescriptionDraft.objective}</h3>
+            </div>
+            <span className="rounded-full border border-emerald-500/30 px-3 py-1 text-[10px] font-black text-emerald-500">EDITÁVEL</span>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
+            <div><span className="font-black">Método:</span> {lbPrescriptionDraft.method}</div>
+            <div><span className="font-black">Dose:</span> {lbPrescriptionDraft.dose}</div>
+            <div><span className="font-black">Reavaliar:</span> {lbPrescriptionDraft.reassessment}</div>
+          </div>
+          <p className="mt-3 text-[11px] opacity-70">Use esta orientação para escolher os exercícios abaixo. Nada é adicionado automaticamente: você mantém o controle final da ficha e da carga.</p>
+        </div>
+      )}
+) => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("custom-library-synced", handleStorageChange);
       clearInterval(interval);
@@ -5019,5 +5039,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       />
 
     </div>
+    </>
   );
 };
