@@ -1250,6 +1250,39 @@ const EliteHubApp: FC<{
     return athletes.find((a) => a.id === selectedId);
   }, [athletes, selectedId, user]);
 
+  useEffect(() => {
+    if (loading || user?.role !== "coach") return;
+    const raw = safeLocalStorage.getItem("lb_prescription_draft");
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw);
+      if (!draft?.athleteId || !["MAIN", "MICRO"].includes(draft?.doseMode)) {
+        safeLocalStorage.removeItem("lb_prescription_draft");
+        return;
+      }
+      const athlete = athletes.find((a) => String(a.id) === String(draft.athleteId));
+      if (!athlete) {
+        toast.error("Atleta da Decisão LB não encontrado no Hub.");
+        return;
+      }
+      setSelectedId(athlete.id);
+      setActiveTab("training");
+      setTrainingSubTab("planned");
+      setModalState({
+        type: "workout",
+        editingData: {
+          lbPrescriptionDraft: draft,
+        },
+      });
+      safeLocalStorage.removeItem("lb_prescription_draft");
+      toast.success(`Decisão LB carregada para ${athlete.name}.`);
+    } catch (error) {
+      console.error("Falha ao carregar rascunho LB:", error);
+      safeLocalStorage.removeItem("lb_prescription_draft");
+      toast.error("Não foi possível carregar a prescrição da Decisão LB.");
+    }
+  }, [loading, athletes, user?.role]);
+
   const handleGenerateAIModeling = async (skipConfirm = false) => {
     if (user?.role !== "coach") {
       toast.error("Acesso restrito ao treinador.");
@@ -3961,10 +3994,15 @@ const EliteHubApp: FC<{
                       ? {
                           id: "",
                           date: getLocalDateString(),
-                          name: "",
+                          name: modalState.editingData?.lbPrescriptionDraft
+                            ? `LB • ${modalState.editingData.lbPrescriptionDraft.capacity} • ${modalState.editingData.lbPrescriptionDraft.doseMode === "MICRO" ? "Microdose" : "Dose principal"}`
+                            : "",
                           phase: "Preparação Geral",
                           status: "planned",
                           exercises: [],
+                          ...(modalState.editingData?.lbPrescriptionDraft
+                            ? { lbPrescriptionDraft: modalState.editingData.lbPrescriptionDraft }
+                            : {}),
                         }
                       : modalState.editingData
                   }
