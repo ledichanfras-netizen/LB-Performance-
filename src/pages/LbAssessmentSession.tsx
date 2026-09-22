@@ -157,6 +157,46 @@ const buildAutoDecision = (session: any): AutoDecision => {
     if (h !== undefined && h < 25) return { level: "ALTA", title: "Potência vertical em atenção", reason: `CMJ de ${h.toFixed(1)} cm exige contextualização com sexo, modalidade e histórico do atleta.`, action: "Priorizar potência de membros inferiores sem abandonar a base de força; comparar com o baseline individual.", review: "Reavaliar CMJ em 2–3 semanas." };
   }
 
+  if (session.test_type === "CMJ") {
+    const h = metricNumber(session, "JUMP_HEIGHT");
+    const p = metricNumber(session, "PEAK_POWER");
+    const hb = baselineMetricNumber(session, "JUMP_HEIGHT");
+    const pb = baselineMetricNumber(session, "PEAK_POWER");
+    const hd = percentChange(h, hb);
+    const pd = percentChange(p, pb);
+    const deltas = [hd !== undefined ? {name:"Altura",delta:hd}:null, pd !== undefined ? {name:"Potência",delta:pd}:null].filter(Boolean) as Array<{name:string;delta:number}>;
+    if (deltas.length) {
+      const text=deltas.map(x=>`${x.name} ${x.delta>=0?"+":""}${x.delta.toFixed(1)}%`).join(" • ");
+      if (deltas.filter(x=>x.delta<=-5).length>=1) return { level:"ALTA", title:"Queda neuromuscular relevante", reason:text, action:"Não progredir volume de potência automaticamente. Revisar fadiga, prontidão e carga recente antes da próxima sessão de alta intensidade.", review:"Repetir CMJ em 48–72 h ou no próximo controle." };
+      if (deltas.every(x=>Math.abs(x.delta)<3)) return { level:"NORMAL", title:"CMJ estável", reason:`${text}. Oscilação abaixo do limiar operacional.`, action:"Manter a prescrição; não reagir a pequenas oscilações.", review:"Próximo controle programado." };
+      if (deltas.filter(x=>x.delta>=5).length>=1) return { level:"NORMAL", title:"Resposta positiva no CMJ", reason:text, action:"Manter o bloco e considerar progressão somente se os demais indicadores também estiverem favoráveis.", review:"Próximo microciclo." };
+    }
+  }
+
+  if (session.test_type === "DROP_JUMP") {
+    const rsi=metricNumber(session,"RSI"), ct=metricNumber(session,"CONTACT_TIME");
+    const rsib=baselineMetricNumber(session,"RSI"), ctb=baselineMetricNumber(session,"CONTACT_TIME");
+    const rd=percentChange(rsi,rsib), cd=percentChange(ct,ctb);
+    if (rd!==undefined || cd!==undefined) {
+      const parts=[rd!==undefined?`RSI ${rd>=0?"+":""}${rd.toFixed(1)}%`:"",cd!==undefined?`Contato ${cd>=0?"+":""}${cd.toFixed(1)}%`:""].filter(Boolean).join(" • ");
+      if ((rd!==undefined&&rd<=-7)||(cd!==undefined&&cd>=7)) return {level:"ALTA",title:"Piora da resposta reativa",reason:parts,action:"Reduzir dose de pliometria intensa e priorizar qualidade de contato/stiffness até recuperar o padrão individual.",review:"Reavaliar DJ em 1–2 semanas."};
+      if ((rd!==undefined&&rd>=7)&&(cd===undefined||cd<=0)) return {level:"NORMAL",title:"Força reativa evoluindo",reason:parts,action:"Manter progressão planejada da pliometria, respeitando qualidade dos contatos.",review:"Próximo controle do bloco."};
+    }
+  }
+
+  if (session.test_type === "SPEED") {
+    const t20=metricNumber(session,"TIME_20M"), t30=metricNumber(session,"TIME_30M");
+    const b20=baselineMetricNumber(session,"TIME_20M"), b30=baselineMetricNumber(session,"TIME_30M");
+    const d20=percentChange(t20,b20), d30=percentChange(t30,b30);
+    const deltas=[d20!==undefined?{name:"20 m",delta:d20}:null,d30!==undefined?{name:"30 m",delta:d30}:null].filter(Boolean) as Array<{name:string;delta:number}>;
+    if(deltas.length){
+      const text=deltas.map(x=>`${x.name} ${x.delta>=0?"+":""}${x.delta.toFixed(1)}%`).join(" • ");
+      if(deltas.some(x=>x.delta>=3)) return {level:"ALTA",title:"Velocidade piorou",reason:`${text}. Em testes de tempo, aumento significa pior desempenho.`,action:"Revisar fadiga e exposição a sprint; não aumentar volume de velocidade até confirmar recuperação/tendência.",review:"Reavaliar sprint em 7–14 dias."};
+      if(deltas.some(x=>x.delta<=-3)) return {level:"NORMAL",title:"Velocidade melhorou",reason:text,action:"Manter a direção do treino e progredir de forma planejada se a técnica permanecer adequada.",review:"Próximo controle de velocidade."};
+      return {level:"NORMAL",title:"Velocidade estável",reason:text,action:"Manter prescrição; variação pequena não justifica mudança isolada.",review:"Próximo controle programado."};
+    }
+  }
+
   if (session.test_type === "VO2") {
     const vo2 = metricNumber(session, "VO2MAX");
     if (vo2 !== undefined && vo2 < 40) return { level: "ALTA", title: "Capacidade aeróbia em atenção", reason: `VO₂máx registrado: ${vo2.toFixed(1)} ml/kg/min.`, action: "Revisar demanda da modalidade e inserir bloco aeróbio/intervalado individualizado quando coerente com o calendário.", review: "Reavaliar após 4–6 semanas." };
@@ -362,6 +402,9 @@ export default function LbAssessmentSession() {
     const testLabel = (code: string) => TESTS.find(t => t.code === code)?.label || code;
 
     if (interpretMode) {
+      const decisions = interpretSessions.map((session:any) => ({ session, decision: buildAutoDecision(session) }));
+      const rank: Record<AutoDecision["level"], number> = { CRITICA: 4, ALTA: 3, MEDIA: 2, NORMAL: 1 };
+      const topPriorities = decisions.filter(x => x.decision.level !== "NORMAL").sort((a,b)=>rank[b.decision.level]-rank[a.decision.level]).slice(0,3);
       return (
         <div className="min-h-screen bg-slate-950 text-white">
           <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
@@ -377,6 +420,14 @@ export default function LbAssessmentSession() {
               <p className="text-slate-400 mt-2 max-w-3xl">O LB processa qualidade, comparabilidade e coerência em segundo plano. O treinador vai direto ao que exige atenção; a análise técnica completa fica disponível apenas quando necessária.</p>
             </section>
             {interpretationAlerts.length > 0 && <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Revisar antes de interpretar</p><div className="mt-3 space-y-2">{interpretationAlerts.map((a,i)=><p key={i} className="text-sm text-amber-100">• {a}</p>)}</div></section>}
+            <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">Prioridades do ciclo</p>
+              <h3 className="text-xl font-black mt-2">{topPriorities.length ? "O que realmente deve mudar no treino" : "Nenhuma mudança prioritária detectada"}</h3>
+              <div className="mt-4 grid md:grid-cols-3 gap-3">
+                {topPriorities.length ? topPriorities.map((item:any,index:number)=><div key={item.session.id} className="rounded-2xl bg-slate-950/70 border border-slate-800 p-4"><p className="text-[9px] font-black uppercase text-emerald-400">Prioridade {index+1} • {testLabel(item.session.test_type)}</p><p className="font-black mt-2">{item.decision.title}</p><p className="text-xs text-slate-400 mt-2">{item.decision.action}</p></div>) : <div className="md:col-span-3 rounded-2xl bg-slate-950/70 border border-slate-800 p-4 text-sm text-slate-300">Os achados atuais são estáveis, positivos ou apenas descritivos. O Método LB não recomenda alterar a prescrição por ruído isolado.</div>}
+              </div>
+            </section>
+
             <section className="grid md:grid-cols-2 gap-4">
               {interpretSessions.map((session:any) => { const decision = buildAutoDecision(session); return <div key={session.id} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
                 <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Avaliação</p><h3 className="text-xl font-black mt-1">{testLabel(session.test_type)}</h3></div><span className="text-[9px] px-2 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-black uppercase">{session.quality_flag}</span></div>
