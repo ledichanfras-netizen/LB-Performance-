@@ -516,7 +516,36 @@ apiRouter.get('/lb/assessment-sessions/:groupId', authMiddleware, requireCoach, 
       [req.params.groupId]
     );
     if (!result.rowCount) return res.status(404).json({ error: 'Sessão LB não encontrada.' });
-    return res.json({ sessionGroupId: req.params.groupId, sessions: result.rows });
+
+    const sessions = await Promise.all(result.rows.map(async (session: any) => {
+      if (!session.comparable_to_baseline) return { ...session, baseline: null };
+      try {
+        const baselineResult = await pool.query(
+          `select s.id, s.assessed_at,
+                  coalesce(json_agg(json_build_object(
+                    'metricCode', m.metric_code, 'valueNumeric', m.value_numeric, 'unit', m.unit, 'isValid', m.is_valid
+                  ) order by m.created_at) filter (where m.id is not null), '[]'::json) as metrics
+             from lb_core.assessment_sessions s
+             left join lb_core.assessment_metrics m on m.session_id = s.id
+            where s.athlete_id = $1
+              and s.test_type = $2
+              and s.id <> $3
+              and s.comparable_to_baseline = true
+              and s.quality_flag in ('VALID','CAUTION')
+              and s.assessed_at < $4
+            group by s.id
+            order by s.assessed_at desc
+            limit 1`,
+          [session.athlete_id, session.test_type, session.id, session.assessed_at]
+        );
+        return { ...session, baseline: baselineResult.rows[0] || null };
+      } catch (baselineError: any) {
+        console.warn('[LB] Baseline indisponível para', session.id, baselineError.message);
+        return { ...session, baseline: null };
+      }
+    }));
+
+    return res.json({ sessionGroupId: req.params.groupId, sessions });
   } catch (error: any) {
     console.error('[LB] Falha ao carregar Sessão:', error.message);
     return res.status(500).json({ error: 'Não foi possível carregar a Sessão LB.' });
