@@ -65,6 +65,56 @@ const readStoredUser = () => {
   try { return JSON.parse(localStorage.getItem("lb_user") || "null"); } catch { return null; }
 };
 
+type AutoDecision = {
+  level: "CRITICA" | "ALTA" | "MEDIA" | "NORMAL";
+  title: string;
+  reason: string;
+  action: string;
+  review: string;
+};
+
+const metricNumber = (session: any, ...codes: string[]) => {
+  const metrics = Array.isArray(session?.metrics) ? session.metrics : [];
+  for (const code of codes) {
+    const found = metrics.find((m: any) => String(m.metricCode || "").toUpperCase() === code.toUpperCase());
+    const value = Number(found?.valueNumeric);
+    if (Number.isFinite(value)) return value;
+  }
+  return undefined;
+};
+
+const buildAutoDecision = (session: any): AutoDecision => {
+  if (session.quality_flag === "REPEAT") return { level: "CRITICA", title: "Repetir avaliação", reason: "Qualidade insuficiente para sustentar uma decisão de treino.", action: "Não alterar a prescrição com este resultado; repetir o teste em condições padronizadas.", review: "Após nova coleta válida." };
+  if (session.quality_flag === "NON_COMPARABLE") return { level: "MEDIA", title: "Usar como dado descritivo", reason: "A sessão foi marcada como não comparável ao baseline.", action: "Preservar o resultado no histórico, sem gerar mudança automática de carga.", review: "Na próxima avaliação comparável." };
+
+  if (session.test_type === "ISOMETRIC_STRENGTH") {
+    const r = metricNumber(session, "RIGHT_FORCE", "QUADRICEPS_RIGHT");
+    const l = metricNumber(session, "LEFT_FORCE", "QUADRICEPS_LEFT");
+    const informed = metricNumber(session, "ASYMMETRY", "QUADRICEPS_ASYMMETRY");
+    const asym = informed ?? (r && l ? Math.abs(r-l)/Math.max(r,l)*100 : undefined);
+    if (asym !== undefined && asym >= 15) return { level: "ALTA", title: "Assimetria relevante", reason: `Assimetria de ${asym.toFixed(1)}% supera o limiar operacional LB de 15%.`, action: "Priorizar trabalho unilateral e revisar a distribuição de força antes de aumentar demandas de alta intensidade.", review: "Reavaliar força em 2–3 semanas." };
+    if (asym !== undefined && asym >= 10) return { level: "MEDIA", title: "Monitorar assimetria", reason: `Assimetria de ${asym.toFixed(1)}% está em zona de atenção.`, action: "Manter prescrição com ênfase unilateral e observar tendência, sintomas e convergência com outros testes.", review: "Reavaliar em 3–4 semanas." };
+  }
+
+  if (session.test_type === "DROP_JUMP") {
+    const ct = metricNumber(session, "CONTACT_TIME");
+    const rsi = metricNumber(session, "RSI");
+    if ((ct !== undefined && ct > 220) || (rsi !== undefined && rsi < 1.5)) return { level: "ALTA", title: "Força reativa limitada", reason: `${ct !== undefined ? `Contato ${ct.toFixed(0)} ms` : ""}${ct !== undefined && rsi !== undefined ? " • " : ""}${rsi !== undefined ? `RSI ${rsi.toFixed(2)}` : ""}.`, action: "Priorizar pliometria de contato curto, stiffness de tornozelo e controle da dose reativa.", review: "Reavaliar DJ/RSI em 2–3 semanas." };
+  }
+
+  if (session.test_type === "CMJ") {
+    const h = metricNumber(session, "JUMP_HEIGHT");
+    if (h !== undefined && h < 25) return { level: "ALTA", title: "Potência vertical em atenção", reason: `CMJ de ${h.toFixed(1)} cm exige contextualização com sexo, modalidade e histórico do atleta.`, action: "Priorizar potência de membros inferiores sem abandonar a base de força; comparar com o baseline individual.", review: "Reavaliar CMJ em 2–3 semanas." };
+  }
+
+  if (session.test_type === "VO2") {
+    const vo2 = metricNumber(session, "VO2MAX");
+    if (vo2 !== undefined && vo2 < 40) return { level: "ALTA", title: "Capacidade aeróbia em atenção", reason: `VO₂máx registrado: ${vo2.toFixed(1)} ml/kg/min.`, action: "Revisar demanda da modalidade e inserir bloco aeróbio/intervalado individualizado quando coerente com o calendário.", review: "Reavaliar após 4–6 semanas." };
+  }
+
+  return { level: "NORMAL", title: "Sem gatilho automático de mudança", reason: "O resultado não cruzou um limiar operacional configurado ou precisa de contexto/baseline para ganhar relevância.", action: "Manter a prescrição atual e usar tendência longitudinal e convergência entre testes para decidir progressões.", review: "Revisão no próximo ciclo de monitoramento." };
+};
+
 export default function LbAssessmentSession() {
   const navigate = useNavigate();
   const [athletes, setAthletes] = useState<AthleteOption[]>([]);
@@ -278,10 +328,17 @@ export default function LbAssessmentSession() {
             </section>
             {interpretationAlerts.length > 0 && <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Revisar antes de interpretar</p><div className="mt-3 space-y-2">{interpretationAlerts.map((a,i)=><p key={i} className="text-sm text-amber-100">• {a}</p>)}</div></section>}
             <section className="grid md:grid-cols-2 gap-4">
-              {interpretSessions.map((session:any) => <div key={session.id} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
+              {interpretSessions.map((session:any) => { const decision = buildAutoDecision(session); return <div key={session.id} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
                 <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Avaliação</p><h3 className="text-xl font-black mt-1">{testLabel(session.test_type)}</h3></div><span className="text-[9px] px-2 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-black uppercase">{session.quality_flag}</span></div>
                 <div className="mt-4 space-y-2">{(session.metrics || []).map((m:any)=><div key={m.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-950 border border-slate-800 px-4 py-3"><span className="text-xs text-slate-400">{m.metricCode}</span><span className="font-black">{m.valueNumeric ?? m.valueText} <span className="text-xs text-slate-500">{m.unit || ""}</span></span></div>)}</div>
                 <div className="mt-4 pt-4 border-t border-slate-800 text-xs text-slate-500">Comparabilidade: <span className="text-white font-bold">{session.comparable_to_baseline ? "elegível" : "bloqueada"}</span></div>
+                <div className={`mt-4 rounded-2xl border p-4 ${decision.level==="CRITICA"?"border-red-500/30 bg-red-500/10":decision.level==="ALTA"?"border-amber-500/30 bg-amber-500/10":decision.level==="MEDIA"?"border-yellow-500/30 bg-yellow-500/10":"border-emerald-500/30 bg-emerald-500/10"}`}>
+                  <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-widest">Decisão LB</p><span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-slate-950/50">{decision.level}</span></div>
+                  <h4 className="font-black mt-2">{decision.title}</h4>
+                  <p className="text-xs text-slate-300 mt-2">{decision.reason}</p>
+                  <div className="mt-3 rounded-xl bg-slate-950/60 p-3"><p className="text-[9px] uppercase font-black text-emerald-400">Impacto na prescrição</p><p className="text-xs text-slate-200 mt-1">{decision.action}</p></div>
+                  <p className="text-[10px] text-slate-500 mt-3">Gatilho de revisão: {decision.review}</p>
+                </div>
                 <button onClick={()=>setInterpretEditingId(session.id)} className="w-full mt-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-[10px] font-black uppercase tracking-widest">{savedInterpretationIds.includes(session.id) ? "Editar análise técnica" : "Ver análise técnica (opcional)"}</button>
                 {interpretEditingId===session.id && <div className="mt-4 p-4 rounded-2xl border border-slate-700 bg-slate-950 space-y-3">
                   <div className="grid sm:grid-cols-2 gap-3">
@@ -298,7 +355,7 @@ export default function LbAssessmentSession() {
                   <label className="block space-y-1"><span className="text-[9px] uppercase font-black text-slate-500">Conclusão técnica</span><textarea value={interpretForm.conclusion} onChange={e=>setInterpretForm(v=>({...v,conclusion:e.target.value}))} rows={3} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs" placeholder="Descreva o que o conjunto de evidências sustenta — sem transformar um número isolado em diagnóstico."/></label>
                   <button disabled={savingInterpretation} onClick={saveInterpretation} className="w-full py-3 rounded-xl bg-emerald-400 text-slate-950 text-[10px] font-black uppercase tracking-widest disabled:opacity-40">{savingInterpretation ? "Salvando..." : "Salvar interpretação"}</button>
                 </div>}
-              </div>)}
+              </div>})}
             </section>
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Decisão LB automática</p>
