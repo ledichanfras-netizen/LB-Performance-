@@ -23,6 +23,45 @@
 }
 
 @layer components {
+  .coach-card-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
+  .coach-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .coach-mobile-nav button {
+    min-height: 3.25rem;
+  }
+
+  .coach-editor-shell,
+  .coach-session-shell {
+    container-type: inline-size;
+  }
+
+  .coach-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid #00d1ff;
+    outline-offset: 2px;
+  }
+
   .premium-card, .glass-card, .cartao-de-vidro {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -68,6 +107,66 @@
 
   .glass-header {
     @apply bg-[#020617]/70 backdrop-blur-xl border-b border-white/5 sticky top-0 z-50;
+  }
+}
+
+@media (min-width: 768px) {
+  .coach-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .coach-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .coach-mobile-nav {
+    height: 4.25rem !important;
+    padding-inline: 0.5rem !important;
+  }
+
+  .coach-mobile-nav > div {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.25rem !important;
+    padding-right: 0 !important;
+  }
+
+  .coach-mobile-nav button {
+    width: 3.25rem;
+    min-height: 3.25rem;
+    padding: 0.5rem !important;
+    justify-content: center;
+    border-radius: 0.9rem;
+  }
+
+  .coach-mobile-nav button > span:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .coach-action-bar > button {
+    flex: 1 1 9rem;
+  }
+
+  .coach-session-shell {
+    border-radius: 0 !important;
+    padding: 0.75rem !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .coach-editor-shell {
+    border-radius: 1.25rem !important;
+  }
+
+  .coach-editor-shell .coach-editor-library,
+  .coach-editor-shell .coach-editor-workspace {
+    min-height: 0;
   }
 }
 

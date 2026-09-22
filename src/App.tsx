@@ -298,13 +298,13 @@ const Button: FC<{
 }) => {
   const styles = {
     primary:
-      "bg-brand-primary text-brand-dark shadow-[0_0_20px_rgba(57,255,20,0.4)] hover:brightness-110",
+      "bg-brand-primary text-brand-dark shadow-[0_0_20px_rgba(57,255,20,0.4)] hover:brightness-110 min-h-11",
     secondary:
-      "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700",
+      "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 min-h-11",
     accent:
-      "bg-brand-secondary text-brand-dark font-black shadow-[0_0_20px_rgba(0,209,255,0.3)]",
+      "bg-brand-secondary text-brand-dark font-black shadow-[0_0_20px_rgba(0,209,255,0.3)] min-h-11",
     danger:
-      "bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30",
+      "bg-red-600/20 text-red-500 border border-red-500/30 hover:bg-red-600/30 min-h-11",
   };
   return (
     <button
@@ -1466,7 +1466,7 @@ const EliteHubApp: FC<{
     <div className="min-h-screen bg-brand-dark text-slate-100 font-sans flex flex-col md:flex-row overflow-x-hidden relative no-scrollbar">
         <>
           {/* Mobile Bottom Navigation Bar (Fixed modern layout in requested order) */}
-          <div className="flex md:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#070b14]/95 backdrop-blur-3xl border-t border-slate-850/90 z-[1010] items-center px-4 shadow-[0_-12px_36px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar select-none">
+          <div className="coach-mobile-nav flex md:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#070b14]/95 backdrop-blur-3xl border-t border-slate-850/90 z-[1010] items-center px-4 shadow-[0_-12px_36px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar select-none">
             <div className="flex flex-row items-center gap-2.5 w-max py-1.5 pr-4">
               {/* 1. PAINEL GERAL item */}
               <button
@@ -1668,7 +1668,7 @@ const EliteHubApp: FC<{
           </div>
 
           {/* Sidebar / Bottom Nav */}
-          <aside className="hidden md:flex md:flex-col md:relative md:bottom-auto left-0 md:w-80 md:h-screen bg-[#0B0F19]/95 border-r border-slate-800/60 p-6 z-[1000] justify-between items-stretch">
+          <aside className="hidden md:flex md:flex-col md:relative md:bottom-auto left-0 md:w-72 lg:w-80 md:h-screen bg-[#0B0F19]/95 border-r border-slate-800/60 p-4 lg:p-6 z-[1000] justify-between items-stretch">
             <div className="flex flex-col items-stretch justify-start w-full gap-4 px-0">
               
               {/* Premium Performance Pro Logo Bracket & Theme Toggle */}
@@ -2080,7 +2080,7 @@ const EliteHubApp: FC<{
           </aside>
 
           <div className="flex-grow flex flex-col min-h-screen pb-20 md:pb-0 md:h-screen md:overflow-y-scroll no-scrollbar bg-brand-dark">
-            <main className="container mx-auto p-4 md:p-12 relative z-[10] flex-grow no-scrollbar auto-rows-min">
+            <main className="w-full max-w-[1600px] mx-auto px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 relative z-[10] flex-grow no-scrollbar auto-rows-min">
               {iframeCookieWarning && (
                 <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -3375,13 +3375,13 @@ const EliteHubApp: FC<{
 
                         {trainingSubTab === "planned" && (
                           <>
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <div className="coach-section-heading flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                               <div>
                                 <h3 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-[#fcfdff] leading-none">
                                   Atividades Planejadas
                                 </h3>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                              <div className="coach-action-bar flex flex-wrap items-center gap-2 w-full md:w-auto">
                                 <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-bold gap-1 w-full sm:w-auto">
                                   <button
                                     onClick={() => setWorkoutStatusFilter("pending")}
@@ -3425,7 +3425,7 @@ const EliteHubApp: FC<{
                                 )}
                               </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+                            <div className="coach-card-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
                           {[...(selected.workouts || [])]
                             .filter((w) => {
                               if (workoutStatusFilter === "pending") return w.status !== "completed";

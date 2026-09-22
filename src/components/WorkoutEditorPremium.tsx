@@ -1732,7 +1732,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   };
 
   return (
-    <div className="w-full h-full md:max-w-[98vw] xl:max-w-[1720px] md:h-[97vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
+    <div className="coach-editor-shell w-full h-full md:max-w-[98vw] xl:max-w-[1720px] md:h-[97vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
       
       {/* MOBILE HEADER & TAB SWITCHER */}
       <div className="lg:hidden shrink-0 bg-[#0c111d] border-b border-slate-900 px-4 py-3 flex items-center justify-between gap-2 w-full">
@@ -1768,7 +1768,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       </div>
 
       {/* LEFT COLUMN: MULTI-TAB PRESCRIÇÃO PLATFORM */}
-      <div className={`${activeMobileTab === "library" ? "flex" : "hidden"} lg:flex w-full lg:w-[380px] xl:w-[420px] bg-[#0c111d] border-b lg:border-b-0 lg:border-r border-slate-900 p-6 flex-col overflow-y-auto no-scrollbar`}>
+      <div className={`coach-editor-library ${activeMobileTab === "library" ? "flex" : "hidden"} lg:flex w-full lg:w-[380px] xl:w-[420px] bg-[#0c111d] border-b lg:border-b-0 lg:border-r border-slate-900 p-5 lg:p-6 flex-col overflow-y-auto no-scrollbar`}>
         
         {/* PLATFORM HEADER */}
         <div className="flex items-center justify-between mb-5 shrink-0">
@@ -2742,7 +2742,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       </div>
 
       {/* RIGHT WORKOUT WORKSPACE */}
-      <div className={`${activeMobileTab === "workout" ? "flex" : "hidden"} lg:flex flex-1 flex-col bg-[#05080e] overflow-hidden`}>
+      <div className={`coach-editor-workspace ${activeMobileTab === "workout" ? "flex" : "hidden"} lg:flex flex-1 flex-col bg-[#05080e] overflow-hidden`}>
         
         {/* WORKOUT HEADER / SUMMARY - COLLAPSIBLE FOR SPACIOUS LAYOUT */}
         {isHeaderExpanded ? (

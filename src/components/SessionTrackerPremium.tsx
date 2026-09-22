@@ -1278,7 +1278,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   }
 
   return (
-    <div className="w-full min-h-screen md:min-h-0 md:h-[97vh] md:max-w-6xl bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto md:overflow-hidden shadow-2xl text-slate-100 p-3 sm:p-6 md:p-8 space-y-4 md:space-y-6 flex flex-col animate-in fade-in duration-300">
+    <div className="coach-session-shell w-full min-h-screen md:min-h-0 md:h-[97vh] md:max-w-6xl bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto md:overflow-hidden shadow-2xl text-slate-100 p-3 sm:p-6 md:p-8 space-y-4 md:space-y-6 flex flex-col animate-in fade-in duration-300">
       
       {isHeaderCollapsed ? (
         /* COMPACT FOCUS HEADER FOR MOBILE */
