@@ -83,9 +83,59 @@ const metricNumber = (session: any, ...codes: string[]) => {
   return undefined;
 };
 
+const baselineMetricNumber = (session: any, ...codes: string[]) => {
+  const metrics = Array.isArray(session?.baseline?.metrics) ? session.baseline.metrics : [];
+  for (const code of codes) {
+    const found = metrics.find((m: any) => String(m.metricCode || "").toUpperCase() === code.toUpperCase());
+    const value = Number(found?.valueNumeric);
+    if (Number.isFinite(value)) return value;
+  }
+  return undefined;
+};
+
+const percentChange = (current?: number, baseline?: number) =>
+  current !== undefined && baseline !== undefined && baseline !== 0
+    ? ((current - baseline) / Math.abs(baseline)) * 100
+    : undefined;
+
 const buildAutoDecision = (session: any): AutoDecision => {
   if (session.quality_flag === "REPEAT") return { level: "CRITICA", title: "Repetir avaliação", reason: "Qualidade insuficiente para sustentar uma decisão de treino.", action: "Não alterar a prescrição com este resultado; repetir o teste em condições padronizadas.", review: "Após nova coleta válida." };
   if (session.quality_flag === "NON_COMPARABLE") return { level: "MEDIA", title: "Usar como dado descritivo", reason: "A sessão foi marcada como não comparável ao baseline.", action: "Preservar o resultado no histórico, sem gerar mudança automática de carga.", review: "Na próxima avaliação comparável." };
+
+  if (session.test_type === "IMTP") {
+    const peak = metricNumber(session, "PEAK_FORCE", "PEAK_FORCE_KGF");
+    const impulse = metricNumber(session, "IMPULSE", "IMPULSE_100MS", "IMPULSE_200MS");
+    const rfd = metricNumber(session, "RFD", "RFD_100MS", "RFD_200MS");
+    const peakBase = baselineMetricNumber(session, "PEAK_FORCE", "PEAK_FORCE_KGF");
+    const impulseBase = baselineMetricNumber(session, "IMPULSE", "IMPULSE_100MS", "IMPULSE_200MS");
+    const rfdBase = baselineMetricNumber(session, "RFD", "RFD_100MS", "RFD_200MS");
+    const peakDelta = percentChange(peak, peakBase);
+    const impulseDelta = percentChange(impulse, impulseBase);
+    const rfdDelta = percentChange(rfd, rfdBase);
+    const comparableDeltas = [
+      peakDelta !== undefined ? { name: "Força pico", delta: peakDelta } : null,
+      impulseDelta !== undefined ? { name: "Impulso", delta: impulseDelta } : null,
+      rfdDelta !== undefined ? { name: "TDF", delta: rfdDelta } : null,
+    ].filter(Boolean) as Array<{name:string;delta:number}>;
+
+    if (comparableDeltas.length) {
+      const relevantDrops = comparableDeltas.filter(x => x.delta <= -7);
+      const relevantGains = comparableDeltas.filter(x => x.delta >= 7);
+      const stable = comparableDeltas.filter(x => Math.abs(x.delta) < 5);
+      const deltaText = comparableDeltas.map(x => `${x.name} ${x.delta >= 0 ? "+" : ""}${x.delta.toFixed(1)}%`).join(" • ");
+
+      if (relevantDrops.length >= 2) return { level: "ALTA", title: "Queda convergente no perfil de força", reason: deltaText, action: "A queda aparece em duas ou mais métricas do IMTP. Reduzir a exposição a estímulos máximos, revisar fadiga/contexto e ajustar o bloco antes de progredir carga.", review: "Repetir IMTP em 7–14 dias ou após recuperação." };
+      if (relevantDrops.length === 1) return { level: "MEDIA", title: "Mudança relevante a confirmar", reason: deltaText, action: "Uma métrica cruzou o limiar operacional de mudança. Não alterar todo o programa por um número isolado; confirmar contexto, tendência e convergência.", review: "Reavaliar a métrica em 1–2 semanas." };
+      if (relevantGains.length >= 2) return { level: "NORMAL", title: "Adaptação positiva consistente", reason: deltaText, action: "Manter a direção do bloco e considerar progressão planejada se prontidão e técnica também estiverem adequadas.", review: "Revisar no próximo microciclo de controle." };
+      if (stable.length === comparableDeltas.length) return { level: "NORMAL", title: "Variação apenas descritiva", reason: `${deltaText}. As mudanças ficaram abaixo do limiar operacional de 5%.`, action: "Não mudar a prescrição por esta oscilação isolada. Manter o plano e acompanhar tendência longitudinal.", review: "No próximo controle programado." };
+      return { level: "MEDIA", title: "Mudança pequena/moderada", reason: deltaText, action: "Manter a prescrição por enquanto e observar se a mudança se repete ou converge com CMJ, DJ, velocidade e prontidão.", review: "Reavaliar no próximo microciclo." };
+    }
+
+    if (peak !== undefined || impulse !== undefined || rfd !== undefined) {
+      const available = [peak !== undefined ? `Força pico ${peak}` : "", impulse !== undefined ? `Impulso ${impulse}` : "", rfd !== undefined ? `TDF ${rfd}` : ""].filter(Boolean).join(" • ");
+      return { level: "NORMAL", title: "Primeiro baseline IMTP", reason: `${available}. Ainda não existe avaliação anterior comparável.`, action: "Usar esta coleta como referência individual. Não classificar melhora/piora até existir uma nova sessão comparável.", review: "Comparar na próxima avaliação IMTP padronizada." };
+    }
+  }
 
   if (session.test_type === "ISOMETRIC_STRENGTH") {
     const r = metricNumber(session, "RIGHT_FORCE", "QUADRICEPS_RIGHT");
