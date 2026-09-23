@@ -5786,146 +5786,145 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         )}
       </AnimatePresence>
 
-      {/* MODAL DE TROCA DE EXERCÍCIO DA BIBLIOTECA */}
+      {/* MODAL DE TROCA DE EXERCÍCIO DA BIBLIOTECA - RESPONSIVO E ACESSÍVEL */}
       <AnimatePresence>
         {exerciseToSwap && (
-          <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-4 animate-fade-in">
+          <div className="fixed inset-0 z-[1300] flex items-end sm:items-center justify-center bg-slate-950/85 backdrop-blur-md p-0 sm:p-4 animate-fade-in">
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 15 }}
+              initial={{ opacity: 0, scale: 0.97, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 15 }}
-              className="bg-white dark:bg-[#0c111d] border border-slate-200 dark:border-slate-800 w-full max-w-3xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-900 dark:text-slate-100"
+              exit={{ opacity: 0, scale: 0.97, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="bg-white dark:bg-[#0c111d] border-t sm:border border-slate-200 dark:border-slate-800 w-full max-w-3xl rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col h-[92vh] sm:h-[86vh] sm:max-h-[86vh] text-slate-900 dark:text-slate-100"
             >
-              {/* Modal Header */}
-              <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-850 bg-slate-50/90 dark:bg-slate-950/80 flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3.5 w-full">
-                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5 shadow-sm">
-                    <ArrowLeftRight className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-2.5 w-full min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 rounded-lg">
-                        Substituir Exercício da Biblioteca
+              {/* Modal Header - Compact & Informative */}
+              <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-200 dark:border-slate-850 bg-slate-50/95 dark:bg-slate-950/90 flex flex-col gap-2.5 shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0 shadow-xs">
+                      <ArrowLeftRight className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                        Substituir Exercício
                       </span>
                       {exerciseToSwap.executionMethod === "complex_contrast" && (
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 rounded-lg flex items-center gap-1">
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 rounded-md flex items-center gap-1">
                           <span>🇫🇷 Contraste Francês</span>
                           <span>•</span>
                           <span>Estágio {exerciseToSwap.blockTag || "1A"}</span>
                         </span>
                       )}
                       {exerciseToSwap.executionMethod === "cluster" && (
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30 rounded-lg">
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-purple-500/20 text-purple-800 dark:text-purple-300 border border-purple-500/30 rounded-md">
                           🎯 Cluster Set
                         </span>
                       )}
                       {exerciseToSwap.executionMethod === "rest_pause" && (
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30 rounded-lg">
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-rose-500/20 text-rose-800 dark:text-rose-300 border border-rose-500/30 rounded-md">
                           🔥 Rest-Pause
                         </span>
                       )}
                     </div>
+                  </div>
 
-                    {/* Destaque com Alta Visibilidade para o Exercício Sendo Substituído */}
-                    <div className="p-3.5 rounded-2xl bg-cyan-50 dark:bg-cyan-950/40 border-2 border-cyan-500/40 dark:border-cyan-500/30 shadow-xs space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 dark:text-cyan-300 flex items-center gap-1.5">
-                          <ArrowLeftRight className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                          <span>Exercício atual (sendo substituído):</span>
-                        </span>
-                        {exerciseToSwap.blockTag && (
-                          <span className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-cyan-500 text-slate-950 shadow-xs">
-                            Estágio {exerciseToSwap.blockTag}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-base sm:text-xl font-black text-slate-950 dark:text-cyan-100 tracking-tight break-words">
-                        {exerciseToSwap.name}
-                      </div>
-                      <p className="text-[11.5px] font-semibold text-slate-600 dark:text-slate-300">
-                        {exerciseToSwap.executionMethod === "complex_contrast"
-                          ? `A estrutura do Estágio ${exerciseToSwap.blockTag || "1A"} (${exerciseToSwap.sets} séries, transição de ${exerciseToSwap.intraSetRest ?? 20}s) e a sequência do complexo serão preservadas.`
-                          : `As séries (${exerciseToSwap.sets}), repetições (${exerciseToSwap.reps || "8"}) e pausas configuradas serão preservadas.`}
-                      </p>
-                    </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExerciseToSwap(null);
+                      setSwapSearchQuery("");
+                    }}
+                    className="p-1.5 sm:p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white rounded-xl border border-slate-300 dark:border-slate-800 transition-all cursor-pointer shrink-0"
+                    title="Fechar modal"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+
+                {/* Banner do Exercício Sendo Substituído */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 sm:p-3 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-400/50 dark:border-cyan-500/30">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-cyan-800 dark:text-cyan-300 shrink-0 flex items-center gap-1">
+                      <span>Atual:</span>
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-slate-950 dark:text-cyan-100 truncate">
+                      {exerciseToSwap.name}
+                    </span>
+                    {exerciseToSwap.blockTag && (
+                      <span className="px-1.5 py-0.5 rounded text-[8.5px] font-black uppercase bg-cyan-500 text-slate-950 shrink-0">
+                        {exerciseToSwap.blockTag}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] font-semibold text-slate-600 dark:text-slate-300 shrink-0">
+                    Preserva {exerciseToSwap.sets} séries × {exerciseToSwap.reps || "8"} reps {exerciseToSwap.rest ? `• pausa ${exerciseToSwap.rest}` : ""}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExerciseToSwap(null);
-                    setSwapSearchQuery("");
-                  }}
-                  className="p-2 bg-slate-200 hover:bg-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white rounded-xl border border-slate-300 dark:border-slate-800 transition-all cursor-pointer shrink-0"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
 
-              {/* Search & Quick Suggestions */}
-              <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-850/80 bg-slate-100/70 dark:bg-slate-900/30 space-y-3">
+              {/* Search & Quick Filter Bar */}
+              <div className="px-4 py-2.5 sm:px-6 sm:py-3 border-b border-slate-200 dark:border-slate-850/80 bg-slate-100/70 dark:bg-slate-900/30 space-y-2 shrink-0">
                 {/* Search Input */}
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     autoFocus
                     value={swapSearchQuery}
                     onChange={(e) => setSwapSearchQuery(e.target.value)}
-                    placeholder="Buscar na Biblioteca (ex: Meio Agachamento, IMTP, Isométrico, Saltos, Trap Bar...)"
-                    className="w-full bg-white dark:bg-slate-950/80 border border-slate-300 dark:border-slate-800 focus:border-cyan-500 dark:focus:border-cyan-400 rounded-2xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold outline-none transition-all shadow-sm dark:shadow-inner"
+                    placeholder="Buscar na Biblioteca (ex: Agachamento, Trap Bar, Salto, IMTP...)"
+                    className="w-full bg-white dark:bg-slate-950/90 border border-slate-300 dark:border-slate-800 focus:border-cyan-500 dark:focus:border-cyan-400 rounded-xl pl-10 pr-10 py-2 text-xs sm:text-sm text-slate-950 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-bold outline-none transition-all shadow-xs"
                   />
                   {swapSearchQuery && (
                     <button
                       type="button"
                       onClick={() => setSwapSearchQuery("")}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                      title="Limpar busca"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
 
-                {/* Quick Recommendation Pills */}
+                {/* Quick Recommendation Chips (Single Scrollable Row to Save Vertical Space) */}
                 {swapRecommendations.length > 0 && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                      <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span>Sugestões Compatíveis com este Estágio:</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {swapRecommendations.map((recName) => {
-                        const isCurrentActive = swapSearchQuery.toLowerCase() === recName.toLowerCase();
-                        return (
-                          <button
-                            key={recName}
-                            type="button"
-                            onClick={() => setSwapSearchQuery(recName)}
-                            className={`px-2.5 py-1 rounded-xl text-[10.5px] font-bold transition-all cursor-pointer flex items-center gap-1 border ${
-                              isCurrentActive
-                                ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md font-black"
-                                : "bg-white hover:bg-cyan-50 dark:bg-slate-900/90 dark:hover:bg-cyan-950/40 text-slate-700 hover:text-cyan-800 dark:text-slate-300 dark:hover:text-cyan-300 border-slate-300 dark:border-slate-800 hover:border-cyan-500/40"
-                            }`}
-                          >
-                            <span>{recName.includes("IMTP") || recName.includes("Isométrico") ? "⚡" : "•"}</span>
-                            <span>{recName}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                    <span className="text-[9px] font-black uppercase tracking-wider text-cyan-700 dark:text-cyan-400 shrink-0 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Sugeridos:</span>
+                    </span>
+                    {swapRecommendations.map((recName) => {
+                      const isCurrentActive = swapSearchQuery.toLowerCase() === recName.toLowerCase();
+                      return (
+                        <button
+                          key={recName}
+                          type="button"
+                          onClick={() => setSwapSearchQuery(recName)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 border shrink-0 ${
+                            isCurrentActive
+                              ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-xs font-black"
+                              : "bg-white hover:bg-cyan-50 dark:bg-slate-950 dark:hover:bg-cyan-950/40 text-slate-700 hover:text-cyan-800 dark:text-slate-300 dark:hover:text-cyan-300 border-slate-300 dark:border-slate-800 hover:border-cyan-500/40"
+                          }`}
+                        >
+                          <span>{recName.includes("IMTP") || recName.includes("Isométrico") ? "⚡" : "•"}</span>
+                          <span>{recName}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Category Filter Pills */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                {/* Category Filter Pills (Single Scrollable Row) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                   {["TODOS", "MMII", "Potência", "MMSS", "Core", "Velocidade", "Preventivo"].map(cat => (
                     <button
                       key={cat}
                       type="button"
                       onClick={() => setSwapCategoryFilter(cat)}
-                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer border ${
+                      className={`px-3 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider whitespace-nowrap transition-all cursor-pointer border shrink-0 ${
                         swapCategoryFilter === cat
-                          ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm"
+                          ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-xs"
                           : "bg-white hover:bg-slate-100 dark:bg-slate-950 dark:hover:bg-slate-900 text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-200 border-slate-300 dark:border-slate-850"
                       }`}
                     >
@@ -5935,84 +5934,84 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 </div>
               </div>
 
-              {/* Exercise Results List */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2.5 bg-slate-50/50 dark:bg-transparent">
+              {/* Exercise Results List - Spacious & Touch-Friendly */}
+              <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-2.5 bg-slate-50/50 dark:bg-transparent overscroll-contain">
                 {swapFilteredLibrary.length > 0 ? (
-                  swapFilteredLibrary.slice(0, 40).map(item => {
+                  swapFilteredLibrary.slice(0, 50).map(item => {
                     const isRecommended = swapRecommendations.includes(item.name);
                     return (
                       <div
                         key={item.id}
-                        className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        className={`p-3 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
                           isRecommended
-                            ? "bg-cyan-50/80 hover:bg-cyan-100/80 border-cyan-400/60 dark:bg-[#101928] dark:hover:bg-[#142034] dark:border-cyan-500/30 dark:hover:border-cyan-400/60 shadow-xs"
+                            ? "bg-cyan-50/80 hover:bg-cyan-100/90 border-cyan-400/60 dark:bg-[#101928] dark:hover:bg-[#142034] dark:border-cyan-500/40 shadow-xs"
                             : "bg-white hover:bg-slate-100/90 border-slate-200 hover:border-slate-300 dark:bg-[#0e1320] dark:hover:bg-[#131a2c] dark:border-slate-850 dark:hover:border-slate-700 shadow-xs"
                         }`}
                       >
-                        <div className="flex items-start gap-3 min-w-0">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                             isRecommended
                               ? "bg-cyan-500/20 text-cyan-800 dark:text-cyan-400 border border-cyan-500/30"
-                              : "bg-slate-200 dark:bg-slate-800/50 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700/50"
+                              : "bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50"
                           }`}>
                             <Dumbbell className="w-4 h-4" />
                           </div>
-                          <div className="min-w-0 space-y-1">
+                          <div className="min-w-0 space-y-1 flex-1">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              <h4 className="text-sm font-black text-slate-950 dark:text-white truncate">
+                              <h4 className="text-xs sm:text-sm font-black text-slate-950 dark:text-white leading-snug">
                                 {item.name}
                               </h4>
                               {isRecommended && (
-                                <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30">
+                                <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30">
                                   ⭐ Compatível
                                 </span>
                               )}
-                              <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                              <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
                                 {item.muscleGroup || item.category}
                               </span>
                               {item.physicalQuality && (
-                                <span className="px-2 py-0.5 rounded-md text-[8.5px] font-black uppercase tracking-wider bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border border-indigo-500/25">
+                                <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider bg-indigo-500/15 text-indigo-800 dark:text-indigo-300 border border-indigo-500/25">
                                   {item.physicalQuality}
                                 </span>
                               )}
                             </div>
-                            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-1 font-medium">
+                            <p className="text-[10.5px] text-slate-600 dark:text-slate-400 line-clamp-2 font-medium leading-relaxed">
                               {item.physiologicalGoal || item.applicability || `Equipamento: ${item.equipment || "BW"} • Padrão: ${item.movementPattern || "Geral"}`}
                             </p>
                           </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                        <div className="flex items-center gap-2 shrink-0 self-stretch sm:self-center justify-end pt-1 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 dark:border-slate-800/60">
                           <button
                             type="button"
                             onClick={() => setSelectedDetailsExercise(item)}
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-400 border border-slate-300 dark:border-slate-800 transition-all cursor-pointer"
+                            className="p-2 sm:p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-600 hover:text-cyan-700 dark:text-slate-400 dark:hover:text-cyan-400 border border-slate-300 dark:border-slate-800 transition-all cursor-pointer flex items-center justify-center"
                             title="Ver Biomecânica & Evidência Científica"
                           >
-                            <Eye className="w-3.5 h-3.5" />
+                            <Eye className="w-4 h-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => swapExerciseWithLibrary(exerciseToSwap.id, item)}
-                            className="px-3.5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-cyan-500/20 active:scale-95 cursor-pointer"
+                            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md shadow-cyan-500/20 active:scale-95 cursor-pointer min-h-[40px]"
                             title={`Substituir "${exerciseToSwap.name}" por "${item.name}"`}
                           >
                             <ArrowLeftRight className="w-3.5 h-3.5" />
-                            <span>Trocar por este</span>
+                            <span>Substituir</span>
                           </button>
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="py-10 text-center space-y-2.5">
-                    <div className="w-10 h-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 flex items-center justify-center text-slate-500 mx-auto">
-                      <Search className="w-5 h-5" />
+                  <div className="py-12 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 flex items-center justify-center text-slate-500 mx-auto shadow-xs">
+                      <Search className="w-6 h-6" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-300">Nenhum exercício encontrado</p>
-                      <p className="text-[11px] text-slate-500">Tente termos como "Agachamento", "IMTP", "Salto", "Trap Bar" ou limpe os filtros.</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Nenhum exercício encontrado</p>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">Tente buscar por termos como "Agachamento", "IMTP", "Salto", "Trap Bar" ou redefina os filtros.</p>
                     </div>
                     <button
                       type="button"
@@ -6020,18 +6019,18 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         setSwapSearchQuery("");
                         setSwapCategoryFilter("TODOS");
                       }}
-                      className="px-3.5 py-1.5 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-cyan-700 dark:text-cyan-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      className="px-4 py-2 bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-300 dark:border-slate-800 text-cyan-700 dark:text-cyan-400 text-xs font-bold rounded-xl transition-all cursor-pointer"
                     >
-                      Limpar Filtros
+                      Limpar Filtros e Busca
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Modal Footer */}
-              <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 flex items-center justify-between">
-                <span className="text-xs text-slate-600 dark:text-slate-400 font-semibold">
-                  Mostrando <strong className="text-slate-950 dark:text-white">{swapFilteredLibrary.length}</strong> exercícios disponíveis
+              {/* Modal Footer - Compact */}
+              <div className="px-4 py-3 sm:px-6 sm:py-3.5 border-t border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-950 flex items-center justify-between shrink-0">
+                <span className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 font-semibold">
+                  <strong className="text-slate-950 dark:text-white font-black">{swapFilteredLibrary.length}</strong> exercícios disponíveis
                 </span>
                 <button
                   type="button"
