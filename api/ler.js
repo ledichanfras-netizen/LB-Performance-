@@ -89,13 +89,14 @@ export default async function handler(request, response) {
           rest: ex.rest, 
           notes: ex.notes,
           painLevel: ex.pain_level,
-          order_index: ex.order_index ?? index,
-              trainingMode: ex.training_mode || 'strength',
-              metricType: ex.metric_type || 'load',
-              distanceMeters: ex.distance_meters === null ? undefined : Number(ex.distance_meters),
-              targetIntensity: ex.target_intensity === null ? undefined : Number(ex.target_intensity),
-              recoverySeconds: ex.recovery_seconds === null ? undefined : Number(ex.recovery_seconds),
+          order_index: typeof ex.order_index === 'number' ? Number(ex.order_index) : index,
+          trainingMode: ex.training_mode || 'strength',
+          metricType: ex.metric_type || 'load',
+          distanceMeters: ex.distance_meters === null ? undefined : Number(ex.distance_meters),
+          targetIntensity: ex.target_intensity === null ? undefined : Number(ex.target_intensity),
+          recoverySeconds: ex.recovery_seconds === null ? undefined : Number(ex.recovery_seconds),
           performedSets: (setsByEx[ex.id] || []).map(ps => ({
+            id: ps.id,
             reps: ps.reps,
             weight: ps.weight,
             rpe: ps.rpe,
@@ -103,7 +104,11 @@ export default async function handler(request, response) {
             timeSeconds: ps.time_seconds,
             intensity: ps.intensity
           }))
-        })).sort((a, b) => a.order_index - b.order_index)
+        })).sort((a, b) => {
+          const aIdx = typeof a.order_index === 'number' ? a.order_index : 9999;
+          const bIdx = typeof b.order_index === 'number' ? b.order_index : 9999;
+          return aIdx - bIdx;
+        }).map((ex, idx) => ({ ...ex, order_index: idx }))
       })),
       assessments: {
         bioimpedance: (bioByAth[a.id] || []).map(b => ({

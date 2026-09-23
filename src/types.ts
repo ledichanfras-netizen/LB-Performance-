@@ -234,6 +234,7 @@ export interface PrescribedExercise {
   distanceMeters?: number;
   targetIntensity?: number;
   recoverySeconds?: number;
+  defaultExecutionTime?: string;
 
   // Métodos Avançados de Força & Potência (Cluster, Contraste Francês, Complex PAP, Rest-Pause)
   executionMethod?: AdvancedExecutionMethod;

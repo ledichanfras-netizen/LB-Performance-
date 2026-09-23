@@ -369,12 +369,12 @@ export const supabaseService = {
             trainerNotes: wk.trainer_notes,
             updatedAt: wk.updated_at || wk.updatedAt || new Date().toISOString(),
             createdAt: wk.created_at || wk.createdAt,
-            exercises: (wk.prescribed_exercises || []).map((ex: any) => ({ 
+            exercises: (wk.prescribed_exercises || []).map((ex: any, idx: number) => ({ 
               ...ex, 
               muscleGroup: ex.muscle_group,
               painLevel: ex.pain_level,
               repsType: ex.reps_type || 'reps',
-              order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
+              order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : idx),
               trainingMode: ex.training_mode || 'strength',
               metricType: ex.metric_type || 'load',
               distanceMeters: ex.distance_meters !== null && ex.distance_meters !== undefined ? Number(ex.distance_meters) : undefined,
@@ -387,7 +387,7 @@ export const supabaseService = {
               const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
               const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
               return xIdx - yIdx;
-            })
+            }).map((ex: any, idx: number) => ({ ...ex, order_index: idx }))
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           assessments: {
             bioimpedance: athleteBio.map((b: any) => ({
@@ -752,7 +752,7 @@ export const supabaseService = {
               notes: ex.notes,
               pain_level: ex.painLevel,
               reps_type: ex.repsType || 'reps',
-              order_index: typeof ex.order_index === 'number' ? ex.order_index : idx,
+              order_index: idx,
               training_mode: ex.trainingMode || 'strength',
               metric_type: ex.metricType || 'load',
               distance_meters: ex.distanceMeters ?? null,

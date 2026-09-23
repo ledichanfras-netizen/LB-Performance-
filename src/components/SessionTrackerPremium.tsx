@@ -322,12 +322,20 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const isEditingCompleted = workout.status === "completed";
 
   const [session, setSession] = useState<Workout>(() => {
-    const rawExercises = (Array.isArray(workout.exercises) ? [...workout.exercises] : [])
-      .sort((a: any, b: any) => {
-        const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
-        const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
-        return aIdx - bIdx;
-      });
+    const rawExercisesList = Array.isArray(workout.exercises) ? [...workout.exercises] : [];
+    const hasDistinctOrder = rawExercisesList.some((x) => 
+      (typeof x.order_index === 'number' && x.order_index !== 0) || 
+      (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
+    );
+    const sortedExercises = hasDistinctOrder
+      ? [...rawExercisesList].sort((a: any, b: any) => {
+          const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+          const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+          return aIdx - bIdx;
+        })
+      : rawExercisesList;
+
+    const rawExercises = sortedExercises.map((ex, idx) => ({ ...ex, order_index: idx }));
 
     const normalizedExercises = rawExercises.map((ex, idx) => {
       const special = detectSpecialMethod(ex);
@@ -445,6 +453,21 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     const restSecs = secondsMatch ? parseInt(secondsMatch[0]) : 90;
     startRestTimer(restSecs);
     toast.success(`Exercício ${ex?.name || ""} concluído! ⚡ Descanso iniciado.`);
+
+    const isLastEx = session.exercises.length > 0 && session.exercises[session.exercises.length - 1].id === exId;
+    const allOthersCompleted = session.exercises
+      .filter((e) => e.id !== exId)
+      .every((e) => (e.performedSets || []).length > 0 && (e.performedSets || []).every((s: any) => s.isCompleted));
+
+    if (allOthersCompleted || isLastEx) {
+      if (!manualDurationMinutes || manualDurationMinutes === "") {
+        setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
+      }
+      setTimeout(() => {
+        setShowFinishModal(true);
+        toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) e tempo para finalizar. 🏆", { duration: 5000 });
+      }, 800);
+    }
   };
 
   const resetAllSetsOfExercise = (exId: string) => {
@@ -488,6 +511,13 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       if (restTimerRef.current) clearInterval(restTimerRef.current);
     };
   }, []);
+
+  // Auto sync duration to finish modal when opened if manualDurationMinutes is empty
+  useEffect(() => {
+    if (showFinishModal && (!manualDurationMinutes || manualDurationMinutes === "")) {
+      setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
+    }
+  }, [showFinishModal, totalElapsedTime]);
 
   // Rest Timer ticking logic
   useEffect(() => {
@@ -577,6 +607,14 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         willBeAllCompleted = true;
       }
     }
+
+    const isLastEx = session.exercises.length > 0 && session.exercises[session.exercises.length - 1].id === exId;
+    const willAllSessionCompleted = justCompleted && session.exercises.every((ex) => {
+      if (ex.id === exId) {
+        return (ex.performedSets || []).every((s) => s.id === setId ? true : (s as any).isCompleted);
+      }
+      return (ex.performedSets || []).length > 0 && (ex.performedSets || []).every((s: any) => s.isCompleted);
+    });
 
     setSession((prev) => {
       const updatedExercises = prev.exercises.map((ex) => {
@@ -668,17 +706,24 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 toast.success(`Retornando ao primeiro estágio para o próximo round!`, { icon: "🔄" });
               }, 800);
             }
+          } else if (willAllSessionCompleted || (willBeAllCompleted && isLastEx)) {
+            if (!manualDurationMinutes || manualDurationMinutes === "") {
+              setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
+            }
+            setTimeout(() => {
+              setShowFinishModal(true);
+              toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) e tempo para finalizar. 🏆", { duration: 5000 });
+            }, 1000);
           } else if (willBeAllCompleted) {
-            const nextIndex = currentExerciseIndex + 1;
-            if (nextIndex < session.exercises.length) {
-              setTimeout(() => {
-                navigateToExercise(nextIndex);
-              }, 1500);
+            if (viewMode === "guided") {
+              const nextIndex = currentExerciseIndex + 1;
+              if (nextIndex < session.exercises.length) {
+                setTimeout(() => {
+                  navigateToExercise(nextIndex);
+                }, 1500);
+              }
             } else {
-              setTimeout(() => {
-                setShowFinishModal(true);
-                toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) para finalizar. 🏆", { duration: 5000 });
-              }, 1500);
+              toast.success(`Exercício ${targetEx?.name || ""} concluído! ⚡`, { icon: "✅" });
             }
           }
         }
@@ -700,19 +745,26 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
         startRestTimer(restSecs, label);
 
-        // Auto-switching to next exercise if all are completed (only when in guided focus mode)
-        if (willBeAllCompleted && viewMode === "guided") {
-          const nextIndex = currentExerciseIndex + 1;
-          if (nextIndex < session.exercises.length) {
-            setTimeout(() => {
-              navigateToExercise(nextIndex);
-              toast.success(`Avançando para o próximo exercício: ${session.exercises[nextIndex].name}!`, { icon: "➡️" });
-            }, 1500);
+        // Auto-switching or opening finish modal
+        if (willAllSessionCompleted || (willBeAllCompleted && isLastEx)) {
+          if (!manualDurationMinutes || manualDurationMinutes === "") {
+            setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
+          }
+          setTimeout(() => {
+            setShowFinishModal(true);
+            toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) e tempo para finalizar. 🏆", { duration: 5000 });
+          }, 1000);
+        } else if (willBeAllCompleted) {
+          if (viewMode === "guided") {
+            const nextIndex = currentExerciseIndex + 1;
+            if (nextIndex < session.exercises.length) {
+              setTimeout(() => {
+                navigateToExercise(nextIndex);
+                toast.success(`Avançando para o próximo exercício: ${session.exercises[nextIndex].name}!`, { icon: "➡️" });
+              }, 1500);
+            }
           } else {
-            setTimeout(() => {
-              setShowFinishModal(true);
-              toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) para finalizar. 🏆", { duration: 5000 });
-            }, 1500);
+            toast.success(`Exercício ${targetEx?.name || ""} concluído! ⚡`, { icon: "✅" });
           }
         }
       }
@@ -761,24 +813,33 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         if (ex.id !== exId) return ex;
         const currentSets = ex.performedSets || [];
         const lastSet = currentSets[currentSets.length - 1];
+        const isPerformance = ex.trainingMode && ex.trainingMode !== "strength";
         const targetReps = parseReps(ex.reps);
         const targetWeight = parseWeight(ex.weight);
+        const targetDistance = ex.distanceMeters || (isPerformance ? targetReps : 0);
+        const targetTime = ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
 
-        const newSet: ExerciseSet = {
+        const newSet: any = {
           id: `s-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           reps: lastSet ? (lastSet.reps || targetReps) : targetReps,
           weight: lastSet ? (lastSet.weight || targetWeight) : targetWeight,
+          distance: lastSet ? ((lastSet as any).distance || targetDistance) : targetDistance,
+          timeSeconds: lastSet ? ((lastSet as any).timeSeconds || targetTime) : targetTime,
+          intensity: lastSet ? ((lastSet as any).intensity || ex.targetIntensity || 0) : (ex.targetIntensity || 0),
           rpe: lastSet ? (lastSet.rpe || 0) : 0,
-          isCompleted: false,
+          isCompleted: isEditingCompleted ? true : false,
         };
+
+        const updatedSets = [...currentSets, newSet];
 
         return {
           ...ex,
-          performedSets: [...currentSets, newSet],
+          sets: updatedSets.length,
+          performedSets: updatedSets,
         };
       }),
     }));
-    toast.success("Nova série adicionada! Carga e repetições replicadas.");
+    toast.success("Nova série adicionada! Ajuste os valores conforme necessário.");
   };
 
   // Remove set (either specific set or last set)
@@ -802,10 +863,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
         return {
           ...ex,
+          sets: updatedSets.length,
           performedSets: updatedSets,
         };
       }),
     }));
+    toast.success("Série excluída com sucesso!");
   };
 
   // Update total sets count in simple entry mode
@@ -938,17 +1001,36 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       ? parseInt(manualDurationMinutes) || 1 
       : Math.max(1, Math.round(totalElapsedTime / 60));
     
+    // Prepare updated exercises with synced sets count and completed flags
+    const updatedExercises = (session.exercises || []).map((ex, idx) => {
+      const currentSets = ex.performedSets && ex.performedSets.length > 0 ? ex.performedSets : [];
+      return {
+        ...ex,
+        order_index: idx,
+        sets: currentSets.length > 0 ? currentSets.length : (ex.sets || 1),
+        performedSets: currentSets.map((s) => ({
+          ...s,
+          isCompleted: isEditingCompleted ? true : ((s as any).isCompleted ?? true),
+        })),
+      };
+    });
+
+    const sessionToCalculate: Workout = {
+      ...session,
+      exercises: updatedExercises,
+    };
+
     // Auto map values to match standard types
     const completedSession: Workout = {
-      ...session,
+      ...sessionToCalculate,
       status: "completed",
       date: sessionDate.split("T")[0],
       durationMinutes: finalDuration,
       rpe: overallRpe,
       feedback: feedbackNotes || session.feedback || "Treino concluído com biofeedback de alta performance.",
-      totalLoad: calculateWorkoutLoad(session, athleteWeight),
+      totalLoad: calculateWorkoutLoad(sessionToCalculate, athleteWeight),
       updatedAt: new Date().toISOString(),
-      exercises: (session.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
+      exercises: updatedExercises
     };
 
     onFinish(completedSession, isSocial);
@@ -1124,24 +1206,29 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           </div>
 
           {session.exercises.map((ex, idx) => {
+            const isPerf = ex.trainingMode && ex.trainingMode !== "strength";
             const prescribedSets = ex.sets || 3;
             const prescribedReps = ex.reps || "10";
             const prescribedWeight = ex.weight || "0";
+            const setsList = ex.performedSets || [];
 
             return (
               <div 
                 key={ex.id} 
                 id={`edit-ex-card-${ex.id}`}
-                className="p-4 bg-[#0c111d] border border-slate-900 rounded-2xl space-y-3 shadow-md hover:border-slate-800 transition-all"
+                className="p-4 bg-[#0c111d] border border-slate-900 rounded-2xl space-y-3.5 shadow-md hover:border-slate-800 transition-all"
               >
                 {/* Exercise Title and prescribed metrics */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2.5 border-b border-slate-900">
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight flex items-center gap-2 flex-wrap">
-                      <span className="w-5 h-5 rounded-md bg-[#39FF14]/15 border border-[#39FF14]/30 text-[#39FF14] font-black text-[10px] flex items-center justify-center font-mono shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span className="break-words leading-tight">{ex.name}</span>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h4 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                        <span className="w-5 h-5 rounded-md bg-[#39FF14]/15 border border-[#39FF14]/30 text-[#39FF14] font-black text-[10px] flex items-center justify-center font-mono shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="break-words leading-tight">{ex.name}</span>
+                      </h4>
+
                       {ex.executionMethod && ex.executionMethod !== "standard" && (() => {
                         const meta = getSpecialMethodMeta(ex.executionMethod);
                         return (
@@ -1151,9 +1238,16 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                           </span>
                         );
                       })()}
-                    </h4>
-                    <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider mt-1 block">
-                      Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {prescribedSets}x{isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ {prescribedWeight}
+
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-slate-900 text-[#39FF14] border border-slate-800 px-2 py-0.5 rounded-md">
+                        {setsList.length} {setsList.length === 1 ? "Série" : "Séries"}
+                      </span>
+                    </div>
+
+                    <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {isPerf 
+                        ? `${ex.sets}x ${ex.distanceMeters ? `${ex.distanceMeters}m` : ex.reps} • ${ex.targetIntensity || "--"}%` 
+                        : `${prescribedSets}x${isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ ${prescribedWeight}`}
                     </span>
                   </div>
 
@@ -1178,67 +1272,148 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 {/* Individual performed sets */}
                 <div className="space-y-1.5">
                   <div className="grid grid-cols-12 gap-2 text-center text-[8.5px] font-black text-slate-500 uppercase tracking-wider px-1 select-none">
-                    <div className="col-span-2 text-left">Série</div>
-                    <div className="col-span-4">Carga (kg)</div>
-                    <div className="col-span-4">Reps / Tempo</div>
-                    <div className="col-span-2">PSE</div>
+                    <div className="col-span-2 sm:col-span-1 text-left">Série</div>
+                    <div className="col-span-3 sm:col-span-3">{isPerf ? "Distância (m)" : "Carga (kg)"}</div>
+                    <div className="col-span-3 sm:col-span-3">{isPerf ? "Tempo (s)" : isTimeExercise(ex) ? "Tempo (s)" : "Reps"}</div>
+                    <div className="col-span-2 sm:col-span-3">{isPerf ? "Intensidade" : "PSE (0-10)"}</div>
+                    <div className="col-span-2 sm:col-span-2 text-right">Ação</div>
                   </div>
 
-                  {(ex.performedSets || []).map((set, setIdx) => (
+                  {setsList.map((set, setIdx) => (
                     <div 
                       key={set.id} 
                       id={`edit-set-row-${set.id}`}
-                      className="grid grid-cols-12 gap-2 items-center bg-slate-950/40 p-1.5 rounded-xl border border-slate-900/60"
+                      className="grid grid-cols-12 gap-2 items-center bg-slate-950/60 p-1.5 sm:p-2 rounded-xl border border-slate-900/80 hover:border-slate-800 transition-colors"
                     >
-                      <div className="col-span-2 pl-1.5 text-[10px] font-black text-[#39FF14] font-mono">
+                      <div className="col-span-2 sm:col-span-1 pl-1 text-[10px] font-black text-[#39FF14] font-mono">
                         S{setIdx + 1}
                       </div>
 
-                      {/* Weight input */}
-                      <div className="col-span-4 relative flex items-center">
-                        <input
-                          id={`edit-weight-input-${set.id}`}
-                          type="number"
-                          step="any"
-                          value={set.weight ?? ""}
-                          onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 text-center font-extrabold text-xs text-white outline-none transition-colors"
-                          placeholder="0"
-                        />
+                      {/* Metrica 1: Carga ou Distancia */}
+                      <div className="col-span-3 sm:col-span-3 relative flex items-center">
+                        {isPerf ? (
+                          <input
+                            id={`edit-dist-input-${set.id}`}
+                            type="number"
+                            step="any"
+                            value={(set as any).distance ?? ""}
+                            onChange={(e) => updateSetField(ex.id, set.id, "distance" as any, parseFloat(e.target.value) || 0)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 px-1.5 text-center font-extrabold text-xs text-white outline-none transition-colors"
+                            placeholder="m"
+                          />
+                        ) : (
+                          <input
+                            id={`edit-weight-input-${set.id}`}
+                            type="number"
+                            step="any"
+                            value={set.weight ?? ""}
+                            onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
+                            onFocus={(e) => e.target.select()}
+                            className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 px-1.5 text-center font-extrabold text-xs text-white outline-none transition-colors"
+                            placeholder="0"
+                          />
+                        )}
                       </div>
 
-                      {/* Reps input */}
-                      <div className="col-span-4 relative flex items-center">
-                        <input
-                          id={`edit-reps-input-${set.id}`}
-                          type="number"
-                          value={set.reps ?? ""}
-                          onChange={(e) => updateSetField(ex.id, set.id, "reps", parseInt(e.target.value) || 0)}
-                          onFocus={(e) => e.target.select()}
-                          className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 pr-6 text-center font-extrabold text-xs text-white outline-none transition-colors"
-                          placeholder="0"
-                        />
-                        <span className="absolute right-2 text-[9px] font-black text-slate-500 uppercase select-none pointer-events-none">
-                          {isTimeExercise(ex) ? "s" : "r"}
-                        </span>
+                      {/* Metrica 2: Reps ou Tempo */}
+                      <div className="col-span-3 sm:col-span-3 relative flex items-center">
+                        {isPerf ? (
+                          <div className="w-full relative flex items-center">
+                            <input
+                              id={`edit-time-input-${set.id}`}
+                              type="number"
+                              step="0.01"
+                              value={(set as any).timeSeconds ?? ""}
+                              onChange={(e) => updateSetField(ex.id, set.id, "timeSeconds" as any, parseFloat(e.target.value) || 0)}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 pr-5 pl-1 text-center font-extrabold text-xs text-white outline-none transition-colors"
+                              placeholder="0"
+                            />
+                            <span className="absolute right-1.5 text-[8.5px] font-black text-slate-500 uppercase pointer-events-none">s</span>
+                          </div>
+                        ) : (
+                          <div className="w-full relative flex items-center">
+                            <input
+                              id={`edit-reps-input-${set.id}`}
+                              type="number"
+                              value={set.reps ?? ""}
+                              onChange={(e) => updateSetField(ex.id, set.id, "reps", parseInt(e.target.value) || 0)}
+                              onFocus={(e) => e.target.select()}
+                              className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 pr-5 pl-1 text-center font-extrabold text-xs text-white outline-none transition-colors"
+                              placeholder="0"
+                            />
+                            <span className="absolute right-1.5 text-[8.5px] font-black text-slate-500 uppercase pointer-events-none">
+                              {isTimeExercise(ex) ? "s" : "r"}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* RPE input */}
-                      <div className="col-span-2">
-                        <select
-                          id={`edit-set-rpe-${set.id}`}
-                          value={set.rpe || 0}
-                          onChange={(e) => updateSetField(ex.id, set.id, "rpe", parseInt(e.target.value))}
-                          className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-0.5 px-1 text-center font-extrabold text-xs text-white outline-none cursor-pointer"
+                      {/* Metrica 3: PSE ou Intensidade */}
+                      <div className="col-span-2 sm:col-span-3">
+                        {isPerf ? (
+                          <select
+                            id={`edit-set-intensity-${set.id}`}
+                            value={(set as any).intensity || 0}
+                            onChange={(e) => updateSetField(ex.id, set.id, "intensity" as any, parseInt(e.target.value) || 0)}
+                            className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 px-1 text-center font-extrabold text-xs text-white outline-none cursor-pointer"
+                          >
+                            {[0, 60, 70, 75, 80, 85, 90, 95, 100].map(v => (
+                              <option key={v} value={v} className="bg-slate-900">{v === 0 ? "Normal" : `${v}%`}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <select
+                            id={`edit-set-rpe-${set.id}`}
+                            value={set.rpe || 0}
+                            onChange={(e) => updateSetField(ex.id, set.id, "rpe", parseInt(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-900 focus:border-[#39FF14] rounded-lg py-1 px-1 text-center font-extrabold text-xs text-white outline-none cursor-pointer"
+                          >
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
+                              <option key={v} value={v} className="bg-slate-900">{v === 0 ? "PSE 0" : `PSE ${v}`}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Botão de Excluir Série */}
+                      <div className="col-span-2 sm:col-span-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeSetFromExercise(ex.id, set.id)}
+                          className="px-2 py-1 bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-800 hover:border-red-500/40 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1 cursor-pointer w-full sm:w-auto"
+                          title="Excluir esta série do treino"
                         >
-                          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
-                            <option key={v} value={v} className="bg-slate-900">{v}</option>
-                          ))}
-                        </select>
+                          <Trash2 className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span className="hidden sm:inline">Excluir</span>
+                        </button>
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Exercise Set Actions Footer */}
+                <div className="pt-2 border-t border-slate-900/80 flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => addSetToExercise(ex.id)}
+                    className="py-1.5 px-3 bg-slate-950 hover:bg-[#39FF14]/10 border border-dashed border-slate-800 hover:border-[#39FF14]/40 text-slate-300 hover:text-[#39FF14] font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[3] text-[#39FF14]" />
+                    <span>Adicionar Nova Série</span>
+                  </button>
+
+                  {setsList.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSetFromExercise(ex.id)}
+                      className="py-1.5 px-3 bg-slate-950 hover:bg-red-500/10 border border-dashed border-slate-800 hover:border-red-500/30 text-slate-400 hover:text-red-400 font-bold text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3 text-red-400" />
+                      <span>Excluir Última Série (S{setsList.length})</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

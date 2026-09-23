@@ -142,10 +142,13 @@ export const useAthletes = (token?: string | null) => {
     return {
       ...a,
       workouts: (a.workouts || []).map(w => {
-        const exs = (w.exercises || []).slice();
-        const hasOrderIndex = exs.some(x => typeof x.order_index === 'number' || typeof (x as any).orderIndex === 'number');
-        const sortedExs = hasOrderIndex
-          ? exs.sort((x: any, y: any) => {
+        const exs = Array.isArray(w.exercises) ? [...w.exercises] : [];
+        const hasDistinctOrderIndex = exs.some((x) => 
+          (typeof x.order_index === 'number' && x.order_index !== 0) || 
+          (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
+        );
+        const sortedExs = hasDistinctOrderIndex
+          ? [...exs].sort((x: any, y: any) => {
               const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
               const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
               return xVal - yVal;
@@ -789,7 +792,7 @@ export const useAthletes = (token?: string | null) => {
         let finalWorkout = { ...updatedWorkout };
         if (workout.status === 'completed') {
           const athleteWeight = a.assessments?.bioimpedance?.[0]?.weight || (a as any).weight || 70;
-          finalWorkout.totalLoad = calculateWorkoutLoad(workout, athleteWeight);
+          finalWorkout.totalLoad = calculateWorkoutLoad(finalWorkout, athleteWeight);
           const workoutsList = (a.workouts || []).map(w => w.id === workout.id ? finalWorkout : w);
           const { monotony, strain } = calculateAdvancedMetrics(workoutsList, a.externalSessions);
           finalWorkout.monotony = monotony;

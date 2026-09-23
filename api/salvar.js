@@ -104,7 +104,10 @@ export default async function handler(request, response) {
             cleanParam(wk.feedback)
           ]
         );
-        for (const ex of (wk.exercises || [])) {
+        const wkExercises = wk.exercises || [];
+        for (let idx = 0; idx < wkExercises.length; idx++) {
+          const ex = wkExercises[idx];
+          const exOrderIndex = typeof ex.order_index === 'number' ? ex.order_index : idx;
           await client.query(
             'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, order_index, training_mode, metric_type, distance_meters, target_intensity, recovery_seconds) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)',
             [
@@ -117,7 +120,7 @@ export default async function handler(request, response) {
               cleanParam(ex.weight),
               cleanParam(ex.rest),
               cleanParam(ex.notes),
-              cleanParam(typeof ex.order_index === 'number' ? ex.order_index : (typeof ex.orderIndex === 'number' ? ex.orderIndex : 0)),
+              cleanParam(exOrderIndex),
               cleanParam(ex.trainingMode || 'strength'),
               cleanParam(ex.metricType || 'load'),
               cleanParam(ex.distanceMeters),

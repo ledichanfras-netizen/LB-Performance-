@@ -1165,3 +1165,78 @@ body.light-theme .ai-assistant-bubble strong {
   color: #020617 !important;
   background-color: rgba(245, 158, 11, 0.2) !important;
 }
+
+/* PWA Install Banner & Modal High-Contrast Readability Guarantee */
+.pwa-install-banner-card {
+  background-color: #0c121e !important;
+  color: #ffffff !important;
+}
+
+.pwa-install-banner-card h4,
+.pwa-install-banner-card .text-white {
+  color: #ffffff !important;
+}
+
+.pwa-install-banner-card p,
+.pwa-install-banner-card .text-slate-200,
+.pwa-install-banner-card .text-slate-300 {
+  color: #e2e8f0 !important;
+}
+
+body.light-theme .pwa-install-banner-card {
+  background-color: #ffffff !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18) !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .pwa-install-banner-card h4,
+body.light-theme .pwa-install-banner-card .text-white {
+  color: #0f172a !important;
+}
+
+body.light-theme .pwa-install-banner-card p,
+body.light-theme .pwa-install-banner-card .text-slate-200,
+body.light-theme .pwa-install-banner-card .text-slate-300 {
+  color: #334155 !important;
+}
+
+body.light-theme .pwa-install-banner-card button.bg-slate-800\/80 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .pwa-install-banner-card button.bg-slate-800\/80:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .pwa-install-guide-modal {
+  background-color: #ffffff !important;
+  border-color: #10b981 !important;
+  color: #0f172a !important;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25) !important;
+}
+
+body.light-theme .pwa-install-guide-modal h3,
+body.light-theme .pwa-install-guide-modal .text-white {
+  color: #0f172a !important;
+}
+
+body.light-theme .pwa-install-guide-modal p,
+body.light-theme .pwa-install-guide-modal .text-slate-200,
+body.light-theme .pwa-install-guide-modal .text-slate-300 {
+  color: #334155 !important;
+}
+
+body.light-theme .pwa-install-guide-modal .bg-slate-900\/90 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+body.light-theme .pwa-install-guide-modal .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+

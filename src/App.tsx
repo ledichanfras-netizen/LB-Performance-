@@ -1160,24 +1160,32 @@ const EliteHubApp: FC<{
           monotony: 0,
           strain: 0,
           feedback: "",
-          exercises: [...(workoutToClone.exercises || [])]
-            .sort((a: any, b: any) => {
-              const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
-              const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
-              return aIdx - bIdx;
-            })
-            .map((ex, exIdx) => ({
-            ...ex,
-            id: `ex-clone-${Date.now()}-${Math.random()}`,
-            order_index: exIdx,
-            performedSets: (ex.performedSets || []).map((s) => ({
-              ...s,
-              id: `s-clone-${Date.now()}-${Math.random()}`,
-              reps: 0,
-              weight: 0,
-              rpe: 0,
-            })),
-          })),
+          exercises: (() => {
+            const rawExs = Array.isArray(workoutToClone.exercises) ? [...workoutToClone.exercises] : [];
+            const hasDistinct = rawExs.some(x => 
+              (typeof x.order_index === 'number' && x.order_index !== 0) || 
+              (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
+            );
+            const sorted = hasDistinct
+              ? rawExs.sort((a: any, b: any) => {
+                  const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
+                  const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
+                  return aIdx - bIdx;
+                })
+              : rawExs;
+            return sorted.map((ex, exIdx) => ({
+              ...ex,
+              id: `ex-clone-${Date.now()}-${Math.random()}`,
+              order_index: exIdx,
+              performedSets: (ex.performedSets || []).map((s) => ({
+                ...s,
+                id: `s-clone-${Date.now()}-${Math.random()}`,
+                reps: 0,
+                weight: 0,
+                rpe: 0,
+              })),
+            }));
+          })(),
         };
         newWorkoutsBatch.push(newWorkout);
       }
@@ -3592,13 +3600,20 @@ const EliteHubApp: FC<{
                                     </span>
                                   </div>
                                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 no-scrollbar">
-                                    {[...(w.exercises || [])]
-                                      .sort((a: any, b: any) => {
-                                        const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
-                                        const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
-                                        return aIdx - bIdx;
-                                      })
-                                      .map((ex, idx) => (
+                                    {(() => {
+                                      const exsList = Array.isArray(w.exercises) ? [...w.exercises] : [];
+                                      const hasDistinct = exsList.some(x => 
+                                        (typeof x.order_index === 'number' && x.order_index !== 0) || 
+                                        (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
+                                      );
+                                      const sorted = hasDistinct
+                                        ? [...exsList].sort((a: any, b: any) => {
+                                            const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
+                                            const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
+                                            return aIdx - bIdx;
+                                          })
+                                        : exsList;
+                                      return sorted.map((ex, idx) => (
                                         <div
                                           key={ex.id || idx}
                                           className="flex items-center justify-between gap-2 p-2 bg-slate-900/90 rounded-xl border border-slate-800/80 text-[10px] hover:border-slate-700 transition-colors"
@@ -3615,7 +3630,8 @@ const EliteHubApp: FC<{
                                             {ex.sets}x{ex.reps}
                                           </span>
                                         </div>
-                                      ))}
+                                      ));
+                                    })()}
                                     {(w.exercises || []).length === 0 && (
                                       <p className="text-[10px] text-slate-500 italic">Nenhum exercício cadastrado.</p>
                                     )}

@@ -297,11 +297,17 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 }) => {
   const [edited, setEdited] = useState<Workout>(() => {
     const rawExercises: PrescribedExercise[] = workout.exercises ? JSON.parse(JSON.stringify(workout.exercises)) : [];
-    const sorted = [...rawExercises].sort((a: any, b: any) => {
-      const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
-      const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
-      return aIdx - bIdx;
-    });
+    const hasDistinctOrder = rawExercises.some((x) => 
+      (typeof x.order_index === 'number' && x.order_index !== 0) || 
+      (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
+    );
+    const sorted = hasDistinctOrder
+      ? [...rawExercises].sort((a: any, b: any) => {
+          const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+          const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+          return aIdx - bIdx;
+        })
+      : rawExercises;
     const indexed = sorted.map((ex, idx) => ({ ...ex, order_index: idx }));
     return {
       ...workout,
@@ -867,11 +873,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     };
 
     const newExercises = [...current];
-    newExercises[targetIndex] = updatedEx;
+    newExercises[targetIndex] = { ...updatedEx, order_index: targetIndex };
 
     setEdited(prev => ({
       ...prev,
-      exercises: newExercises
+      exercises: newExercises.map((ex, i) => ({ ...ex, order_index: i }))
     }));
 
     setExpandedExerciseId(updatedEx.id);
@@ -1725,7 +1731,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
     setEdited(prev => ({
       ...prev,
-      exercises: updatedExercises
+      exercises: updatedExercises.map((ex, i) => ({ ...ex, order_index: i }))
     }));
 
     toast.success(`Progressão [${progressionMethod.toUpperCase()}] aplicada com sucesso a toda a planilha!`);
