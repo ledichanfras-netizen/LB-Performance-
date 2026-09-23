@@ -21,6 +21,8 @@ import {
   detectSpecialMethod,
   getSpecialMethodMeta
 } from "../utils";
+import { RunningBlockTracker } from "./RunningBlockTracker";
+import { isFieldOrRunningExercise } from "../utils/runningBlockUtils";
 
 // TTS Voice announcer
 const speakText = (text: string, enabled: boolean) => {
@@ -61,6 +63,62 @@ const SpecialMethodInteractiveGuide: FC<{
   if (method === "standard") return null;
 
   const meta = getSpecialMethodMeta(method);
+
+  if (method === "complex_contrast") {
+    const isLastStage = (exercise.blockTag || "").endsWith("D");
+    const intraRest = exercise.intraSetRest ?? 20;
+    const blockRestStr = exercise.blockRest || "3m30s";
+    const blockRestSecs = parseInt(blockRestStr) * 60 || 210;
+
+    return (
+      <div className="mt-3 p-3.5 rounded-2xl bg-[#081e26]/90 border border-cyan-500/30 text-xs space-y-2.5 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5">
+              <span>🇫🇷</span>
+              <span>CONTRASTE FRANCÊS • ESTÁGIO {exercise.blockTag || "1A"}</span>
+            </span>
+            <span className="text-[10px] font-bold text-cyan-300/80">
+              {exercise.blockRole || "PAP / Pliometria"} • Carga: {exercise.weight || "85% 1RM"}
+            </span>
+          </div>
+
+          {!isLastStage ? (
+            <button
+              type="button"
+              onClick={() => onStartTimer(intraRest, `⚡ Transição Rápida (${intraRest}s) ➔ Próximo Estágio`)}
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-900/40 transition-all cursor-pointer active:scale-95 font-black"
+            >
+              <Timer className="w-3.5 h-3.5" />
+              <span>Transição Rápida ({intraRest}s)</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onStartTimer(blockRestSecs, `⏱️ Descanso Pós-Round Francês (${blockRestStr})`)}
+              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-amber-400 hover:bg-amber-300 text-slate-950 flex items-center gap-1.5 shadow-md shadow-amber-900/40 transition-all cursor-pointer active:scale-95 font-black"
+            >
+              <Timer className="w-3.5 h-3.5" />
+              <span>Pausa Pós-Round ({blockRestStr})</span>
+            </button>
+          )}
+        </div>
+
+        <p className="text-[10px] text-cyan-200/80 italic leading-relaxed">
+          💡 <strong>Fisiologia do Estágio {exercise.blockTag || "1A"}:</strong>{" "}
+          {(exercise.blockTag || "").endsWith("A")
+            ? "Carga pesada (>80% 1RM) ativa motoneurônios de alto limiar via Potenciação Pós-Ativação (PAPE). Transição rápida (~20s) para o salto."
+            : (exercise.blockTag || "").endsWith("B")
+            ? "Pliometria com sobrecarga converte a potenciação neural em taxa de desenvolvimento de força (RFD). Transição rápida (~20s)."
+            : (exercise.blockTag || "").endsWith("C")
+            ? "Velocidade balística acelera carga leve sem desaceleração concêntrica terminal. Transição rápida (~20s)."
+            : (exercise.blockTag || "").endsWith("D")
+            ? "Pliometria reativa de alta intensidade (RSI / Drop Jump). Ao concluir o 1D, execute o descanso completo de 3m30s a 4min."
+            : "Execute o estágio mantendo a transição rápida intra-bloco e descanso pleno ao final do ciclo."}
+        </p>
+      </div>
+    );
+  }
 
   if (method === "cluster") {
     const clusterPattern = exercise.clusterReps || exercise.reps || "2+2+2";
@@ -482,6 +540,13 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       }),
     }));
     toast.success("Séries reabertas para edição!");
+  };
+
+  const updateExerciseInSession = (updatedExercise: PrescribedExercise) => {
+    setSession((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) => (ex.id === updatedExercise.id ? updatedExercise : ex)),
+    }));
   };
 
   const incompleteExercisesCount = useMemo(() => {
@@ -2022,8 +2087,16 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     </div>
                   </div>
 
-                  {/* Tabela de Séries */}
-                  <div className="space-y-2 mt-4 relative z-10">
+                  {/* Treino Estruturado por Blocos (Corrida / Campo / Intervalados) vs. Musculação */}
+                  {isFieldOrRunningExercise(ex) ? (
+                    <RunningBlockTracker
+                      exercise={ex}
+                      onUpdateExercise={updateExerciseInSession}
+                      onStartGlobalRestTimer={(sec, lbl) => startRestTimer(sec, lbl || "Recuperação de Campo")}
+                    />
+                  ) : (
+                    /* Tabela de Séries */
+                    <div className="space-y-2 mt-4 relative z-10">
                     <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500 px-2">
                       <span>Repetições Executadas</span>
                       <span>{ex.trainingMode && ex.trainingMode !== "strength" ? "Distância / Tempo / Intensidade" : "Carga / Reps / PSE / Status"}</span>
@@ -2156,6 +2229,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </React.Fragment>
               );
@@ -2420,11 +2494,17 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                  MÉTRICAS EXECUTADAS ({(activeEx.performedSets || []).length} SÉRIES)
+                  {isFieldOrRunningExercise(activeEx) ? "TREINO ESTRUTURADO POR BLOCOS E TIROS" : `MÉTRICAS EXECUTADAS (${(activeEx.performedSets || []).length} SÉRIES)`}
                 </h4>
               </div>
               
-              {activeEx.isSimpleEntry ? (
+              {isFieldOrRunningExercise(activeEx) ? (
+                <RunningBlockTracker
+                  exercise={activeEx}
+                  onUpdateExercise={updateExerciseInSession}
+                  onStartGlobalRestTimer={(sec, lbl) => startRestTimer(sec, lbl || "Recuperação de Campo")}
+                />
+              ) : activeEx.isSimpleEntry ? (
                 // SIMPLE ENTRY FORM FOR EASY COACHING PRE-POPULATION
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-[#0c111d] p-4 rounded-2xl border border-slate-900">
                   <div className="bg-slate-950 p-3 rounded-xl border border-slate-900">

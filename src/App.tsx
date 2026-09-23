@@ -3557,19 +3557,13 @@ const EliteHubApp: FC<{
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            if (
-                                              window.confirm(
-                                                "Deseja excluir permanentemente este treino?",
-                                              )
-                                            ) {
-                                              deleteWorkout(
-                                                selected.id,
-                                                w.id,
-                                              );
-                                            }
+                                            setModalState({
+                                              type: "confirm-delete-workout",
+                                              editingData: w,
+                                            });
                                           }}
                                           className="p-2 text-slate-300 hover:text-red-400 transition-colors bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-800 shadow-sm hover:bg-red-500/10 cursor-pointer"
-                                          title="Excluir"
+                                          title="Excluir Treino"
                                         >
                                           <svg
                                             className="w-4 h-4"
@@ -4383,12 +4377,12 @@ const EliteHubApp: FC<{
             )}
 
             {modalState.type === "confirm-delete-workout" && (
-              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
                 <Card
-                  className="max-w-md w-full p-8 bg-white border-none shadow-2xl text-center"
+                  className="max-w-md w-full p-8 bg-slate-900 border border-slate-800 shadow-2xl text-center rounded-[2.5rem]"
                   title="Confirmar Exclusão"
                 >
-                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                     <svg
                       className="w-10 h-10 text-red-500"
                       fill="none"
@@ -4403,12 +4397,12 @@ const EliteHubApp: FC<{
                       />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-black text-slate-900 uppercase italic mb-2">
+                  <h3 className="text-xl font-black text-white uppercase italic mb-2">
                     Excluir Treino?
                   </h3>
-                  <p className="text-sm text-slate-500 font-medium leading-relaxed mb-8">
+                  <p className="text-sm text-slate-400 font-medium leading-relaxed mb-8">
                     Deseja realmente excluir o treino{" "}
-                    <strong>{modalState.editingData?.name}</strong>? Esta ação
+                    <strong className="text-white">"{modalState.editingData?.name}"</strong>? Esta ação
                     não pode ser desfeita.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">

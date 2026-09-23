@@ -662,6 +662,99 @@ body.light-theme [class*="via-[#210c14]"] {
   border-color: #f43f5e !important;
 }
 
+/* ==========================================================================
+   MASTER CARD: MÉTODOS AVANÇADOS (HIGH CONTRAST IN DARK & LIGHT THEMES)
+   ========================================================================== */
+.advanced-methods-master-card {
+  background: linear-gradient(135deg, #090e1a 0%, #101828 50%, #0b1220 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.7), 0 0 20px -5px rgba(245, 158, 11, 0.12);
+}
+
+body.light-theme .advanced-methods-master-card {
+  background: linear-gradient(135deg, #ffffff 0%, #fffdfa 50%, #f8fafc 100%) !important;
+  border: 1.5px solid #f59e0b !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+body.light-theme .advanced-methods-master-card h5,
+body.light-theme .advanced-methods-master-card .text-slate-100 {
+  color: #0f172a !important;
+}
+
+body.light-theme .advanced-methods-master-card p,
+body.light-theme .advanced-methods-master-card .text-slate-400 {
+  color: #475569 !important;
+}
+
+body.light-theme .advanced-methods-master-card button {
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+  border-width: 1.5px !important;
+}
+
+/* ==========================================================================
+   RUNNING BLOCK TRACKER (FIELD / CORRIDA / TIROS) CONTRAST RULES
+   ========================================================================== */
+.running-block-tracker-shell {
+  background-color: rgba(13, 19, 36, 0.95);
+  border-color: rgba(51, 65, 85, 0.7);
+}
+
+.running-block-tracker-card {
+  background-color: #0b101d;
+  border-color: rgba(51, 65, 85, 0.8);
+}
+
+.running-block-tracker-step {
+  background-color: #0e1526;
+  border-color: #1e293b;
+}
+
+body.light-theme .running-block-tracker-shell {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .running-block-tracker-card {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 12px 30px -6px rgba(15, 23, 42, 0.1) !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .running-block-tracker-stat {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .running-block-tracker-stat span.text-slate-100 {
+  color: #0f172a !important;
+}
+
+body.light-theme .running-block-tracker-step {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .running-block-tracker-step:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .running-block-tracker-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+body.light-theme .running-block-tracker-input input {
+  color: #0f172a !important;
+}
+
 /* Method Configurator Panel in Light Mode */
 body.light-theme [class*="bg-slate-950/70"] {
   background-color: #ffffff !important;
@@ -1238,5 +1331,44 @@ body.light-theme .pwa-install-guide-modal .bg-slate-900\/90 {
 body.light-theme .pwa-install-guide-modal .bg-slate-800 {
   background-color: #f1f5f9 !important;
   border-color: #cbd5e1 !important;
+}
+
+/* Exercise Filter Drawer Styling (Workout Prescriptor) */
+.exercise-filter-drawer {
+  border-radius: 0;
+  backdrop-filter: blur(12px);
+}
+
+body.light-theme .exercise-filter-drawer {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .exercise-filter-drawer h4,
+body.light-theme .exercise-filter-drawer label,
+body.light-theme .exercise-filter-drawer span {
+  color: #1e293b;
+}
+
+body.light-theme .exercise-filter-drawer p {
+  color: #64748b !important;
+}
+
+body.light-theme .exercise-filter-drawer select {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+body.light-theme .exercise-filter-drawer button.bg-slate-900\/60 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .exercise-filter-drawer button.bg-slate-900\/60:hover {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
 }
 

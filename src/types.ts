@@ -211,7 +211,12 @@ export type AdvancedExecutionMethod =
   | 'super_set'
   | 'gvt'
   | 'myo_reps'
-  | 'wave_loading';
+  | 'wave_loading'
+  // Métodos Específicos de Quadra e Campo (Físico)
+  | 'sprint_rsa'
+  | 'pyramid_field'
+  | 'fartlek'
+  | 'shuttle_run';
 
 export interface PrescribedExercise {
   id: string;
@@ -219,7 +224,7 @@ export interface PrescribedExercise {
   muscleGroup: string;
   sets: number;
   reps: string; 
-  repsType?: 'reps' | 'time';
+  repsType?: 'reps' | 'time' | 'meters';
   weight: string;
   rest?: string;
   notes?: string;
@@ -235,6 +240,9 @@ export interface PrescribedExercise {
   targetIntensity?: number;
   recoverySeconds?: number;
   defaultExecutionTime?: string;
+  fieldUnit?: 'meters' | 'time' | 'reps';
+  workRestRatio?: string;
+  totalDistanceMeters?: number;
 
   // Métodos Avançados de Força & Potência (Cluster, Contraste Francês, Complex PAP, Rest-Pause)
   executionMethod?: AdvancedExecutionMethod;
@@ -245,6 +253,37 @@ export interface PrescribedExercise {
   blockType?: 'french_contrast' | 'pap_classic' | 'custom_complex';
   blockRole?: string; // ex: "1A: Carga Pesada (PAP)", "1B: Pliometria com Carga", "1C: Velocidade Balística", "1D: Pliometria Reativa (RSI)"
   blockRest?: string; // Descanso ao final do round/bloco (ex: "3m30s", "4min")
+
+  // Estrutura de Treino de Corrida e Campo por Blocos (Passos e Intervalos)
+  isStructuredRunning?: boolean;
+  runningBlocks?: RunningBlock[];
+}
+
+export type RunningStepType = 'warmup' | 'sprint' | 'interval' | 'recovery_active' | 'recovery_rest' | 'cooldown';
+
+export interface RunningStep {
+  id: string;
+  type: RunningStepType;
+  label: string;
+  targetType: 'distance' | 'time' | 'open';
+  targetValue: number;
+  targetUnit: 'm' | 'km' | 's' | 'min';
+  intensityTarget?: string;
+  notes?: string;
+  isCompleted?: boolean;
+  actualTimeSeconds?: number;
+  actualDistanceMeters?: number;
+}
+
+export interface RunningBlock {
+  id: string;
+  name: string;
+  repeatCount: number;
+  steps: RunningStep[];
+  blockRestSeconds?: number;
+  blockRestLabel?: string;
+  notes?: string;
+  isCompleted?: boolean;
 }
 
 export interface Workout {

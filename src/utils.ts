@@ -186,6 +186,62 @@ export const detectSpecialMethod = (ex: Partial<PrescribedExercise>): {
     };
   }
 
+  // 11. Tiros Curtos / RSA (Repeated Sprint Ability)
+  if (
+    nameLower.includes("rsa") || 
+    nameLower.includes("tiro") || 
+    nameLower.includes("sprint") || 
+    notesLower.includes("rsa") || 
+    notesLower.includes("tiros curtos") ||
+    repsStr.toLowerCase().includes("x") && repsStr.toLowerCase().includes("m")
+  ) {
+    return {
+      method: 'sprint_rsa',
+      intraSetRest: ex.intraSetRest ?? 20,
+      rest: ex.rest || "2m30s"
+    };
+  }
+
+  // 12. Pirâmide de Campo / Quadra
+  if (
+    nameLower.includes("pirâmide") || 
+    nameLower.includes("piramide") || 
+    notesLower.includes("pirâmide") || 
+    notesLower.includes("pyramid") ||
+    (repsStr.includes("-") && repsStr.toLowerCase().includes("m"))
+  ) {
+    return {
+      method: 'pyramid_field',
+      intraSetRest: ex.intraSetRest ?? 30,
+      rest: ex.rest || "3min"
+    };
+  }
+
+  // 13. Fartlek Intermitente
+  if (nameLower.includes("fartlek") || notesLower.includes("fartlek") || repsStr.toLowerCase().includes("15s:15s") || repsStr.toLowerCase().includes("30s:30s")) {
+    return {
+      method: 'fartlek',
+      intraSetRest: ex.intraSetRest ?? 15,
+      rest: ex.rest || "2m30s"
+    };
+  }
+
+  // 14. Shuttle Run / Vai-e-Vem (COD & Frenagem)
+  if (
+    nameLower.includes("shuttle") || 
+    nameLower.includes("vai-e-vem") || 
+    nameLower.includes("vai e vem") || 
+    notesLower.includes("shuttle") || 
+    notesLower.includes("vai-e-vem") ||
+    nameLower.includes("pro agility")
+  ) {
+    return {
+      method: 'shuttle_run',
+      intraSetRest: ex.intraSetRest ?? 60,
+      rest: ex.rest || "60s"
+    };
+  }
+
   return { method: 'standard', rest: ex.rest || "90s" };
 };
 
@@ -194,137 +250,720 @@ export const getSpecialMethodMeta = (method?: AdvancedExecutionMethod) => {
   switch (method) {
     case 'cluster':
       return {
-        id: 'cluster',
+        id: 'cluster' as const,
         name: 'Cluster Set',
         badge: '🎯 Cluster Set',
         icon: '🎯',
         bg: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+        cardBg: 'bg-purple-500/10 dark:bg-purple-950/25 border-purple-500/30 text-purple-200',
         activeRing: 'ring-purple-500/40 border-purple-500',
+        accentColor: 'text-purple-400',
+        buttonBg: 'bg-purple-600 hover:bg-purple-500 text-white',
         description: 'Sub-blocos com micro-pausa na barra (15-20s) para preservar a velocidade e recrutamento de motoneurônios de alto limiar sem acúmulo excessivo de lactato.',
+        scientificRationale: 'Fracionar a série em clusters (ex: 2+2+2 ou 3+3) com micro-pausas intra-série (15s a 25s) preserva os estoques de fosfocreatina (PCr), reduz a acidose intramuscular e sustenta a velocidade de pico da barra em todas as repetições sem queda de potência mecânica.',
+        defaultSets: 3,
+        defaultReps: '2+2+2',
+        defaultWeight: '85-90% 1RM',
+        defaultRest: '2m30s',
         defaultIntraRest: 20,
-        defaultInterRest: '2m30s'
+        defaultInterRest: '2m30s',
+        repsPresets: ['2+2+2', '3+3', '1+1+1+1', '2+2+2+2', '4+4'],
+        restPresets: ['1m30s', '2min', '2m30s', '3min'],
+        intraRestPresets: [15, 20, 25, 30]
       };
     case 'complex_contrast':
       return {
-        id: 'complex_contrast',
+        id: 'complex_contrast' as const,
         name: 'Contraste Francês / Complex PAP',
         badge: '🇫🇷 Complexo PAP',
         icon: '🇫🇷',
         bg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+        cardBg: 'bg-cyan-500/10 dark:bg-cyan-950/25 border-cyan-500/30 text-cyan-200',
         activeRing: 'ring-cyan-500/40 border-cyan-500',
-        description: 'Potenciação pós-ativação (PAP) combinando carga pesada (>80% 1RM), pliometria com carga, velocidade balística e pliometria reativa.',
+        accentColor: 'text-cyan-400',
+        buttonBg: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950',
+        description: 'Potenciação pós-ativação e potencialização pós-exercício (PAP/PAPE) combinando 4 estágios: carga pesada (>80% 1RM), pliometria com carga, velocidade balística e pliometria reativa.',
+        scientificRationale: 'Utiliza o fenômeno de Potenciação Pós-Ativação (PAPE) onde a contração prévia pesada (1A @ 80-85% 1RM) aumenta a sensibilidade ao cálcio e a taxa de disparo neural. Transições curtas (~20s) transferem essa facilitação neuromuscular para saltos carregados (1B), aceleração balística (1C) e pliometria reativa com RSI alto (1D).',
+        defaultSets: 3,
+        defaultReps: '3',
+        defaultWeight: '85% 1RM',
+        defaultRest: '20s',
         defaultIntraRest: 20,
-        defaultInterRest: '3m30s'
+        defaultInterRest: '3m30s',
+        repsPresets: ['3', '4', '5'],
+        restPresets: ['20s', '30s', '2min', '3m30s', '4min'],
+        intraRestPresets: [15, 20, 30, 45]
       };
     case 'rest_pause':
       return {
-        id: 'rest_pause',
+        id: 'rest_pause' as const,
         name: 'Rest-Pause',
         badge: '🔥 Rest-Pause',
         icon: '🔥',
         bg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+        cardBg: 'bg-rose-500/10 dark:bg-rose-950/25 border-rose-500/30 text-rose-200',
         activeRing: 'ring-rose-500/40 border-rose-500',
-        description: 'Série levada à fadiga seguida de micro-pausas curtas (15s) para recrutar o máximo de unidades motoras com alto estresse metabólico.',
+        accentColor: 'text-rose-400',
+        buttonBg: 'bg-rose-600 hover:bg-rose-500 text-white',
+        description: 'Série levada à fadiga (RPE 9) seguida de micro-pausas curtas (15s) para recrutar o máximo de unidades motoras com alto estresse metabólico e tensão mecânica.',
+        scientificRationale: 'A série inicial atinge o limiar máximo de recrutamento motor sob fadiga (RPE 9-9.5). A micro-pausa de 10s-15s permite ressíntese parcial de ATP/PCr e alívio transitório do influxo de íons H+, permitindo realizar mini-séries consecutivas de 2 a 3 reps no limite da capacidade neuromuscular.',
+        defaultSets: 3,
+        defaultReps: '8+3+2',
+        defaultWeight: '80-85% 1RM (RPE 9)',
+        defaultRest: '2min',
         defaultIntraRest: 15,
-        defaultInterRest: '2min'
+        defaultInterRest: '2min',
+        repsPresets: ['8+3+2', '10+4+3', '6+3+2+1', '8+4+3'],
+        restPresets: ['1m30s', '2min', '2m30s', '3min'],
+        intraRestPresets: [10, 15, 20, 25]
       };
     case 'drop_set':
       return {
-        id: 'drop_set',
+        id: 'drop_set' as const,
         name: 'Drop-Set',
         badge: '📉 Drop-Set',
         icon: '📉',
         bg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        cardBg: 'bg-amber-500/10 dark:bg-amber-950/25 border-amber-500/30 text-amber-200',
         activeRing: 'ring-amber-500/40 border-amber-500',
-        description: 'Redução imediata de carga (-20% a -25%) sem descanso entre as quedas para esgotamento das fibras musculares.',
-        defaultIntraRest: 0,
-        defaultInterRest: '2min'
+        accentColor: 'text-amber-400',
+        buttonBg: 'bg-amber-500 hover:bg-amber-400 text-slate-950',
+        description: 'Série inicial pesada até a falha técnica seguida de reduções imediatas de carga (-20% a -30%) sem descanso, exaurindo todas as fibras musculares.',
+        scientificRationale: 'Ao atingir a falha concêntrica na carga principal (75-80% 1RM), a redução imediata da carga (-20% a -25%) permite manter o recrutamento de fibras do tipo II sob alto estresse metabólico, hipóxia tecidual e acúmulo de metabólitos, estimulando hipertrofia e resistência de força.',
+        defaultSets: 3,
+        defaultReps: '8+8+8',
+        defaultWeight: '75-80% 1RM (-20% por queda)',
+        defaultRest: '2min',
+        defaultIntraRest: 5,
+        defaultInterRest: '2min',
+        repsPresets: ['8+8+8', '10+8+6', '6+6+6', '10+10+10'],
+        restPresets: ['1m30s', '2min', '2m30s', '3min'],
+        intraRestPresets: [0, 5, 10]
       };
     case 'bi_set':
       return {
-        id: 'bi_set',
+        id: 'bi_set' as const,
         name: 'Bi-Set',
         badge: '⚡ Bi-Set',
         icon: '⚡',
         bg: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+        cardBg: 'bg-blue-500/10 dark:bg-blue-950/25 border-blue-500/30 text-blue-200',
         activeRing: 'ring-blue-500/40 border-blue-500',
-        description: 'Dois exercícios executados em sequência contínua sem descanso para o mesmo grupo muscular ou agonista/antagonista.',
-        defaultIntraRest: 0,
-        defaultInterRest: '90s'
+        accentColor: 'text-blue-400',
+        buttonBg: 'bg-blue-600 hover:bg-blue-500 text-white',
+        description: 'Dois exercícios executados em sequência contínua sem descanso para o mesmo grupamento muscular (ou agonista/antagonista).',
+        scientificRationale: 'Aumenta a densidade da sessão (trabalho/tempo) e o estresse mecânico no grupo muscular alvo. A combinação de dois ângulos articulares ou curvas de resistência distintas potencializa o recrutamento de diferentes feixes musculares.',
+        defaultSets: 3,
+        defaultReps: '10-12',
+        defaultWeight: '70-75% 1RM',
+        defaultRest: '90s',
+        defaultIntraRest: 10,
+        defaultInterRest: '90s',
+        repsPresets: ['10-12', '8-10', '12-15', '10+10', '12+10'],
+        restPresets: ['60s', '90s', '2min', '2m30s'],
+        intraRestPresets: [0, 5, 10, 15]
       };
     case 'tri_set':
       return {
-        id: 'tri_set',
+        id: 'tri_set' as const,
         name: 'Tri-Set',
         badge: '🔱 Tri-Set',
         icon: '🔱',
         bg: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+        cardBg: 'bg-indigo-500/10 dark:bg-indigo-950/25 border-indigo-500/30 text-indigo-200',
         activeRing: 'ring-indigo-500/40 border-indigo-500',
-        description: 'Três exercícios sequenciais sem pausa entre eles, aumentando a densidade e o volume por unidade de tempo.',
-        defaultIntraRest: 0,
-        defaultInterRest: '2min'
+        accentColor: 'text-indigo-400',
+        buttonBg: 'bg-indigo-600 hover:bg-indigo-500 text-white',
+        description: 'Três exercícios sequenciais sem pausa entre eles, aumentando a densidade e o volume por unidade de tempo sob alto estresse glicolítico.',
+        scientificRationale: 'A combinação de três exercícios contínuos sem intervalo causa depleção rápida de glicogênio muscular e alto acúmulo de íons hidrogênio e fosfato inorgânico, promovendo adaptações metabólicas e hipertrofia sarcoplasmática acentuada.',
+        defaultSets: 3,
+        defaultReps: '10-12',
+        defaultWeight: '65-70% 1RM',
+        defaultRest: '2min',
+        defaultIntraRest: 10,
+        defaultInterRest: '2min',
+        repsPresets: ['10-12', '8-10', '10+10+10', '12+10+8'],
+        restPresets: ['1m30s', '2min', '2m30s', '3min'],
+        intraRestPresets: [0, 5, 10, 15]
       };
     case 'super_set':
       return {
-        id: 'super_set',
-        name: 'Super-Set',
+        id: 'super_set' as const,
+        name: 'Super-Set (Agonista/Antagonista)',
         badge: '⚔️ Super-Set',
         icon: '⚔️',
         bg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        cardBg: 'bg-emerald-500/10 dark:bg-emerald-950/25 border-emerald-500/30 text-emerald-200',
         activeRing: 'ring-emerald-500/40 border-emerald-500',
-        description: 'Combinação alternada de músculos agonistas e antagonistas (ex: Extensão + Flexão) otimizando tempo e recuperação neuromuscular recíproca.',
-        defaultIntraRest: 0,
-        defaultInterRest: '90s'
+        accentColor: 'text-emerald-400',
+        buttonBg: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+        description: 'Combinação alternada de músculos agonistas e antagonistas (ex: Supino + Remada) otimizando tempo e estimulando a inibição recíproca neuromuscular.',
+        scientificRationale: 'A contração do músculo agonista gera relaxamento neural recíproco do músculo antagonista via interneurônios Ia, permitindo maior produção de força e recuperação ativa entre contrações opostas com economia de 50% do tempo de treino.',
+        defaultSets: 3,
+        defaultReps: '10-12',
+        defaultWeight: '70-75% 1RM',
+        defaultRest: '90s',
+        defaultIntraRest: 10,
+        defaultInterRest: '90s',
+        repsPresets: ['10-12', '8-10', '12-15', '6-8'],
+        restPresets: ['60s', '90s', '2min', '2m30s'],
+        intraRestPresets: [0, 5, 10, 15]
       };
     case 'gvt':
       return {
-        id: 'gvt',
-        name: 'German Volume Training (GVT)',
+        id: 'gvt' as const,
+        name: 'German Volume Training (GVT 10x10)',
         badge: '🇩🇪 GVT 10x10',
         icon: '🇩🇪',
         bg: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
+        cardBg: 'bg-yellow-500/10 dark:bg-yellow-950/25 border-yellow-500/30 text-yellow-200',
         activeRing: 'ring-yellow-500/40 border-yellow-500',
-        description: '10 séries de 10 repetições com 60% de 1RM e intervalo estrito de 60s, promovendo hipertrofia e capacidade de trabalho extraordinárias.',
+        accentColor: 'text-yellow-400',
+        buttonBg: 'bg-yellow-500 hover:bg-yellow-400 text-slate-950',
+        description: '10 séries estritas de 10 repetições com 60% de 1RM e intervalo fixo e rígido de 60s, promovendo hipertrofia extrema e capacidade de trabalho.',
+        scientificRationale: 'Criado pela escola alemã de halterofilismo, o GVT submete um único grupo de unidades motoras a 100 repetições acumuladas com carga de 60% 1RM. Nas séries finais (séries 6 a 10), o recrutamento de fibras de contração rápida é forçado pela fadiga cumulativa das fibras oxidativas.',
+        defaultSets: 10,
+        defaultReps: '10',
+        defaultWeight: '60% 1RM (carga constante)',
+        defaultRest: '60s',
         defaultIntraRest: 60,
-        defaultInterRest: '60s'
+        defaultInterRest: '60s',
+        repsPresets: ['10', '8', '10x10'],
+        restPresets: ['45s', '60s', '75s', '90s'],
+        intraRestPresets: [45, 60, 75]
       };
     case 'myo_reps':
       return {
-        id: 'myo_reps',
-        name: 'Myo-Reps',
+        id: 'myo_reps' as const,
+        name: 'Myo-Reps (Borge Fagerli)',
         badge: '🧬 Myo-Reps',
         icon: '🧬',
         bg: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
+        cardBg: 'bg-teal-500/10 dark:bg-teal-950/25 border-teal-500/30 text-teal-200',
         activeRing: 'ring-teal-500/40 border-teal-500',
-        description: 'Série de ativação (12-15 reps) seguida de 4-5 mini-séries de 3-5 reps com pausas de 5 respirações profundas (10s).',
-        defaultIntraRest: 10,
-        defaultInterRest: '2min'
+        accentColor: 'text-teal-400',
+        buttonBg: 'bg-teal-600 hover:bg-teal-500 text-white',
+        description: 'Série de ativação (12-15 reps @ RPE 9) seguida de 4-5 mini-séries de 3-5 reps com pausas de 5 respirações profundas (10-15s).',
+        scientificRationale: 'A primeira série (ativação @ RPE 9) recruta todos os motoneurônios de alto limiar. As mini-séries subsequentes (3-5 reps com 10-15s de pausa) mantêm o estado de recrutamento de 100% das fibras ativas em todas as repetições, convertendo quase 100% das repetições em repetições efetivas.',
+        defaultSets: 4,
+        defaultReps: '12 + 4x3',
+        defaultWeight: '70% 1RM (12RM)',
+        defaultRest: '2min',
+        defaultIntraRest: 15,
+        defaultInterRest: '2min',
+        repsPresets: ['12 + 4x3', '15 + 5x3', '10 + 4x4', '12 + 5x2'],
+        restPresets: ['1m30s', '2min', '2m30s'],
+        intraRestPresets: [10, 15, 20]
       };
     case 'wave_loading':
       return {
-        id: 'wave_loading',
-        name: 'Wave Loading (Ondulatória)',
+        id: 'wave_loading' as const,
+        name: 'Wave Loading (Carga Ondulatória)',
         badge: '🌊 Wave Loading',
         icon: '🌊',
         bg: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+        cardBg: 'bg-violet-500/10 dark:bg-violet-950/25 border-violet-500/30 text-violet-200',
         activeRing: 'ring-violet-500/40 border-violet-500',
-        description: 'Estrutura em ondas de repetições decrescentes e cargas crescentes (ex: 3-2-1 @ 85-90-95%) para facilitação neural progressiva.',
+        accentColor: 'text-violet-400',
+        buttonBg: 'bg-violet-600 hover:bg-violet-500 text-white',
+        description: 'Estrutura em ondas de repetições decrescentes e cargas crescentes (ex: 7-5-3 / 7-5-3 ou 3-2-1 / 3-2-1) para facilitação neural progressiva.',
+        scientificRationale: 'Cada onda sucessiva se beneficia da potenciação pós-tetânica gerada pela onda anterior. O sistema nervoso central é excitado pela série pesada final da onda 1 (ex: 3 reps @ 85%), permitindo que na onda 2 o atleta execute as mesmas 7 reps com 2% a 5% a mais de carga.',
+        defaultSets: 6,
+        defaultReps: '7-5-3 / 7-5-3',
+        defaultWeight: 'Onda 1: 75-80-85% | Onda 2: 77.5-82.5-87.5%',
+        defaultRest: '2m30s',
         defaultIntraRest: 120,
-        defaultInterRest: '3min'
+        defaultInterRest: '2m30s',
+        repsPresets: ['7-5-3 / 7-5-3', '5-3-1 / 5-3-1', '3-2-1 / 3-2-1', '6-4-2 / 6-4-2'],
+        restPresets: ['2min', '2m30s', '3min', '3m30s'],
+        intraRestPresets: [90, 120, 150]
+      };
+    case 'sprint_rsa':
+      return {
+        id: 'sprint_rsa' as const,
+        name: 'Tiros Curtos / RSA (Repeated Sprint Ability)',
+        badge: '🏃‍♂️ Tiros Curtos / RSA',
+        icon: '🏃‍♂️',
+        bg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+        cardBg: 'bg-emerald-500/10 dark:bg-emerald-950/25 border-emerald-500/30 text-emerald-200',
+        activeRing: 'ring-emerald-500/40 border-emerald-500',
+        accentColor: 'text-emerald-400',
+        buttonBg: 'bg-emerald-600 hover:bg-emerald-500 text-white',
+        description: 'Sprints curtos em velocidade máxima (100%) com micro-pausas intra-série (15s a 30s) e pausa inter-blocos (2m30s a 3min).',
+        scientificRationale: 'Desenvolve a potência alática máxima (via ATP-CP) e a taxa de desenvolvimento de força (RFD) horizontal. A micro-pausa incompleta (15s-25s) treina a habilidade neuromuscular e metabólica de repetir tiros sem queda de rendimento mecânico.',
+        defaultSets: 2,
+        defaultReps: '5x 20m',
+        defaultWeight: '100% Sprint',
+        defaultRest: '2m30s',
+        defaultIntraRest: 20,
+        defaultInterRest: '2m30s',
+        repsPresets: ['5x 20m', '4x 30m', '6x 15m', '4x 10m', '3x 40m', '6x 20m'],
+        restPresets: ['2min', '2m30s', '3min', '4min'],
+        intraRestPresets: [15, 20, 25, 30, 45]
+      };
+    case 'pyramid_field':
+      return {
+        id: 'pyramid_field' as const,
+        name: 'Pirâmide de Campo / Quadra',
+        badge: '🔺 Pirâmide de Campo',
+        icon: '🔺',
+        bg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+        cardBg: 'bg-amber-500/10 dark:bg-amber-950/25 border-amber-500/30 text-amber-200',
+        activeRing: 'ring-amber-500/40 border-amber-500',
+        accentColor: 'text-amber-400',
+        buttonBg: 'bg-amber-600 hover:bg-amber-500 text-white',
+        description: 'Progressão e regressão de distâncias métricas (ex: 10m-20m-30m-40m-30m-20m-10m) ou tempos em formato piramidal com intervalos proporcionais.',
+        scientificRationale: 'Estimula progressivamente aceleração rápida inicial (10-20m) ➔ velocidade máxima sustentada no ápice (30-40m) ➔ fase descendente executada sob acidose muscular e fadiga metabólica, fortalecendo a resiliência neural.',
+        defaultSets: 1,
+        defaultReps: '10-20-30-40-30-20-10m',
+        defaultWeight: '95-100% Vel',
+        defaultRest: '3min',
+        defaultIntraRest: 30,
+        defaultInterRest: '3min',
+        repsPresets: ['10-20-30-40-30-20-10m', '10-20-30-40m', '10-20-30m', '5-10-15-20-15-10-5s'],
+        restPresets: ['2m30s', '3min', '3m30s', '4min'],
+        intraRestPresets: [20, 25, 30, 40]
+      };
+    case 'fartlek':
+      return {
+        id: 'fartlek' as const,
+        name: 'Fartlek Intermitente de Quadra/Campo',
+        badge: '⏱️ Fartlek Intermitente',
+        icon: '⏱️',
+        bg: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+        cardBg: 'bg-cyan-500/10 dark:bg-cyan-950/25 border-cyan-500/30 text-cyan-200',
+        activeRing: 'ring-cyan-500/40 border-cyan-500',
+        accentColor: 'text-cyan-400',
+        buttonBg: 'bg-cyan-600 hover:bg-cyan-500 text-white',
+        description: 'Alternância de tiros rápidos (>100% VAM) com recuperação ativa (trote leve 50% VAM) por tempo (15s:15s / 30s:30s) ou marcações da quadra/campo.',
+        scientificRationale: 'Mantém a frequência cardíaca elevada (>85-95% FCmáx) e consumo de oxigênio alto por períodos sustentados. A recuperação ativa a 50% VAM otimiza o clearance e reutilização de lactato pelas fibras oxidativas e miocárdio.',
+        defaultSets: 2,
+        defaultReps: '12x (15s:15s)',
+        defaultWeight: '100% VAM / 50% Trote',
+        defaultRest: '2m30s',
+        defaultIntraRest: 15,
+        defaultInterRest: '2m30s',
+        repsPresets: ['12x (15s:15s)', '10x (30s:30s)', '8x (10s:20s)', '6x (45s:15s)', 'Campo: Reta / Curva'],
+        restPresets: ['2min', '2m30s', '3min'],
+        intraRestPresets: [10, 15, 20, 30]
+      };
+    case 'shuttle_run':
+      return {
+        id: 'shuttle_run' as const,
+        name: 'Shuttle Run / Vai-e-Vem (COD & Frenagem)',
+        badge: '⚡ Shuttle Run / Vai-e-Vem',
+        icon: '⚡',
+        bg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+        cardBg: 'bg-rose-500/10 dark:bg-rose-950/25 border-rose-500/30 text-rose-200',
+        activeRing: 'ring-rose-500/40 border-rose-500',
+        accentColor: 'text-rose-400',
+        buttonBg: 'bg-rose-600 hover:bg-rose-500 text-white',
+        description: 'Tiros em alta velocidade intercalados por desacelerações excêntricas bruscas e mudanças de direção em distâncias fracionadas (5m, 10m, 15m).',
+        scientificRationale: 'Gera alta sobrecarga excêntrica no quadríceps e isquiotibiais nas desacelerações (>3-4 m/s²). Fundamental para blindagem ligamentar do joelho (LCA) e aprimoramento da taxa de frenagem e aceleração esportiva.',
+        defaultSets: 4,
+        defaultReps: '5m+10m+15m (60m tot)',
+        defaultWeight: 'Máxima Intensidade (COD)',
+        defaultRest: '60s',
+        defaultIntraRest: 60,
+        defaultInterRest: '60s',
+        repsPresets: ['5m+10m+15m (60m tot)', '5-10-5m (Pro Agility)', '10m+10m+10m', '3x 5m Shuttle'],
+        restPresets: ['45s', '60s', '75s', '90s'],
+        intraRestPresets: [45, 60, 75]
       };
     default:
       return {
-        id: 'standard',
+        id: 'standard' as const,
         name: 'Tradicional',
         badge: 'Série Tradicional',
         icon: '🏋️‍♂️',
         bg: 'bg-slate-800 text-slate-300 border-slate-700',
+        cardBg: 'bg-slate-900/60 border-slate-800 text-slate-300',
         activeRing: 'ring-slate-700 border-slate-600',
+        accentColor: 'text-slate-400',
+        buttonBg: 'bg-slate-800 hover:bg-slate-700 text-white',
         description: 'Execução linear de séries com intervalo inter-séries completo para recuperação dos estoques de fosfocreatina.',
+        scientificRationale: 'Séries convencionais com descanso completo (90s a 3min) garantem a recuperação ótima da ressíntese de fosfocreatina (PCr) e homeostase celular, permitindo manter o volume total e qualidade técnica sem acúmulo excessivo de fadiga prematura.',
+        defaultSets: 3,
+        defaultReps: '10',
+        defaultWeight: '70-75% 1RM',
+        defaultRest: '90s',
         defaultIntraRest: 0,
-        defaultInterRest: '90s'
+        defaultInterRest: '90s',
+        repsPresets: ['8', '10', '12', '15', '6-8', '8-10', '10-12'],
+        restPresets: ['60s', '90s', '2min', '3min'],
+        intraRestPresets: [0]
       };
   }
+};
+
+/**
+ * Estrutura e preenche automaticamente o exercício (Séries, Repetições, Carga, Descanso e Notas Fisiológicas)
+ * de acordo com o método especial de treino selecionado.
+ */
+export const structureExerciseForMethod = (
+  currentEx: PrescribedExercise,
+  method: AdvancedExecutionMethod,
+  index: number = 0,
+  allExercises: PrescribedExercise[] = []
+): PrescribedExercise => {
+  const currentSets = currentEx.sets || 3;
+
+  if (method === 'complex_contrast') {
+    const prevEx = index > 0 ? allExercises[index - 1] : null;
+    let suggestedTag = "1A";
+    let suggestedRole = "1A: Carga Pesada (PAP 80-85% 1RM)";
+    let suggestedRest = "20s";
+    let suggestedReps = "3";
+    let suggestedWeight = currentEx.weight && currentEx.weight !== "BW" && !currentEx.weight.includes("1RM") ? currentEx.weight : "85% 1RM";
+
+    if (prevEx && prevEx.executionMethod === "complex_contrast" && prevEx.blockTag) {
+      const prevTag = prevEx.blockTag;
+      if (prevTag.endsWith("A")) {
+        suggestedTag = `${prevTag.slice(0, -1)}B`;
+        suggestedRole = "1B: Pliometria com Sobrecarga (Salto)";
+        suggestedWeight = "BW";
+        suggestedReps = "4";
+        suggestedRest = "20s";
+      } else if (prevTag.endsWith("B")) {
+        suggestedTag = `${prevTag.slice(0, -1)}C`;
+        suggestedRole = "1C: Velocidade Balística (30% 1RM)";
+        suggestedWeight = "30% 1RM";
+        suggestedReps = "4";
+        suggestedRest = "20s";
+      } else if (prevTag.endsWith("C")) {
+        suggestedTag = `${prevTag.slice(0, -1)}D`;
+        suggestedRole = "1D: Pliometria Reativa (RSI / Drop Jump)";
+        suggestedWeight = "BW";
+        suggestedReps = "4";
+        suggestedRest = "3m30s";
+      } else {
+        const round = (parseInt(prevTag) || 1) + 1;
+        suggestedTag = `${round}A`;
+      }
+    }
+
+    const targetTag = currentEx.blockTag || suggestedTag;
+    const targetRole = currentEx.blockRole || suggestedRole;
+    const targetRest = targetTag.endsWith("D") ? (currentEx.blockRest || "3m30s") : "20s";
+    const setsCount = Math.max(3, currentSets);
+
+    return {
+      ...currentEx,
+      executionMethod: "complex_contrast",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : suggestedReps,
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : suggestedWeight,
+      rest: targetRest,
+      intraSetRest: currentEx.intraSetRest ?? 20,
+      blockTag: targetTag,
+      blockRole: targetRole,
+      blockRest: currentEx.blockRest || "3m30s",
+      notes: `[CONTRASTE FRANCÊS 🇫🇷] Estágio ${targetTag}: ${targetRole}`,
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: Number(suggestedReps) || 4,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'cluster') {
+    const cReps = currentEx.clusterReps || (currentEx.reps && currentEx.reps.includes("+") ? currentEx.reps : "2+2+2");
+    const setsCount = Math.max(3, currentSets);
+    return {
+      ...currentEx,
+      executionMethod: "cluster",
+      sets: setsCount,
+      clusterReps: cReps,
+      reps: cReps,
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "85-90% 1RM",
+      intraSetRest: currentEx.intraSetRest ?? 20,
+      rest: currentEx.rest && currentEx.rest !== "20s" ? currentEx.rest : "2m30s",
+      notes: "[CLUSTER SET 🎯] 3-4 séries de 2+2+2 reps com 20s de micro-pausa na barra e 2m30s entre séries.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 6,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'rest_pause') {
+    const setsCount = 3;
+    return {
+      ...currentEx,
+      executionMethod: "rest_pause",
+      sets: setsCount,
+      reps: "8+3+2",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "80-85% 1RM (RPE 9)",
+      intraSetRest: currentEx.intraSetRest ?? 15,
+      rest: currentEx.rest && currentEx.rest !== "20s" ? currentEx.rest : "2min",
+      notes: "[REST-PAUSE 🔥] Série principal de 8 reps @ RPE 9 -> micro-pausa de 15s -> 3 reps -> micro-pausa de 15s -> 2 reps até a falha técnica.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 13,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'drop_set') {
+    const setsCount = 3;
+    return {
+      ...currentEx,
+      executionMethod: "drop_set",
+      sets: setsCount,
+      reps: "8+8+8",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "75-80% 1RM (-20% por queda)",
+      intraSetRest: currentEx.intraSetRest ?? 5,
+      rest: "2min",
+      notes: "[DROP-SET 📉] 8 reps @ 75% 1RM -> reduzir 20-30% de carga sem descanso (6-8 reps) -> reduzir 20% sem descanso (até a falha técnica).",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 24,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'bi_set') {
+    const setsCount = Math.max(3, currentSets);
+    return {
+      ...currentEx,
+      executionMethod: "bi_set",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : "10-12",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70-75% 1RM",
+      intraSetRest: currentEx.intraSetRest ?? 10,
+      rest: "90s",
+      notes: "[BI-SET ⚡] Execução de 2 exercícios conjugados sem pausa intermediária. Descanso de 90s a 2min ao final de cada par.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 10,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'tri_set') {
+    const setsCount = 3;
+    return {
+      ...currentEx,
+      executionMethod: "tri_set",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : "10-12",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "65-70% 1RM",
+      intraSetRest: currentEx.intraSetRest ?? 10,
+      rest: "2min",
+      notes: "[TRI-SET 🔱] 3 exercícios sequenciais contínuos sem descanso entre eles. Descanso completo de 2min após o trio.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 10,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'super_set') {
+    const setsCount = Math.max(3, currentSets);
+    return {
+      ...currentEx,
+      executionMethod: "super_set",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : "10-12",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70-75% 1RM",
+      intraSetRest: currentEx.intraSetRest ?? 10,
+      rest: "90s",
+      notes: "[SUPER-SET ⚔️] Par Agonista + Antagonista conjugados. Transição rápida (10s) e 90s de recuperação entre pares.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 10,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'gvt') {
+    const setsCount = 10;
+    return {
+      ...currentEx,
+      executionMethod: "gvt",
+      sets: setsCount,
+      reps: "10",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "60% 1RM",
+      intraSetRest: 60,
+      rest: "60s",
+      notes: "[GERMAN VOLUME TRAINING 🇩🇪] 10 séries estritas de 10 reps a 60% 1RM com descanso fixo e rígido de 60s. Cadência controlada (4-0-2).",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 10,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'myo_reps') {
+    const setsCount = 4;
+    return {
+      ...currentEx,
+      executionMethod: "myo_reps",
+      sets: setsCount,
+      reps: "12 + 4x3",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70% 1RM (12RM)",
+      intraSetRest: currentEx.intraSetRest ?? 15,
+      rest: "2min",
+      notes: "[MYO-REPS 🧬] Série de ativação (12-15 reps @ RPE 9) + 4 mini-sets de 3-5 reps com pausas de 10-15s (5 respirações profundas).",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 12,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'wave_loading') {
+    const setsCount = 6;
+    return {
+      ...currentEx,
+      executionMethod: "wave_loading",
+      sets: setsCount,
+      reps: "7-5-3 / 7-5-3",
+      weight: "Onda 1: 75-80-85% | Onda 2: 77.5-82.5-87.5%",
+      intraSetRest: 120,
+      rest: "2m30s",
+      notes: "[WAVE LOADING 🌊] Onda 1: 7 reps (75%), 5 reps (80%), 3 reps (85%) -> Pausa 2m30s -> Onda 2: 7 reps (77.5%), 5 reps (82.5%), 3 reps (87.5%).",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: [7, 5, 3, 7, 5, 3][sIdx] || 5,
+        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
+      }))
+    };
+  }
+
+  if (method === 'sprint_rsa') {
+    const setsCount = 2;
+    return {
+      ...currentEx,
+      executionMethod: "sprint_rsa",
+      trainingMode: "speed",
+      metricType: "sprint",
+      repsType: "meters",
+      fieldUnit: "meters",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps.toLowerCase().includes("m") ? currentEx.reps : "5x 20m",
+      weight: "100% Sprint Máximo",
+      intraSetRest: currentEx.intraSetRest ?? 20,
+      rest: currentEx.rest && currentEx.rest !== "20s" && currentEx.rest !== "90s" ? currentEx.rest : "2m30s",
+      workRestRatio: "1:5",
+      notes: "[TIROS CURTOS / RSA 🏃‍♂️] 2 blocos de 5x 20m com 20s de micro-pausa entre tiros e 2m30s entre blocos.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 5,
+        weight: 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 9
+      }))
+    };
+  }
+
+  if (method === 'pyramid_field') {
+    const setsCount = 1;
+    return {
+      ...currentEx,
+      executionMethod: "pyramid_field",
+      trainingMode: "speed",
+      metricType: "sprint",
+      repsType: "meters",
+      fieldUnit: "meters",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps.toLowerCase().includes("m") ? currentEx.reps : "10-20-30-40-30-20-10m",
+      weight: "95-100% Vel",
+      intraSetRest: currentEx.intraSetRest ?? 30,
+      rest: "3min",
+      notes: "[PIRÂMIDE DE CAMPO 🔺] Pirâmide 10-20-30-40-30-20-10m (160m total) com micro-pausas progressivas e 3min pós-pirâmide.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 7,
+        weight: 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 9
+      }))
+    };
+  }
+
+  if (method === 'fartlek') {
+    const setsCount = 2;
+    return {
+      ...currentEx,
+      executionMethod: "fartlek",
+      trainingMode: "conditioning",
+      metricType: "interval",
+      repsType: "time",
+      fieldUnit: "time",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps.includes(":") ? currentEx.reps : "12x (15s:15s)",
+      weight: "100% VAM / 50% Trote",
+      intraSetRest: 15,
+      rest: "2m30s",
+      workRestRatio: "1:1",
+      notes: "[FARTLEK INTERMITENTE ⏱️] 2 blocos de 12 repetições de 15s tiro rápido / 15s trote leve. Pausa de 2m30s entre blocos.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 12,
+        weight: 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 8.5
+      }))
+    };
+  }
+
+  if (method === 'shuttle_run') {
+    const setsCount = 4;
+    return {
+      ...currentEx,
+      executionMethod: "shuttle_run",
+      trainingMode: "speed",
+      metricType: "drill",
+      repsType: "meters",
+      fieldUnit: "meters",
+      sets: setsCount,
+      reps: currentEx.reps && currentEx.reps.toLowerCase().includes("m") ? currentEx.reps : "5m+10m+15m (60m tot)",
+      weight: "Máxima Intensidade (COD)",
+      intraSetRest: 60,
+      rest: "60s",
+      notes: "[SHUTTLE RUN / VAI-E-VEM ⚡] 4 séries de 5m+10m+15m (60m totais com 3 frenagens excêntricas). Intervalo completo de 60s.",
+      performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+        id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
+        reps: 3,
+        weight: 0,
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || 9
+      }))
+    };
+  }
+
+  // standard
+  const setsCount = Math.max(3, currentSets);
+  return {
+    ...currentEx,
+    executionMethod: "standard",
+    sets: setsCount,
+    reps: currentEx.reps && !currentEx.reps.includes("+") && !currentEx.reps.includes("/") ? currentEx.reps : "10",
+    weight: currentEx.weight || "70-75% 1RM",
+    rest: currentEx.rest === "20s" ? "90s" : (currentEx.rest || "90s"),
+    intraSetRest: undefined,
+    clusterReps: undefined,
+    blockTag: undefined,
+    blockRole: undefined,
+    blockRest: undefined,
+    notes: currentEx.notes?.startsWith("[") ? "" : currentEx.notes
+  };
 };
 
 export const calculateAge = (dob: string): number => {
@@ -617,6 +1256,132 @@ export const calculateWorkoutLoad = (workout: Workout, athleteWeight?: number): 
 
 export const calculateWorkoutInternalLoad = (workout: Workout): number => {
   return (workout.rpe || 0) * (workout.durationMinutes || 60);
+};
+
+export interface FieldCourtMetrics {
+  totalDistanceMeters: number;
+  sprintDistanceMeters: number;
+  highIntensitySeconds: number;
+  totalSprintsCount: number;
+  hasFieldExercises: boolean;
+}
+
+export const calculateFieldCourtMetrics = (workout: Workout): FieldCourtMetrics => {
+  let totalDistanceMeters = 0;
+  let sprintDistanceMeters = 0;
+  let highIntensitySeconds = 0;
+  let totalSprintsCount = 0;
+  let hasFieldExercises = false;
+
+  if (!workout || !workout.exercises) {
+    return { totalDistanceMeters: 0, sprintDistanceMeters: 0, highIntensitySeconds: 0, totalSprintsCount: 0, hasFieldExercises: false };
+  }
+
+  workout.exercises.forEach(ex => {
+    const method = ex.executionMethod;
+    const isFieldMethod = method === 'sprint_rsa' || method === 'pyramid_field' || method === 'fartlek' || method === 'shuttle_run';
+    const isMeters = ex.repsType === 'meters' || (typeof ex.reps === 'string' && ex.reps.toLowerCase().includes('m'));
+    const isCourtOrSpeed = ex.trainingMode === 'speed' || ex.trainingMode === 'court' || ex.trainingMode === 'conditioning';
+
+    if (!isFieldMethod && !isMeters && !isCourtOrSpeed && !ex.distanceMeters) {
+      return;
+    }
+
+    hasFieldExercises = true;
+    const numSets = ex.sets || 1;
+    const repsStr = String(ex.reps || "").toLowerCase().trim();
+
+    // 1. Tiros / RSA: ex "5x 20m" or "4x 30m"
+    if (method === 'sprint_rsa' || (repsStr.includes('x') && repsStr.includes('m'))) {
+      const match = repsStr.match(/(\d+)\s*x\s*(\d+)\s*m/i);
+      if (match) {
+        const reps = parseInt(match[1], 10) || 1;
+        const meters = parseInt(match[2], 10) || 20;
+        const sprintMeters = numSets * reps * meters;
+        totalDistanceMeters += sprintMeters;
+        sprintDistanceMeters += sprintMeters;
+        totalSprintsCount += numSets * reps;
+        highIntensitySeconds += numSets * reps * Math.max(2, Math.round(meters / 6));
+        return;
+      }
+    }
+
+    // 2. Pyramid: ex "10-20-30-40-30-20-10m"
+    if (method === 'pyramid_field' || (repsStr.includes('-') && repsStr.includes('m'))) {
+      const nums = repsStr.replace(/[^0-9-]/g, '').split('-').map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 0);
+      if (nums.length > 0) {
+        const sumMeters = nums.reduce((a, b) => a + b, 0);
+        const totalPyrMeters = numSets * sumMeters;
+        totalDistanceMeters += totalPyrMeters;
+        sprintDistanceMeters += totalPyrMeters;
+        totalSprintsCount += numSets * nums.length;
+        highIntensitySeconds += numSets * Math.round(sumMeters / 6);
+        return;
+      }
+    }
+
+    // 3. Fartlek: ex "12x (15s:15s)" or "10x (30s:30s)"
+    if (method === 'fartlek' || (repsStr.includes(':') && repsStr.includes('s'))) {
+      const match = repsStr.match(/(\d+)\s*x\s*\(?(\d+)\s*s?\s*:\s*(\d+)\s*s?\)?/i);
+      if (match) {
+        const reps = parseInt(match[1], 10) || 10;
+        const workSec = parseInt(match[2], 10) || 15;
+        const restSec = parseInt(match[3], 10) || 15;
+        const totalWorkSec = numSets * reps * workSec;
+        highIntensitySeconds += totalWorkSec;
+        totalSprintsCount += numSets * reps;
+        const fastMeters = totalWorkSec * 5;
+        const slowMeters = numSets * reps * restSec * 2.5;
+        totalDistanceMeters += (fastMeters + slowMeters);
+        sprintDistanceMeters += fastMeters;
+        return;
+      }
+    }
+
+    // 4. Shuttle run: ex "5m+10m+15m" (vai e vem total 60m)
+    if (method === 'shuttle_run' || repsStr.includes('shuttle') || (repsStr.includes('+') && repsStr.includes('m'))) {
+      const nums = repsStr.replace(/[^0-9+]/g, '').split('+').map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 0);
+      if (nums.length > 0) {
+        const oneWay = nums.reduce((a, b) => a + b, 0);
+        const roundMeters = oneWay * 2;
+        const totalShuttleMeters = numSets * roundMeters;
+        totalDistanceMeters += totalShuttleMeters;
+        sprintDistanceMeters += totalShuttleMeters;
+        totalSprintsCount += numSets * (nums.length * 2);
+        highIntensitySeconds += numSets * Math.round(roundMeters / 4.5);
+        return;
+      }
+    }
+
+    // 5. Explicit distanceMeters
+    if (ex.distanceMeters && ex.distanceMeters > 0) {
+      const totalM = numSets * ex.distanceMeters;
+      totalDistanceMeters += totalM;
+      sprintDistanceMeters += totalM;
+      totalSprintsCount += numSets;
+      highIntensitySeconds += numSets * Math.round(ex.distanceMeters / 6);
+      return;
+    }
+
+    // 6. Generic single meter string (e.g. "30m")
+    const singleMeterMatch = repsStr.match(/^(\d+)\s*m$/i);
+    if (singleMeterMatch) {
+      const mVal = parseInt(singleMeterMatch[1], 10);
+      const totalM = numSets * mVal;
+      totalDistanceMeters += totalM;
+      sprintDistanceMeters += totalM;
+      totalSprintsCount += numSets;
+      highIntensitySeconds += numSets * Math.max(2, Math.round(mVal / 6));
+    }
+  });
+
+  return {
+    totalDistanceMeters: Math.round(totalDistanceMeters),
+    sprintDistanceMeters: Math.round(sprintDistanceMeters),
+    highIntensitySeconds: Math.round(highIntensitySeconds),
+    totalSprintsCount,
+    hasFieldExercises
+  };
 };
 
 export const calculateAdvancedMetrics = (workouts: Workout[], externalSessions: any[] = []) => {

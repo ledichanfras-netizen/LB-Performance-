@@ -51,7 +51,7 @@ export interface EnrichedExercise {
   timeUnderTension?: string;
   defaultDuration?: string;
   defaultSets?: number;
-  defaultRepsType?: 'reps' | 'time';
+  defaultRepsType?: 'reps' | 'time' | 'meters';
   defaultExecutionTime?: string;
   trainingMode?: 'strength' | 'speed' | 'court' | 'conditioning';
   metricType?: 'load' | 'sprint' | 'drill' | 'interval';

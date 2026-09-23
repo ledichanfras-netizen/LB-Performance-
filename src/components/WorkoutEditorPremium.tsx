@@ -14,7 +14,8 @@ import { Workout, PrescribedExercise, AdvancedExecutionMethod } from "../types";
 import { ENRICHED_LIBRARY, EnrichedExercise, getBiomechanicalDetails, BiomechanicalDetails } from "../data/exercises";
 import { searchExercisesWithAi, prescribeWorkoutWithAi } from "../services/aiPerformanceService";
 import { ExerciseEditorModal } from "./ExerciseEditorModal";
-import { isTimeExercise } from "../utils";
+import { isTimeExercise, structureExerciseForMethod, getSpecialMethodMeta, calculateFieldCourtMetrics } from "../utils";
+import { isFieldOrRunningExercise } from "../utils/runningBlockUtils";
 
 interface WorkoutEditorPremiumProps {
   workout: Partial<Workout>;
@@ -313,7 +314,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       ...workout,
       id: workout.id || `wk-man-${Date.now()}`,
       date: workout.date?.split("T")[0] || new Date().toISOString().split("T")[0],
-      name: workout.name || "",
+      name: workout.name || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length) % 26))}` : "Treino A"),
       phase: workout.phase || "Preparação Geral",
       status: workout.status || "planned",
       exercises: indexed,
@@ -333,6 +334,31 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [filterPattern, setFilterPattern] = useState<string>("ALL");
   const [filterLateralType, setFilterLateralType] = useState<string>("ALL");
   const [filterVideo, setFilterVideo] = useState<string>("ALL");
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filterDifficulty !== "ALL") count++;
+    if (filterQuality !== "ALL") count++;
+    if (filterEquipment !== "ALL") count++;
+    if (filterMuscleGroup !== "ALL") count++;
+    if (filterSport !== "ALL") count++;
+    if (filterPattern !== "ALL") count++;
+    if (filterLateralType !== "ALL") count++;
+    if (filterVideo !== "ALL") count++;
+    return count;
+  }, [filterDifficulty, filterQuality, filterEquipment, filterMuscleGroup, filterSport, filterPattern, filterLateralType, filterVideo]);
+
+  const clearAllFilters = () => {
+    setFilterDifficulty("ALL");
+    setFilterQuality("ALL");
+    setFilterEquipment("ALL");
+    setFilterMuscleGroup("ALL");
+    setFilterSport("ALL");
+    setFilterPattern("ALL");
+    setFilterLateralType("ALL");
+    setFilterVideo("ALL");
+  };
 
   // AI Search States
   const [isAiSearching, setIsAiSearching] = useState(false);
@@ -359,7 +385,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [swapCategoryFilter, setSwapCategoryFilter] = useState("TODOS");
   
   // Collapse & Expand States for spacious layout optimization
-  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(() => !edited.name);
+  const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(false);
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
 
   // AI Generator Panel States
@@ -664,6 +690,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     return sum;
   }, [edited.exercises]);
 
+  const fieldMetrics = useMemo(() => {
+    return calculateFieldCourtMetrics(edited as Workout);
+  }, [edited.exercises]);
+
   // Actions
   const removeEx = (id: string) => {
     const remaining = (edited.exercises || []).filter((ex) => ex.id !== id);
@@ -695,11 +725,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   ) => {
     const current = edited.exercises || [];
     const prescribedSets = libEx.defaultSets && Number(libEx.defaultSets) > 0 ? Number(libEx.defaultSets) : 3;
-    const repsType: 'reps' | 'time' = libEx.defaultRepsType || (
+    const repsType: 'reps' | 'time' | 'meters' = libEx.defaultRepsType || (
       libEx.defaultExecutionTime ||
       (libEx.defaultReps && (libEx.defaultReps.toLowerCase().includes("s") || libEx.defaultReps.toLowerCase().includes("min") || libEx.defaultReps.toLowerCase().includes("seg")))
         ? "time"
-        : "reps"
+        : (libEx.defaultReps && libEx.defaultReps.toLowerCase().includes("m") ? "meters" : "reps")
     );
     let repVal = repsType === "time"
       ? (libEx.defaultExecutionTime || libEx.defaultReps || "30s")
@@ -833,7 +863,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         libEx.defaultRepsType === "time";
 
     let repsVal = oldEx.reps;
-    let repsTypeVal: 'reps' | 'time' = oldEx.repsType || "reps";
+    let repsTypeVal: 'reps' | 'time' | 'meters' = oldEx.repsType || "reps";
     let weightVal = oldEx.weight;
     let restVal = oldEx.rest;
 
@@ -918,11 +948,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     
     const current = edited.exercises || [];
     const prescribedSets = matchedEx?.defaultSets && Number(matchedEx.defaultSets) > 0 ? Number(matchedEx.defaultSets) : 3;
-    const repsType: 'reps' | 'time' = matchedEx?.defaultRepsType || (
+    const repsType: 'reps' | 'time' | 'meters' = matchedEx?.defaultRepsType || (
       matchedEx?.defaultExecutionTime ||
       (matchedEx?.defaultReps && (matchedEx.defaultReps.toLowerCase().includes("s") || matchedEx.defaultReps.toLowerCase().includes("min") || matchedEx.defaultReps.toLowerCase().includes("seg")))
         ? "time"
-        : "reps"
+        : (matchedEx?.defaultReps && matchedEx.defaultReps.toLowerCase().includes("m") ? "meters" : "reps")
     );
     const repVal = repsType === "time"
       ? (matchedEx?.defaultExecutionTime || matchedEx?.defaultReps || "30s")
@@ -968,11 +998,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
     const newExs = toAdd.map((libEx, idx) => {
       const prescribedSets = libEx.defaultSets && Number(libEx.defaultSets) > 0 ? Number(libEx.defaultSets) : 3;
-      const repsType: 'reps' | 'time' = libEx.defaultRepsType || (
+      const repsType: 'reps' | 'time' | 'meters' = libEx.defaultRepsType || (
         libEx.defaultExecutionTime ||
         (libEx.defaultReps && (libEx.defaultReps.toLowerCase().includes("s") || libEx.defaultReps.toLowerCase().includes("min") || libEx.defaultReps.toLowerCase().includes("seg")))
           ? "time"
-          : "reps"
+          : (libEx.defaultReps && libEx.defaultReps.toLowerCase().includes("m") ? "meters" : "reps")
       );
       const repVal = repsType === "time"
         ? (libEx.defaultExecutionTime || libEx.defaultReps || "30s")
@@ -1262,6 +1292,343 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     });
     setExpandedExerciseId(restPauseEx.id);
     toast.success("🔥 Rest-Pause (8+3+2 • 15s intra-pausa) adicionado!", { icon: "🔥" });
+  };
+
+  // Adiciona Exercício em Drop-Set Triplo
+  const addDropSetTemplate = () => {
+    const dropSetEx: PrescribedExercise = {
+      id: `ex-ds-${Date.now()}`,
+      name: "Elevação Lateral ou Extensora (Drop-Set Triplo)",
+      muscleGroup: "Hipertrofia Funcional",
+      sets: 3,
+      reps: "8+8+8",
+      weight: "75% 1RM (-20% por queda)",
+      rest: "2min",
+      notes: "Drop-Set Triplo: 8 reps com carga inicial -> redução imediata de 20-25% (6-8 reps) -> redução de 20% até a falha técnica.",
+      executionMethod: "drop_set",
+      intraSetRest: 5
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, dropSetEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(dropSetEx.id);
+    toast.success("📉 Drop-Set Triplo (8+8+8) adicionado!", { icon: "📉" });
+  };
+
+  // Adiciona Par em Bi-Set
+  const addBiSetTemplate = () => {
+    const groupId = `biset_${Date.now()}`;
+    const blockExs: PrescribedExercise[] = [
+      {
+        id: `ex-bi-1a-${Date.now()}-1`,
+        name: "Supino Reto com Barra ou Halteres",
+        muscleGroup: "Peitoral",
+        sets: 3,
+        reps: "10-12",
+        weight: "75% 1RM",
+        rest: "10s",
+        notes: "Bi-Set 1A: Exercício Composto Multiarticular. Transição rápida (10s) direta para o exercício 1B.",
+        executionMethod: "bi_set",
+        blockGroupId: groupId,
+        blockTag: "1A",
+        blockRole: "1A: Exercício Base / Composto",
+        intraSetRest: 10,
+        blockRest: "90s"
+      },
+      {
+        id: `ex-bi-1b-${Date.now()}-2`,
+        name: "Crucifixo com Halteres ou Crossover",
+        muscleGroup: "Peitoral Isolado",
+        sets: 3,
+        reps: "12-15",
+        weight: "70% 1RM",
+        rest: "90s",
+        notes: "Bi-Set 1B: Exercício Isolador Sinergista. Descanso completo de 90s ao final do par.",
+        executionMethod: "bi_set",
+        blockGroupId: groupId,
+        blockTag: "1B",
+        blockRole: "1B: Exercício Isolador / Complementar",
+        intraSetRest: 10,
+        blockRest: "90s"
+      }
+    ];
+    const current = edited.exercises || [];
+    const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(blockExs[0].id);
+    toast.success("🔗 Bi-Set (1A Composto + 1B Isolador) adicionado!", { icon: "🔗" });
+  };
+
+  // Adiciona Par em Super-Set (Antagonista)
+  const addSuperSetTemplate = () => {
+    const groupId = `superset_${Date.now()}`;
+    const blockExs: PrescribedExercise[] = [
+      {
+        id: `ex-ss-1a-${Date.now()}-1`,
+        name: "Rosca Direta com Barra W (Bíceps)",
+        muscleGroup: "Bíceps Braquial",
+        sets: 3,
+        reps: "10-12",
+        weight: "75% 1RM",
+        rest: "10s",
+        notes: "Super-Set 1A: Agonista. Transição imediata para o músculo antagonista.",
+        executionMethod: "super_set",
+        blockGroupId: groupId,
+        blockTag: "1A",
+        blockRole: "1A: Músculo Agonista",
+        intraSetRest: 10,
+        blockRest: "90s"
+      },
+      {
+        id: `ex-ss-1b-${Date.now()}-2`,
+        name: "Tríceps Testa ou Pulley (Tríceps)",
+        muscleGroup: "Tríceps Braquial",
+        sets: 3,
+        reps: "10-12",
+        weight: "75% 1RM",
+        rest: "90s",
+        notes: "Super-Set 1B: Antagonista. Recuperação completa de 90s a 2min ao finalizar o par.",
+        executionMethod: "super_set",
+        blockGroupId: groupId,
+        blockTag: "1B",
+        blockRole: "1B: Músculo Antagonista",
+        intraSetRest: 10,
+        blockRest: "90s"
+      }
+    ];
+    const current = edited.exercises || [];
+    const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(blockExs[0].id);
+    toast.success("⚔️ Super-Set Antagonista (Bíceps + Tríceps) adicionado!", { icon: "⚔️" });
+  };
+
+  // Adiciona Trio em Tri-Set
+  const addTriSetTemplate = () => {
+    const groupId = `triset_${Date.now()}`;
+    const blockExs: PrescribedExercise[] = [
+      {
+        id: `ex-tri-1a-${Date.now()}-1`,
+        name: "Desenvolvimento com Halteres",
+        muscleGroup: "Deltoide Anterior / Geral",
+        sets: 3,
+        reps: "10",
+        weight: "75% 1RM",
+        rest: "10s",
+        notes: "Tri-Set 1A: Movimento multiarticular principal.",
+        executionMethod: "tri_set",
+        blockGroupId: groupId,
+        blockTag: "1A",
+        blockRole: "1A: Composto Principal",
+        intraSetRest: 10,
+        blockRest: "2min"
+      },
+      {
+        id: `ex-tri-1b-${Date.now()}-2`,
+        name: "Elevação Lateral com Halteres",
+        muscleGroup: "Deltoide Lateral",
+        sets: 3,
+        reps: "12",
+        weight: "70% 1RM",
+        rest: "10s",
+        notes: "Tri-Set 1B: Isolamento porção média. Sem descanso.",
+        executionMethod: "tri_set",
+        blockGroupId: groupId,
+        blockTag: "1B",
+        blockRole: "1B: Isolamento Lateral",
+        intraSetRest: 10,
+        blockRest: "2min"
+      },
+      {
+        id: `ex-tri-1c-${Date.now()}-3`,
+        name: "Crucifixo Invertido com Halteres",
+        muscleGroup: "Deltoide Posterior",
+        sets: 3,
+        reps: "15",
+        weight: "65% 1RM",
+        rest: "2min",
+        notes: "Tri-Set 1C: Porção posterior. Descanso completo de 2min após o 3º exercício.",
+        executionMethod: "tri_set",
+        blockGroupId: groupId,
+        blockTag: "1C",
+        blockRole: "1C: Isolamento Posterior",
+        intraSetRest: 10,
+        blockRest: "2min"
+      }
+    ];
+    const current = edited.exercises || [];
+    const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(blockExs[0].id);
+    toast.success("🔱 Tri-Set (3 Exercícios Sequenciais) adicionado!", { icon: "🔱" });
+  };
+
+  // Adiciona GVT (German Volume Training 10x10)
+  const addGvtTemplate = () => {
+    const gvtEx: PrescribedExercise = {
+      id: `ex-gvt-${Date.now()}`,
+      name: "Agachamento Livre ou Supino Reto (GVT)",
+      muscleGroup: "Força / Volume Máximo",
+      sets: 10,
+      reps: "10",
+      weight: "60% 1RM",
+      rest: "60s",
+      notes: "German Volume Training (GVT): 10 séries estritas de 10 reps a 60% 1RM. Descanso fixo e rigoroso de 60s entre todas as séries.",
+      executionMethod: "gvt",
+      intraSetRest: 60
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, gvtEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(gvtEx.id);
+    toast.success("🇩🇪 GVT 10x10 (Volume Alemão) adicionado!", { icon: "🇩🇪" });
+  };
+
+  // Adiciona Myo-Reps
+  const addMyoRepsTemplate = () => {
+    const myoEx: PrescribedExercise = {
+      id: `ex-myo-${Date.now()}`,
+      name: "Puxada Frontal ou Elevação Lateral (Myo-Reps)",
+      muscleGroup: "Hipertrofia Eficiente",
+      sets: 4,
+      reps: "12 + 4x3",
+      weight: "70% 1RM (12RM)",
+      rest: "2min",
+      notes: "Myo-Reps: Série de ativação (12-15 reps @ RPE 9) + 4 mini-sets de 3 reps com micro-pausa de 15s (5 respirações profundas).",
+      executionMethod: "myo_reps",
+      intraSetRest: 15
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, myoEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(myoEx.id);
+    toast.success("🧬 Myo-Reps (Ativação + 4 Mini-sets) adicionado!", { icon: "🧬" });
+  };
+
+  // Adiciona Wave Loading (Ondulatório)
+  const addWaveLoadingTemplate = () => {
+    const waveEx: PrescribedExercise = {
+      id: `ex-wave-${Date.now()}`,
+      name: "Agachamento ou Terra (Wave Loading)",
+      muscleGroup: "Força Máxima Neuromuscular",
+      sets: 6,
+      reps: "7-5-3 / 7-5-3",
+      weight: "Onda 1: 75-80-85% | Onda 2: 77.5-82.5-87.5%",
+      rest: "2m30s",
+      notes: "Wave Loading: Onda 1 (7 reps @ 75%, 5 reps @ 80%, 3 reps @ 85%) -> Pausa 2m30s -> Onda 2 potencializada (7 reps @ 77.5%, 5 reps @ 82.5%, 3 reps @ 87.5%).",
+      executionMethod: "wave_loading",
+      intraSetRest: 120
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, waveEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(waveEx.id);
+    toast.success("🌊 Wave Loading Ondulatório (7-5-3 / 7-5-3) adicionado!", { icon: "🌊" });
+  };
+
+  // Adiciona Tiros / RSA (Campo & Velocidade)
+  const addSprintRsaTemplate = () => {
+    const rsaEx: PrescribedExercise = {
+      id: `ex-rsa-${Date.now()}`,
+      name: "Tiros Curtos com Mudança de Direção (RSA)",
+      muscleGroup: "Velocidade / Aceleração",
+      sets: 2,
+      reps: "5x 20m",
+      repsType: "meters",
+      fieldUnit: "meters",
+      weight: "100% Sprint Máximo",
+      rest: "2m30s",
+      intraSetRest: 20,
+      workRestRatio: "1:5",
+      notes: "Tiros Curtos / RSA: 2 blocos de 5 tiros de 20m em velocidade máxima. Micro-pausa de 20s entre tiros e 2m30s entre blocos.",
+      trainingMode: "speed",
+      metricType: "sprint",
+      executionMethod: "sprint_rsa",
+      isStructuredRunning: true
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, rsaEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(rsaEx.id);
+    toast.success("🏃‍♂️ Tiros / RSA (2 Blocos • 5x 20m) adicionado!", { icon: "🏃‍♂️" });
+  };
+
+  // Adiciona Pirâmide de Campo
+  const addPyramidFieldTemplate = () => {
+    const pyrEx: PrescribedExercise = {
+      id: `ex-pyr-${Date.now()}`,
+      name: "Pirâmide Linear de Campo",
+      muscleGroup: "Velocidade & Tolerância ao Lactato",
+      sets: 1,
+      reps: "10-20-30-40-30-20-10m",
+      repsType: "meters",
+      fieldUnit: "meters",
+      weight: "95-100% Vel",
+      rest: "3min",
+      intraSetRest: 30,
+      notes: "Pirâmide de Campo: Tiros escalonados de 10m, 20m, 30m, 40m, 30m, 20m, 10m (160m total) com micro-pausas progressivas.",
+      trainingMode: "speed",
+      metricType: "sprint",
+      executionMethod: "pyramid_field",
+      isStructuredRunning: true
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, pyrEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(pyrEx.id);
+    toast.success("🔺 Pirâmide de Campo (10-40-10m) adicionada!", { icon: "🔺" });
+  };
+
+  // Adiciona Fartlek / Intermitente
+  const addFartlekTemplate = () => {
+    const fartlekEx: PrescribedExercise = {
+      id: `ex-fartlek-${Date.now()}`,
+      name: "Treino Intermitente 15s:15s (Fartlek)",
+      muscleGroup: "Condicionamento / Potência Aeróbia",
+      sets: 2,
+      reps: "10x (15s:15s)",
+      repsType: "time",
+      fieldUnit: "time",
+      weight: "100-110% VAM",
+      rest: "3min",
+      intraSetRest: 15,
+      notes: "Intermitente 15s forte (>100% VAM) por 15s trote leve/caminhada. 2 blocos de 10 tiros com 3min de recuperação inter-blocos.",
+      trainingMode: "conditioning",
+      metricType: "interval",
+      executionMethod: "fartlek",
+      isStructuredRunning: true
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, fartlekEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(fartlekEx.id);
+    toast.success("⏱️ Fartlek Intermitente 15s:15s adicionado!", { icon: "⏱️" });
+  };
+
+  // Adiciona Shuttle Run / Agilidade COD
+  const addShuttleRunTemplate = () => {
+    const shuttleEx: PrescribedExercise = {
+      id: `ex-shuttle-${Date.now()}`,
+      name: "Pro Agility Shuttle 5-10-5m (COD)",
+      muscleGroup: "Agilidade & Mudança de Direção",
+      sets: 3,
+      reps: "3x (5+10+5m)",
+      repsType: "meters",
+      fieldUnit: "meters",
+      weight: "Máxima Aceleração & Freio",
+      rest: "2min",
+      intraSetRest: 25,
+      notes: "Shuttle Run COD: 5m direita com toque no solo ➔ 10m esquerda com toque no solo ➔ 5m sprint através da linha média.",
+      trainingMode: "speed",
+      metricType: "drill",
+      executionMethod: "shuttle_run",
+      isStructuredRunning: true
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, shuttleEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(shuttleEx.id);
+    toast.success("⚡ Shuttle Run / COD 5-10-5m adicionado!", { icon: "⚡" });
   };
 
   // Advanced filtration
@@ -1632,11 +1999,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     
     const newExercises = aiSuggestedExercises.map((libEx, index) => {
       const prescribedSets = libEx.defaultSets && Number(libEx.defaultSets) > 0 ? Number(libEx.defaultSets) : 4;
-      const repsType: 'reps' | 'time' = libEx.defaultRepsType || (
+      const repsType: 'reps' | 'time' | 'meters' = libEx.defaultRepsType || (
         libEx.defaultExecutionTime ||
         (libEx.defaultReps && (libEx.defaultReps.toLowerCase().includes("s") || libEx.defaultReps.toLowerCase().includes("min") || libEx.defaultReps.toLowerCase().includes("seg")))
           ? "time"
-          : "reps"
+          : (libEx.defaultReps && libEx.defaultReps.toLowerCase().includes("m") ? "meters" : "reps")
       );
       const repVal = repsType === "time"
         ? (libEx.defaultExecutionTime || libEx.defaultReps || "30s")
@@ -1737,6 +2104,17 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     toast.success(`Progressão [${progressionMethod.toUpperCase()}] aplicada com sucesso a toda a planilha!`);
   };
 
+  // Close filter drawer on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFilterDrawerOpen) {
+        setIsFilterDrawerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFilterDrawerOpen]);
+
   return (
     <div className="coach-editor-shell w-full h-full md:max-w-[98vw] xl:max-w-[1720px] md:h-[97vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
       
@@ -1774,7 +2152,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       </div>
 
       {/* LEFT COLUMN: MULTI-TAB PRESCRIÇÃO PLATFORM */}
-      <div className={`coach-editor-library ${activeMobileTab === "library" ? "flex" : "hidden"} lg:flex w-full lg:w-[380px] xl:w-[420px] bg-[#0c111d] border-b lg:border-b-0 lg:border-r border-slate-900 p-5 lg:p-6 flex-col overflow-y-auto no-scrollbar`}>
+      <div className={`coach-editor-library ${activeMobileTab === "library" ? "flex" : "hidden"} lg:flex w-full lg:w-[380px] xl:w-[420px] bg-[#0c111d] border-b lg:border-b-0 lg:border-r border-slate-900 p-5 lg:p-6 flex-col overflow-y-auto no-scrollbar relative`}>
         
         {/* PLATFORM HEADER */}
         <div className="flex items-center justify-between mb-5 shrink-0">
@@ -1809,7 +2187,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             📚 Biblioteca
           </button>
           <button
-            onClick={() => setSidebarTab("ai")}
+            onClick={() => {
+              setSidebarTab("ai");
+              setIsFilterDrawerOpen(false);
+            }}
             className={`flex-1 py-2 px-1 text-[8px] md:text-[9px] font-black uppercase tracking-wider rounded-lg transition-all shrink-0 ${
               sidebarTab === "ai"
                 ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20"
@@ -1819,7 +2200,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             🧠 IA Co-Pilot
           </button>
           <button
-            onClick={() => setSidebarTab("progression")}
+            onClick={() => {
+              setSidebarTab("progression");
+              setIsFilterDrawerOpen(false);
+            }}
             className={`flex-1 py-2 px-1 text-[8px] md:text-[9px] font-black uppercase tracking-wider rounded-lg transition-all shrink-0 ${
               sidebarTab === "progression"
                 ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20"
@@ -1829,7 +2213,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             ⚙️ Progressão
           </button>
           <button
-            onClick={() => setSidebarTab("deficit")}
+            onClick={() => {
+              setSidebarTab("deficit");
+              setIsFilterDrawerOpen(false);
+            }}
             className={`flex-1 py-2 px-1 text-[8px] md:text-[9px] font-black uppercase tracking-wider rounded-lg transition-all shrink-0 ${
               sidebarTab === "deficit"
                 ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse"
@@ -1843,21 +2230,113 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
         {/* TAB CONTENT: BIBLIOTECA ELITE */}
         {sidebarTab === "library" && (
-          <div className="flex-1 flex flex-col min-h-0 space-y-4">
+          <div className="flex-1 flex flex-col min-h-0 space-y-3">
             
-            {/* SEARCH */}
-            <div className="flex gap-2 shrink-0">
+            {/* SEARCH & FILTER TRIGGER BAR */}
+            <div className="flex items-center gap-2 shrink-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#161b26] border border-slate-850 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold text-slate-200 outline-none focus:ring-2 focus:ring-[#39FF14]/10 focus:border-[#39FF14] transition-all"
+                  className="w-full bg-[#161b26] border border-slate-850 rounded-xl py-2.5 pl-10 pr-9 text-xs font-semibold text-slate-200 outline-none focus:ring-2 focus:ring-[#39FF14]/10 focus:border-[#39FF14] transition-all"
                   placeholder="Pesquisar por nome, músculo, equipamento..."
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-white transition-colors cursor-pointer"
+                    title="Limpar pesquisa"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
+
+              {/* CLEAN FILTER DRAWER TRIGGER BUTTON */}
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(true)}
+                className={`h-[40px] px-3.5 rounded-xl border flex items-center gap-1.5 transition-all text-xs font-black uppercase tracking-wider cursor-pointer shrink-0 ${
+                  activeFiltersCount > 0
+                    ? "bg-[#39FF14]/15 text-[#39FF14] border-[#39FF14]/40 shadow-sm shadow-[#39FF14]/20"
+                    : "bg-[#161b26] hover:bg-slate-800 text-slate-300 hover:text-white border-slate-850"
+                }`}
+                title="Abrir gaveta limpa de filtros de ciência e biomecânica"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Filtros</span>
+                {activeFiltersCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-[#39FF14] text-slate-950 font-black text-[10px] flex items-center justify-center leading-none">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
             </div>
+
+            {/* ACTIVE FILTERS CHIPS (QUICK SUMMARY & INSTANT DISMISS) */}
+            {activeFiltersCount > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl bg-slate-950/70 border border-slate-900 shrink-0 text-[10px]">
+                <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider">Filtros:</span>
+                {filterDifficulty !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 font-bold">
+                    {filterDifficulty}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterDifficulty("ALL")} />
+                  </span>
+                )}
+                {filterQuality !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                    {filterQuality}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterQuality("ALL")} />
+                  </span>
+                )}
+                {filterMuscleGroup !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20 font-bold">
+                    {filterMuscleGroup}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterMuscleGroup("ALL")} />
+                  </span>
+                )}
+                {filterEquipment !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                    {filterEquipment}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterEquipment("ALL")} />
+                  </span>
+                )}
+                {filterPattern !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                    {filterPattern}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterPattern("ALL")} />
+                  </span>
+                )}
+                {filterLateralType !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-bold">
+                    {filterLateralType}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterLateralType("ALL")} />
+                  </span>
+                )}
+                {filterVideo !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">
+                    {filterVideo === "WITH_VIDEO" ? "🎥 Com Vídeo" : "Sem Vídeo"}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterVideo("ALL")} />
+                  </span>
+                )}
+                {filterSport !== "ALL" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/20 font-bold">
+                    {filterSport}
+                    <X className="w-2.5 h-2.5 cursor-pointer hover:opacity-75" onClick={() => setFilterSport("ALL")} />
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="text-[8.5px] font-black uppercase text-slate-400 hover:text-white underline ml-auto cursor-pointer"
+                >
+                  Limpar todos
+                </button>
+              </div>
+            )}
 
             {/* AI SEARCH RESULTS REASONING BANNER */}
             {aiSearchReasoning && (
@@ -1881,7 +2360,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             )}
 
             {/* CATEGORY SELECTOR CHIPS */}
-            <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 no-scrollbar border-b border-slate-900">
+            <div className="flex gap-1.5 overflow-x-auto pb-1 shrink-0 no-scrollbar border-b border-slate-900/80">
               {[
                 { id: "ALL", label: "TUDO" },
                 { id: "WITH_VIDEO", label: "🎥 Vídeos" },
@@ -1908,142 +2387,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               ))}
             </div>
 
-            {/* ADVANCED MULTI-FILTERS EXPANDABLE BOX */}
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3 shrink-0">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-[#39FF14]" />
-                  Filtros Avançados de Ciência
+            {/* STREAMLINED EXERCISE COUNT INFO */}
+            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 shrink-0 px-1">
+              <span>{filteredLibrary.length} exercícios disponíveis</span>
+              {searchQuery && (
+                <span className="text-slate-400 truncate max-w-[170px]">
+                  Filtro: "{searchQuery}"
                 </span>
-                <button 
-                  onClick={() => {
-                    setFilterDifficulty("ALL");
-                    setFilterQuality("ALL");
-                    setFilterEquipment("ALL");
-                    setFilterMuscleGroup("ALL");
-                    setFilterSport("ALL");
-                    setFilterPattern("ALL");
-                    setFilterLateralType("ALL");
-                    setFilterVideo("ALL");
-                    setSearchQuery("");
-                    setAiSearchIds(null);
-                    setAiSearchReasoning(null);
-                  }}
-                  className="text-[8px] font-black text-slate-500 hover:text-white uppercase tracking-wider"
-                >
-                  LIMPAR
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                {/* Video Filter */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Vídeo Anexado</span>
-                  <select
-                    value={filterVideo}
-                    onChange={(e) => setFilterVideo(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">TODOS</option>
-                    <option value="WITH_VIDEO">🎥 COM VÍDEO</option>
-                    <option value="WITHOUT_VIDEO">SEM VÍDEO</option>
-                  </select>
-                </div>
-                {/* Difficulty */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Dificuldade</span>
-                  <select
-                    value={filterDifficulty}
-                    onChange={(e) => setFilterDifficulty(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">TODAS</option>
-                    <option value="Iniciante">Iniciante</option>
-                    <option value="Intermediário">Intermed.</option>
-                    <option value="Avançado">Avançado</option>
-                    <option value="Elite">Elite</option>
-                  </select>
-                </div>
-
-                {/* Physical Quality */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Qualidade Física</span>
-                  <select
-                    value={filterQuality}
-                    onChange={(e) => setFilterQuality(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">TODAS</option>
-                    {uniqueQualities.map(q => <option key={q} value={q}>{q}</option>)}
-                  </select>
-                </div>
-
-                {/* Muscle Group */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Grupo Muscular</span>
-                  <select
-                    value={filterMuscleGroup}
-                    onChange={(e) => setFilterMuscleGroup(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">TODOS</option>
-                    {uniqueMuscleGroups.map(mg => <option key={mg} value={mg}>{mg}</option>)}
-                  </select>
-                </div>
-
-                {/* Sport */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Esporte</span>
-                  <select
-                    value={filterSport}
-                    onChange={(e) => setFilterSport(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">TODOS</option>
-                    {uniqueSports.map(sp => <option key={sp} value={sp}>{sp}</option>)}
-                  </select>
-                </div>
-
-                {/* Movement Pattern */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Padrão de Movimento</span>
-                  <select
-                    value={filterPattern}
-                    onChange={(e) => setFilterPattern(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">TODOS</option>
-                    {uniquePatterns.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-
-                {/* Lateral Type */}
-                <div className="space-y-1">
-                  <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Lateralidade</span>
-                  <select
-                    value={filterLateralType}
-                    onChange={(e) => setFilterLateralType(e.target.value)}
-                    className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                  >
-                    <option value="ALL">AMBOS</option>
-                    <option value="Unilateral">UNILATERAL</option>
-                    <option value="Bilateral">BILATERAL</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Equipment */}
-              <div className="space-y-1 pt-1 border-t border-slate-900/40">
-                <span className="text-[7.5px] font-black text-slate-500 uppercase block tracking-wider">Equipamento Requerido</span>
-                <select
-                  value={filterEquipment}
-                  onChange={(e) => setFilterEquipment(e.target.value)}
-                  className="w-full bg-[#161b26] text-[8.5px] font-black uppercase text-slate-300 border border-slate-850 p-1.5 rounded-lg focus:border-[#39FF14]"
-                >
-                  <option value="ALL">TODOS OS EQUIPAMENTOS</option>
-                  {uniqueEquipments.map(eq => <option key={eq} value={eq}>{eq}</option>)}
-                </select>
-              </div>
+              )}
             </div>
 
             {/* HIGH-FIDELITY BENTO LIST */}
@@ -2160,6 +2511,224 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* GAVETA LIMPA DE FILTROS DOS EXERCÍCIOS (DRAWER) */}
+        {isFilterDrawerOpen && (
+          <div className="exercise-filter-drawer absolute inset-0 z-40 bg-[#0c111d] flex flex-col p-4 sm:p-5 animate-in fade-in slide-in-from-left duration-200 shadow-2xl overflow-hidden">
+            {/* DRAWER HEADER */}
+            <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-slate-800 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14]">
+                  <Sliders className="w-4 h-4 text-[#39FF14]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-white leading-tight">
+                    Filtros de Exercícios
+                  </h4>
+                  <p className="text-[9px] text-slate-400 font-bold mt-0.5">
+                    Refinar biomecânica, capacidades e materiais
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeFiltersCount > 0 && (
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-[#39FF14] text-slate-950">
+                    {activeFiltersCount} ativo{activeFiltersCount > 1 ? "s" : ""}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsFilterDrawerOpen(false)}
+                  className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors cursor-pointer"
+                  title="Fechar Gaveta (ESC)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* DRAWER SCROLLABLE BODY */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar pb-2">
+              {/* 1. Dificuldade */}
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  Nível de Dificuldade
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { id: "ALL", label: "Todas" },
+                    { id: "Iniciante", label: "Iniciante" },
+                    { id: "Intermediário", label: "Intermed." },
+                    { id: "Avançado", label: "Avançado" },
+                    { id: "Elite", label: "Elite" }
+                  ].map(d => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setFilterDifficulty(d.id)}
+                      className={`py-1.5 px-2 rounded-lg text-[9px] font-bold border transition-all cursor-pointer ${
+                        filterDifficulty === d.id
+                          ? "bg-[#39FF14]/15 border-[#39FF14]/50 text-[#39FF14] font-black"
+                          : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. Vídeo & Lateralidade (Quick Toggles) */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                    Vídeo Demonstrativo
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    {[
+                      { id: "ALL", label: "Todos" },
+                      { id: "WITH_VIDEO", label: "🎥 Com Vídeo" },
+                      { id: "WITHOUT_VIDEO", label: "Sem Vídeo" }
+                    ].map(v => (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setFilterVideo(v.id)}
+                        className={`py-1.5 px-2 rounded-lg text-[9px] font-bold border text-left transition-all cursor-pointer ${
+                          filterVideo === v.id
+                            ? "bg-[#39FF14]/15 border-[#39FF14]/50 text-[#39FF14] font-black"
+                            : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                    Lateralidade
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    {[
+                      { id: "ALL", label: "Ambos" },
+                      { id: "Unilateral", label: "Unilateral" },
+                      { id: "Bilateral", label: "Bilateral" }
+                    ].map(l => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setFilterLateralType(l.id)}
+                        className={`py-1.5 px-2 rounded-lg text-[9px] font-bold border text-left transition-all cursor-pointer ${
+                          filterLateralType === l.id
+                            ? "bg-[#39FF14]/15 border-[#39FF14]/50 text-[#39FF14] font-black"
+                            : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Grupo Muscular */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  Grupo Muscular Principal
+                </label>
+                <select
+                  value={filterMuscleGroup}
+                  onChange={(e) => setFilterMuscleGroup(e.target.value)}
+                  className="w-full bg-[#161b26] text-[10px] font-bold text-slate-200 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-[#39FF14]"
+                >
+                  <option value="ALL">TODOS OS GRUPOS MUSCULARES</option>
+                  {uniqueMuscleGroups.map(mg => <option key={mg} value={mg}>{mg}</option>)}
+                </select>
+              </div>
+
+              {/* 4. Qualidade Física */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  Qualidade Física / Foco Biomecânico
+                </label>
+                <select
+                  value={filterQuality}
+                  onChange={(e) => setFilterQuality(e.target.value)}
+                  className="w-full bg-[#161b26] text-[10px] font-bold text-slate-200 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-[#39FF14]"
+                >
+                  <option value="ALL">TODAS AS QUALIDADES FÍSICAS</option>
+                  {uniqueQualities.map(q => <option key={q} value={q}>{q}</option>)}
+                </select>
+              </div>
+
+              {/* 5. Padrão de Movimento */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  Padrão de Movimento
+                </label>
+                <select
+                  value={filterPattern}
+                  onChange={(e) => setFilterPattern(e.target.value)}
+                  className="w-full bg-[#161b26] text-[10px] font-bold text-slate-200 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-[#39FF14]"
+                >
+                  <option value="ALL">TODOS OS PADRÕES DE MOVIMENTO</option>
+                  {uniquePatterns.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+
+              {/* 6. Equipamento Requerido */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  Equipamento Requerido
+                </label>
+                <select
+                  value={filterEquipment}
+                  onChange={(e) => setFilterEquipment(e.target.value)}
+                  className="w-full bg-[#161b26] text-[10px] font-bold text-slate-200 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-[#39FF14]"
+                >
+                  <option value="ALL">TODOS OS EQUIPAMENTOS</option>
+                  {uniqueEquipments.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                </select>
+              </div>
+
+              {/* 7. Esporte Específico */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">
+                  Modalidade Esportiva
+                </label>
+                <select
+                  value={filterSport}
+                  onChange={(e) => setFilterSport(e.target.value)}
+                  className="w-full bg-[#161b26] text-[10px] font-bold text-slate-200 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-[#39FF14]"
+                >
+                  <option value="ALL">TODAS AS MODALIDADES</option>
+                  {uniqueSports.map(sp => <option key={sp} value={sp}>{sp}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* DRAWER FOOTER */}
+            <div className="pt-3 border-t border-slate-800 flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                disabled={activeFiltersCount === 0}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-850 disabled:opacity-40 disabled:pointer-events-none text-slate-300 hover:text-white border border-slate-800 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+              >
+                Limpar Filtros
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(false)}
+                className="flex-[1.5] py-2.5 px-3 rounded-xl bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-[#39FF14]/15 cursor-pointer text-center"
+              >
+                Ver {filteredLibrary.length} Exercício{filteredLibrary.length !== 1 ? "s" : ""}
+              </button>
+            </div>
           </div>
         )}
 
@@ -2750,334 +3319,297 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       {/* RIGHT WORKOUT WORKSPACE */}
       <div className={`coach-editor-workspace ${activeMobileTab === "workout" ? "flex" : "hidden"} lg:flex flex-1 flex-col bg-[#05080e] overflow-hidden`}>
         
-        {/* WORKOUT HEADER / SUMMARY - COLLAPSIBLE FOR SPACIOUS LAYOUT */}
-        {isHeaderExpanded ? (
-          <div className="p-6 md:p-8 border-b border-slate-900 flex flex-col gap-6 relative shrink-0 bg-[#0c111d]/90 backdrop-blur-sm animate-in slide-in-from-top-4 duration-300">
-            
-            {/* COLLAPSE CONTROL TRIGGER BUTTON */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-widest text-[#39FF14] flex items-center gap-1.5">
-                <Settings className="w-3.5 h-3.5" />
-                Configurações da Planilha Ativa
-              </h3>
-              <button
-                onClick={() => setIsHeaderExpanded(false)}
-                className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 bg-slate-950 hover:bg-slate-900 text-slate-300 rounded-lg border border-slate-800 transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                Minimizar Detalhes <ChevronUp className="w-3.5 h-3.5 text-[#39FF14]" />
-              </button>
+        {/* STREAMLINED WORKOUT HEADER BAR - ZERO FRICTION PRESCRIPTION */}
+        <div className="py-3 px-4 sm:px-6 border-b border-slate-900 flex flex-wrap items-center justify-between gap-3 shrink-0 bg-[#0c111d]/95 backdrop-blur-md select-none">
+          <div className="flex flex-wrap items-center gap-2.5 min-w-0 flex-1">
+            <span className="text-[9px] bg-[#39FF14]/15 text-[#39FF14] px-2.5 py-1 rounded-md border border-[#39FF14]/30 font-black tracking-wider uppercase shrink-0">
+              PLANILHA
+            </span>
+
+            {/* Direct Inline Name Input - Instant Naming with No Modals */}
+            <div className="relative min-w-[170px] max-w-[280px] sm:max-w-xs flex-1">
+              <input
+                type="text"
+                value={edited.name}
+                onChange={(e) => setEdited({ ...edited, name: e.target.value })}
+                placeholder="Nome do Treino (ex: Treino A - Força)"
+                className="w-full bg-slate-950/80 hover:bg-slate-950 focus:bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-[#39FF14] rounded-xl px-3 py-1.5 text-xs sm:text-sm font-extrabold text-white placeholder:text-slate-500 outline-none transition-all shadow-inner"
+              />
             </div>
 
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-2xl">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1 tracking-widest">
-                    Nome da Planilha de Treino
-                  </label>
-                  <input
-                    value={edited.name}
-                    onChange={(e) => setEdited({ ...edited, name: e.target.value })}
-                    className="w-full bg-[#0c111d] border border-slate-800 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-[#39FF14]/10 focus:border-[#39FF14] text-white font-extrabold"
-                    placeholder="Ex: Bloco de Potência A"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1 tracking-widest">
-                    Data de Prescrição
-                  </label>
-                  <input
-                    type="date"
-                    value={edited.date.split("T")[0]}
-                    onChange={(e) => setEdited({ ...edited, date: e.target.value })}
-                    className="w-full bg-[#0c111d] border border-slate-800 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-[#39FF14]/10 focus:border-[#39FF14] text-white font-extrabold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-1 tracking-widest">
-                    Fase da Temporada (Periodização)
-                  </label>
-                  <select
-                    value={edited.phase}
-                    onChange={(e) => setEdited({ ...edited, phase: e.target.value })}
-                    className="w-full bg-[#0c111d] border border-slate-800 rounded-xl p-3 text-sm outline-none text-white font-extrabold focus:ring-2 focus:ring-[#39FF14]/10 focus:border-[#39FF14]"
-                  >
-                    <option>Preparação Geral</option>
-                    <option>Preparação Específica</option>
-                    <option>Pré-Competitivo</option>
-                    <option>Competitivo</option>
-                    <option>Transição</option>
-                    <option>Mobilidade/Estabilidade</option>
-                    <option>Prescrito Elite</option>
-                  </select>
-                </div>
-              </div>
+            {/* Quick Phase Selector */}
+            <select
+              value={edited.phase}
+              onChange={(e) => setEdited({ ...edited, phase: e.target.value })}
+              className="hidden sm:block bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-300 outline-none cursor-pointer focus:border-[#39FF14] transition-all"
+            >
+              <option>Preparação Geral</option>
+              <option>Preparação Específica</option>
+              <option>Pré-Competitivo</option>
+              <option>Competitivo</option>
+              <option>Transição</option>
+              <option>Mobilidade/Estabilidade</option>
+              <option>Prescrito Elite</option>
+            </select>
 
-            {/* IA CO-PILOT (PERIODIZATION & WORKOUT DAYS) */}
+            {/* Quick Date Selector */}
+            <input
+              type="date"
+              value={edited.date.split("T")[0]}
+              onChange={(e) => setEdited({ ...edited, date: e.target.value })}
+              className="hidden md:block bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-400 outline-none focus:border-[#39FF14] transition-all"
+            />
+
+            {/* Mini Realtime Stats Badge */}
+            <div className="hidden lg:flex items-center gap-2 bg-slate-950/70 px-3 py-1.5 rounded-xl border border-slate-850 text-[10px] font-bold text-slate-400 shrink-0">
+              <span className="text-white font-extrabold">{edited.exercises?.length || 0} Exs</span>
+              <span className="text-slate-700">•</span>
+              <span className="text-[#39FF14] font-black">{muscleDistribution.totalSets} Sets</span>
+              <span className="text-slate-700">•</span>
+              <span className="text-amber-400 font-bold">{estimatedDuration}m</span>
+              {fieldMetrics.hasFieldExercises && (
+                <>
+                  <span className="text-slate-700">•</span>
+                  <span className="text-emerald-400 font-black">🏃 {fieldMetrics.totalDistanceMeters}m</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Optional AI Periodization & Advanced Drawer Toggle */}
             {athlete && updateAthlete && (
-              <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3 shrink-0 my-3">
-                <button
-                  type="button"
-                  onClick={() => setIsPeriodizationExpanded(!isPeriodizationExpanded)}
-                  className="w-full flex items-center justify-between text-left text-brand-primary"
-                >
-                  <div className="flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-[#39FF14] animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-wider text-white">
-                      IA CO-PILOT (PERIODIZAÇÃO)
-                    </span>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 uppercase">
-                      Inteligente
-                    </span>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-350 ${isPeriodizationExpanded ? "rotate-180" : ""}`} />
-                </button>
-                
-                {isPeriodizationExpanded && (
-                  <div className="space-y-3.5 pt-2.5 border-t border-slate-900 animate-fade-in">
-                    <p className="text-[8.5px] text-slate-400 font-bold leading-relaxed">
-                      A <span className="text-white font-black">IA Co-Pilot</span> analisa os dias da semana de treino (Academia vs Campo/Quadra), o período selecionado e a descrição do treinador para estruturar a periodização nas datas e dias corretos.
-                    </p>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Início</label>
-                        <input
-                          type="date"
-                          value={localPeriodizationStart}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setLocalPeriodizationStart(val);
-                            if (updateAthlete && athlete) {
-                              updateAthlete(athlete.id, { periodizationStart: val });
-                            }
-                          }}
-                          className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Término</label>
-                        <input
-                          type="date"
-                          value={localPeriodizationEnd}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setLocalPeriodizationEnd(val);
-                            if (updateAthlete && athlete) {
-                              updateAthlete(athlete.id, { periodizationEnd: val });
-                            }
-                          }}
-                          className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Weekdays for Academy and Field */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1.5">
-                          🏋️‍♂️ Academia (Fortalecimento & Força)
-                        </label>
-                        <div className="flex flex-wrap gap-1">
-                          {[
-                            { id: 0, label: "D" },
-                            { id: 1, label: "S" },
-                            { id: 2, label: "T" },
-                            { id: 3, label: "Q" },
-                            { id: 4, label: "Q" },
-                            { id: 5, label: "S" },
-                            { id: 6, label: "S" },
-                          ].map((day) => {
-                            const isSelected = localAcademyDays.includes(day.id);
-                            return (
-                              <button
-                                key={day.id}
-                                type="button"
-                                onClick={() => {
-                                  const newAcademy = localAcademyDays.includes(day.id)
-                                    ? localAcademyDays.filter((d: number) => d !== day.id)
-                                    : [...localAcademyDays, day.id].sort();
-                                  setLocalAcademyDays(newAcademy);
-                                  const unionDays = Array.from(new Set([...newAcademy, ...localCourtDays])).sort();
-                                  if (updateAthlete && athlete) {
-                                    updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
-                                  }
-                                }}
-                                className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
-                                  isSelected
-                                    ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
-                                    : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
-                                }`}
-                              >
-                                {day.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1.5">
-                          ⚽ Campo/Quadra (Técnico & Tático)
-                        </label>
-                        <div className="flex flex-wrap gap-1">
-                          {[
-                            { id: 0, label: "D" },
-                            { id: 1, label: "S" },
-                            { id: 2, label: "T" },
-                            { id: 3, label: "Q" },
-                            { id: 4, label: "Q" },
-                            { id: 5, label: "S" },
-                            { id: 6, label: "S" },
-                          ].map((day) => {
-                            const isSelected = localCourtDays.includes(day.id);
-                            return (
-                              <button
-                                key={day.id}
-                                type="button"
-                                onClick={() => {
-                                  const newCourt = localCourtDays.includes(day.id)
-                                    ? localCourtDays.filter((d: number) => d !== day.id)
-                                    : [...localCourtDays, day.id].sort();
-                                  setLocalCourtDays(newCourt);
-                                  const unionDays = Array.from(new Set([...localAcademyDays, ...newCourt])).sort();
-                                  if (updateAthlete && athlete) {
-                                    updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
-                                  }
-                                }}
-                                className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
-                                  isSelected
-                                    ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
-                                    : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
-                                }`}
-                              >
-                                {day.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Coach description / strategic directions */}
-                    <div className="space-y-1.5 pt-1">
-                      <label className="text-[7.5px] font-black text-slate-400 uppercase block">
-                        📝 Descrição & Diretrizes da Periodização (IA Co-Pilot)
-                      </label>
-                      <textarea
-                        value={iaInstructions}
-                        onChange={(e) => setIaInstructions(e.target.value)}
-                        placeholder="Ex: Focar em força explosiva e saltos, reduzir carga se houver fadiga na lombar, treinos de campo com foco em agilidade e mudanças de direção..."
-                        className="w-full bg-[#161b26] border border-slate-850 rounded-lg p-2.5 text-[9px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-16 placeholder:text-slate-700"
-                      />
-                    </div>
-
-                    {/* Periodize Action Button */}
-                    <button
-                      type="button"
-                      onClick={handlePeriodizeWithAi}
-                      disabled={iaWorkoutsLoading}
-                      className="w-full bg-[#39FF14] hover:bg-[#32e00f] disabled:bg-slate-850 text-slate-950 font-black text-[9.5px] py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39FF14]/10"
-                    >
-                      {iaWorkoutsLoading ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          IA CO-PILOT PERIODIZANDO ATLETA...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3.5 h-3.5 stroke-[3]" />
-                          GERAR PERIODIZAÇÃO COM IA CO-PILOT
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
+                className={`text-[10px] font-black uppercase tracking-wider px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isHeaderExpanded
+                    ? "bg-[#39FF14]/15 border-[#39FF14]/40 text-[#39FF14]"
+                    : "bg-slate-900 hover:bg-slate-850 border-slate-800 text-slate-300 hover:text-white"
+                }`}
+                title="Configurar Periodização e IA Co-Pilot (Opcional)"
+              >
+                <Brain className="w-3.5 h-3.5 text-[#39FF14]" />
+                <span className="hidden md:inline">IA & Periodização</span>
+                {isHeaderExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#39FF14]" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
             )}
 
-              {/* REALTIME MONITORING DASHLET */}
-              <div className="flex gap-4 p-4 bg-slate-950 rounded-2xl border border-slate-900 self-stretch xl:self-auto items-center justify-between">
-                <div className="text-center px-2">
-                  <span className="text-[8px] font-black text-slate-500 uppercase block mb-1 tracking-wider">Exercícios</span>
-                  <span className="text-xl font-black text-white">{edited.exercises?.length || 0}</span>
-                </div>
-                <div className="w-px h-8 bg-slate-800" />
-                <div className="text-center px-2">
-                  <span className="text-[8px] font-black text-slate-500 uppercase block mb-1 tracking-wider">Total Sets</span>
-                  <span className="text-xl font-black text-[#39FF14]">{muscleDistribution.totalSets}</span>
-                </div>
-                <div className="w-px h-8 bg-slate-800" />
-                <div className="text-center px-2">
-                  <span className="text-[8px] font-black text-slate-500 uppercase block mb-1 tracking-wider">Tempo Est.</span>
-                  <span className="text-xl font-black text-amber-400 flex items-center justify-center gap-1">
-                    <Clock className="w-3.5 h-3.5 inline" /> {estimatedDuration}m
-                  </span>
-                </div>
-                <div className="w-px h-8 bg-slate-800" />
-                <div className="text-center px-2">
-                  <span className="text-[8px] font-black text-slate-500 uppercase block mb-1 tracking-wider">Vol. Est.</span>
-                  <span className="text-sm font-black text-slate-300">{(estimatedLoad || 0).toLocaleString()}kg</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* DESKTOP CLOSE BUTTON */}
+            {/* Fast Save Button directly in Header */}
             <button
+              type="button"
+              onClick={() => {
+                const finalName = (edited.name || "").trim() || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length || 0) % 26))}` : "Treino A");
+                const finalExercises = (edited.exercises || []).map((ex, i) => ({
+                  ...ex,
+                  order_index: i
+                }));
+                onSave({
+                  ...edited,
+                  name: finalName,
+                  date: edited.date.split("T")[0],
+                  updatedAt: new Date().toISOString(),
+                  exercises: finalExercises
+                });
+              }}
+              className="px-3 py-1.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#39FF14]/10 flex items-center gap-1.5 cursor-pointer"
+              title="Salvar Planilha Imediatamente"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+              <span className="hidden sm:inline">Salvar</span>
+            </button>
+
+            {/* Desktop Close Button */}
+            <button
+              type="button"
               onClick={onCancel}
-              className="hidden lg:flex absolute top-4 right-4 p-2 bg-slate-900/60 hover:bg-slate-900 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer z-10"
+              className="hidden lg:flex p-1.5 sm:p-2 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer"
               title="Fechar e Descartar"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
-        ) : (
-          /* COMPACT HEADER MODE - SAVES OVER 300PX OF VERTICAL HEIGHT */
-          <div className="py-3.5 px-4 md:px-6 border-b border-slate-900 flex items-center justify-between gap-4 shrink-0 bg-[#0c111d] select-none">
-            <div className="flex flex-wrap items-center gap-2 min-w-0">
-              <span className="text-[9px] bg-[#39FF14]/10 text-[#39FF14] px-2 py-1 rounded border border-[#39FF14]/20 font-black tracking-widest uppercase shrink-0">
-                PLANILHA ATIVA
-              </span>
-              <span className="text-sm font-black text-slate-100 truncate max-w-[140px] sm:max-w-[240px]">
-                {edited.name || "Sem Nome"}
-              </span>
-              <div className="hidden sm:flex items-center gap-1.5">
-                <span className="text-[10px] font-extrabold px-2 py-0.5 bg-slate-950 text-slate-400 rounded-md border border-slate-900">
-                  {edited.phase}
-                </span>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 bg-slate-950 text-slate-400 rounded-md border border-slate-900">
-                  {edited.date.split("T")[0].split("-").reverse().slice(0, 2).join("/")}
+        </div>
+
+        {/* OPTIONAL EXPANDABLE IA CO-PILOT & PERIODIZATION DRAWER (OPEN ONLY WHEN REQUESTED) */}
+        {isHeaderExpanded && athlete && updateAthlete && (
+          <div className="p-4 sm:p-6 border-b border-slate-900 bg-[#0c111d] flex flex-col gap-4 relative shrink-0 animate-in slide-in-from-top-3 duration-250">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-850">
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-[#39FF14] animate-pulse" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-[#39FF14]">
+                  IA CO-PILOT (PERIODIZAÇÃO & DIAS DE TREINO)
+                </h3>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 uppercase">
+                  Inteligente
                 </span>
               </div>
-              
-              {/* MINI STATS BADGE */}
-              <div className="flex items-center gap-2 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-900/60 text-[10px] font-bold text-slate-400">
-                <span>{edited.exercises?.length || 0} Exs</span>
-                <span className="text-slate-800">•</span>
-                <span className="text-[#39FF14] font-black">{muscleDistribution.totalSets} Sets</span>
-                <span className="text-slate-800">•</span>
-                <span className="text-amber-400 font-bold">{estimatedDuration}m</span>
+              <button
+                type="button"
+                onClick={() => setIsHeaderExpanded(false)}
+                className="text-[10px] font-black uppercase tracking-wider px-3 py-1 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white rounded-lg border border-slate-800 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>Fechar Painel</span>
+                <X className="w-3.5 h-3.5 text-slate-400" />
+              </button>
+            </div>
+
+            <p className="text-[8.5px] text-slate-400 font-bold leading-relaxed">
+              A <span className="text-white font-black">IA Co-Pilot</span> analisa os dias da semana de treino (Academia vs Campo/Quadra), o período selecionado e a descrição do treinador para estruturar a periodização nas datas e dias corretos.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Início</label>
+                <input
+                  type="date"
+                  value={localPeriodizationStart}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLocalPeriodizationStart(val);
+                    if (updateAthlete && athlete) {
+                      updateAthlete(athlete.id, { periodizationStart: val });
+                    }
+                  }}
+                  className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
+                />
+              </div>
+              <div>
+                <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Data Término</label>
+                <input
+                  type="date"
+                  value={localPeriodizationEnd}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setLocalPeriodizationEnd(val);
+                    if (updateAthlete && athlete) {
+                      updateAthlete(athlete.id, { periodizationEnd: val });
+                    }
+                  }}
+                  className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
+                />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => setIsHeaderExpanded(true)}
-                className="text-[10px] font-black uppercase tracking-wider px-3 py-2 bg-slate-900 hover:bg-slate-850 hover:text-[#39FF14] text-slate-300 rounded-xl border border-slate-800 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg"
-              >
-                <Settings className="w-3.5 h-3.5 text-slate-400" />
-                <span className="hidden md:inline">Configurações</span>
-                <ChevronDown className="w-3.5 h-3.5 text-[#39FF14]" />
-              </button>
-              
-              {/* DESKTOP CLOSE BUTTON */}
-              <button
-                onClick={onCancel}
-                className="hidden lg:flex p-2 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer"
-                title="Fechar e Descartar"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            {/* Weekdays for Academy and Field */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1.5">
+                  🏋️‍♂️ Academia (Fortalecimento & Força)
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { id: 0, label: "D" },
+                    { id: 1, label: "S" },
+                    { id: 2, label: "T" },
+                    { id: 3, label: "Q" },
+                    { id: 4, label: "Q" },
+                    { id: 5, label: "S" },
+                    { id: 6, label: "S" },
+                  ].map((day) => {
+                    const isSelected = localAcademyDays.includes(day.id);
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => {
+                          const newAcademy = localAcademyDays.includes(day.id)
+                            ? localAcademyDays.filter((d: number) => d !== day.id)
+                            : [...localAcademyDays, day.id].sort();
+                          setLocalAcademyDays(newAcademy);
+                          const unionDays = Array.from(new Set([...newAcademy, ...localCourtDays])).sort();
+                          if (updateAthlete && athlete) {
+                            updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
+                          }
+                        }}
+                        className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#39FF14] border-[#39FF14] text-slate-950 font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
+                            : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1.5">
+                  ⚽ Campo/Quadra (Técnico & Tático)
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { id: 0, label: "D" },
+                    { id: 1, label: "S" },
+                    { id: 2, label: "T" },
+                    { id: 3, label: "Q" },
+                    { id: 4, label: "Q" },
+                    { id: 5, label: "S" },
+                    { id: 6, label: "S" },
+                  ].map((day) => {
+                    const isSelected = localCourtDays.includes(day.id);
+                    return (
+                      <button
+                        key={day.id}
+                        type="button"
+                        onClick={() => {
+                          const newCourt = localCourtDays.includes(day.id)
+                            ? localCourtDays.filter((d: number) => d !== day.id)
+                            : [...localCourtDays, day.id].sort();
+                          setLocalCourtDays(newCourt);
+                          const unionDays = Array.from(new Set([...localAcademyDays, ...newCourt])).sort();
+                          if (updateAthlete && athlete) {
+                            updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
+                          }
+                        }}
+                        className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-brand-secondary border-brand-secondary text-brand-dark font-black shadow-[0_0_8px_rgba(57,255,20,0.3)]"
+                            : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
+
+            {/* Coach description / strategic directions */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[7.5px] font-black text-slate-400 uppercase block">
+                📝 Descrição & Diretrizes da Periodização (IA Co-Pilot)
+              </label>
+              <textarea
+                value={iaInstructions}
+                onChange={(e) => setIaInstructions(e.target.value)}
+                placeholder="Ex: Focar em força explosiva e saltos, reduzir carga se houver fadiga na lombar, treinos de campo com foco em agilidade e mudanças de direção..."
+                className="w-full bg-[#161b26] border border-slate-850 rounded-lg p-2.5 text-[9px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-16 placeholder:text-slate-700"
+              />
+            </div>
+
+            {/* Periodize Action Button */}
+            <button
+              type="button"
+              onClick={handlePeriodizeWithAi}
+              disabled={iaWorkoutsLoading}
+              className="w-full bg-[#39FF14] hover:bg-[#32e00f] disabled:bg-slate-850 text-slate-950 font-black text-[9.5px] py-2.5 rounded-lg transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer shadow-lg shadow-[#39FF14]/10"
+            >
+              {iaWorkoutsLoading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  IA CO-PILOT PERIODIZANDO ATLETA...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 stroke-[3]" />
+                  GERAR PERIODIZAÇÃO COM IA CO-PILOT
+                </>
+              )}
+            </button>
           </div>
         )}
 
@@ -3110,63 +3642,190 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             </div>
           )}
 
-          {/* MÉTODOS AVANÇADOS S&C: CONTRASTE FRANCÊS, PAP, CLUSTERS, REST-PAUSE */}
-          <div className="p-3.5 bg-gradient-to-r from-[#0c111d] via-[#101827] to-[#0c111d] rounded-2xl border border-slate-800/80 shadow-md flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 shrink-0">
-                <Zap className="w-4 h-4" />
-              </div>
-              <div>
-                <h5 className="text-[10px] sm:text-xs font-black uppercase text-slate-200 tracking-wider flex items-center gap-2">
-                  <span>Métodos Avançados de Força & Potência (S&C)</span>
-                  <span className="text-[8px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400/30">ELITE</span>
-                </h5>
-                <p className="text-[9px] text-slate-400 font-medium">
-                  Adicione blocos com micro-pausas intra-série e pareamento biomecânico
-                </p>
+          {/* CARD MÉTODOS AVANÇADOS: TODOS OS MÉTODOS DE FORÇA, POTÊNCIA, HIPERTROFIA E CAMPO */}
+          <div className="advanced-methods-master-card p-4 sm:p-5 rounded-2xl border transition-all shadow-lg bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-amber-500/30 text-white">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
+                  <Zap className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h5 className="text-xs sm:text-sm font-black uppercase text-slate-100 tracking-wider flex items-center gap-2">
+                    <span>MÉTODOS AVANÇADOS</span>
+                    <span className="text-[8px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 font-bold">15 MÉTODOS</span>
+                  </h5>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    Adicione blocos com micro-pausas intra-série, pareamentos biomecânicos e tiros de campo
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={addFrenchContrastBlock}
-                className="px-3 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
-                title="Adicionar Complexo Francês de 4 Estágios (1A PAP Pesado ➔ 1B Pliometria com Carga ➔ 1C Balístico ➔ 1D Pliometria Reativa RSI)"
-              >
-                <span>🇫🇷</span>
-                <span className="group-hover:text-white">Contraste Francês (4 Estágios)</span>
-              </button>
+            {/* Grid dos Métodos Avançados divididos em Força/Potência/Hipertrofia e Campo/Velocidade */}
+            <div className="mt-3.5 space-y-3">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Musculação, Força & Hipertrofia (S&C)
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={addFrenchContrastBlock}
+                    className="px-2.5 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Complexo Francês de 4 Estágios (1A PAP Pesado ➔ 1B Pliometria com Carga ➔ 1C Balístico ➔ 1D Pliometria Reativa RSI)"
+                  >
+                    <span>🇫🇷</span>
+                    <span className="group-hover:text-white">Contraste Francês (4 Estágios)</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={addClassicPapBlock}
-                className="px-3 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
-                title="Adicionar Par Contrastado PAP (1A Pesado + 1B Salto Explosivo)"
-              >
-                <span>⚡</span>
-                <span className="group-hover:text-white">Complex PAP (1A + 1B)</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={addClassicPapBlock}
+                    className="px-2.5 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Par Contrastado PAP (1A Pesado + 1B Salto Explosivo)"
+                  >
+                    <span>⚡</span>
+                    <span className="group-hover:text-white">Complex PAP (1A + 1B)</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={addClusterSetTemplate}
-                className="px-3 py-1.5 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/40 hover:border-purple-400 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
-                title="Adicionar Série em Cluster (2+2+2 com micro-pausa de 20s)"
-              >
-                <span>🎯</span>
-                <span className="group-hover:text-white">Cluster Set</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={addClusterSetTemplate}
+                    className="px-2.5 py-1.5 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/40 hover:border-purple-400 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Série em Cluster (2+2+2 com micro-pausa de 20s)"
+                  >
+                    <span>🎯</span>
+                    <span className="group-hover:text-white">Cluster Set</span>
+                  </button>
 
-              <button
-                type="button"
-                onClick={addRestPauseTemplate}
-                className="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 hover:border-rose-400 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group"
-                title="Adicionar Série em Rest-Pause (8+3+2 com micro-pausa de 15s)"
-              >
-                <span>🔥</span>
-                <span className="group-hover:text-white">Rest-Pause</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={addRestPauseTemplate}
+                    className="px-2.5 py-1.5 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 hover:border-rose-400 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Série em Rest-Pause (8+3+2 com micro-pausa de 15s)"
+                  >
+                    <span>🔥</span>
+                    <span className="group-hover:text-white">Rest-Pause</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addDropSetTemplate}
+                    className="px-2.5 py-1.5 bg-pink-950/40 hover:bg-pink-900/50 border border-pink-500/40 hover:border-pink-400 text-pink-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Drop-Set Triplo (8+8+8 com reduções imediatas de carga)"
+                  >
+                    <span>📉</span>
+                    <span className="group-hover:text-white">Drop-Set Triplo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addBiSetTemplate}
+                    className="px-2.5 py-1.5 bg-sky-950/40 hover:bg-sky-900/50 border border-sky-500/40 hover:border-sky-400 text-sky-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Par em Bi-Set (1A Composto + 1B Isolador)"
+                  >
+                    <span>🔗</span>
+                    <span className="group-hover:text-white">Bi-Set</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addSuperSetTemplate}
+                    className="px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 hover:border-red-400 text-red-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Super-Set Antagonista (ex: Bíceps + Tríceps)"
+                  >
+                    <span>⚔️</span>
+                    <span className="group-hover:text-white">Super-Set</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addTriSetTemplate}
+                    className="px-2.5 py-1.5 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 hover:border-amber-400 text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Tri-Set (3 Exercícios Consecutivos)"
+                  >
+                    <span>🔱</span>
+                    <span className="group-hover:text-white">Tri-Set</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addGvtTemplate}
+                    className="px-2.5 py-1.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar German Volume Training (10 séries x 10 reps @ 60s descanso)"
+                  >
+                    <span>🇩🇪</span>
+                    <span className="group-hover:text-white">GVT (10x10)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addMyoRepsTemplate}
+                    className="px-2.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Myo-Reps (Série de ativação + 4 mini-sets com 15s de pausa)"
+                  >
+                    <span>🧬</span>
+                    <span className="group-hover:text-white">Myo-Reps</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addWaveLoadingTemplate}
+                    className="px-2.5 py-1.5 bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/40 hover:border-blue-400 text-blue-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Wave Loading Ondulatório (7-5-3 / 7-5-3)"
+                  >
+                    <span>🌊</span>
+                    <span className="group-hover:text-white">Wave Loading</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1.5">
+                  Velocidade, Pista & Campo (Blocos & Intervalados)
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={addSprintRsaTemplate}
+                    className="px-2.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Tiros Curtos / RSA (2 Blocos de 5x 20m com micro-pausas)"
+                  >
+                    <span>🏃‍♂️</span>
+                    <span className="group-hover:text-white">Tiros / RSA (5x 20m)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addPyramidFieldTemplate}
+                    className="px-2.5 py-1.5 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 hover:border-amber-400 text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Pirâmide de Campo (10-20-30-40-30-20-10m)"
+                  >
+                    <span>🔺</span>
+                    <span className="group-hover:text-white">Pirâmide de Campo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addFartlekTemplate}
+                    className="px-2.5 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Fartlek Intermitente 15s:15s"
+                  >
+                    <span>⏱️</span>
+                    <span className="group-hover:text-white">Fartlek (15s:15s)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={addShuttleRunTemplate}
+                    className="px-2.5 py-1.5 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/40 hover:border-purple-400 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Shuttle Run Pro Agility 5-10-5m"
+                  >
+                    <span>⚡</span>
+                    <span className="group-hover:text-white">Shuttle Run / COD</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -3313,19 +3972,45 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                               🔥 Rest-Pause • {ex.intraSetRest || 15}s
                             </span>
                           )}
+                          {ex.executionMethod === "sprint_rsa" && (
+                            <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              ⚡ Tiros / RSA • {ex.intraSetRest ?? 20}s
+                            </span>
+                          )}
+                          {ex.executionMethod === "pyramid_field" && (
+                            <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              📐 Pirâmide de Campo
+                            </span>
+                          )}
+                          {ex.executionMethod === "fartlek" && (
+                            <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                              ⏱️ Fartlek / Intermitente
+                            </span>
+                          )}
+                          {ex.executionMethod === "shuttle_run" && (
+                            <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40">
+                              🔄 Shuttle COD
+                            </span>
+                          )}
 
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
-                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Séries</span>
+                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
+                              {isFieldOrRunningExercise(ex) ? "Blocos" : "Séries"}
+                            </span>
                             <span className="text-[#39FF14] text-xs font-extrabold">{ex.sets}</span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
-                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Volume</span>
+                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
+                              {isFieldOrRunningExercise(ex) ? "Tiros" : "Volume"}
+                            </span>
                             <span className="text-slate-200 text-xs font-extrabold">
                               {ex.clusterReps || ex.reps}{ex.repsType === "time" ? "s" : ""}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
-                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">Carga</span>
+                            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
+                              {isFieldOrRunningExercise(ex) ? "Intensidade" : "Carga"}
+                            </span>
                             <span className="text-slate-200 text-xs font-extrabold">{ex.weight || "BW"}</span>
                           </div>
                           <div 
@@ -3334,7 +4019,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             title="Clique para editar Transição ou Pausa diretamente"
                           >
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-400 group-hover/rest:text-amber-500 transition-colors">
-                              {ex.executionMethod === "complex_contrast" ? "Transição" : "Pausa"}:
+                              {ex.executionMethod === "complex_contrast" ? "Transição" : isFieldOrRunningExercise(ex) ? "Inter-Blocos" : "Pausa"}:
                             </span>
                             <input
                               value={ex.rest || (ex.executionMethod === "complex_contrast" ? "20s" : "90s")}
@@ -3396,7 +4081,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3">
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
-                              Séries
+                              {isFieldOrRunningExercise(ex) ? "Blocos" : "Séries"}
                             </label>
                             <input
                               type="number"
@@ -3412,17 +4097,18 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                               Tipo
                             </label>
                             <select
-                              value={ex.repsType || (isTimeExercise(ex) ? "time" : "reps")}
+                              value={ex.repsType || (isTimeExercise(ex) ? "time" : (String(ex.reps || "").toLowerCase().includes("m") ? "meters" : "reps"))}
                               onChange={(e) => updateExField(ex.id, "repsType", e.target.value)}
                               className="w-full bg-slate-950/50 border border-slate-800 focus:border-[#39FF14]/50 rounded-xl p-3 text-sm text-slate-300 font-extrabold transition-all"
                             >
                               <option value="reps">Reps</option>
                               <option value="time">Tempo (s)</option>
+                              <option value="meters">Metros (m)</option>
                             </select>
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
-                              Volume
+                              {ex.repsType === "meters" ? "Metros (m)" : isTimeExercise(ex) ? "Duração (s)" : isFieldOrRunningExercise(ex) ? "Tiros / Reps" : "Volume / Reps"}
                             </label>
                             <input
                               value={ex.reps}
@@ -3430,12 +4116,12 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                               onFocus={(e) => e.target.select()}
                               onClick={(e) => (e.target as HTMLInputElement).select()}
                               className="w-full bg-slate-950/50 border border-slate-800 focus:border-[#39FF14]/50 rounded-xl p-3 text-sm text-white text-center font-extrabold transition-all"
-                              placeholder={isTimeExercise(ex) ? "30s" : "10"}
+                              placeholder={ex.repsType === "meters" ? "20m" : isTimeExercise(ex) ? "30s" : "10"}
                             />
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
-                              Carga
+                              {isFieldOrRunningExercise(ex) ? "Intensidade" : "Carga"}
                             </label>
                             <input
                               value={ex.weight}
@@ -3443,13 +4129,13 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                               onFocus={(e) => e.target.select()}
                               onClick={(e) => (e.target as HTMLInputElement).select()}
                               className="w-full bg-slate-950/50 border border-slate-800 focus:border-[#39FF14]/50 rounded-xl p-3 text-sm text-white text-center font-extrabold transition-all"
-                              placeholder="BW"
+                              placeholder={isFieldOrRunningExercise(ex) ? "100% Máx" : "BW"}
                             />
                           </div>
                           <div className="col-span-2 sm:col-span-1">
                             <div className="flex items-center justify-between mb-1">
                               <label className="text-[10px] text-slate-400 uppercase font-extrabold tracking-wider">
-                                {ex.executionMethod === "complex_contrast" ? "Transição" : "Descanso"}
+                                {ex.executionMethod === "complex_contrast" ? "Transição" : isFieldOrRunningExercise(ex) ? "Inter-Blocos" : "Descanso"}
                               </label>
                               <span className="text-[8.5px] text-amber-500 font-bold hidden sm:inline">⚡ Clique e edite</span>
                             </div>
@@ -3501,557 +4187,977 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
                               {[
-                                { id: "standard", label: "Padrão" },
-                                { id: "complex_contrast", label: "🇫🇷 Contraste Francês" },
-                                { id: "cluster", label: "🎯 Cluster Set" },
-                                { id: "rest_pause", label: "🔥 Rest-Pause" },
-                                { id: "drop_set", label: "📉 Drop-Set" },
-                                { id: "bi_set", label: "🔗 Bi-Set" },
-                                { id: "tri_set", label: "🔺 Tri-Set" },
-                                { id: "super_set", label: "⚡ Super-Set" },
-                                { id: "gvt", label: "🇩🇪 GVT (10x10)" },
-                                { id: "myo_reps", label: "🧬 Myo-Reps" },
-                                { id: "wave_loading", label: "🌊 Wave Loading" },
+                                { id: "standard", label: "Padrão", icon: "🏋️‍♂️", group: "strength" },
+                                { id: "complex_contrast", label: "🇫🇷 Contraste Francês", icon: "🇫🇷", group: "strength" },
+                                { id: "cluster", label: "🎯 Cluster Set", icon: "🎯", group: "strength" },
+                                { id: "rest_pause", label: "🔥 Rest-Pause", icon: "🔥", group: "strength" },
+                                { id: "drop_set", label: "📉 Drop-Set", icon: "📉", group: "strength" },
+                                { id: "bi_set", label: "⚡ Bi-Set", icon: "⚡", group: "strength" },
+                                { id: "tri_set", label: "🔱 Tri-Set", icon: "🔱", group: "strength" },
+                                { id: "super_set", label: "⚔️ Super-Set", icon: "⚔️", group: "strength" },
+                                { id: "gvt", label: "🇩🇪 GVT (10x10)", icon: "🇩🇪", group: "strength" },
+                                { id: "myo_reps", label: "🧬 Myo-Reps", icon: "🧬", group: "strength" },
+                                { id: "wave_loading", label: "🌊 Wave Loading", icon: "🌊", group: "strength" },
+                                // Métodos de Campo & Quadra
+                                { id: "sprint_rsa", label: "🏃‍♂️ Tiros / RSA", icon: "🏃‍♂️", group: "field" },
+                                { id: "pyramid_field", label: "🔺 Pirâmide Campo", icon: "🔺", group: "field" },
+                                { id: "fartlek", label: "⏱️ Fartlek", icon: "⏱️", group: "field" },
+                                { id: "shuttle_run", label: "⚡ Shuttle Run / COD", icon: "⚡", group: "field" },
                               ].map((m) => {
                                 const isCurrent = (ex.executionMethod || "standard") === m.id;
+                                const isField = m.group === "field";
                                 return (
                                   <button
                                     key={m.id}
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (m.id === "complex_contrast") {
-                                        // Intelligently detect if previous exercise in workout is already in complex
-                                        const prevEx = index > 0 ? (edited.exercises || [])[index - 1] : null;
-                                        let suggestedTag = "1A";
-                                        let suggestedRole = "1A: Carga Pesada (PAP 80-85% 1RM)";
-                                        let suggestedRest = "20s";
-                                        let suggestedReps = "3";
-                                        let suggestedWeight = ex.weight && ex.weight !== "BW" ? ex.weight : "85% 1RM";
-
-                                        if (prevEx && prevEx.executionMethod === "complex_contrast" && prevEx.blockTag) {
-                                          const prevTag = prevEx.blockTag;
-                                          if (prevTag.endsWith("A")) {
-                                            suggestedTag = `${prevTag.slice(0, -1)}B`;
-                                            suggestedRole = "1B: Pliometria com Sobrecarga (Salto)";
-                                            suggestedWeight = "BW";
-                                            suggestedReps = "4";
-                                            suggestedRest = "20s";
-                                          } else if (prevTag.endsWith("B")) {
-                                            suggestedTag = `${prevTag.slice(0, -1)}C`;
-                                            suggestedRole = "1C: Velocidade Balística (30% 1RM)";
-                                            suggestedWeight = "30% 1RM";
-                                            suggestedReps = "4";
-                                            suggestedRest = "20s";
-                                          } else if (prevTag.endsWith("C")) {
-                                            suggestedTag = `${prevTag.slice(0, -1)}D`;
-                                            suggestedRole = "1D: Pliometria Reativa (RSI / Drop Jump)";
-                                            suggestedWeight = "BW";
-                                            suggestedReps = "4";
-                                            suggestedRest = "3m30s";
-                                          } else {
-                                            const round = (parseInt(prevTag) || 1) + 1;
-                                            suggestedTag = `${round}A`;
-                                          }
-                                        }
-
-                                        const targetTag = ex.blockTag || suggestedTag;
-                                        const targetRole = ex.blockRole || suggestedRole;
-                                        const targetRest = targetTag.endsWith("D") ? (ex.blockRest || "3m30s") : "20s";
-
-                                        updateExFields(ex.id, {
-                                          executionMethod: "complex_contrast",
-                                          blockTag: targetTag,
-                                          blockRole: targetRole,
-                                          intraSetRest: ex.intraSetRest ?? 20,
-                                          blockRest: ex.blockRest || "3m30s",
-                                          rest: targetRest,
-                                          reps: ex.reps && ex.reps !== "10" ? ex.reps : suggestedReps,
-                                          weight: ex.weight && ex.weight !== "BW" ? ex.weight : suggestedWeight
-                                        });
-                                        toast.success(`🇫🇷 Configurado como Contraste Francês (${targetTag})!`, { icon: "🇫🇷" });
-                                      } else if (m.id === "cluster") {
-                                        const cReps = ex.clusterReps || (ex.reps && ex.reps.includes("+") ? ex.reps : "2+2+2");
-                                        updateExFields(ex.id, {
-                                          executionMethod: "cluster",
-                                          clusterReps: cReps,
-                                          reps: cReps,
-                                          intraSetRest: ex.intraSetRest ?? 20,
-                                          rest: ex.rest && ex.rest !== "20s" ? ex.rest : "2m30s"
-                                        });
-                                        toast.success("🎯 Configurado como Cluster Set (2+2+2)!", { icon: "🎯" });
-                                      } else if (m.id === "rest_pause") {
-                                        updateExFields(ex.id, {
-                                          executionMethod: "rest_pause",
-                                          intraSetRest: ex.intraSetRest ?? 15,
-                                          rest: ex.rest && ex.rest !== "20s" ? ex.rest : "2min"
-                                        });
-                                        toast.success("🔥 Configurado como Rest-Pause (15s micro-pausa)!", { icon: "🔥" });
-                                      } else if (m.id === "drop_set") {
-                                        updateExFields(ex.id, {
-                                          executionMethod: "drop_set",
-                                          intraSetRest: 5,
-                                          rest: "2min",
-                                          notes: ex.notes ? ex.notes : "Reduzir carga em 20-30% sem descanso entre drops"
-                                        });
-                                        toast.success("📉 Configurado como Drop-Set!", { icon: "📉" });
-                                      } else if (m.id === "bi_set" || m.id === "tri_set" || m.id === "super_set") {
-                                        updateExFields(ex.id, {
-                                          executionMethod: m.id as any,
-                                          intraSetRest: 10,
-                                          rest: "2min"
-                                        });
-                                        toast.success(`Configurado como ${m.label}!`);
-                                      } else if (m.id === "gvt") {
-                                        updateExFields(ex.id, {
-                                          executionMethod: "gvt",
-                                          sets: 10,
-                                          reps: "10",
-                                          rest: "60s",
-                                          notes: ex.notes ? ex.notes : "Volume Alemão (GVT): 10 séries de 10 reps a 60% 1RM"
-                                        });
-                                        toast.success("🇩🇪 Configurado como German Volume Training (10x10)!", { icon: "🇩🇪" });
-                                      } else if (m.id === "myo_reps") {
-                                        updateExFields(ex.id, {
-                                          executionMethod: "myo_reps",
-                                          intraSetRest: 15,
-                                          notes: ex.notes ? ex.notes : "Série de ativação + 4 a 5 mini-sets de 3-5 reps (15s pausa)"
-                                        });
-                                        toast.success("🧬 Configurado como Myo-Reps!", { icon: "🧬" });
-                                      } else if (m.id === "wave_loading") {
-                                        updateExFields(ex.id, {
-                                          executionMethod: "wave_loading",
-                                          notes: ex.notes ? ex.notes : "Ondulação de cargas (ex: Onda 1: 7-5-3 reps | Onda 2: 7-5-3 reps + carga)"
-                                        });
-                                        toast.success("🌊 Configurado como Wave Loading!", { icon: "🌊" });
-                                      } else {
-                                        updateExFields(ex.id, {
-                                          executionMethod: "standard",
-                                          blockTag: undefined,
-                                          blockRole: undefined,
-                                          clusterReps: undefined,
-                                          rest: ex.rest === "20s" ? "90s" : (ex.rest || "90s")
-                                        });
-                                        toast.success("Configurado como Treino Padrão.");
-                                      }
+                                      const structured = structureExerciseForMethod(
+                                        ex,
+                                        m.id as AdvancedExecutionMethod,
+                                        index,
+                                        edited.exercises || []
+                                      );
+                                      updateExFields(ex.id, structured);
+                                      const meta = getSpecialMethodMeta(m.id as AdvancedExecutionMethod);
+                                      toast.success(`${meta.badge}: Exercício estruturado com sucesso! (Séries: ${structured.sets}, Reps: ${structured.reps}, Carga: ${structured.weight}, Descanso: ${structured.rest})`, {
+                                        icon: meta.icon,
+                                        duration: 4000
+                                      });
                                     }}
-                                    className={`px-3 py-1.5 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                    className={`px-3 py-1.5 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-sm active:scale-95 ${
                                       isCurrent
-                                        ? "bg-amber-400 text-slate-950 shadow-md font-black"
+                                        ? isField 
+                                          ? "bg-emerald-400 text-slate-950 shadow-md font-black ring-2 ring-emerald-400/50"
+                                          : "bg-amber-400 text-slate-950 shadow-md font-black ring-2 ring-amber-400/50"
+                                        : isField
+                                        ? "bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 hover:text-white border border-emerald-500/30"
                                         : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white border border-slate-800"
                                     }`}
+                                    title={`Estruturar exercício para o método ${m.label}`}
                                   >
-                                    {m.label}
+                                    <span>{m.label}</span>
                                   </button>
                                 );
                               })}
                             </div>
                           </div>
 
-                          {/* Complex Contrast Specific Fields */}
-                          {ex.executionMethod === "complex_contrast" && (
-                            <div className="pt-3 border-t border-slate-900 text-xs space-y-3">
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                <div className="sm:col-span-3">
-                                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                                    Posição no Bloco (ex: 1A, 1B, 1C, 1D)
-                                  </label>
-                                  <div className="flex gap-1">
-                                    {["1A", "1B", "1C", "1D", "2A", "2B", "2C", "2D"].map((tag) => (
-                                      <button
-                                        key={tag}
-                                        type="button"
-                                        onClick={() => {
-                                          let newRole = ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)";
-                                          let newRest = "20s";
-                                          let newWeight = ex.weight;
-                                          let newReps = ex.reps;
-                                          if (tag.endsWith("A")) {
-                                            newRole = "1A: Carga Pesada (PAP 80-85% 1RM)";
-                                            newRest = "20s";
-                                            if (!ex.weight || ex.weight === "BW") newWeight = "85% 1RM";
-                                            if (!ex.reps || ex.reps === "10") newReps = "3";
-                                          } else if (tag.endsWith("B")) {
-                                            newRole = "1B: Pliometria com Sobrecarga (Salto)";
-                                            newRest = "20s";
-                                            if (!ex.weight) newWeight = "BW";
-                                            if (!ex.reps || ex.reps === "10") newReps = "4";
-                                          } else if (tag.endsWith("C")) {
-                                            newRole = "1C: Velocidade Balística (30% 1RM)";
-                                            newRest = "20s";
-                                            if (!ex.weight || ex.weight === "BW") newWeight = "30% 1RM";
-                                            if (!ex.reps || ex.reps === "10") newReps = "4";
-                                          } else if (tag.endsWith("D")) {
-                                            newRole = "1D: Pliometria Reativa (RSI / Drop Jump)";
-                                            newRest = ex.blockRest || "3m30s";
-                                            if (!ex.weight) newWeight = "BW";
-                                            if (!ex.reps || ex.reps === "10") newReps = "4";
-                                          }
-                                          updateExFields(ex.id, {
-                                            blockTag: tag,
-                                            blockRole: newRole,
-                                            rest: newRest,
-                                            weight: newWeight,
-                                            reps: newReps
-                                          });
-                                        }}
-                                        className={`flex-1 py-1.5 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
-                                          (ex.blockTag || "1A") === tag
-                                            ? "bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow"
-                                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                                        }`}
-                                      >
-                                        {tag}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
+                          {/* Render Dedicated Pedagogical Panel & Structured Controls for Selected Method */}
+                          {ex.executionMethod && ex.executionMethod !== "standard" && (() => {
+                            const methodMeta = getSpecialMethodMeta(ex.executionMethod);
+                            return (
+                              <div className="pt-3 border-t border-slate-900 text-xs space-y-3">
+                                {/* Complex Contrast Stage Manager */}
+                                {ex.executionMethod === "complex_contrast" && (
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                      <div className="sm:col-span-3">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                          Posição no Bloco (ex: 1A, 1B, 1C, 1D)
+                                        </label>
+                                        <div className="flex gap-1">
+                                          {["1A", "1B", "1C", "1D", "2A", "2B", "2C", "2D"].map((tag) => (
+                                            <button
+                                              key={tag}
+                                              type="button"
+                                              onClick={() => {
+                                                let newRole = ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)";
+                                                let newRest = "20s";
+                                                let newWeight = ex.weight;
+                                                let newReps = ex.reps;
+                                                if (tag.endsWith("A")) {
+                                                  newRole = "1A: Carga Pesada (PAP 80-85% 1RM)";
+                                                  newRest = "20s";
+                                                  if (!ex.weight || ex.weight === "BW") newWeight = "85% 1RM";
+                                                  if (!ex.reps || ex.reps === "10") newReps = "3";
+                                                } else if (tag.endsWith("B")) {
+                                                  newRole = "1B: Pliometria com Sobrecarga (Salto)";
+                                                  newRest = "20s";
+                                                  if (!ex.weight) newWeight = "BW";
+                                                  if (!ex.reps || ex.reps === "10") newReps = "4";
+                                                } else if (tag.endsWith("C")) {
+                                                  newRole = "1C: Velocidade Balística (30% 1RM)";
+                                                  newRest = "20s";
+                                                  if (!ex.weight || ex.weight === "BW") newWeight = "30% 1RM";
+                                                  if (!ex.reps || ex.reps === "10") newReps = "4";
+                                                } else if (tag.endsWith("D")) {
+                                                  newRole = "1D: Pliometria Reativa (RSI / Drop Jump)";
+                                                  newRest = ex.blockRest || "3m30s";
+                                                  if (!ex.weight) newWeight = "BW";
+                                                  if (!ex.reps || ex.reps === "10") newReps = "4";
+                                                }
+                                                updateExFields(ex.id, {
+                                                  blockTag: tag,
+                                                  blockRole: newRole,
+                                                  rest: newRest,
+                                                  weight: newWeight,
+                                                  reps: newReps,
+                                                  notes: `[CONTRASTE FRANCÊS 🇫🇷] Estágio ${tag}: ${newRole}`
+                                                });
+                                              }}
+                                              className={`flex-1 py-1.5 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                (ex.blockTag || "1A") === tag
+                                                  ? "bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {tag}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
 
-                                <div className="sm:col-span-5">
-                                  <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                                    Papel no Complexo Francês / PAPE
-                                  </label>
-                                  <select
-                                    value={ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)"}
-                                    onChange={(e) => updateExField(ex.id, "blockRole", e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold outline-none focus:border-cyan-400"
-                                  >
-                                    <option value="1A: Carga Pesada (PAP 80-85% 1RM)">1A: Carga Pesada / Força Máxima (PAP - 80-85% 1RM)</option>
-                                    <option value="1B: Pliometria com Sobrecarga (Salto)">1B: Pliometria com Sobrecarga / Salto Acentuado</option>
-                                    <option value="1C: Velocidade Balística (30% 1RM)">1C: Velocidade Balística / Força Rápida (30% 1RM)</option>
-                                    <option value="1D: Pliometria Reativa (RSI / Drop Jump)">1D: Pliometria Reativa / Assistida (RSI / Drop Jump)</option>
-                                    <option value="Agonista / Antagonista">Par Agonista / Antagonista</option>
-                                    <option value="Customizado">Customizado</option>
-                                  </select>
-                                </div>
+                                      <div className="sm:col-span-5">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                          Papel no Complexo Francês / PAPE
+                                        </label>
+                                        <select
+                                          value={ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)"}
+                                          onChange={(e) => updateExFields(ex.id, { blockRole: e.target.value, notes: `[CONTRASTE FRANCÊS 🇫🇷] Estágio ${ex.blockTag || '1A'}: ${e.target.value}` })}
+                                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold outline-none focus:border-cyan-400"
+                                        >
+                                          <option value="1A: Carga Pesada (PAP 80-85% 1RM)">1A: Carga Pesada / Força Máxima (PAP - 80-85% 1RM)</option>
+                                          <option value="1B: Pliometria com Sobrecarga (Salto)">1B: Pliometria com Sobrecarga / Salto Acentuado</option>
+                                          <option value="1C: Velocidade Balística (30% 1RM)">1C: Velocidade Balística / Força Rápida (30% 1RM)</option>
+                                          <option value="1D: Pliometria Reativa (RSI / Drop Jump)">1D: Pliometria Reativa / Assistida (RSI / Drop Jump)</option>
+                                          <option value="Agonista / Antagonista">Par Agonista / Antagonista</option>
+                                          <option value="Customizado">Customizado</option>
+                                        </select>
+                                      </div>
 
-                                <div className="sm:col-span-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
-                                      Transição Rápida
-                                    </label>
-                                    <span className="text-[8px] text-cyan-500 font-bold hidden sm:inline">⚡ intra-bloco</span>
-                                  </div>
-                                  <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 focus-within:border-cyan-400 rounded-xl px-2.5 py-2 transition-all">
-                                    <input
-                                      type="number"
-                                      value={ex.intraSetRest ?? 20}
-                                      onChange={(e) => {
-                                        const val = parseInt(e.target.value) || 0;
-                                        updateExFields(ex.id, {
-                                          intraSetRest: val,
-                                          ...(!(ex.blockTag || "").endsWith("D") ? { rest: `${val}s` } : {})
-                                        });
-                                      }}
-                                      onFocus={(e) => e.target.select()}
-                                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                                      className="w-full bg-transparent text-slate-100 font-black text-center text-xs outline-none"
-                                    />
-                                    <span className="text-[9px] text-slate-400 font-bold">s</span>
-                                  </div>
-                                  {/* Quick Click Preset Pills */}
-                                  <div className="flex items-center justify-between gap-1 mt-1">
-                                    {[15, 20, 30, 45].map((sec) => (
-                                      <button
-                                        key={sec}
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          updateExFields(ex.id, {
-                                            intraSetRest: sec,
-                                            ...(!(ex.blockTag || "").endsWith("D") ? { rest: `${sec}s` } : {})
-                                          });
-                                        }}
-                                        className={`flex-1 py-0.5 rounded text-[8px] font-black uppercase transition-all cursor-pointer ${
-                                          (ex.intraSetRest ?? 20) === sec
-                                            ? "bg-cyan-500 text-slate-950 font-black"
-                                            : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-cyan-400 border border-slate-800"
-                                        }`}
-                                      >
-                                        {sec}s
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
+                                      <div className="sm:col-span-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                            Transição Rápida
+                                          </label>
+                                          <span className="text-[8px] text-cyan-500 font-bold hidden sm:inline">⚡ intra-bloco</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 focus-within:border-cyan-400 rounded-xl px-2.5 py-2 transition-all">
+                                          <input
+                                            type="number"
+                                            value={ex.intraSetRest ?? 20}
+                                            onChange={(e) => {
+                                              const val = parseInt(e.target.value) || 0;
+                                              updateExFields(ex.id, {
+                                                intraSetRest: val,
+                                                ...(!(ex.blockTag || "").endsWith("D") ? { rest: `${val}s` } : {})
+                                              });
+                                            }}
+                                            onFocus={(e) => e.target.select()}
+                                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                                            className="w-full bg-transparent text-slate-100 font-black text-center text-xs outline-none"
+                                          />
+                                          <span className="text-[9px] text-slate-400 font-bold">s</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-1 mt-1">
+                                          {[15, 20, 30, 45].map((sec) => (
+                                            <button
+                                              key={sec}
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateExFields(ex.id, {
+                                                  intraSetRest: sec,
+                                                  ...(!(ex.blockTag || "").endsWith("D") ? { rest: `${sec}s` } : {})
+                                                });
+                                              }}
+                                              className={`flex-1 py-0.5 rounded text-[8px] font-black uppercase transition-all cursor-pointer ${
+                                                (ex.intraSetRest ?? 20) === sec
+                                                  ? "bg-cyan-500 text-slate-950 font-black"
+                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-cyan-400 border border-slate-800"
+                                              }`}
+                                            >
+                                              {sec}s
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
 
-                                <div className="sm:col-span-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
-                                      Pausa pós-Round
-                                    </label>
-                                    <span className="text-[8px] text-amber-500 font-bold hidden sm:inline">⏱️ pós 1D</span>
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={ex.blockRest || "3m30s"}
-                                    onChange={(e) => {
-                                      updateExFields(ex.id, {
-                                        blockRest: e.target.value,
-                                        ...((ex.blockTag || "").endsWith("D") ? { rest: e.target.value } : {})
-                                      });
-                                    }}
-                                    onFocus={(e) => e.target.select()}
-                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                    placeholder="3m30s"
-                                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 rounded-xl px-2.5 py-2 text-xs text-amber-500 dark:text-amber-400 font-black text-center outline-none transition-all"
-                                  />
-                                  {/* Quick Click Preset Pills */}
-                                  <div className="flex items-center justify-between gap-1 mt-1">
-                                    {["2m", "2m30s", "3m", "3m30s", "4m"].map((pRest) => (
-                                      <button
-                                        key={pRest}
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          updateExFields(ex.id, {
-                                            blockRest: pRest,
-                                            ...((ex.blockTag || "").endsWith("D") ? { rest: pRest } : {})
-                                          });
-                                        }}
-                                        className={`flex-1 py-0.5 rounded text-[7.5px] font-black uppercase transition-all cursor-pointer ${
-                                          (ex.blockRest || "3m30s") === pRest
-                                            ? "bg-amber-500 text-slate-950 font-black"
-                                            : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
-                                        }`}
-                                      >
-                                        {pRest}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
+                                      <div className="sm:col-span-2">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                            Pausa pós-Round
+                                          </label>
+                                          <span className="text-[8px] text-amber-500 font-bold hidden sm:inline">⏱️ pós 1D</span>
+                                        </div>
+                                        <input
+                                          type="text"
+                                          value={ex.blockRest || "3m30s"}
+                                          onChange={(e) => {
+                                            updateExFields(ex.id, {
+                                              blockRest: e.target.value,
+                                              ...((ex.blockTag || "").endsWith("D") ? { rest: e.target.value } : {})
+                                            });
+                                          }}
+                                          onFocus={(e) => e.target.select()}
+                                          onClick={(e) => (e.target as HTMLInputElement).select()}
+                                          placeholder="3m30s"
+                                          className="w-full bg-slate-950 border border-slate-800 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 rounded-xl px-2.5 py-2 text-xs text-amber-500 dark:text-amber-400 font-black text-center outline-none transition-all"
+                                        />
+                                        <div className="flex items-center justify-between gap-1 mt-1">
+                                          {["2m", "2m30s", "3m", "3m30s", "4m"].map((pRest) => (
+                                            <button
+                                              key={pRest}
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                updateExFields(ex.id, {
+                                                  blockRest: pRest,
+                                                  ...((ex.blockTag || "").endsWith("D") ? { rest: pRest } : {})
+                                                });
+                                              }}
+                                              className={`flex-1 py-0.5 rounded text-[7.5px] font-black uppercase transition-all cursor-pointer ${
+                                                (ex.blockRest || "3m30s") === pRest
+                                                  ? "bg-amber-500 text-slate-950 font-black"
+                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
+                                              }`}
+                                            >
+                                              {pRest}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
 
-                              {/* Stage Scientific Description with high contrast for Light & Dark mode */}
-                              <div className="p-3 rounded-xl bg-cyan-500/5 dark:bg-slate-900/60 border border-cyan-500/20 dark:border-slate-800/80 text-xs flex items-start gap-2.5 shadow-sm">
-                                <Info className="w-4 h-4 text-cyan-600 dark:text-cyan-400 shrink-0 mt-0.5" />
-                                <div className="space-y-0.5">
-                                  <div className="text-[10px] font-black uppercase tracking-wider text-cyan-900 dark:text-slate-200">
-                                    Fisiologia & Prescrição do Estágio {ex.blockTag || "1A"}:
-                                  </div>
-                                  <div className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                                    {(ex.blockTag || "").endsWith("A") || (ex.blockRole || "").includes("1A")
-                                      ? "Estágio 1A (Carga Pesada / 80-85% 1RM, 3 reps): Ativação de motoneurônios de alto limiar via Potenciação Pós-Ativação (PAPE). Transição rápida (~20s) para transferir a potenciação neural ao salto."
-                                      : (ex.blockTag || "").endsWith("B") || (ex.blockRole || "").includes("1B")
-                                      ? "Estágio 1B (Pliometria com Sobrecarga / 4 reps): Converte a potenciação do estágio anterior em taxa de desenvolvimento de força (RFD) e ciclo de alongamento-encurtamento acelerado. Transição rápida (20s)."
-                                      : (ex.blockTag || "").endsWith("C") || (ex.blockRole || "").includes("1C")
-                                      ? "Estágio 1C (Velocidade Balística / 30% 1RM, 4 reps): Carga leve acelerada até velocidade concêntrica máxima, sem desaceleração no final do arco. Transição rápida (20s)."
-                                      : (ex.blockTag || "").endsWith("D") || (ex.blockRole || "").includes("1D")
-                                      ? "Estágio 1D (Pliometria Reativa / RSI, 4 reps): Saltos reativos (drop jump) com tempo de contato com o solo mínimo (<200ms) e máxima rigidez articular (stiffness). Ao finalizar o 1D, descanso longo de 3 a 4 minutos."
-                                      : "Execute o bloco contrastado respeitando a transição rápida entre os exercícios e descanso completo ao final do round."}
-                                  </div>
-                                </div>
-                              </div>
+                                    {/* Quick Next Stage Adder */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 bg-cyan-500/10 dark:bg-cyan-950/20 border border-cyan-500/30 rounded-xl px-3 py-2.5 shadow-sm">
+                                      <div className="text-[11px] font-bold text-cyan-900 dark:text-cyan-200 flex flex-wrap items-center gap-2">
+                                        <span>
+                                          <span className="font-black uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Bloco Vinculado:</span> {ex.blockTag || "1A"} • {ex.blockRole || "PAP / Contraste"}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExerciseToSwap(ex);
+                                            setSwapSearchQuery("");
+                                            setSwapCategoryFilter("TODOS");
+                                          }}
+                                          className="px-2 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
+                                          title={`Trocar exercício do Estágio ${ex.blockTag || '1A'} por outro da Biblioteca`}
+                                        >
+                                          <ArrowLeftRight className="w-2.5 h-2.5 text-cyan-600 dark:text-cyan-400" />
+                                          <span>Trocar Estágio {ex.blockTag || "1A"}</span>
+                                        </button>
+                                      </div>
+                                      {(() => {
+                                        const tag = ex.blockTag || "1A";
+                                        const nextLetter = tag.endsWith("A") ? "B" : tag.endsWith("B") ? "C" : tag.endsWith("C") ? "D" : null;
+                                        if (!nextLetter) return null;
+                                        const nextTag = `${tag.slice(0, -1)}${nextLetter}`;
+                                        return (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const current = edited.exercises || [];
+                                              const nextRole = nextLetter === "B" 
+                                                ? "1B: Pliometria com Sobrecarga (Salto)"
+                                                : nextLetter === "C"
+                                                ? "1C: Velocidade Balística (30% 1RM)"
+                                                : "1D: Pliometria Reativa (RSI / Drop Jump)";
+                                              const nextName = nextLetter === "B"
+                                                ? "Salto Vertical com Sobrecarga / Trap Bar Jump"
+                                                : nextLetter === "C"
+                                                ? "Agachamento com Salto Balístico (30% 1RM)"
+                                                : "Drop Jump / Box Jump Reativo (RSI)";
+                                              const nextWeight = nextLetter === "C" ? "30% 1RM" : "BW";
+                                              const nextRest = nextLetter === "D" ? "3m30s" : "20s";
 
-                              {/* Quick Next Stage Adder */}
-                              <div className="flex flex-wrap items-center justify-between gap-2 bg-cyan-500/10 dark:bg-cyan-950/20 border border-cyan-500/30 rounded-xl px-3 py-2.5 shadow-sm">
-                                <div className="text-[11px] font-bold text-cyan-900 dark:text-cyan-200 flex flex-wrap items-center gap-2">
-                                  <span>
-                                    <span className="font-black uppercase tracking-wider text-cyan-700 dark:text-cyan-300">Bloco Vinculado:</span> {ex.blockTag || "1A"} • {ex.blockRole || "PAP / Contraste"}
-                                  </span>
+                                              const newEx: PrescribedExercise = {
+                                                id: `ex-stage-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                                                name: nextName,
+                                                muscleGroup: ex.muscleGroup,
+                                                sets: ex.sets,
+                                                reps: "4",
+                                                weight: nextWeight,
+                                                repsType: "reps",
+                                                rest: nextRest,
+                                                notes: `Estágio ${nextTag}: ${nextRole}`,
+                                                executionMethod: "complex_contrast",
+                                                blockTag: nextTag,
+                                                blockRole: nextRole,
+                                                intraSetRest: 20,
+                                                blockRest: "3m30s",
+                                                order_index: index + 1
+                                              };
+
+                                              const updatedList = [...current.slice(0, index + 1), newEx, ...current.slice(index + 1)].map((e, i) => ({ ...e, order_index: i }));
+                                              setEdited(prev => ({ ...prev, exercises: updatedList }));
+                                              setExpandedExerciseId(newEx.id);
+                                              toast.success(`Estágio ${nextTag} adicionado ao Bloco Francês!`, { icon: "🇫🇷" });
+                                            }}
+                                            className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow flex items-center gap-1"
+                                          >
+                                            <span>+ Adicionar Estágio {nextTag}</span>
+                                          </button>
+                                        );
+                                      })()}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Dedicated Presets & Micro-Rest Controls for Other Methods */}
+                                {ex.executionMethod === "cluster" && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                          Estrutura de Reps Intra-Série (ex: 2+2+2 ou 3+3)
+                                        </label>
+                                        <span className="text-[8.5px] text-purple-400 font-bold hidden sm:inline">⚡ Clique e edite</span>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        value={ex.clusterReps || ex.reps || "2+2+2"}
+                                        onChange={(e) => updateExFields(ex.id, { clusterReps: e.target.value, reps: e.target.value })}
+                                        placeholder="2+2+2"
+                                        className="w-full bg-slate-950 border border-slate-800 focus:border-purple-400 rounded-xl p-2.5 text-xs text-purple-400 font-black outline-none transition-all"
+                                      />
+                                      <div className="flex items-center gap-1.5 mt-1.5">
+                                        {methodMeta.repsPresets?.map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { clusterReps: preset, reps: preset })}
+                                            className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                              (ex.clusterReps || ex.reps) === preset
+                                                ? "bg-purple-600 text-white font-black"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-purple-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {preset}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                          Micro-Pausa Intra-Cluster (repouso na barra)
+                                        </label>
+                                        <span className="text-[8.5px] text-purple-400 font-bold hidden sm:inline">⏱️ segundos</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {methodMeta.intraRestPresets?.map((sec) => (
+                                          <button
+                                            key={sec}
+                                            type="button"
+                                            onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                            className={`flex-1 py-2 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                              (ex.intraSetRest ?? 20) === sec
+                                                ? "bg-purple-600 text-white border-purple-400 font-black shadow"
+                                                : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                            }`}
+                                          >
+                                            {sec}s
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ex.executionMethod === "rest_pause" && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                          Micro-Pausa Rest-Pause (tempo de respiração antes do mini-set)
+                                        </label>
+                                        <span className="text-[8.5px] text-rose-400 font-bold hidden sm:inline">⏱️ segundos</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {methodMeta.intraRestPresets?.map((sec) => (
+                                          <button
+                                            key={sec}
+                                            type="button"
+                                            onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                            className={`flex-1 py-2 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                              (ex.intraSetRest ?? 15) === sec
+                                                ? "bg-rose-600 text-white border-rose-400 font-black shadow"
+                                                : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                            }`}
+                                          >
+                                            {sec}s
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Presets de Repetições Rest-Pause
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.repsPresets?.map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { reps: preset })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.reps === preset
+                                                ? "bg-rose-600 text-white font-black"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-rose-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {preset}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ex.executionMethod === "drop_set" && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Estrutura de Reps no Drop (ex: 8+8+8 ou 10+8+6)
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.repsPresets?.map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { reps: preset })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.reps === preset
+                                                ? "bg-amber-500 text-slate-950 font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {preset}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Descanso entre Séries Completas
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.restPresets?.map((pRest) => (
+                                          <button
+                                            key={pRest}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { rest: pRest })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.rest === pRest
+                                                ? "bg-amber-500 text-slate-950 font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {pRest}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {(ex.executionMethod === "bi_set" || ex.executionMethod === "tri_set" || ex.executionMethod === "super_set") && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                          Transição Rápida entre Exercícios
+                                        </label>
+                                        <span className="text-[8.5px] text-blue-400 font-bold hidden sm:inline">⚡ segundos</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {methodMeta.intraRestPresets?.map((sec) => (
+                                          <button
+                                            key={sec}
+                                            type="button"
+                                            onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                            className={`flex-1 py-1.5 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                              (ex.intraSetRest ?? 10) === sec
+                                                ? "bg-blue-600 text-white border-blue-400 font-black shadow"
+                                                : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                            }`}
+                                          >
+                                            {sec}s
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Descanso Completo pós-Bloco
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.restPresets?.map((pRest) => (
+                                          <button
+                                            key={pRest}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { rest: pRest })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.rest === pRest
+                                                ? "bg-blue-600 text-white font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-blue-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {pRest}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ex.executionMethod === "gvt" && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Volume Estrito: 10 Séries x 10 Reps a 60% 1RM
+                                      </label>
+                                      <div className="flex items-center gap-2">
+                                        <div className="px-3 py-1.5 bg-yellow-500/20 text-yellow-300 font-black text-xs rounded-lg border border-yellow-500/30">
+                                          10 Séries x 10 Reps
+                                        </div>
+                                        <div className="px-3 py-1.5 bg-slate-900 text-slate-300 font-bold text-xs rounded-lg border border-slate-800">
+                                          Cadência: 4-0-2
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Descanso Estrito Rígido entre Séries (GVT)
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.restPresets?.map((pRest) => (
+                                          <button
+                                            key={pRest}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { rest: pRest, intraSetRest: parseInt(pRest) || 60 })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.rest === pRest
+                                                ? "bg-yellow-500 text-slate-950 font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-yellow-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {pRest}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ex.executionMethod === "myo_reps" && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Estrutura: Série de Ativação + Mini-Sets
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.repsPresets?.map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { reps: preset })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.reps === preset
+                                                ? "bg-teal-600 text-white font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-teal-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {preset}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+                                          Pausa Respiratória dos Mini-Sets
+                                        </label>
+                                        <span className="text-[8.5px] text-teal-400 font-bold hidden sm:inline">🌬️ 5 respirações</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {methodMeta.intraRestPresets?.map((sec) => (
+                                          <button
+                                            key={sec}
+                                            type="button"
+                                            onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                            className={`flex-1 py-1.5 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
+                                              (ex.intraSetRest ?? 15) === sec
+                                                ? "bg-teal-600 text-white border-teal-400 font-black shadow"
+                                                : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                            }`}
+                                          >
+                                            {sec}s
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {ex.executionMethod === "wave_loading" && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Progressão de Ondas (Onda 1 / Onda 2)
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.repsPresets?.map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { reps: preset })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.reps === preset
+                                                ? "bg-violet-600 text-white font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-violet-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {preset}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    <div className="sm:col-span-6">
+                                      <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                                        Descanso Inter-Ondas (PAP Facilitation)
+                                      </label>
+                                      <div className="flex items-center gap-1.5">
+                                        {methodMeta.restPresets?.map((pRest) => (
+                                          <button
+                                            key={pRest}
+                                            type="button"
+                                            onClick={() => updateExFields(ex.id, { rest: pRest })}
+                                            className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer flex-1 ${
+                                              ex.rest === pRest
+                                                ? "bg-violet-600 text-white font-black shadow"
+                                                : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-violet-400 border border-slate-800"
+                                            }`}
+                                          >
+                                            {pRest}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Métodos de Campo e Quadra: Tiros Curtos / RSA */}
+                                {ex.executionMethod === "sprint_rsa" && (
+                                  <div className="space-y-3 p-3.5 bg-emerald-950/20 border border-emerald-500/25 rounded-2xl shadow-inner">
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                      <div className="sm:col-span-6">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
+                                          Estrutura de Tiros por Bloco (ex: 5x 20m ou 4x 30m)
+                                        </label>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {methodMeta.repsPresets?.map((preset) => (
+                                            <button
+                                              key={preset}
+                                              type="button"
+                                              onClick={() => updateExFields(ex.id, { reps: preset, repsType: "meters" })}
+                                              className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                                ex.reps === preset
+                                                  ? "bg-emerald-500 text-slate-950 font-black shadow"
+                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-emerald-400 border border-slate-800"
+                                              }`}
+                                            >
+                                              {preset}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <div className="flex items-center justify-between mb-1">
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block">
+                                            Micro-Pausa Intra-Série
+                                          </label>
+                                          <span className="text-[8px] text-emerald-300 font-bold">⚡ ATP-CP</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          {methodMeta.intraRestPresets?.map((sec) => (
+                                            <button
+                                              key={sec}
+                                              type="button"
+                                              onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                (ex.intraSetRest ?? 20) === sec
+                                                  ? "bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {sec}s
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
+                                          Descanso Inter-Blocos
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                          {methodMeta.restPresets?.map((pRest) => (
+                                            <button
+                                              key={pRest}
+                                              type="button"
+                                              onClick={() => updateExField(ex.id, "rest", pRest)}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                ex.rest === pRest
+                                                  ? "bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {pRest}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-emerald-300/90 font-bold bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                                      <span>🏃 Densidade: {ex.sets || 2} blocos x {ex.reps || "5x 20m"} • 100% Velocidade Máxima sem perda de potência</span>
+                                      <span className="text-emerald-400 font-black">Relação Esforço:Pausa ~1:5 (RPE 9)</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Métodos de Campo e Quadra: Pirâmide de Campo */}
+                                {ex.executionMethod === "pyramid_field" && (
+                                  <div className="space-y-3 p-3.5 bg-amber-950/20 border border-amber-500/25 rounded-2xl shadow-inner">
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                      <div className="sm:col-span-6">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-amber-400 block mb-1">
+                                          Sequência da Pirâmide (Metros ou Segundos)
+                                        </label>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {methodMeta.repsPresets?.map((preset) => (
+                                            <button
+                                              key={preset}
+                                              type="button"
+                                              onClick={() => updateExFields(ex.id, { reps: preset, repsType: preset.includes("s") ? "time" : "meters" })}
+                                              className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                                ex.reps === preset
+                                                  ? "bg-amber-500 text-slate-950 font-black shadow"
+                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-amber-400 border border-slate-800"
+                                              }`}
+                                            >
+                                              {preset}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-amber-400 block mb-1">
+                                          Micro-Pausa Progressiva
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                          {methodMeta.intraRestPresets?.map((sec) => (
+                                            <button
+                                              key={sec}
+                                              type="button"
+                                              onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                (ex.intraSetRest ?? 30) === sec
+                                                  ? "bg-amber-500 text-slate-950 border-amber-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {sec}s
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-amber-400 block mb-1">
+                                          Descanso Pós-Pirâmide
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                          {methodMeta.restPresets?.map((pRest) => (
+                                            <button
+                                              key={pRest}
+                                              type="button"
+                                              onClick={() => updateExField(ex.id, "rest", pRest)}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                ex.rest === pRest
+                                                  ? "bg-amber-500 text-slate-950 border-amber-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {pRest}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-amber-300/90 font-bold bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                                      <span>🔺 Dinâmica: Aceleração (10-20m) ➔ Velocidade Máxima (30-40m) ➔ Retorno sob Fadiga</span>
+                                      <span className="text-amber-400 font-black">Volume Total: ~160m de alta intensidade por pirâmide</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Métodos de Campo e Quadra: Fartlek */}
+                                {ex.executionMethod === "fartlek" && (
+                                  <div className="space-y-3 p-3.5 bg-cyan-950/20 border border-cyan-500/25 rounded-2xl shadow-inner">
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                      <div className="sm:col-span-6">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-cyan-400 block mb-1">
+                                          Estrutura do Estímulo Intermitente (Tiro : Trote)
+                                        </label>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {methodMeta.repsPresets?.map((preset) => (
+                                            <button
+                                              key={preset}
+                                              type="button"
+                                              onClick={() => updateExFields(ex.id, { reps: preset, repsType: "time" })}
+                                              className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                                ex.reps === preset
+                                                  ? "bg-cyan-500 text-slate-950 font-black shadow"
+                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-cyan-400 border border-slate-800"
+                                              }`}
+                                            >
+                                              {preset}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-cyan-400 block mb-1">
+                                          Intervalo Ativo (Trote)
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                          {methodMeta.intraRestPresets?.map((sec) => (
+                                            <button
+                                              key={sec}
+                                              type="button"
+                                              onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                (ex.intraSetRest ?? 15) === sec
+                                                  ? "bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {sec}s
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-3">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-cyan-400 block mb-1">
+                                          Descanso Inter-Blocos
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                          {methodMeta.restPresets?.map((pRest) => (
+                                            <button
+                                              key={pRest}
+                                              type="button"
+                                              onClick={() => updateExField(ex.id, "rest", pRest)}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                ex.rest === pRest
+                                                  ? "bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {pRest}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-cyan-300/90 font-bold bg-cyan-950/40 px-3 py-1.5 rounded-lg border border-cyan-500/20">
+                                      <span>⏱️ Fisiologia: Estímulo &gt;100% VAM com recuperação ativa (50% VAM)</span>
+                                      <span className="text-cyan-400 font-black">Consumo VO2 Elevado com Manutenção de FC &gt;85%</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Métodos de Campo e Quadra: Shuttle Run */}
+                                {ex.executionMethod === "shuttle_run" && (
+                                  <div className="space-y-3 p-3.5 bg-rose-950/20 border border-rose-500/25 rounded-2xl shadow-inner">
+                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                      <div className="sm:col-span-6">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-rose-400 block mb-1">
+                                          Distância Fracionada & Mudança de Direção (COD)
+                                        </label>
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                          {methodMeta.repsPresets?.map((preset) => (
+                                            <button
+                                              key={preset}
+                                              type="button"
+                                              onClick={() => updateExFields(ex.id, { reps: preset, repsType: "meters" })}
+                                              className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                                ex.reps === preset
+                                                  ? "bg-rose-500 text-white font-black shadow"
+                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-rose-400 border border-slate-800"
+                                              }`}
+                                            >
+                                              {preset}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <div className="sm:col-span-6">
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-rose-400 block mb-1">
+                                          Descanso entre Séries (Recuperação Mecânica Excêntrica)
+                                        </label>
+                                        <div className="flex items-center gap-1.5">
+                                          {methodMeta.restPresets?.map((pRest) => (
+                                            <button
+                                              key={pRest}
+                                              type="button"
+                                              onClick={() => updateExFields(ex.id, { rest: pRest, intraSetRest: parseInt(pRest) || 60 })}
+                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                ex.rest === pRest
+                                                  ? "bg-rose-500 text-white border-rose-400 font-black shadow"
+                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              {pRest}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-rose-300/90 font-bold bg-rose-950/40 px-3 py-1.5 rounded-lg border border-rose-500/20">
+                                      <span>⚡ Biomecânica: Alta sobrecarga excêntrica de desaceleração nos isquiotibiais e quadríceps</span>
+                                      <span className="text-rose-400 font-black">Blindagem LCA e Capacidade de Frenagem Rápida</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Pedagogical Explanation Card with High Contrast */}
+                                <div className={`p-3 rounded-xl ${methodMeta.cardBg || 'bg-slate-900/60 border-slate-800 text-slate-300'} text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm`}>
+                                  <div className="flex items-start gap-2.5">
+                                    <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                                    <div className="space-y-0.5">
+                                      <div className="text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 text-white">
+                                        <span>{methodMeta.badge} • Fisiologia & Prescrição Técnica:</span>
+                                      </div>
+                                      <p className="text-[11px] font-medium text-slate-300 leading-relaxed">
+                                        {methodMeta.scientificRationale || methodMeta.description}
+                                      </p>
+                                    </div>
+                                  </div>
                                   <button
                                     type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setExerciseToSwap(ex);
-                                      setSwapSearchQuery("");
-                                      setSwapCategoryFilter("TODOS");
+                                    onClick={() => {
+                                      const reStructured = structureExerciseForMethod(
+                                        ex,
+                                        ex.executionMethod as AdvancedExecutionMethod,
+                                        index,
+                                        edited.exercises || []
+                                      );
+                                      updateExFields(ex.id, reStructured);
+                                      toast.success(`Parâmetros de ${methodMeta.name} reaplicados com sucesso!`, { icon: methodMeta.icon });
                                     }}
-                                    className="px-2 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer shadow-sm active:scale-95"
-                                    title={`Trocar exercício do Estágio ${ex.blockTag || '1A'} por outro da Biblioteca`}
+                                    className="px-3 py-1.5 bg-slate-950/80 hover:bg-slate-900 text-amber-400 border border-amber-400/30 hover:border-amber-400 rounded-lg text-[9px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer shadow flex items-center gap-1"
+                                    title="Reaplicar configuração e parâmetros padrão recomendados para este método"
                                   >
-                                    <ArrowLeftRight className="w-2.5 h-2.5 text-cyan-600 dark:text-cyan-400" />
-                                    <span>Trocar Estágio {ex.blockTag || "1A"}</span>
+                                    <Sparkles className="w-3 h-3 text-amber-400" />
+                                    <span>Reestruturar Parâmetros</span>
                                   </button>
                                 </div>
-                                {(() => {
-                                  const tag = ex.blockTag || "1A";
-                                  const nextLetter = tag.endsWith("A") ? "B" : tag.endsWith("B") ? "C" : tag.endsWith("C") ? "D" : null;
-                                  if (!nextLetter) return null;
-                                  const nextTag = `${tag.slice(0, -1)}${nextLetter}`;
-                                  return (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const current = edited.exercises || [];
-                                        const nextRole = nextLetter === "B" 
-                                          ? "1B: Pliometria com Sobrecarga (Salto)"
-                                          : nextLetter === "C"
-                                          ? "1C: Velocidade Balística (30% 1RM)"
-                                          : "1D: Pliometria Reativa (RSI / Drop Jump)";
-                                        const nextName = nextLetter === "B"
-                                          ? "Salto Vertical com Sobrecarga / Trap Bar Jump"
-                                          : nextLetter === "C"
-                                          ? "Agachamento com Salto Balístico (30% 1RM)"
-                                          : "Drop Jump / Box Jump Reativo (RSI)";
-                                        const nextWeight = nextLetter === "C" ? "30% 1RM" : "BW";
-                                        const nextRest = nextLetter === "D" ? "3m30s" : "20s";
-
-                                        const newEx: PrescribedExercise = {
-                                          id: `ex-stage-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-                                          name: nextName,
-                                          muscleGroup: ex.muscleGroup,
-                                          sets: ex.sets,
-                                          reps: "4",
-                                          weight: nextWeight,
-                                          repsType: "reps",
-                                          rest: nextRest,
-                                          notes: `Estágio ${nextTag}: ${nextRole}`,
-                                          executionMethod: "complex_contrast",
-                                          blockTag: nextTag,
-                                          blockRole: nextRole,
-                                          intraSetRest: 20,
-                                          blockRest: "3m30s",
-                                          order_index: index + 1
-                                        };
-
-                                        const updatedList = [...current.slice(0, index + 1), newEx, ...current.slice(index + 1)].map((e, i) => ({ ...e, order_index: i }));
-                                        setEdited(prev => ({ ...prev, exercises: updatedList }));
-                                        setExpandedExerciseId(newEx.id);
-                                        toast.success(`Estágio ${nextTag} adicionado ao Bloco Francês!`, { icon: "🇫🇷" });
-                                      }}
-                                      className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow flex items-center gap-1"
-                                    >
-                                      <span>+ Adicionar Estágio {nextTag}</span>
-                                    </button>
-                                  );
-                                })()}
                               </div>
-                            </div>
-                          )}
-
-                          {/* Cluster Set Specific Fields */}
-                          {ex.executionMethod === "cluster" && (
-                            <div className="space-y-3 pt-3 border-t border-slate-900 text-xs">
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                <div className="sm:col-span-6">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
-                                      Estrutura de Reps Intra-Série (ex: 2+2+2 ou 3+3 ou 1+1+1+1)
-                                    </label>
-                                    <span className="text-[8.5px] text-purple-500 font-bold hidden sm:inline">⚡ Clique e edite</span>
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={ex.clusterReps || ex.reps || "2+2+2"}
-                                    onChange={(e) => {
-                                      updateExFields(ex.id, {
-                                        clusterReps: e.target.value,
-                                        reps: e.target.value
-                                      });
-                                    }}
-                                    onFocus={(e) => e.target.select()}
-                                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                                    placeholder="2+2+2"
-                                    className="w-full bg-slate-950 border border-slate-800 focus:border-purple-400 rounded-xl p-2.5 text-xs text-purple-600 dark:text-purple-400 font-black outline-none transition-all"
-                                  />
-                                  {/* Quick Reps Presets */}
-                                  <div className="flex items-center gap-1.5 mt-1.5">
-                                    {["2+2+2", "3+3", "1+1+1+1", "2+2+2+2"].map((preset) => (
-                                      <button
-                                        key={preset}
-                                        type="button"
-                                        onClick={() => updateExFields(ex.id, { clusterReps: preset, reps: preset })}
-                                        className={`px-2 py-0.5 rounded text-[8.5px] font-black uppercase transition-all cursor-pointer ${
-                                          (ex.clusterReps || ex.reps) === preset
-                                            ? "bg-purple-600 text-white font-black"
-                                            : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-purple-400 border border-slate-800"
-                                        }`}
-                                      >
-                                        {preset}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="sm:col-span-6">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
-                                      Micro-Pausa Intra-Cluster (repouso na barra)
-                                    </label>
-                                    <span className="text-[8.5px] text-purple-500 font-bold hidden sm:inline">⏱️ segundos</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {[15, 20, 25, 30].map((sec) => (
-                                      <button
-                                        key={sec}
-                                        type="button"
-                                        onClick={() => updateExField(ex.id, "intraSetRest", sec)}
-                                        className={`flex-1 py-2 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
-                                          (ex.intraSetRest ?? 20) === sec
-                                            ? "bg-purple-600 text-white border-purple-400 font-black shadow"
-                                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                                        }`}
-                                      >
-                                        {sec}s
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Pedagogical Description */}
-                              <div className="p-3 rounded-xl bg-purple-500/10 dark:bg-purple-950/20 border border-purple-500/25 text-xs flex items-start gap-2.5 shadow-sm">
-                                <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-                                <div className="space-y-0.5">
-                                  <div className="text-[10px] font-black uppercase tracking-wider text-purple-900 dark:text-purple-200">
-                                    Fundamentação Científica - Cluster Set:
-                                  </div>
-                                  <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                                    Fracionar a série com micro-pausas intra-série (15s a 30s) preserva os estoques de fosfocreatina (ATP-CP), reduz a acidose metabólica e sustenta a velocidade de pico da barra em todas as repetições sem perda de potência mecânica.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Rest-Pause Specific Fields */}
-                          {ex.executionMethod === "rest_pause" && (
-                            <div className="space-y-3 pt-3 border-t border-slate-900 text-xs">
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                <div className="sm:col-span-6">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
-                                      Micro-Pausa Rest-Pause (tempo de respiração antes do mini-set)
-                                    </label>
-                                    <span className="text-[8.5px] text-rose-500 font-bold hidden sm:inline">⏱️ segundos</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {[10, 15, 20].map((sec) => (
-                                      <button
-                                        key={sec}
-                                        type="button"
-                                        onClick={() => updateExField(ex.id, "intraSetRest", sec)}
-                                        className={`flex-1 py-2 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
-                                          (ex.intraSetRest ?? 15) === sec
-                                            ? "bg-rose-600 text-white border-rose-400 font-black shadow"
-                                            : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
-                                        }`}
-                                      >
-                                        {sec}s
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <div className="sm:col-span-6 flex items-center">
-                                  <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
-                                    Execute a série base até RPE 9-9.5, descanse a micro-pausa (10-20s) e complete repetições adicionais até o esgotamento técnico.
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Pedagogical Description */}
-                              <div className="p-3 rounded-xl bg-rose-500/10 dark:bg-rose-950/20 border border-rose-500/25 text-xs flex items-start gap-2.5 shadow-sm">
-                                <Info className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-                                <div className="space-y-0.5">
-                                  <div className="text-[10px] font-black uppercase tracking-wider text-rose-900 dark:text-rose-200">
-                                    Fundamentação Científica - Rest-Pause:
-                                  </div>
-                                  <p className="text-[11px] font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
-                                    Execute a série principal até RPE 9-9.5 (quase falha mecânica). Descanse a micro-pausa de 10s-20s para ressíntese rápida de fosfocreatina e realize mini-sets suplementares de 2 a 3 reps, maximizando o recrutamento de fibras sob alta fadiga controlada.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
 
                         {/* Extended notes field */}
@@ -4120,16 +5226,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           
           <button
             onClick={() => {
-              if (!edited.name) {
-                toast.error("O treino precisa de um nome.");
-                return;
-              }
+              const finalName = (edited.name || "").trim() || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length || 0) % 26))}` : "Treino A");
               const finalExercises = (edited.exercises || []).map((ex, i) => ({
                 ...ex,
                 order_index: i
               }));
               onSave({
                 ...edited,
+                name: finalName,
                 date: edited.date.split("T")[0],
                 updatedAt: new Date().toISOString(),
                 exercises: finalExercises
