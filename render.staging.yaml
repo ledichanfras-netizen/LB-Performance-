@@ -1,10 +1,12 @@
 services:
   - type: web
-    name: lb-performance
+    name: lb-performance-staging
     env: node
     plan: free
+    branch: feature/metodo-lb-v1
     buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,6 +15,10 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: GEMINI_API_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
         sync: false
       - key: ALLOW_LEGACY_DOB_LOGIN
         value: "false"
@@ -32,7 +38,3 @@ services:
         value: "false"
       - key: VITE_LB_PREMIUM_REPORTS
         value: "false"
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_ANON_KEY
-        sync: false

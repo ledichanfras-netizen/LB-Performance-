@@ -26,14 +26,24 @@ function safeNum(val: any, fallback: number = 0): number {
   return fallback;
 }
 
-const aiGenClient = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+let aiGenClient: GoogleGenAI | null = null;
+
+function getAiGenClient(): GoogleGenAI {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY não configurada.');
   }
-});
+  if (!aiGenClient) {
+    aiGenClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiGenClient;
+}
 
 // Helper function to call generateContent with automatic retries, exponential backoff, and robust model fallback
 async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000) {
@@ -50,7 +60,7 @@ async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000
           ...params,
           model: model
         };
-        const response = await aiGenClient.models.generateContent(finalParams);
+        const response = await getAiGenClient().models.generateContent(finalParams);
         console.log(`[Gemini API] Sucesso com o modelo: ${model}`);
         return response;
       } catch (error: any) {
@@ -72,10 +82,27 @@ async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000
   throw lastError || new Error("Falha inesperada no processamento da IA de treino.");
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
-const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://nkxsqhkxgwpjdcmcetav.supabase.co';
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_N62oQfMBES5KX1YK8VKV8w_gbC7lmHv';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  (process.env.NODE_ENV === 'production' ? '' : 'dev-only-change-me');
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET é obrigatório em produção.');
+}
+
+const ALLOW_LEGACY_DOB_LOGIN = process.env.ALLOW_LEGACY_DOB_LOGIN === 'true';
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('[Supabase] URL/chave pública não configuradas. O acesso principal deve ocorrer via DATABASE_URL no servidor.');
+}
+
+const supabase = createClient(
+  supabaseUrl || 'http://127.0.0.1:54321',
+  supabaseAnonKey || 'disabled-in-server-only-mode'
+);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -348,6 +375,13 @@ const authMiddleware = (req: any, res: any, next: any) => {
   }
 };
 
+const requireCoach = (req: any, res: any, next: any) => {
+  if (req.user?.role !== 'coach') {
+    return res.status(403).json({ error: 'Ação restrita ao treinador.' });
+  }
+  next();
+};
+
 // Health check
 apiRouter.get('/health', async (req, res) => {
   const dbUrl = process.env.DATABASE_URL || '';
@@ -356,21 +390,19 @@ apiRouter.get('/health', async (req, res) => {
     if (dbUrl) host = new URL(dbUrl).host;
   } catch (e) {}
 
-  let supabase_test = 'pending';
-  try {
-    const { data, error } = await supabase.from('athletes').select('count', { count: 'exact', head: true });
-    supabase_test = error ? `error: ${error.message}` : `ok (count: ${data || 0})`;
-  } catch (e: any) {
-    supabase_test = `exception: ${e.message}`;
-  }
+  // O staging usa acesso server-only ao Postgres. O Data API para anon/authenticated
+  // permanece bloqueado por RLS/grants e não deve ser usado como health probe.
+  const databaseConfigured = !!process.env.DATABASE_URL;
+  const healthy = databaseConfigured && isDbConnected;
   
-  res.json({ 
-    status: 'ok', 
-    database_configured: !!process.env.DATABASE_URL,
+  res.status(healthy ? 200 : 503).json({ 
+    status: healthy ? 'ok' : 'degraded', 
+    database_configured: databaseConfigured,
     db_connected: isDbConnected,
     db_host: host,
     supabase_configured: !!(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY),
-    supabase_test,
+    data_access_mode: 'server_only',
+    direct_client_access: 'blocked_by_design',
     is_stale_host: host === 'db.zycnwaqswrunzptyeaso.supabase.co',
     env: {
       supabase_url: (process.env.VITE_SUPABASE_URL || '').substring(0, 15) + '...',
@@ -383,7 +415,220 @@ apiRouter.get('/test', (req, res) => {
   res.send('Server is alive');
 });
 
+apiRouter.post('/lb/assessment-sessions', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) {
+    return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  }
+
+  const {
+    athleteId,
+    testTypes,
+    protocolVersion,
+    qualityFlag,
+    comparableToBaseline,
+    device,
+    operatorName,
+    notes,
+    context
+  } = req.body || {};
+
+  const allowedQuality = new Set(['VALID', 'CAUTION', 'NON_COMPARABLE', 'REPEAT']);
+  const tests = Array.isArray(testTypes)
+    ? Array.from(new Set(testTypes.map((value: unknown) => String(value || '').trim()).filter(Boolean)))
+    : [];
+
+  if (!athleteId || !protocolVersion || tests.length === 0 || !allowedQuality.has(qualityFlag)) {
+    return res.status(400).json({ error: 'Dados obrigatórios da Sessão LB estão incompletos.' });
+  }
+
+  const canCompare = qualityFlag === 'VALID' || qualityFlag === 'CAUTION';
+  if (!canCompare && comparableToBaseline === true) {
+    return res.status(400).json({ error: 'Sessão não comparável não pode ser marcada como comparável ao baseline.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const athlete = await client.query('select id from public.athletes where id = $1 limit 1', [athleteId]);
+    if (athlete.rowCount !== 1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Atleta não encontrado.' });
+    }
+
+    const groupId = `lb-session-${crypto.randomUUID()}`;
+    const created: any[] = [];
+    for (const testType of tests) {
+      const id = `${groupId}-${String(testType).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+      const sessionContext = {
+        ...(context && typeof context === 'object' ? context : {}),
+        sessionGroupId: groupId,
+        selectedTests: tests
+      };
+      const result = await client.query(
+        `insert into lb_core.assessment_sessions
+          (id, athlete_id, test_type, protocol_version, quality_flag, comparable_to_baseline, device, operator_name, context, notes)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
+         returning id, athlete_id, test_type, assessed_at, protocol_version, quality_flag, comparable_to_baseline`,
+        [
+          id,
+          athleteId,
+          testType,
+          String(protocolVersion).trim(),
+          qualityFlag,
+          canCompare && comparableToBaseline !== false,
+          device ? String(device).trim() : null,
+          operatorName ? String(operatorName).trim() : null,
+          JSON.stringify(sessionContext),
+          notes ? String(notes).trim() : null
+        ]
+      );
+      created.push(result.rows[0]);
+    }
+    await client.query('COMMIT');
+    return res.status(201).json({ sessionGroupId: groupId, sessions: created });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao criar Sessão de Avaliação:', error.message);
+    return res.status(500).json({ error: 'Não foi possível criar a Sessão LB.' });
+  } finally {
+    client.release();
+  }
+});
+
 // Auth Routes
+
+apiRouter.get('/lb/assessment-sessions/:groupId', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  try {
+    const result = await pool.query(
+      `select s.id, s.athlete_id, a.name as athlete_name, s.test_type, s.assessed_at, s.protocol_version,
+              s.quality_flag, s.comparable_to_baseline, s.device, s.operator_name, s.context, s.notes,
+              coalesce(json_agg(json_build_object(
+                'id', m.id, 'metricCode', m.metric_code, 'valueNumeric', m.value_numeric,
+                'valueText', m.value_text, 'unit', m.unit, 'trialNo', m.trial_no, 'isValid', m.is_valid
+              ) order by m.created_at) filter (where m.id is not null), '[]'::json) as metrics
+       from lb_core.assessment_sessions s
+       join public.athletes a on a.id = s.athlete_id
+       left join lb_core.assessment_metrics m on m.session_id = s.id
+       where s.context->>'sessionGroupId' = $1
+       group by s.id, a.name
+       order by s.test_type`,
+      [req.params.groupId]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Sessão LB não encontrada.' });
+
+    const sessions = await Promise.all(result.rows.map(async (session: any) => {
+      if (!session.comparable_to_baseline) return { ...session, baseline: null };
+      try {
+        const baselineResult = await pool.query(
+          `select s.id, s.assessed_at,
+                  coalesce(json_agg(json_build_object(
+                    'metricCode', m.metric_code, 'valueNumeric', m.value_numeric, 'unit', m.unit, 'isValid', m.is_valid
+                  ) order by m.created_at) filter (where m.id is not null), '[]'::json) as metrics
+             from lb_core.assessment_sessions s
+             left join lb_core.assessment_metrics m on m.session_id = s.id
+            where s.athlete_id = $1
+              and s.test_type = $2
+              and s.id <> $3
+              and s.comparable_to_baseline = true
+              and s.quality_flag in ('VALID','CAUTION')
+              and s.assessed_at < $4
+            group by s.id
+            order by s.assessed_at desc
+            limit 1`,
+          [session.athlete_id, session.test_type, session.id, session.assessed_at]
+        );
+        return { ...session, baseline: baselineResult.rows[0] || null };
+      } catch (baselineError: any) {
+        console.warn('[LB] Baseline indisponível para', session.id, baselineError.message);
+        return { ...session, baseline: null };
+      }
+    }));
+
+    return res.json({ sessionGroupId: req.params.groupId, sessions });
+  } catch (error: any) {
+    console.error('[LB] Falha ao carregar Sessão:', error.message);
+    return res.status(500).json({ error: 'Não foi possível carregar a Sessão LB.' });
+  }
+});
+
+apiRouter.put('/lb/assessment-sessions/:sessionId/metrics', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  const metrics = Array.isArray(req.body?.metrics) ? req.body.metrics : [];
+  if (!metrics.length) return res.status(400).json({ error: 'Informe ao menos uma métrica.' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const exists = await client.query('select id from lb_core.assessment_sessions where id=$1', [req.params.sessionId]);
+    if (!exists.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Avaliação não encontrada.' }); }
+    await client.query('delete from lb_core.assessment_metrics where session_id=$1', [req.params.sessionId]);
+    const saved:any[]=[];
+    for (const metric of metrics) {
+      const code=String(metric.metricCode||'').trim();
+      if(!code) continue;
+      const raw=metric.valueNumeric;
+      const numeric=raw === '' || raw === null || raw === undefined ? null : Number(raw);
+      if(numeric !== null && !Number.isFinite(numeric)) { await client.query('ROLLBACK'); return res.status(400).json({error:`Valor inválido em ${code}.`}); }
+      const id=`lb-metric-${crypto.randomUUID()}`;
+      const q=await client.query(
+        `insert into lb_core.assessment_metrics(id,session_id,metric_code,value_numeric,value_text,unit,trial_no,is_valid)
+         values($1,$2,$3,$4,$5,$6,$7,$8)
+         returning id,metric_code,value_numeric,value_text,unit,trial_no,is_valid`,
+        [id,req.params.sessionId,code,numeric,metric.valueText ? String(metric.valueText).trim():null,
+         metric.unit ? String(metric.unit).trim():null,metric.trialNo ? Number(metric.trialNo):null,metric.isValid !== false]
+      );
+      saved.push(q.rows[0]);
+    }
+    if(!saved.length){ await client.query('ROLLBACK'); return res.status(400).json({error:'Nenhuma métrica válida informada.'}); }
+    await client.query('COMMIT');
+    return res.json({sessionId:req.params.sessionId,metrics:saved});
+  } catch(error:any){
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao salvar métricas:',error.message);
+    return res.status(500).json({error:'Não foi possível salvar os resultados.'});
+  } finally { client.release(); }
+});
+
+apiRouter.put('/lb/assessment-sessions/:sessionId/interpretation', authMiddleware, requireCoach, async (req, res) => {
+  if (!process.env.DATABASE_URL || !isDbConnected) return res.status(503).json({ error: 'Banco server-side indisponível.' });
+  const { comparator, noiseReference, contextText, convergence, confidence, mainLimitation, missingData, conclusion } = req.body || {};
+  const allowedConfidence = new Set(['HIGH', 'MODERATE', 'LOW']);
+  if (!allowedConfidence.has(confidence)) return res.status(400).json({ error: 'Confiança inválida.' });
+  if (confidence === 'LOW' && !String(mainLimitation || missingData || '').trim()) {
+    return res.status(400).json({ error: 'Confiança baixa exige limitação principal ou dado ausente.' });
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const session = await client.query('select id from lb_core.assessment_sessions where id=$1', [req.params.sessionId]);
+    if (!session.rowCount) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Avaliação não encontrada.' }); }
+    await client.query('delete from lb_core.interpretations where session_id=$1', [req.params.sessionId]);
+    const result = await client.query(
+      `insert into lb_core.interpretations
+       (id,session_id,comparator,noise_reference,context_text,convergence,confidence,main_limitation,missing_data,conclusion)
+       values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       returning id,session_id,comparator,noise_reference,context_text,convergence,confidence,main_limitation,missing_data,conclusion,created_at`,
+      [
+        `lb-interpretation-${crypto.randomUUID()}`, req.params.sessionId,
+        comparator ? String(comparator).trim() : null,
+        noiseReference ? String(noiseReference).trim() : null,
+        contextText ? String(contextText).trim() : null,
+        convergence ? String(convergence).trim() : null,
+        confidence,
+        mainLimitation ? String(mainLimitation).trim() : null,
+        missingData ? String(missingData).trim() : null,
+        conclusion ? String(conclusion).trim() : null
+      ]
+    );
+    await client.query('COMMIT');
+    return res.json({ interpretation: result.rows[0] });
+  } catch (error:any) {
+    await client.query('ROLLBACK');
+    console.error('[LB] Falha ao salvar interpretação:', error.message);
+    return res.status(500).json({ error: 'Não foi possível salvar a interpretação.' });
+  } finally { client.release(); }
+});
+
 apiRouter.post('/auth/login', async (req, res) => {
   const { username, password } = req.body;
   const trimmedUsername = (username || '').trim();
@@ -391,20 +636,8 @@ apiRouter.post('/auth/login', async (req, res) => {
 
   console.log(`[LOGIN] Tentativa: usuário=[${trimmedUsername}]`);
 
-  // 1. Hardcoded fallback
-  if (trimmedUsername.toLowerCase() === 'leandro' && trimmedPassword === 'techno10') {
-    console.log(`[LOGIN] SUCESSO: Hardcoded Coach [${trimmedUsername}]`);
-    try {
-      const token = jwt.sign({ username: 'Leandro', role: 'coach', plan: 'pro' }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ role: 'coach', token, plan: 'pro' });
-    } catch (jwtErr: any) {
-      console.error("[LOGIN] Erro ao gerar JWT:", jwtErr.message);
-      return res.status(500).json({ error: "Erro interno na geração do token." });
-    }
-  }
-
   try {
-    // 2. Local Database
+    // 1. Banco de dados do servidor
     if (process.env.DATABASE_URL && isDbConnected) {
       try {
         console.log(`[LOGIN] Buscando no banco local: [${trimmedUsername}]`);
@@ -412,7 +645,7 @@ apiRouter.post('/auth/login', async (req, res) => {
         if (userRes.rows.length > 0) {
           const user = userRes.rows[0];
           let isMatch = false;
-          if (user.password && user.password.startsWith('$2a$')) {
+          if (user.password && /^\$2[aby]\$/.test(user.password)) {
             isMatch = await bcrypt.compare(trimmedPassword, user.password);
           } else if (user.password) {
             isMatch = user.password === trimmedPassword;
@@ -429,7 +662,9 @@ apiRouter.post('/auth/login', async (req, res) => {
           }
         }
 
-        const athletesRes = await pool.query('SELECT * FROM athletes WHERE LOWER(TRIM(name)) = LOWER($1)', [trimmedUsername]);
+        const athletesRes = ALLOW_LEGACY_DOB_LOGIN
+          ? await pool.query('SELECT * FROM athletes WHERE LOWER(TRIM(name)) = LOWER($1)', [trimmedUsername])
+          : { rows: [] as any[] };
         if (athletesRes.rows.length > 0) {
           const athlete = athletesRes.rows[0];
           if (athlete.dob) {
@@ -467,7 +702,7 @@ apiRouter.post('/auth/login', async (req, res) => {
 
       if (sbUser) {
         let isMatch = false;
-        if (sbUser.password && sbUser.password.startsWith('$2a$')) {
+        if (sbUser.password && /^\$2[aby]\$/.test(sbUser.password)) {
           isMatch = await bcrypt.compare(trimmedPassword, sbUser.password);
         } else if (sbUser.password) {
           isMatch = sbUser.password === trimmedPassword;
@@ -481,6 +716,9 @@ apiRouter.post('/auth/login', async (req, res) => {
       }
 
       let sbAthlete: any = null;
+      if (!ALLOW_LEGACY_DOB_LOGIN) {
+        throw new Error('LEGACY_DOB_LOGIN_DISABLED');
+      }
       const { data: directAth } = await supabase
         .from('athletes')
         .select('*')
@@ -816,11 +1054,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       return res.json(formatted);
     }
 
-    // SE NÃO HOUVER ATLETAS NO BANCO LOCAL, TENTAR SUPABASE
+    // No staging/arquitetura server-only, banco vazio é um estado válido.
     if (athletesRes.rows.length === 0) {
-      console.warn("[SERVIÇO] Banco local conectado mas está VAZIO. Tentando Supabase...");
-      const formatted = await loadFromSupabase();
-      return res.json(formatted);
+      console.log("[SERVIÇO] Banco server-side conectado e sem atletas. Retornando conjunto vazio.");
+      return res.json([]);
     }
 
     const groupById = (rows: any[], key = 'athlete_id') => {
@@ -1056,6 +1293,18 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
 apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   const athletes = req.body;
+  const actingUser = (req as any).user;
+
+  if (!Array.isArray(athletes)) {
+    return res.status(400).json({ error: 'Payload inválido.' });
+  }
+
+  if (
+    actingUser?.role === 'athlete' &&
+    (athletes.length !== 1 || athletes[0]?.id !== actingUser.athleteId)
+  ) {
+    return res.status(403).json({ error: 'Atleta só pode sincronizar o próprio registro.' });
+  }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
   if (!isDbConnected && process.env.DATABASE_URL) {
@@ -1830,7 +2079,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 });
 
 // Deletion endpoints
-apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/atletas/:id', authMiddleware, requireCoach, async (req, res) => {
   const { id } = req.params;
   const dbConfigured = !!process.env.DATABASE_URL;
 
@@ -1908,7 +2157,7 @@ apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/workouts/:id', authMiddleware, requireCoach, async (req, res) => {
   const { id } = req.params;
   console.log(`[API] Solicitando exclusão do treino: ${id}`);
   
@@ -2015,7 +2264,7 @@ apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
+apiRouter.delete('/assessments/:type/:id', authMiddleware, requireCoach, async (req, res) => {
   const { type, id } = req.params;
   const tableMap: Record<string, string> = {
     'bioimpedance': 'bioimpedance',
@@ -3070,12 +3319,7 @@ async function runSetup(retries = 1) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
     
-    // Create default coach user if not exists
-    await client.query(`
-      INSERT INTO users (id, username, password, role, plan) 
-      VALUES ('coach-1', 'Leandro', 'techno10', 'coach', 'pro') 
-      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, plan = EXCLUDED.plan
-    `);
+    // Usuários são provisionados explicitamente. Nunca criar credenciais padrão no boot.
 
     // Create performance indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wellness_athlete_date ON wellness (athlete_id, date DESC);`).catch(() => {});

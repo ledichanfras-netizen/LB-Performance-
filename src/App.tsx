@@ -165,7 +165,10 @@ import Home from "./pages/Home";
 import Venda from "./pages/Venda";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
+import LbAssessmentSession from "./pages/LbAssessmentSession";
+import LbAssessmentResults from "./pages/LbAssessmentResults";
 import { UserWithPlan, isPro } from "./utils/plan";
+import { lbFeatureFlags } from "./metodo-lb/featureFlags";
 
 // Safely wrapped localStorage to prevent crashes on restricted engines/mobile frames/iframes
 const safeLocalStorage = {
@@ -613,6 +616,7 @@ const EliteHubApp: FC<{
   user: UserWithPlan | null;
   setUser: (u: UserWithPlan | null) => void;
 }> = ({ user, setUser }) => {
+  const navigate = useNavigate();
   const {
     athletes,
     loading,
@@ -1254,6 +1258,39 @@ const EliteHubApp: FC<{
     return athletes.find((a) => a.id === selectedId);
   }, [athletes, selectedId, user]);
 
+  useEffect(() => {
+    if (loading || user?.role !== "coach") return;
+    const raw = safeLocalStorage.getItem("lb_prescription_draft");
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw);
+      if (!draft?.athleteId || !["MAIN", "MICRO"].includes(draft?.doseMode)) {
+        safeLocalStorage.removeItem("lb_prescription_draft");
+        return;
+      }
+      const athlete = athletes.find((a) => String(a.id) === String(draft.athleteId));
+      if (!athlete) {
+        toast.error("Atleta da Decisão LB não encontrado no Hub.");
+        return;
+      }
+      setSelectedId(athlete.id);
+      setActiveTab("training");
+      setTrainingSubTab("planned");
+      setModalState({
+        type: "workout",
+        editingData: {
+          lbPrescriptionDraft: draft,
+        },
+      });
+      safeLocalStorage.removeItem("lb_prescription_draft");
+      toast.success(`Decisão LB carregada para ${athlete.name}.`);
+    } catch (error) {
+      console.error("Falha ao carregar rascunho LB:", error);
+      safeLocalStorage.removeItem("lb_prescription_draft");
+      toast.error("Não foi possível carregar a prescrição da Decisão LB.");
+    }
+  }, [loading, athletes, user?.role]);
+
   const handleGenerateAIModeling = async (skipConfirm = false) => {
     if (user?.role !== "coach") {
       toast.error("Acesso restrito ao treinador.");
@@ -1581,6 +1618,17 @@ const EliteHubApp: FC<{
                 </button>
               )}
 
+              {/* MÉTODO LB — AVALIAR */}
+              {user?.role !== "athlete" && lbFeatureFlags.coreWorkflow && (
+                <button
+                  onClick={() => navigate("/hub/metodo-lb/avaliar")}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                >
+                  <ClipboardCheck className="w-4 h-4 shrink-0" />
+                  <span>SESSÃO LB</span>
+                </button>
+              )}
+
               {/* 6. DM E SAÚDE item */}
               <button
                 onClick={() => {
@@ -1777,6 +1825,20 @@ const EliteHubApp: FC<{
                       )}
                     </AnimatePresence>
                   </div>
+                )}
+
+                {/* Método LB — AVALIAR */}
+                {user?.role !== "athlete" && lbFeatureFlags.coreWorkflow && (
+                  <button
+                    onClick={() => navigate("/hub/metodo-lb/avaliar")}
+                    className="flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-black uppercase tracking-wider transition-all duration-300 border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.06)]"
+                  >
+                    <ClipboardCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <div className="flex flex-col">
+                      <span>Sessão LB Performance</span>
+                      <span className="text-[8px] text-emerald-500/70 tracking-[0.2em] mt-0.5">AVALIAR</span>
+                    </div>
+                  </button>
                 )}
 
                 {/* 2. Avaliações Tab */}
@@ -3948,10 +4010,15 @@ const EliteHubApp: FC<{
                       ? {
                           id: "",
                           date: getLocalDateString(),
-                          name: "",
+                          name: modalState.editingData?.lbPrescriptionDraft
+                            ? `LB • ${modalState.editingData.lbPrescriptionDraft.capacity} • ${modalState.editingData.lbPrescriptionDraft.doseMode === "MICRO" ? "Microdose" : "Dose principal"}`
+                            : "",
                           phase: "Preparação Geral",
                           status: "planned",
                           exercises: [],
+                          ...(modalState.editingData?.lbPrescriptionDraft
+                            ? { lbPrescriptionDraft: modalState.editingData.lbPrescriptionDraft }
+                            : {}),
                         }
                       : modalState.editingData
                   }
@@ -18415,6 +18482,26 @@ const App: FC = () => {
               <Ranking />
             ) : (
               <Navigate to="/venda" replace />
+            )
+          }
+        />
+        <Route
+          path="/hub/metodo-lb/avaliar"
+          element={
+            user && user.plan === "pro" ? (
+              <LbAssessmentSession />
+            ) : (
+              <Navigate to="/hub" replace />
+            )
+          }
+        />
+        <Route
+          path="/hub/metodo-lb/avaliar/:groupId"
+          element={
+            user && user.plan === "pro" ? (
+              <LbAssessmentResults />
+            ) : (
+              <Navigate to="/hub" replace />
             )
           }
         />
