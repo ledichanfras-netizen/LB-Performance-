@@ -441,6 +441,13 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             <div><span className="font-black">Reavaliar:</span> {lbPrescriptionDraft.reassessment}</div>
           </div>
           <p className="mt-3 text-[11px] opacity-70">Use esta orientação para escolher os exercícios abaixo. Nada é adicionado automaticamente: você mantém o controle final da ficha e da carga.</p>
+          {lbSuggestedExercises.length > 0 && <div className="mt-4 border-t border-emerald-500/20 pt-4">
+            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Exercícios sugeridos pela prioridade • escolha livre</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{lbSuggestedExercises.map((ex:any)=><button key={ex.id} type="button" onClick={()=>addExFromLib(ex)} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-left hover:border-emerald-500/60 transition">
+              <p className="text-xs font-black">{ex.name}</p><p className="mt-1 text-[9px] opacity-60">{ex.physicalQuality || ex.category || "Biblioteca LB"}</p><p className="mt-2 text-[9px] font-black text-emerald-500">+ ADICIONAR</p>
+            </button>)}</div>
+            <p className="mt-2 text-[10px] opacity-60">O filtro considera a capacidade-alvo e, quando disponível, a modalidade. Em microdose, priorize poucos exercícios e volume mínimo efetivo.</p>
+          </div>}
         </div>
       )}
 ) => {
@@ -825,6 +832,28 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       toast.success(`Prescrito: ${libEx.name} (${setsVal}x ${repVal})`);
     }
   };
+
+  const lbSuggestedExercises = useMemo(() => {
+    if (!lbPrescriptionDraft) return [] as EnrichedExercise[];
+    const capacity = String(lbPrescriptionDraft.capacity || "").toLowerCase();
+    const modality = String(athleteModality || "").toLowerCase();
+    const tokens = capacity.includes("reativ") || capacity.includes("cae") ? ["pliometr", "drop", "salto", "pogo", "stiffness"]
+      : capacity.includes("potência") ? ["potência", "salto", "jump", "balíst", "arremesso", "lpo"]
+      : capacity.includes("veloc") ? ["sprint", "acelera", "velocidade", "tiro", "agilidade"]
+      : capacity.includes("assimetr") || capacity.includes("unilateral") ? ["unilateral", "búlgar", "split", "step", "isométr", "single"]
+      : capacity.includes("tdf") || capacity.includes("rápid") ? ["explos", "balíst", "isométr", "jump", "salto", "lpo"]
+      : capacity.includes("força") || capacity.includes("impulso") ? ["agach", "terra", "deadlift", "isométr", "leg press", "força"]
+      : capacity.includes("aerób") ? ["corrida", "interval", "tempo", "bike", "erg"]
+      : [];
+    const score = (ex: EnrichedExercise) => {
+      const hay = [ex.name, ex.category, ex.subcategory, ex.physicalQuality, ex.muscleGroup, ...(ex.tags || [])].filter(Boolean).join(" ").toLowerCase();
+      let s = tokens.reduce((acc,t)=>acc+(hay.includes(t)?3:0),0);
+      if (modality && hay.includes(modality)) s += 2;
+      if (lbPrescriptionDraft.doseMode === "MICRO" && /complex|cluster|rest.?pause/.test(hay)) s -= 2;
+      return s;
+    };
+    return [...combinedLibrary].map(ex=>({ex,score:score(ex)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,5).map(x=>x.ex);
+  }, [lbPrescriptionDraft, combinedLibrary, athleteModality]);
 
   // TROCAR EXERCÍCIO EXISTENTE POR OUTRO DA BIBLIOTECA (PRESERVANDO ESTRUTURA, BLOCO E ESTÁGIO)
   const swapExerciseWithLibrary = (currentExId: string, libEx: EnrichedExercise) => {
