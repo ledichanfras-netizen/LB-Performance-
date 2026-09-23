@@ -735,6 +735,33 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     let clusterRepsVal: string | undefined = undefined;
     let setsVal = prescribedSets;
 
+    // Método LB: ao carregar uma prioridade como MICRODOSE, reduzir o volume
+    // automaticamente antes de inserir o exercício. O treinador mantém edição total.
+    if (lbPrescriptionDraft?.doseMode === "MICRO" && method === "standard") {
+      const isTimeBased = repsType === "time";
+      setsVal = Math.min(Math.max(1, prescribedSets), 2);
+      repVal = isTimeBased ? "10-20s" : "2-5";
+      restVal = "60-120s";
+      // Microdose de força pode manter intensidade/qualidade sem acumular volume.
+      const cap = String(lbPrescriptionDraft.capacity || "").toLowerCase();
+      if (cap.includes("força") || cap.includes("impulso")) weightVal = "RPE 7-8";
+      if (cap.includes("tdf") || cap.includes("rápid") || cap.includes("potência") || cap.includes("reativ")) {
+        weightVal = "Qualidade máxima";
+        restVal = "90-180s";
+      }
+      if (cap.includes("veloc")) {
+        repVal = "1-3 ações";
+        weightVal = "Máxima qualidade";
+        restVal = "2-4min";
+      }
+      if (cap.includes("aerób")) {
+        setsVal = 1;
+        repVal = "5-10min";
+        weightVal = "Zona-alvo";
+        restVal = "—";
+      }
+    }
+
     if (method === "complex_contrast") {
       // Intelligently determine blockTag if not provided
       if (!blockTagVal) {
@@ -804,8 +831,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       repsType: repsType,
       rest: restVal,
       notes: method === "complex_contrast" 
-        ? `Estágio ${blockTagVal}: ${blockRoleVal}` 
-        : `Foco: ${libEx.physicalQuality || 'Geral'} | RPE Alvo: ${libEx.recommendedRpe || '8'}`,
+        ? `Estágio ${blockTagVal}: ${blockRoleVal}`
+        : lbPrescriptionDraft?.doseMode === "MICRO"
+          ? `MICRODOSE LB • ${lbPrescriptionDraft.capacity} • Priorizar qualidade; encerrar antes de queda relevante de execução. Ajustável pelo treinador.`
+          : `Foco: ${libEx.physicalQuality || 'Geral'} | RPE Alvo: ${libEx.recommendedRpe || '8'}`,
       videoUrl: libEx.videoUrl || "",
       imageUrl: libEx.imageUrl || "",
       executionMethod: method,
@@ -828,6 +857,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       toast.success(`🎯 Adicionado como Cluster Set: ${libEx.name}!`, { duration: 3500, icon: "🎯" });
     } else if (method === "rest_pause") {
       toast.success(`🔥 Adicionado como Rest-Pause: ${libEx.name}!`, { duration: 3500, icon: "🔥" });
+    } else if (lbPrescriptionDraft?.doseMode === "MICRO") {
+      toast.success(`Microdose LB: ${libEx.name} (${setsVal}x ${repVal})`);
     } else {
       toast.success(`Prescrito: ${libEx.name} (${setsVal}x ${repVal})`);
     }
