@@ -53,7 +53,7 @@ const parseWeight = (weightStr: string | number | undefined | null): number => {
   return parseWeightValue(weightStr);
 };
 
-// Interactive Special Method Component for Guided & Full views
+// Interactive Special Method Component for Guided & Full views - Soft, Light & Clear Styling
 const SpecialMethodInteractiveGuide: FC<{
   exercise: PrescribedExercise;
   onStartTimer: (secs: number, label: string) => void;
@@ -71,14 +71,14 @@ const SpecialMethodInteractiveGuide: FC<{
     const blockRestSecs = parseInt(blockRestStr) * 60 || 210;
 
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#081e26]/90 border border-cyan-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-cyan-500/10 dark:bg-cyan-950/25 border border-cyan-300/40 dark:border-cyan-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-cyan-500/15 text-cyan-900 dark:text-cyan-300 border border-cyan-400/30 flex items-center gap-1.5">
               <span>🇫🇷</span>
               <span>CONTRASTE FRANCÊS • ESTÁGIO {exercise.blockTag || "1A"}</span>
             </span>
-            <span className="text-[10px] font-bold text-cyan-300/80">
+            <span className="text-xs font-bold text-cyan-900/80 dark:text-cyan-200/80 bg-cyan-500/10 border border-cyan-300/30 px-2.5 py-0.5 rounded-lg">
               {exercise.blockRole || "PAP / Pliometria"} • Carga: {exercise.weight || "85% 1RM"}
             </span>
           </div>
@@ -87,7 +87,7 @@ const SpecialMethodInteractiveGuide: FC<{
             <button
               type="button"
               onClick={() => onStartTimer(intraRest, `⚡ Transição Rápida (${intraRest}s) ➔ Próximo Estágio`)}
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-cyan-500 hover:bg-cyan-400 text-slate-950 flex items-center gap-1.5 shadow-md shadow-cyan-900/40 transition-all cursor-pointer active:scale-95 font-black"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-cyan-600/90 hover:bg-cyan-600 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
             >
               <Timer className="w-3.5 h-3.5" />
               <span>Transição Rápida ({intraRest}s)</span>
@@ -96,7 +96,7 @@ const SpecialMethodInteractiveGuide: FC<{
             <button
               type="button"
               onClick={() => onStartTimer(blockRestSecs, `⏱️ Descanso Pós-Round Francês (${blockRestStr})`)}
-              className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-amber-400 hover:bg-amber-300 text-slate-950 flex items-center gap-1.5 shadow-md shadow-amber-900/40 transition-all cursor-pointer active:scale-95 font-black"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-500/90 hover:bg-amber-500 text-slate-950 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
             >
               <Timer className="w-3.5 h-3.5" />
               <span>Pausa Pós-Round ({blockRestStr})</span>
@@ -104,8 +104,8 @@ const SpecialMethodInteractiveGuide: FC<{
           )}
         </div>
 
-        <p className="text-[10px] text-cyan-200/80 italic leading-relaxed">
-          💡 <strong>Fisiologia do Estágio {exercise.blockTag || "1A"}:</strong>{" "}
+        <div className="p-3 rounded-xl bg-cyan-500/5 dark:bg-cyan-950/20 border border-cyan-200/50 dark:border-cyan-800/30 text-xs font-normal text-slate-800 dark:text-cyan-100 leading-relaxed">
+          💡 <strong className="text-cyan-900 dark:text-cyan-300 font-bold">Fisiologia do Estágio {exercise.blockTag || "1A"}:</strong>{" "}
           {(exercise.blockTag || "").endsWith("A")
             ? "Carga pesada (>80% 1RM) ativa motoneurônios de alto limiar via Potenciação Pós-Ativação (PAPE). Transição rápida (~20s) para o salto."
             : (exercise.blockTag || "").endsWith("B")
@@ -115,7 +115,7 @@ const SpecialMethodInteractiveGuide: FC<{
             : (exercise.blockTag || "").endsWith("D")
             ? "Pliometria reativa de alta intensidade (RSI / Drop Jump). Ao concluir o 1D, execute o descanso completo de 3m30s a 4min."
             : "Execute o estágio mantendo a transição rápida intra-bloco e descanso pleno ao final do ciclo."}
-        </p>
+        </div>
       </div>
     );
   }
@@ -127,14 +127,14 @@ const SpecialMethodInteractiveGuide: FC<{
     const totalRepsPerSet = parseRepetitions(clusterPattern);
 
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#13092b]/90 border border-purple-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-purple-500/10 dark:bg-purple-950/25 border border-purple-300/40 dark:border-purple-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-500/25 text-purple-300 border border-purple-500/40 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-purple-500/15 text-purple-900 dark:text-purple-300 border border-purple-400/30 flex items-center gap-1.5">
               <span>🎯</span>
               <span>MÉTODO CLUSTER SET ({clusterPattern})</span>
             </span>
-            <span className="text-[10px] font-bold text-purple-300/80">
+            <span className="text-xs font-bold text-purple-900/80 dark:text-purple-200/80 bg-purple-500/10 border border-purple-300/30 px-2.5 py-0.5 rounded-lg">
               Total: {totalRepsPerSet} reps/série • Pausa Inter-Séries: {exercise.rest || "2m30s"}
             </span>
           </div>
@@ -142,49 +142,57 @@ const SpecialMethodInteractiveGuide: FC<{
           <button
             type="button"
             onClick={() => onStartTimer(intraRest, `⏱️ Micro-Pausa Cluster (${intraRest}s) - Repouso na Barra`)}
-            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-purple-600 hover:bg-purple-500 text-white flex items-center gap-1.5 shadow-md shadow-purple-900/40 transition-all cursor-pointer active:scale-95"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-purple-600/90 hover:bg-purple-600 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
           >
-            <Timer className="w-3.5 h-3.5 animate-pulse" />
+            <Timer className="w-3.5 h-3.5" />
             <span>Disparar Micro-Pausa ({intraRest}s)</span>
           </button>
         </div>
 
-        {/* Visual Stepper of the Cluster Set */}
-        <div className="p-2.5 bg-purple-950/40 border border-purple-500/20 rounded-xl">
-          <div className="text-[9px] font-black uppercase text-purple-300 tracking-wider mb-2 flex items-center justify-between">
-            <span>Passo a Passo de Cada Série (Série {activeSetIndex + 1}):</span>
-            <span className="text-purple-400 font-bold">{blocks.length} Mini-Blocos</span>
+        {/* Visual Stepper of the Cluster Set - Soft & Clean */}
+        <div className="p-3 bg-purple-500/5 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-800/40 rounded-xl space-y-2.5">
+          <div className="text-[10px] font-black uppercase text-purple-900 dark:text-purple-300 tracking-wider flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              <span>Passo a Passo de Cada Série (Série {activeSetIndex + 1}):</span>
+            </span>
+            <span className="bg-purple-500/15 text-purple-900 dark:text-purple-300 px-2 py-0.5 rounded-md font-bold text-[9px] border border-purple-300/40 dark:border-purple-700/40">
+              {blocks.length} Mini-Blocos
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {blocks.map((blockReps, bIdx) => (
               <React.Fragment key={bIdx}>
-                <div className="px-3 py-1.5 bg-purple-900/60 border border-purple-500/40 rounded-lg text-center font-mono">
-                  <span className="text-[8px] font-black uppercase text-purple-300 block">Bloco {bIdx + 1}</span>
-                  <span className="text-xs font-black text-white">{blockReps} reps</span>
+                <div className="px-3 py-1.5 bg-white dark:bg-purple-900/30 border border-purple-300/60 dark:border-purple-700/50 rounded-xl text-center font-mono shadow-xs">
+                  <span className="text-[8.5px] font-black uppercase text-purple-700 dark:text-purple-300 block">Bloco {bIdx + 1}</span>
+                  <span className="text-sm font-black text-purple-950 dark:text-white block">{blockReps} reps</span>
                 </div>
                 {bIdx < blocks.length - 1 && (
                   <button
                     type="button"
                     onClick={() => onStartTimer(intraRest, `⏱️ Micro-Pausa ${bIdx + 1}/${blocks.length - 1} (${intraRest}s)`)}
-                    className="px-2 py-1 bg-purple-950 hover:bg-purple-900 border border-dashed border-purple-400/50 hover:border-purple-300 rounded-lg text-[9px] font-black text-purple-200 flex items-center gap-1 cursor-pointer transition-all hover:scale-105"
+                    className="px-2.5 py-1.5 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 dark:hover:bg-purple-900/60 border border-purple-300 dark:border-purple-700/50 text-purple-900 dark:text-purple-200 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
                     title="Clique para iniciar o cronômetro da micro-pausa"
                   >
-                    <Timer className="w-3 h-3 text-purple-400" />
-                    <span>{intraRest}s micro-pausa</span>
+                    <Timer className="w-3.5 h-3.5 text-purple-600 dark:text-purple-300" />
+                    <span>{intraRest}s pausa</span>
                     <span>➔</span>
                   </button>
                 )}
               </React.Fragment>
             ))}
-            <span className="text-[9px] font-black text-purple-300 pl-1">
-              ➔ ✅ Fechar Série ({totalRepsPerSet} reps) ➔ ⏱️ {exercise.rest || "2m30s"}
+            <span className="text-xs font-bold text-purple-900 dark:text-purple-200 bg-purple-100/70 dark:bg-purple-900/30 border border-purple-300/40 dark:border-purple-800/40 px-3 py-1.5 rounded-xl flex items-center gap-1">
+              <span>➔</span>
+              <span>✅ Fechar Série ({totalRepsPerSet} reps)</span>
+              <span>➔</span>
+              <span className="text-purple-700 dark:text-purple-300 font-medium">⏱️ {exercise.rest || "2m30s"}</span>
             </span>
           </div>
         </div>
 
-        <p className="text-[10px] text-purple-200/70 italic leading-relaxed">
-          💡 <strong>Diretriz de Execução:</strong> Realize as repetições de cada bloco com máxima velocidade intencional. Ao pausar {intraRest}s, solte a pegada ou descanse a barra no suporte para re-síntese de fosfocreatina (ATP-CP).
-        </p>
+        <div className="p-3 rounded-xl bg-purple-500/5 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 text-xs font-normal text-slate-800 dark:text-purple-100 leading-relaxed">
+          💡 <strong className="text-purple-900 dark:text-purple-300 font-bold">Diretriz de Execução:</strong> Realize as repetições de cada bloco com máxima velocidade intencional. Ao pausar {intraRest}s, solte a pegada ou descanse a barra no suporte para re-síntese de fosfocreatina (ATP-CP).
+        </div>
       </div>
     );
   }
@@ -194,14 +202,14 @@ const SpecialMethodInteractiveGuide: FC<{
     const totalRepsPerSet = parseRepetitions(exercise.reps);
 
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#260810]/90 border border-rose-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-rose-500/10 dark:bg-rose-950/25 border border-rose-300/40 dark:border-rose-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-500/25 text-rose-300 border border-rose-500/40 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-900 dark:text-rose-300 border border-rose-400/30 flex items-center gap-1.5">
               <span>🔥</span>
               <span>MÉTODO REST-PAUSE</span>
             </span>
-            <span className="text-[10px] font-bold text-rose-300/80">
+            <span className="text-xs font-bold text-rose-900/80 dark:text-rose-200/80 bg-rose-500/10 border border-rose-300/30 px-2.5 py-0.5 rounded-lg">
               Alvo: {exercise.reps} reps • Micro-Pausa: {intraRest}s • Inter-Séries: {exercise.rest || "2min"}
             </span>
           </div>
@@ -209,34 +217,41 @@ const SpecialMethodInteractiveGuide: FC<{
           <button
             type="button"
             onClick={() => onStartTimer(intraRest, `🔥 Micro-Pausa Rest-Pause (${intraRest}s)`)}
-            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1.5 shadow-md shadow-rose-900/40 transition-all cursor-pointer active:scale-95"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-rose-600/90 hover:bg-rose-600 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
           >
-            <Timer className="w-3.5 h-3.5 animate-pulse" />
+            <Timer className="w-3.5 h-3.5" />
             <span>Disparar Micro-Pausa ({intraRest}s)</span>
           </button>
         </div>
 
-        <div className="p-2.5 bg-rose-950/40 border border-rose-500/20 rounded-xl flex flex-wrap items-center gap-2">
-          <div className="px-3 py-1.5 bg-rose-900/60 border border-rose-500/40 rounded-lg text-center font-mono">
-            <span className="text-[8px] font-black uppercase text-rose-300 block">Série Principal</span>
-            <span className="text-xs font-black text-white">RPE 9</span>
+        <div className="p-3 bg-rose-500/5 dark:bg-rose-950/30 border border-rose-200/60 dark:border-rose-800/40 rounded-xl flex flex-wrap items-center gap-2.5">
+          <div className="px-3 py-1.5 bg-white dark:bg-rose-900/30 border border-rose-300/60 dark:border-rose-700/50 rounded-xl text-center font-mono shadow-xs">
+            <span className="text-[8.5px] font-black uppercase text-rose-700 dark:text-rose-300 block">Série Principal</span>
+            <span className="text-sm font-black text-rose-950 dark:text-white">RPE 9</span>
           </div>
           <button
             type="button"
             onClick={() => onStartTimer(intraRest, `🔥 Micro-Pausa Rest-Pause (${intraRest}s)`)}
-            className="px-2 py-1 bg-rose-950 hover:bg-rose-900 border border-dashed border-rose-400/50 rounded-lg text-[9px] font-black text-rose-200 flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 dark:bg-rose-900/40 dark:hover:bg-rose-900/60 border border-rose-300 dark:border-rose-700/50 text-rose-900 dark:text-rose-200 font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
           >
-            <Timer className="w-3 h-3 text-rose-400" />
+            <Timer className="w-3.5 h-3.5 text-rose-600 dark:text-rose-300" />
             <span>{intraRest}s pausa</span>
             <span>➔</span>
           </button>
-          <div className="px-3 py-1.5 bg-rose-900/60 border border-rose-500/40 rounded-lg text-center font-mono">
-            <span className="text-[8px] font-black uppercase text-rose-300 block">Mini-Série</span>
-            <span className="text-xs font-black text-white">+ Reps até Falha</span>
+          <div className="px-3 py-1.5 bg-white dark:bg-rose-900/30 border border-rose-300/60 dark:border-rose-700/50 rounded-xl text-center font-mono shadow-xs">
+            <span className="text-[8.5px] font-black uppercase text-rose-700 dark:text-rose-300 block">Mini-Série</span>
+            <span className="text-sm font-black text-rose-950 dark:text-white">+ Reps até Falha</span>
           </div>
-          <span className="text-[9px] font-black text-rose-300 pl-1">
-            ➔ ✅ Fechar Série ({totalRepsPerSet} reps) ➔ ⏱️ {exercise.rest || "2min"}
+          <span className="text-xs font-bold text-rose-900 dark:text-rose-200 bg-rose-100/70 dark:bg-rose-900/30 border border-rose-300/40 dark:border-rose-800/40 px-3 py-1.5 rounded-xl flex items-center gap-1">
+            <span>➔</span>
+            <span>✅ Fechar Série ({totalRepsPerSet} reps)</span>
+            <span>➔</span>
+            <span className="text-rose-700 dark:text-rose-300 font-medium">⏱️ {exercise.rest || "2min"}</span>
           </span>
+        </div>
+
+        <div className="p-3 rounded-xl bg-rose-500/5 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-800/30 text-xs font-normal text-slate-800 dark:text-rose-100 leading-relaxed">
+          💡 <strong className="text-rose-900 dark:text-rose-300 font-bold">Diretriz de Execução:</strong> Execute a série principal até atingir o limiar de fadiga técnica (RPE 9). Descanse {intraRest}s (5 respirações profundas) e realize mini-séries consecutivas mantendo a intensidade máxima.
         </div>
       </div>
     );
@@ -244,33 +259,36 @@ const SpecialMethodInteractiveGuide: FC<{
 
   if (method === "drop_set") {
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#261908]/90 border border-amber-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/25 border border-amber-300/40 dark:border-amber-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-amber-500/25 text-amber-300 border border-amber-500/40 flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-400/30 flex items-center gap-1.5">
             <span>📉</span>
             <span>MÉTODO DROP-SET</span>
           </span>
-          <span className="text-[10px] font-bold text-amber-300/80">
+          <span className="text-xs font-bold text-amber-900/80 dark:text-amber-200/80 bg-amber-500/10 border border-amber-300/30 px-2.5 py-0.5 rounded-lg">
             Sem pausa entre as reduções • Inter-Séries: {exercise.rest || "2min"}
           </span>
         </div>
-        <div className="p-2.5 bg-amber-950/40 border border-amber-500/20 rounded-xl flex flex-wrap items-center gap-2">
-          <div className="px-3 py-1.5 bg-amber-900/60 border border-amber-500/40 rounded-lg text-center font-mono">
-            <span className="text-[8px] font-black uppercase text-amber-300 block">Carga Base</span>
-            <span className="text-xs font-black text-white">100%</span>
+        <div className="p-3 bg-amber-500/5 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/40 rounded-xl flex flex-wrap items-center gap-2.5">
+          <div className="px-3 py-1.5 bg-white dark:bg-amber-900/30 border border-amber-300/60 dark:border-amber-700/50 rounded-xl text-center font-mono shadow-xs">
+            <span className="text-[8.5px] font-black uppercase text-amber-700 dark:text-amber-300 block">Carga Base</span>
+            <span className="text-sm font-black text-amber-950 dark:text-white">100% Carga</span>
           </div>
-          <span className="text-[9px] font-black text-amber-400">➔ (Sem pausa) ➔</span>
-          <div className="px-3 py-1.5 bg-amber-900/60 border border-amber-500/40 rounded-lg text-center font-mono">
-            <span className="text-[8px] font-black uppercase text-amber-300 block">Drop 1</span>
-            <span className="text-xs font-black text-white">-20% a -25%</span>
+          <span className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1">➔ (Sem pausa) ➔</span>
+          <div className="px-3 py-1.5 bg-white dark:bg-amber-900/30 border border-amber-300/60 dark:border-amber-700/50 rounded-xl text-center font-mono shadow-xs">
+            <span className="text-[8.5px] font-black uppercase text-amber-700 dark:text-amber-300 block">Drop 1</span>
+            <span className="text-sm font-black text-amber-950 dark:text-white">-20% a -25%</span>
           </div>
-          <span className="text-[9px] font-black text-amber-400">➔ (Sem pausa) ➔</span>
-          <div className="px-3 py-1.5 bg-amber-900/60 border border-amber-500/40 rounded-lg text-center font-mono">
-            <span className="text-[8px] font-black uppercase text-amber-300 block">Drop 2</span>
-            <span className="text-xs font-black text-white">Até a Falha</span>
+          <span className="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1">➔ (Sem pausa) ➔</span>
+          <div className="px-3 py-1.5 bg-white dark:bg-amber-900/30 border border-amber-300/60 dark:border-amber-700/50 rounded-xl text-center font-mono shadow-xs">
+            <span className="text-[8.5px] font-black uppercase text-amber-700 dark:text-amber-300 block">Drop 2</span>
+            <span className="text-sm font-black text-amber-950 dark:text-white">Até a Falha</span>
           </div>
-          <span className="text-[9px] font-black text-amber-300 pl-1">
-            ➔ ✅ Fechar Série ➔ ⏱️ {exercise.rest || "2min"}
+          <span className="text-xs font-bold text-amber-900 dark:text-amber-200 bg-amber-100/70 dark:bg-amber-900/30 border border-amber-300/40 dark:border-amber-800/40 px-3 py-1.5 rounded-xl flex items-center gap-1">
+            <span>➔</span>
+            <span>✅ Fechar Série</span>
+            <span>➔</span>
+            <span className="text-amber-700 dark:text-amber-300 font-medium">⏱️ {exercise.rest || "2min"}</span>
           </span>
         </div>
       </div>
@@ -279,38 +297,38 @@ const SpecialMethodInteractiveGuide: FC<{
 
   if (method === "bi_set" || method === "tri_set" || method === "super_set") {
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#081a26]/90 border border-blue-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-950/25 border border-blue-300/40 dark:border-blue-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-blue-500/25 text-blue-300 border border-blue-500/40 flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-400/30 flex items-center gap-1.5">
             <span>{meta.icon}</span>
             <span>MÉTODO {meta.name.toUpperCase()}</span>
           </span>
-          <span className="text-[10px] font-bold text-blue-300/80">
+          <span className="text-xs font-bold text-blue-900/80 dark:text-blue-200/80 bg-blue-500/10 border border-blue-300/30 px-2.5 py-0.5 rounded-lg">
             Transição Imediata (0-10s) • Pausa do Bloco: {exercise.rest || "90s"}
           </span>
         </div>
-        <p className="text-[10px] text-blue-200/80 italic">
+        <div className="p-3 rounded-xl bg-blue-500/5 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 text-xs font-normal text-slate-800 dark:text-blue-100 leading-relaxed">
           Execute este exercício e passe imediatamente para o próximo exercício pareado sem descanso. Ao finalizar a rodada completa, execute a pausa inter-séries.
-        </p>
+        </div>
       </div>
     );
   }
 
   if (method === "gvt") {
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#262408]/90 border border-yellow-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-yellow-500/10 dark:bg-yellow-950/25 border border-yellow-300/40 dark:border-yellow-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-yellow-500/25 text-yellow-300 border border-yellow-500/40 flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-yellow-500/15 text-yellow-900 dark:text-yellow-300 border border-yellow-400/30 flex items-center gap-1.5">
             <span>🇩🇪</span>
             <span>GERMAN VOLUME TRAINING (GVT 10x10)</span>
           </span>
-          <span className="text-[10px] font-bold text-yellow-300/80">
+          <span className="text-xs font-bold text-yellow-900/80 dark:text-yellow-200/80 bg-yellow-500/10 border border-yellow-300/30 px-2.5 py-0.5 rounded-lg">
             10 Séries x 10 Reps @ 60% 1RM • Pausa Estrita: 60s
           </span>
         </div>
-        <p className="text-[10px] text-yellow-200/80 italic">
+        <div className="p-3 rounded-xl bg-yellow-500/5 dark:bg-yellow-950/20 border border-yellow-200/50 dark:border-yellow-800/30 text-xs font-normal text-slate-800 dark:text-yellow-100 leading-relaxed">
           Mantenha rigorosamente os 60 segundos de intervalo entre cada uma das 10 séries. O foco é a densidade metabólica e a sobrecarga de volume.
-        </p>
+        </div>
       </div>
     );
   }
@@ -318,43 +336,43 @@ const SpecialMethodInteractiveGuide: FC<{
   if (method === "myo_reps") {
     const intraRest = exercise.intraSetRest ?? 10;
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#082622]/90 border border-teal-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-teal-500/10 dark:bg-teal-950/25 border border-teal-300/40 dark:border-teal-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-teal-500/25 text-teal-300 border border-teal-500/40 flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-teal-500/15 text-teal-900 dark:text-teal-300 border border-teal-400/30 flex items-center gap-1.5">
             <span>🧬</span>
             <span>MÉTODO MYO-REPS</span>
           </span>
           <button
             type="button"
             onClick={() => onStartTimer(intraRest, `🧬 Respirações Myo-Reps (${intraRest}s)`)}
-            className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-teal-600 hover:bg-teal-500 text-white flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-teal-600/90 hover:bg-teal-600 text-white flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
           >
-            <Timer className="w-3.5 h-3.5 animate-pulse" />
+            <Timer className="w-3.5 h-3.5" />
             <span>Pausa Respiratória ({intraRest}s)</span>
           </button>
         </div>
-        <p className="text-[10px] text-teal-200/80 italic">
+        <div className="p-3 rounded-xl bg-teal-500/5 dark:bg-teal-950/20 border border-teal-200/50 dark:border-teal-800/30 text-xs font-normal text-slate-800 dark:text-teal-100 leading-relaxed">
           Série de ativação (12-15 reps até 1-2 RIR) ➔ Pausa de 5 respirações profundas (10s) ➔ 4 a 5 mini-séries de 3-5 reps.
-        </p>
+        </div>
       </div>
     );
   }
 
   if (method === "wave_loading") {
     return (
-      <div className="mt-3 p-3.5 rounded-2xl bg-[#1b0826]/90 border border-violet-500/30 text-xs space-y-2.5 shadow-lg">
+      <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-violet-500/10 dark:bg-violet-950/25 border border-violet-300/40 dark:border-violet-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-violet-500/25 text-violet-300 border border-violet-500/40 flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-violet-500/15 text-violet-900 dark:text-violet-300 border border-violet-400/30 flex items-center gap-1.5">
             <span>🌊</span>
             <span>MÉTODO WAVE LOADING (ONDULATÓRIA)</span>
           </span>
-          <span className="text-[10px] font-bold text-violet-300/80">
+          <span className="text-xs font-bold text-violet-900/80 dark:text-violet-200/80 bg-violet-500/10 border border-violet-300/30 px-2.5 py-0.5 rounded-lg">
             Pausa Inter-Séries: {exercise.rest || "3min"}
           </span>
         </div>
-        <p className="text-[10px] text-violet-200/80 italic">
+        <div className="p-3 rounded-xl bg-violet-500/5 dark:bg-violet-950/20 border border-violet-200/50 dark:border-violet-800/30 text-xs font-normal text-slate-800 dark:text-violet-100 leading-relaxed">
           Onda 1: 3-2-1 reps @ 85-90-95% ➔ Onda 2: 3-2-1 reps @ 87-92-97%. A cada onda, a facilitação neuromuscular eleva a capacidade de carga.
-        </p>
+        </div>
       </div>
     );
   }
@@ -1934,20 +1952,20 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 <React.Fragment key={ex.id || exIdx}>
                   {/* Banner do Bloco de Contraste Francês (Complex Training) */}
                   {isFirstInComplex && (
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-cyan-950/40 via-slate-900 to-indigo-950/40 border border-cyan-500/30 shadow-md">
+                    <div className="p-4 rounded-2xl bg-cyan-500/10 dark:bg-cyan-950/25 border border-cyan-300/40 dark:border-cyan-800/40 shadow-xs">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">🇫🇷</span>
                           <div>
-                            <h4 className="text-xs sm:text-sm font-black text-cyan-300 uppercase tracking-wider">
+                            <h4 className="text-xs sm:text-sm font-black text-cyan-900 dark:text-cyan-300 uppercase tracking-wider">
                               BLOCO DE CONTRASTE FRANCÊS (COMPLEX TRAINING)
                             </h4>
-                            <p className="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5">
+                            <p className="text-[10px] sm:text-xs text-slate-700 dark:text-slate-300 font-medium mt-0.5">
                               Execução em circuito: Realize <strong>1 série de cada estágio sequencialmente</strong> (1A ➔ 20s ➔ 1B ➔ 20s ➔ 1C ➔ 20s ➔ 1D ➔ {ex.blockRest || "3:30 min"} descanso) antes de iniciar a Série 2.
                             </p>
                           </div>
                         </div>
-                        <span className="text-[9.5px] font-black uppercase text-amber-400 bg-amber-500/15 border border-amber-500/30 px-3 py-1 rounded-xl shrink-0 self-start sm:self-auto">
+                        <span className="text-[9.5px] font-black uppercase text-amber-800 dark:text-amber-300 bg-amber-500/15 border border-amber-400/30 px-3 py-1 rounded-xl shrink-0 self-start sm:self-auto">
                           ⚡ {ex.intraSetRest ?? 20}s Transição • {ex.blockRest || "3:30 min"} Pós-Round
                         </span>
                       </div>
@@ -2000,24 +2018,24 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
                       {ex.executionMethod === "complex_contrast" && (
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
+                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-xs ${
                             (ex.blockTag || "").endsWith("A")
-                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                              ? "bg-cyan-500/15 text-cyan-900 dark:text-cyan-300 border-cyan-400/30"
                               : (ex.blockTag || "").endsWith("B")
-                              ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                              ? "bg-indigo-500/15 text-indigo-900 dark:text-indigo-300 border-indigo-400/30"
                               : (ex.blockTag || "").endsWith("C")
-                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                              ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-400/30"
+                              : "bg-emerald-500/15 text-emerald-900 dark:text-emerald-300 border-emerald-400/30"
                           }`}>
                             <span>🇫🇷</span>
                             <span>ESTÁGIO {ex.blockTag || "1A"}</span>
                           </span>
                           {ex.blockRole && (
-                            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl">
+                            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-xl">
                               {ex.blockRole}
                             </span>
                           )}
-                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-400/30 px-2.5 py-1 rounded-xl flex items-center gap-1">
                             <span>⚡ Transição: {ex.intraSetRest ?? 20}s</span>
                             {ex.blockRest && <span>• Round: {ex.blockRest}</span>}
                           </span>
@@ -2025,7 +2043,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       )}
 
                       {ex.notes && (
-                        <p className="text-xs text-slate-400 font-medium mt-2 bg-slate-950/60 p-2.5 rounded-xl border border-slate-900/80 italic">
+                        <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-2.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs italic leading-relaxed">
                           💡 {ex.notes}
                         </p>
                       )}
@@ -2318,24 +2336,24 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     return (
                       <div className="w-full space-y-2.5 mt-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-sm ${
+                          <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-xs ${
                             (activeEx.blockTag || "").endsWith("A")
-                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+                              ? "bg-cyan-500/15 text-cyan-900 dark:text-cyan-300 border-cyan-400/30"
                               : (activeEx.blockTag || "").endsWith("B")
-                              ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                              ? "bg-indigo-500/15 text-indigo-900 dark:text-indigo-300 border-indigo-400/30"
                               : (activeEx.blockTag || "").endsWith("C")
-                              ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
-                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                              ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-400/30"
+                              : "bg-emerald-500/15 text-emerald-900 dark:text-emerald-300 border-emerald-400/30"
                           }`}>
                             <span>🇫🇷</span>
                             <span>COMPLEXO FRANCÊS: {activeEx.blockTag || "1A"}</span>
                           </span>
                           {activeEx.blockRole && (
-                            <span className="text-[10px] font-bold text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1 rounded-xl">
+                            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-xl">
                               {activeEx.blockRole}
                             </span>
                           )}
-                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl flex items-center gap-1">
+                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-400/30 px-3 py-1 rounded-xl flex items-center gap-1">
                             <span>⚡ Transição: {activeEx.intraSetRest ?? 20}s</span>
                             {activeEx.blockRest && <span>• Descanso Pós-Round: {activeEx.blockRest}</span>}
                           </span>
@@ -2388,7 +2406,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   })()}
 
                   {activeEx.notes && (
-                    <p className="text-xs text-slate-400 font-semibold mt-2.5 bg-slate-950/40 p-2.5 rounded-lg border border-slate-900 italic">
+                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-2.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs italic leading-relaxed">
                       💡 {activeEx.notes}
                     </p>
                   )}
