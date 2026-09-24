@@ -1268,14 +1268,12 @@ const EliteHubApp: FC<{
       setSelectedId(athlete.id);
       setActiveTab("training");
       setTrainingSubTab("planned");
-      setModalState({
-        type: "workout",
-        editingData: {
-          lbPrescriptionDraft: draft,
-        },
-      });
-      safeLocalStorage.removeItem("lb_prescription_draft");
-      toast.success(`Decisão LB carregada para ${athlete.name}.`);
+      // Wait one render so selected athlete/training workspace are mounted before opening editor.
+      window.setTimeout(() => {
+        setModalState({ type: "workout", editingData: { lbPrescriptionDraft: draft } });
+        safeLocalStorage.removeItem("lb_prescription_draft");
+        toast.success(`Decisão LB carregada para ${athlete.name}.`);
+      }, 0);
     } catch (error) {
       console.error("Falha ao carregar rascunho LB:", error);
       safeLocalStorage.removeItem("lb_prescription_draft");
