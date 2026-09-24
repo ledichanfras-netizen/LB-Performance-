@@ -424,33 +424,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     window.addEventListener("custom-library-synced", handleStorageChange);
     // Listen to custom local events if available, or just standard intervals
     const interval = setInterval(handleStorageChange, 2000);
-    return (
-    <>
-      {lbPrescriptionDraft && (
-        <div className="mx-auto mb-4 max-w-7xl rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-left">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Carregado da Decisão LB • {lbPrescriptionDraft.doseMode === "MICRO" ? "Microdose" : "Dose principal"}</p>
-              <h3 className="mt-1 font-black">{lbPrescriptionDraft.capacity} — {lbPrescriptionDraft.objective}</h3>
-            </div>
-            <span className="rounded-full border border-emerald-500/30 px-3 py-1 text-[10px] font-black text-emerald-500">EDITÁVEL</span>
-          </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
-            <div><span className="font-black">Método:</span> {lbPrescriptionDraft.method}</div>
-            <div><span className="font-black">Dose:</span> {lbPrescriptionDraft.dose}</div>
-            <div><span className="font-black">Reavaliar:</span> {lbPrescriptionDraft.reassessment}</div>
-          </div>
-          <p className="mt-3 text-[11px] opacity-70">Use esta orientação para escolher os exercícios abaixo. Nada é adicionado automaticamente: você mantém o controle final da ficha e da carga.</p>
-          {lbSuggestedExercises.length > 0 && <div className="mt-4 border-t border-emerald-500/20 pt-4">
-            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Exercícios sugeridos pela prioridade • escolha livre</p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{lbSuggestedExercises.map((ex:any)=><button key={ex.id} type="button" onClick={()=>addExFromLib(ex)} className="rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-left hover:border-emerald-500/60 transition">
-              <p className="text-xs font-black">{ex.name}</p><p className="mt-1 text-[9px] opacity-60">{ex.physicalQuality || ex.category || "Biblioteca LB"}</p><p className="mt-2 text-[9px] font-black text-emerald-500">+ ADICIONAR</p>
-            </button>)}</div>
-            <p className="mt-2 text-[10px] opacity-60">O filtro considera a capacidade-alvo e, quando disponível, a modalidade. Em microdose, priorize poucos exercícios e volume mínimo efetivo.</p>
-          </div>}
-        </div>
-      )}
-) => {
+    return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("custom-library-synced", handleStorageChange);
       clearInterval(interval);
