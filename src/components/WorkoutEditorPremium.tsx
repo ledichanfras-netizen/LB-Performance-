@@ -1776,6 +1776,24 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   };
 
   return (
+    <>
+      {lbPrescriptionDraft && (
+        <div className="mx-auto mb-4 max-w-7xl rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-left text-slate-100">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Carregado da Decisão LB • {lbPrescriptionDraft.doseMode === "MICRO" ? "Microdose" : "Dose principal"}</p>
+              <h3 className="mt-1 font-black">{lbPrescriptionDraft.capacity} — {lbPrescriptionDraft.objective}</h3>
+            </div>
+            <span className="rounded-full border border-emerald-500/30 px-3 py-1 text-[10px] font-black text-emerald-500">EDITÁVEL</span>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs">
+            <div><span className="font-black">Método:</span> {lbPrescriptionDraft.method}</div>
+            <div><span className="font-black">Dose:</span> {lbPrescriptionDraft.dose}</div>
+            <div><span className="font-black">Reavaliar:</span> {lbPrescriptionDraft.reassessment}</div>
+          </div>
+          <p className="mt-3 text-[11px] opacity-70">A Decisão LB foi carregada. Escolha os exercícios no Prescritor Elite; a dose continua editável pelo treinador.</p>
+        </div>
+      )}
     <div className="w-full h-full md:max-w-[98vw] xl:max-w-[1720px] md:h-[97vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
       
       {/* MOBILE HEADER & TAB SWITCHER */}
