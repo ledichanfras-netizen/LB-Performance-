@@ -435,6 +435,16 @@ export default function LbAssessmentSession() {
   }
 
 
+  const goToPrescription = (payload?: any) => {
+    try {
+      if (payload) localStorage.setItem("lb_prescription_draft", JSON.stringify(payload));
+      window.location.assign("/hub");
+    } catch (error) {
+      console.error("Falha ao abrir prescrição LB:", error);
+      navigate("/hub");
+    }
+  };
+
   if (activeSession) {
     const testLabel = (code: string) => TESTS.find(t => t.code === code)?.label || code;
 
@@ -507,14 +517,14 @@ export default function LbAssessmentSession() {
                 <div className="flex items-start justify-between gap-3"><div><p className="text-[9px] uppercase font-black text-emerald-400">Bloco {index+1} • {item.prescription.capacity}</p><h4 className="font-black mt-1">{item.prescription.objective}</h4></div><span className="text-[9px] font-black px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300">{item.decision.level}</span></div>
                 <div className="mt-4"><p className="text-[9px] uppercase font-black text-slate-500 mb-2">Quanto desta prioridade entra no microciclo?</p><div className="flex flex-wrap gap-2">{(["MAIN","MICRO","MONITOR","DEFER","NONE"] as const).map(mode=><button key={mode} type="button" onClick={()=>setDosePlan(prev=>({...prev,[item.session.id]:mode}))} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition ${item.doseMode===mode?"border-emerald-400 bg-emerald-500/15 text-emerald-300":"border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500"}`}>{doseLabel(mode)}</button>)}</div></div>
                 <div className="grid md:grid-cols-2 gap-3 mt-4 text-xs"><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Método</p><p className="mt-1 text-slate-200">{item.prescription.method}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Dose inicial</p><p className="mt-1 text-slate-200">{item.prescription.dose}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Critério de qualidade</p><p className="mt-1 text-slate-200">{item.prescription.quality}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Progressão / reavaliação</p><p className="mt-1 text-slate-200">{item.prescription.progression} {item.prescription.reassessment}</p></div></div>
-                {(item.doseMode==="MAIN" || item.doseMode==="MICRO") && <button type="button" onClick={()=>{ const payload={ athleteId:selectedAthleteId, sessionGroupId, testType:item.session.test_type, doseMode:item.doseMode, capacity:item.prescription.capacity, objective:item.prescription.objective, method:item.prescription.method, dose:item.prescription.dose, quality:item.prescription.quality, progression:item.prescription.progression, reassessment:item.prescription.reassessment, createdAt:new Date().toISOString() }; localStorage.setItem("lb_prescription_draft",JSON.stringify(payload)); navigate("/hub"); }} className="mt-4 w-full rounded-xl bg-emerald-500 text-slate-950 py-3 text-xs font-black uppercase tracking-wider hover:bg-emerald-400">Carregar na prescrição • {doseLabel(item.doseMode)}</button>}
+                {(item.doseMode==="MAIN" || item.doseMode==="MICRO") && <button type="button" onClick={()=>{ const payload={ athleteId:selectedAthleteId, sessionGroupId, testType:item.session.test_type, doseMode:item.doseMode, capacity:item.prescription.capacity, objective:item.prescription.objective, method:item.prescription.method, dose:item.prescription.dose, quality:item.prescription.quality, progression:item.prescription.progression, reassessment:item.prescription.reassessment, createdAt:new Date().toISOString() }; goToPrescription(payload); }} className="mt-4 w-full rounded-xl bg-emerald-500 text-slate-950 py-3 text-xs font-black uppercase tracking-wider hover:bg-emerald-400">Carregar na prescrição • {doseLabel(item.doseMode)}</button>}
               </div>)}</div>
             </section>}
 
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Decisão LB automática</p>
               <h3 className="text-xl font-black mt-2">{interpretationAlerts.length ? "Atenção antes de prescrever" : "Bateria liberada para decisão de treino"}</h3>
-              <p className="text-sm text-slate-400 mt-2">Qualidade, comparabilidade, coerência e limitações continuam protegidas pelo Método LB, mas deixam de ser etapas obrigatórias. Use a análise técnica apenas quando quiser aprofundar ou quando o sistema sinalizar atenção.</p><button onClick={() => navigate("/hub")} className="mt-5 px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest">Continuar para prescrição</button>
+              <p className="text-sm text-slate-400 mt-2">Qualidade, comparabilidade, coerência e limitações continuam protegidas pelo Método LB, mas deixam de ser etapas obrigatórias. Use a análise técnica apenas quando quiser aprofundar ou quando o sistema sinalizar atenção.</p><button onClick={() => goToPrescription()} className="mt-5 px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest">Continuar para prescrição</button>
             </section>
           </main>
         </div>
