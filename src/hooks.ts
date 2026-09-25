@@ -1105,6 +1105,7 @@ export const useAthletes = (token?: string | null) => {
       periodizationEnd?: string;
       academyDays?: number[];
       courtDays?: number[];
+      progressionMethod?: "auto" | "linear" | "undulating" | "accumulation" | "deload" | "tapering" | "block_atr";
     }
   ): Promise<void> => {
     const toastId = toast.loading("IA Co-Pilot elaborando periodização...");
@@ -1272,9 +1273,36 @@ export const useAthletes = (token?: string | null) => {
         `- "${ex.name}" | Categoria: ${ex.category} | Valência: ${ex.physicalQuality || ex.muscleGroup || ''}`
       ).join('\n');
 
+      const selectedProgression = options?.progressionMethod || "auto";
+      let progressionInstruction = "";
+      switch (selectedProgression) {
+        case "linear":
+          progressionInstruction = "📈 MODELO SELECIONADO: PROGRESSÃO LINEAR ACUMULATIVA. A cada semana do ciclo, eleve progressivamente a sobrecarga/intensidade e diminua as repetições (ex: Sem 1: 10-12 reps @ RPE 7; Sem 2: 8-10 reps @ RPE 8; Sem 3: 6-8 reps @ RPE 8.5; Sem 4: 4-6 reps @ RPE 9).";
+          break;
+        case "undulating":
+          progressionInstruction = "🌊 MODELO SELECIONADO: PERIODIZAÇÃO ONDULATÓRIA DIÁRIA (DUP). Alterne os estímulos fisiológicos a cada treino da mesma semana: Dia 1 = Força Máxima / Neural (4x4-5 reps @ RPE 8.5); Dia 2 = Hipertrofia / Volume (3-4x10-12 reps @ RPE 7.5); Dia 3 = Potência / RFD Explosivo (5x3 reps @ 100% intenção).";
+          break;
+        case "accumulation":
+          progressionInstruction = "🧱 MODELO SELECIONADO: BLOCO DE ACUMULAÇÃO / VOLUME. Priorize alto volume de trabalho e densidade muscular estrutural (+1 a +2 séries por exercício ao longo do ciclo), mantendo cargas submáximas (RPE 7 a 8.5) e intervalos controlados.";
+          break;
+        case "deload":
+          progressionInstruction = "🍃 MODELO SELECIONADO: SEMANA DE DELOAD / REGENERATIVA. Reduza o volume total em ~35% a 40% (menos séries por exercício) e as cargas/intensidade em ~25% (RPE 5.5 a 6.5) para dissipar fadiga residual do sistema nervoso central e articulações.";
+          break;
+        case "tapering":
+          progressionInstruction = "🏆 MODELO SELECIONADO: POLIMENTO COMPETITIVO (TAPERING). Reduza o volume em 40-50%, mas mantenha ou eleve ligeiramente a intensidade neural (RPE 8.5 a 9.5 com pausas longas e séries curtas/explosivas) para atingir o pico de prontidão e supercompensação.";
+          break;
+        case "block_atr":
+          progressionInstruction = "🔄 MODELO SELECIONADO: PERIODIZAÇÃO EM BLOCOS (ATR). Estruture o ciclo em fases sequenciais concentradas: Fase 1 (Acumulação - força de base/capacidade de trabalho), Fase 2 (Transmutação - força específica/potência/RFD), Fase 3 (Realização - prontidão competitiva/máxima velocidade).";
+          break;
+        case "auto":
+        default:
+          progressionInstruction = "⚡ MODELO SELECIONADO: INTELIGENTE AUTOMÁTICO (IA). Analise os testes do atleta (CMJ, RSI, Força Dinamométrica, VO2), a modalidade e a duração do ciclo. Escolha estrategicamente o modelo ideal (DUP para atletas com jogos semanais, Acumulação para déficit de base, ou Tapering/Bloco para ciclos pré-competitivos) e aplique a progressão de cargas/reps coerente.";
+          break;
+      }
+
       const prompt = `
         Você é o IA CO-PILOT DE PERIODIZAÇÃO ESPORTIVA DE ALTO RENDIMENTO.
-        Sua missão é analisar minuciosamente os dias da semana de treino do atleta, o período configurado, a descrição/diretrizes do treinador e os dados fisiológicos/antropométricos para elaborar a periodização completa nas datas e dias corretos para ${context.name}.
+        Sua missão é analisar minuciosamente os dias da semana de treino do atleta, o período configurado, a descrição/diretrizes do treinador, o modelo de progressão selecionado e os dados fisiológicos/antropométricos para elaborar a periodização completa nas datas e dias corretos para ${context.name}.
         
         PERFIL DO ATLETA:
         - Nome: ${context.name}
@@ -1288,6 +1316,9 @@ export const useAthletes = (token?: string | null) => {
         - Período: De ${startStr} até ${endStr}
         - Dias de Academia (Fortalecimento / Musculação / Potência): ${academyDaysNames}
         - Dias de Campo / Quadra (Técnico / Tático / Agilidade): ${courtDaysNames}
+        
+        MODELO DE PROGRESSÃO DE CARGA & VOLUME INTEGRADO:
+        ${progressionInstruction}
         
         DIRETRIZES ESTRATÉGICAS / DESCRIÇÃO DO TREINADOR:
         "${coachInstructions || 'Desenvolver a melhor forma física e atlética do atleta, respeitando os dias e focos de treinamento.'}"
@@ -1307,9 +1338,10 @@ export const useAthletes = (token?: string | null) => {
 
         REGRAS RIGOROSAS DA PERIODIZAÇÃO (IA CO-PILOT):
         1. Para cada item do cronograma acima, gere um objeto de treino com a 'date' correspondente exata (formato YYYY-MM-DD).
-        2. Incorpore integralmente a DESCRIÇÃO DO TREINADOR nas escolhas metodológicas, séries, repetições e seleção de exercícios.
-        3. Diferencie as fases: Inicie com Preparação Geral (base estrutural), evolua para Preparação Específica (potência e gesto esportivo de ${context.modality}) e finalize com Polimento / Tapering (alta prontidão).
-        4. Em dias de ACADEMIA, foque em musculação, fortalecimento, RFD e força. Em dias de CAMPO/QUADRA, foque em velocidade, mudança de direção, agilidade e fundamentos do esporte.
+        2. Aplique com rigor o MODELO DE PROGRESSÃO configurado, fazendo com que séries, repetições, intensidades (RPE/PSE) e cargas evoluam de forma coesa da primeira à última sessão.
+        3. Incorpore integralmente a DESCRIÇÃO DO TREINADOR nas escolhas metodológicas e seleção de exercícios.
+        4. Diferencie as fases: Inicie com Preparação Geral (base estrutural), evolua para Preparação Específica (potência e gesto esportivo de ${context.modality}) e finalize com Polimento / Tapering (alta prontidão).
+        5. Em dias de ACADEMIA, foque em musculação, fortalecimento, RFD e força. Em dias de CAMPO/QUADRA, foque em velocidade, mudança de direção, agilidade e fundamentos do esporte.
 
         FORMATO DE SAÍDA:
         Retorne APENAS um array JSON de objetos de treino para as datas do cronograma fornecido.

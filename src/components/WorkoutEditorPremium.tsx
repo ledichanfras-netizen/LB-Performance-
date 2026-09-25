@@ -34,6 +34,7 @@ interface WorkoutEditorPremiumProps {
       periodizationEnd?: string;
       academyDays?: number[];
       courtDays?: number[];
+      progressionMethod?: "auto" | "linear" | "undulating" | "accumulation" | "deload" | "tapering" | "block_atr";
     }
   ) => Promise<void>;
 }
@@ -322,7 +323,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [sidebarTab, setSidebarTab] = useState<"library" | "ai" | "progression" | "deficit">("library");
+  const [sidebarTab, setSidebarTab] = useState<"library" | "ai" | "deficit">("library");
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
   
   // Advanced Filters State
@@ -405,6 +406,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [localPeriodizationEnd, setLocalPeriodizationEnd] = useState<string>(athlete?.periodizationEnd || "");
   const [localAcademyDays, setLocalAcademyDays] = useState<number[]>(Array.isArray(athlete?.academyDays) ? athlete.academyDays : [1, 3, 5]);
   const [localCourtDays, setLocalCourtDays] = useState<number[]>(Array.isArray(athlete?.courtDays) ? athlete.courtDays : [2, 4]);
+  const [aiProgressionMethod, setAiProgressionMethod] = useState<"auto" | "linear" | "undulating" | "accumulation" | "deload" | "tapering" | "block_atr">("auto");
 
   useEffect(() => {
     if (athlete) {
@@ -414,9 +416,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       if (Array.isArray(athlete.courtDays)) setLocalCourtDays(athlete.courtDays);
     }
   }, [athlete?.id, athlete?.periodizationStart, athlete?.periodizationEnd, athlete?.academyDays, athlete?.courtDays]);
-
-  // Progression Studio States
-  const [progressionMethod, setProgressionMethod] = useState<"linear" | "undulating" | "accumulation" | "deload" | "tapering">("linear");
 
   // Custom Exercises saved from AI or user customization to the library
   const [customLibraryExercises, setCustomLibraryExercises] = useState<EnrichedExercise[]>(() => {
@@ -1887,7 +1886,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         periodizationStart: localPeriodizationStart,
         periodizationEnd: localPeriodizationEnd,
         academyDays: localAcademyDays,
-        courtDays: localCourtDays
+        courtDays: localCourtDays,
+        progressionMethod: aiProgressionMethod
       });
       setIaInstructions(""); // Clear after successful generation
     } catch (error) {
@@ -2034,76 +2034,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     toast.success(`Injetados ${newExercises.length} exercícios científicos na planilha!`);
   };
 
-  // Progression Studio Application Logic
-  const applyProgressionSystem = () => {
-    if ((edited.exercises || []).length === 0) {
-      toast.error("Prescreva pelo menos um exercício na planilha primeiro!");
-      return;
-    }
-
-    let logs = "";
-    const updatedExercises = edited.exercises.map(ex => {
-      let currentSets = ex.sets || 3;
-      let currentRepsVal = parseInt(ex.reps) || 8;
-      let currentWeightVal = parseFloat(ex.weight) || 0;
-      const weightUnit = ex.weight.includes("kg") ? "kg" : "BW";
-      let note = ex.notes || "";
-
-      switch (progressionMethod) {
-        case "linear":
-          // +5% load, -1 or 2 reps, maintaining sets
-          currentRepsVal = Math.max(3, currentRepsVal - 2);
-          currentWeightVal = currentWeightVal > 0 ? Math.round(currentWeightVal * 1.05) : 0;
-          note = `[PROG. LINEAR] Carga incremental +5% | Reps ajustadas de forma compensatória.`;
-          break;
-        case "undulating":
-          // Heavy set-rep scheme alternating volumes
-          currentSets = 4;
-          currentRepsVal = 6;
-          currentWeightVal = currentWeightVal > 0 ? Math.round(currentWeightVal * 1.15) : 0;
-          note = `[PROG. ONDULATÓRIA] Carga de Alta Intensidade | Ondulação de microciclo focado em RFD.`;
-          break;
-        case "accumulation":
-          // Hypertrophy and structural accumulation (+1 set, +2 reps, lighter weight)
-          currentSets = currentSets + 1;
-          currentRepsVal = currentRepsVal + 2;
-          currentWeightVal = currentWeightVal > 0 ? Math.round(currentWeightVal * 0.90) : 0;
-          note = `[PROG. ACUMULAÇÃO] Aumento de volume total (+1 Set, +2 Reps) focado em capacidade de trabalho.`;
-          break;
-        case "deload":
-          // Drop weight by 30%, reduce sets by 1
-          currentSets = Math.max(2, currentSets - 1);
-          currentWeightVal = currentWeightVal > 0 ? Math.round(currentWeightVal * 0.65) : 0;
-          note = `[PROG. DELOAD] Descarga regenerativa de fadiga ativa. Redução de 35% na intensidade.`;
-          break;
-        case "tapering":
-          // Peak intensity, drop volume by 50%
-          currentSets = 2;
-          currentRepsVal = Math.max(2, Math.round(currentRepsVal * 0.6));
-          currentWeightVal = currentWeightVal > 0 ? Math.round(currentWeightVal * 1.10) : 0;
-          note = `[PROG. TAPERING] Polimento Competitivo. Volume reduzido em 50% | Intensidade Neural Máxima (+10% Carga).`;
-          break;
-      }
-
-      const formattedWeight = currentWeightVal > 0 ? `${currentWeightVal}${weightUnit === "kg" ? "kg" : ""}` : "BW";
-
-      return {
-        ...ex,
-        sets: currentSets,
-        reps: currentRepsVal.toString(),
-        weight: formattedWeight,
-        notes: note
-      };
-    });
-
-    setEdited(prev => ({
-      ...prev,
-      exercises: updatedExercises.map((ex, i) => ({ ...ex, order_index: i }))
-    }));
-
-    toast.success(`Progressão [${progressionMethod.toUpperCase()}] aplicada com sucesso a toda a planilha!`);
-  };
-
   // Close filter drawer on ESC key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2198,19 +2128,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             }`}
           >
             🧠 IA Co-Pilot
-          </button>
-          <button
-            onClick={() => {
-              setSidebarTab("progression");
-              setIsFilterDrawerOpen(false);
-            }}
-            className={`flex-1 py-2 px-1 text-[8px] md:text-[9px] font-black uppercase tracking-wider rounded-lg transition-all shrink-0 ${
-              sidebarTab === "progression"
-                ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            ⚙️ Progressão
           </button>
           <button
             onClick={() => {
@@ -2737,7 +2654,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           <div className="flex-1 flex flex-col min-h-0 space-y-4">
             
             {/* IA CO-PILOT - PERIODIZATION & TRAINING DAYS */}
-            {athlete && updateAthlete && (
+            {athlete && updateAthlete ? (
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3 shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-[#39FF14]">
@@ -2875,6 +2792,27 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   </div>
                 </div>
 
+                {/* Progression Model Selector */}
+                <div>
+                  <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1 flex items-center justify-between">
+                    <span>📈 Modelo de Progressão de Cargas & Volume</span>
+                    <span className="text-[7px] text-[#39FF14] font-bold">Científico</span>
+                  </label>
+                  <select
+                    value={aiProgressionMethod}
+                    onChange={(e) => setAiProgressionMethod(e.target.value as any)}
+                    className="w-full bg-[#161b26] text-[9px] font-bold text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14] outline-none cursor-pointer"
+                  >
+                    <option value="auto">⚡ Automático (IA Seleciona pelo Perfil & Testes)</option>
+                    <option value="linear">📈 Progressão Linear Acumulativa (Carga ↑, Reps ↓)</option>
+                    <option value="undulating">🌊 Ondulatória Diária / DUP (Força, Potência, Hipertrofia)</option>
+                    <option value="accumulation">🧱 Bloco de Acumulação (+Séries & Densidade Muscular)</option>
+                    <option value="block_atr">🔄 Periodização em Blocos ATR (Acumulação ➔ Transmutação ➔ Realização)</option>
+                    <option value="tapering">🏆 Polimento Competitivo / Tapering (Pico Neural, Volume ↓)</option>
+                    <option value="deload">🍃 Semana de Deload / Regenerativa (-35% Carga & Volume)</option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1">
                     📝 Descrição & Diretrizes da Periodização
@@ -2906,227 +2844,15 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   )}
                 </button>
               </div>
-            )}
-            
-            {/* AI CONFIGURATION FORM */}
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3.5 shrink-0">
-              <div className="flex items-center gap-2 text-[#39FF14]">
-                <Brain className="w-4.5 h-4.5 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-wider">CONFIGURADOR INTELIGENTE IA</span>
-              </div>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide leading-relaxed">
-                A IA analisa a idade, modalidade e as avaliações ativas de <span className="text-white font-black">{athleteName}</span> (como CMJ, RSI de {athleteGoal}) para montar o melhor microciclo.
-              </p>
-
-              <div className="space-y-3">
-                {/* Modality & Goal Customizers */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Esporte Alvo</label>
-                    <input 
-                      type="text"
-                      value={aiFocusModality}
-                      onChange={(e) => setAiFocusModality(e.target.value)}
-                      className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Foco Principal</label>
-                    <input 
-                      type="text"
-                      value={aiFocusGoal}
-                      onChange={(e) => setAiFocusGoal(e.target.value)}
-                      className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Faixa Etária</label>
-                    <select
-                      value={aiAgeRange}
-                      onChange={(e) => setAiAgeRange(e.target.value)}
-                      className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-300 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
-                    >
-                      <option value="Sub-15">Sub-15</option>
-                      <option value="Sub-17">Sub-17</option>
-                      <option value="Sub-20">Sub-20</option>
-                      <option value="Profissional">Profissional</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[7.5px] font-black text-slate-500 uppercase block mb-1">Equipamentos</label>
-                    <select
-                      value={aiEquipmentSet}
-                      onChange={(e) => setAiEquipmentSet(e.target.value)}
-                      className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-300 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
-                    >
-                      <option value="Completo">Academia Completa</option>
-                      <option value="Halteres">Halteres & Elásticos</option>
-                      <option value="Livre">Apenas Peso Corporal</option>
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  onClick={startAiPrescription}
-                  disabled={aiLoading}
-                  className="w-full bg-[#39FF14] hover:bg-[#32e00f] disabled:bg-slate-850 text-slate-950 font-black text-[10px] py-3 rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-xl shadow-[#39FF14]/10 cursor-pointer"
-                >
-                  {aiLoading ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      PROCESSANDO DADOS ATLETA...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 stroke-[3]" />
-                      GERAR PRESCRIÇÃO AUTOMÁTICA
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* AI THOUGHT PROCESS CONSOLE */}
-            {aiThoughts.length > 0 && (
-              <div className="bg-[#05080e] border border-slate-900 rounded-xl p-4 space-y-1 font-mono text-[8px] leading-relaxed max-h-[140px] overflow-y-auto no-scrollbar">
-                {aiThoughts.map((thought, i) => (
-                  <div key={i} className="text-[#39FF14]/90 animate-fade-in">
-                    {thought}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* AI SUGGESTED BLOCKS CARDS */}
-            {aiSuggestedExercises.length > 0 && (
-              <div className="flex-1 flex flex-col min-h-0 space-y-3">
-                <div className="flex items-center justify-between shrink-0">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    SUGESTÃO GERADA ({aiSuggestedExercises.length} EXERCÍCIOS)
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={saveAllAiSuggestedExercises}
-                      className="text-[9px] font-black text-blue-400 hover:underline uppercase tracking-wider flex items-center gap-1 cursor-pointer"
-                      title="Salvar todos no acervo permanente da Biblioteca"
-                    >
-                      <Save className="w-3 h-3 stroke-[3]" />
-                      Salvar na Biblioteca 📚
-                    </button>
-                    <button
-                      onClick={injectAiSuggestedExercises}
-                      className="text-[9px] font-black text-[#39FF14] hover:underline uppercase tracking-wider flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3 stroke-[3]" />
-                      Injetar Tudo
-                    </button>
-                  </div>
-                </div>
- 
-                <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
-                  {aiSuggestedExercises.map((sug, i) => (
-                    <div 
-                      key={sug.id}
-                      className="p-3 bg-[#111622] border border-slate-900 rounded-xl relative group"
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <div>
-                          <span className="text-[11px] font-black text-slate-100">{sug.name}</span>
-                          <p className="text-[7.5px] text-[#39FF14] font-black uppercase tracking-wider mt-0.5">{sug.physicalQuality}</p>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <button
-                            onClick={() => saveExerciseToLibrary(sug)}
-                            className="w-5 h-5 bg-blue-500/10 hover:bg-blue-500/25 text-blue-400 rounded-md border border-blue-500/20 flex items-center justify-center transition-all cursor-pointer"
-                            title="Salvar no acervo permanente da Biblioteca 💾"
-                          >
-                            <Bookmark className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={() => addExFromLib(sug)}
-                            className="w-5 h-5 bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] rounded-md border border-[#39FF14]/20 flex items-center justify-center transition-all cursor-pointer"
-                            title="Adicionar ao Treino Ativo ➕"
-                          >
-                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-slate-400 font-bold leading-normal mt-1.5">{sug.physiologicalGoal}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* IF EMPTY AI VIEW */}
-            {aiSuggestedExercises.length === 0 && !aiLoading && (
-              <div className="flex-1 flex flex-col items-center justify-center py-10 text-center text-slate-500 select-none">
-                <Brain className="w-8 h-8 text-slate-800 mb-2 animate-pulse" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Sem Prescrição Ativa</span>
-                <span className="text-[8px] text-slate-600 font-bold uppercase mt-1 leading-normal max-w-[240px]">
-                  Clique no botão acima para rodar o motor de IA e gerar uma planilha estruturada para o atleta
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center py-10 text-center text-slate-500 select-none bg-slate-950 p-6 rounded-xl border border-slate-900">
+                <Brain className="w-8 h-8 text-slate-800 mb-2" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Atleta Não Vinculado</span>
+                <span className="text-[8.5px] text-slate-600 mt-1 max-w-[240px]">
+                  Selecione um atleta para configurar as datas e gerar a periodização esportiva completa com a IA Co-Pilot.
                 </span>
               </div>
             )}
-
-          </div>
-        )}
-
-        {/* TAB CONTENT: AUTOMATIC PROGRESSION STUDIO */}
-        {sidebarTab === "progression" && (
-          <div className="flex-1 flex flex-col min-h-0 space-y-4">
-            
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-3.5 shrink-0">
-              <div className="flex items-center gap-2 text-[#39FF14]">
-                <Sliders className="w-4.5 h-4.5" />
-                <span className="text-[10px] font-black uppercase tracking-wider">ESTÚDIO DE AUTOMOÇÃO DE CICLOS</span>
-              </div>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wide leading-relaxed">
-                Selecione o esquema de progressão desejável. O estúdio ajustará automaticamente as repetições, as cargas e a descrição de todos os exercícios na planilha de forma científica.
-              </p>
-
-              <div className="space-y-2">
-                {[
-                  { id: "linear", title: "Progressão Linear Acumulativa", desc: "Aumento progressivo de carga (+5%) e diminuição compensatória de reps.", color: "text-blue-400" },
-                  { id: "undulating", title: "Periodização Ondulatória Diária", desc: "Varie o volume e a intensidade diariamente para evitar adaptação precoce.", color: "text-amber-400" },
-                  { id: "accumulation", title: "Bloco de Acumulação / Hipertrofia", desc: "Aumento de séries totais (+1 Set, +2 Reps) com cargas submáximas.", color: "text-emerald-400" },
-                  { id: "deload", title: "Semana de Deload / Regenerativa", desc: "Redução de 35% nas cargas e remoção de 1 série por exercício para dissipar fadiga.", color: "text-purple-400" },
-                  { id: "tapering", title: "Polimento Competitivo (Tapering)", desc: "Queda drástica de 50% no volume e pico de intensidade neural (+10% Carga) para prontidão máxima.", color: "text-[#39FF14]" }
-                ].map(item => (
-                  <label 
-                    key={item.id}
-                    onClick={() => setProgressionMethod(item.id as any)}
-                    className={`p-3 rounded-lg border flex flex-col cursor-pointer transition-all ${
-                      progressionMethod === item.id 
-                        ? "bg-[#111622] border-[#39FF14]/30" 
-                        : "bg-slate-900/30 border-slate-850 hover:bg-slate-900/60"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <input 
-                        type="radio" 
-                        checked={progressionMethod === item.id} 
-                        onChange={() => {}}
-                        className="accent-[#39FF14]"
-                      />
-                      <span className={`text-[10px] font-black uppercase tracking-wider ${item.color}`}>{item.title}</span>
-                    </div>
-                    <p className="text-[8.5px] text-slate-400 font-bold uppercase mt-1 leading-normal ml-5">{item.desc}</p>
-                  </label>
-                ))}
-              </div>
-
-              <button
-                onClick={applyProgressionSystem}
-                className="w-full bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] py-3 rounded-lg transition-all flex items-center justify-center gap-2 uppercase tracking-widest shadow-xl shadow-[#39FF14]/10 cursor-pointer"
-              >
-                <RefreshCw className="w-3.5 h-3.5 stroke-[3]" />
-                APLICAR SISTEMA DE PROGRESSÃO
-              </button>
-            </div>
 
           </div>
         )}
@@ -3576,6 +3302,27 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   })}
                 </div>
               </div>
+            </div>
+
+            {/* Progression Model Selector */}
+            <div className="space-y-1">
+              <label className="text-[7.5px] font-black text-slate-400 uppercase block flex items-center justify-between">
+                <span>📈 Modelo de Progressão de Cargas & Volume</span>
+                <span className="text-[7px] text-[#39FF14] font-bold">Científico</span>
+              </label>
+              <select
+                value={aiProgressionMethod}
+                onChange={(e) => setAiProgressionMethod(e.target.value as any)}
+                className="w-full bg-[#161b26] text-[9px] font-bold text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14] outline-none cursor-pointer"
+              >
+                <option value="auto">⚡ Automático (IA Seleciona pelo Perfil & Testes)</option>
+                <option value="linear">📈 Progressão Linear Acumulativa (Carga ↑, Reps ↓)</option>
+                <option value="undulating">🌊 Ondulatória Diária / DUP (Força, Potência, Hipertrofia)</option>
+                <option value="accumulation">🧱 Bloco de Acumulação (+Séries & Densidade Muscular)</option>
+                <option value="block_atr">🔄 Periodização em Blocos ATR (Acumulação ➔ Transmutação ➔ Realização)</option>
+                <option value="tapering">🏆 Polimento Competitivo / Tapering (Pico Neural, Volume ↓)</option>
+                <option value="deload">🍃 Semana de Deload / Regenerativa (-35% Carga & Volume)</option>
+              </select>
             </div>
 
             {/* Coach description / strategic directions */}
