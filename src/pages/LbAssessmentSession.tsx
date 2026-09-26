@@ -437,8 +437,14 @@ export default function LbAssessmentSession() {
 
   const goToPrescription = (payload?: any) => {
     try {
-      if (payload) localStorage.setItem("lb_prescription_draft", JSON.stringify(payload));
-      window.location.assign("/hub");
+      // Route-based handoff: avoids localStorage/PWA timing issues.
+      // Payload is carried in the URL so the Hub can open the editor deterministically.
+      if (payload) {
+        const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(payload)))));
+        window.location.assign(`/hub/prescricao-lb?draft=${encoded}`);
+        return;
+      }
+      window.location.assign("/hub?tab=training");
     } catch (error) {
       console.error("Falha ao abrir prescrição LB:", error);
       navigate("/hub");
