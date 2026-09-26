@@ -1251,6 +1251,37 @@ const EliteHubApp: FC<{
   }, [athletes, selectedId, user]);
 
   useEffect(() => {
+    if (loading || !user || user?.role === "athlete") return;
+    const params = new URLSearchParams(window.location.search);
+    const encoded = params.get("draft");
+    if (!window.location.pathname.startsWith("/hub/prescricao-lb") || !encoded) return;
+    try {
+      const draft = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(encoded)))));
+      if (!draft?.athleteId || !["MAIN", "MICRO"].includes(draft?.doseMode)) {
+        toast.error("Prescrição LB inválida.");
+        return;
+      }
+      const athlete = athletes.find((a) => String(a.id) === String(draft.athleteId));
+      if (!athlete) {
+        toast.error("Atleta da Decisão LB não encontrado.");
+        return;
+      }
+      setSelectedId(athlete.id);
+      setActiveTab("training");
+      setTrainingSubTab("planned");
+      window.setTimeout(() => {
+        setModalState({ type: "workout", editingData: { lbPrescriptionDraft: draft } });
+        // Remove the payload after consuming it, without remounting the app.
+        window.history.replaceState({}, "", "/hub/prescricao-lb");
+        toast.success(`Prescrição LB aberta para ${athlete.name}.`);
+      }, 50);
+    } catch (error) {
+      console.error("Falha ao abrir rota de prescrição LB:", error);
+      toast.error("Não foi possível abrir a Prescrição LB.");
+    }
+  }, [loading, athletes, user?.role]);
+
+  useEffect(() => {
     // Any professional/non-athlete account that can access Método LB must be able
     // to receive the prescription handoff. Do not hard-code only the "coach" role.
     if (loading || !user || user?.role === "athlete") return;
