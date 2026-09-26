@@ -1251,7 +1251,9 @@ const EliteHubApp: FC<{
   }, [athletes, selectedId, user]);
 
   useEffect(() => {
-    if (loading || user?.role !== "coach") return;
+    // Any professional/non-athlete account that can access Método LB must be able
+    // to receive the prescription handoff. Do not hard-code only the "coach" role.
+    if (loading || !user || user?.role === "athlete") return;
     const raw = safeLocalStorage.getItem("lb_prescription_draft");
     if (!raw) return;
     try {
