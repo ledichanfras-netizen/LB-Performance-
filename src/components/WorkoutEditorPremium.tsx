@@ -1791,6 +1791,17 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             <div><span className="font-black">Dose:</span> {lbPrescriptionDraft.dose}</div>
             <div><span className="font-black">Reavaliar:</span> {lbPrescriptionDraft.reassessment}</div>
           </div>
+          {Array.isArray(lbPrescriptionDraft.blocks) && lbPrescriptionDraft.blocks.length > 1 && (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {lbPrescriptionDraft.blocks.map((block:any,index:number)=>(
+                <div key={index} className="rounded-xl border border-emerald-500/20 bg-slate-950/50 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500">{block.doseMode === "MICRO" ? "Microdose" : "Dose principal"} • {block.capacity}</p>
+                  <p className="mt-1 text-xs font-bold">{block.objective}</p>
+                  <p className="mt-1 text-[10px] opacity-60">{block.dose}</p>
+                </div>
+              ))}
+            </div>
+          )}
           <p className="mt-3 text-[11px] opacity-70">A Decisão LB foi carregada. Escolha os exercícios no Prescritor Elite; a dose continua editável pelo treinador.</p>
         </div>
       )}
