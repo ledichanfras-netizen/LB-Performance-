@@ -469,12 +469,36 @@ export default function LbAssessmentSession() {
               athleteModality={athlete?.modality}
               athleteName={athlete?.name}
               onCancel={() => setLbPrescriptionDraft(null)}
-              onSave={(updated:any) => {
+              onSave={async (updated:any) => {
+                const user = readStoredUser();
+                if (!user?.token) { setLoadError("Sessão expirada. Faça login novamente."); return; }
                 try {
-                  localStorage.setItem("lb_workout_ready_to_save", JSON.stringify({ athleteId, workout: updated }));
-                  setSaveMessage("Prescrição LB montada. Retorne ao Hub para salvar no histórico do atleta.");
-                } catch {}
-                setLbPrescriptionDraft(null);
+                  setSaving(true);
+                  const read = await fetch("/api/ler", { cache: "no-store", headers: { Authorization: `Bearer ${user.token}` } });
+                  if (!read.ok) throw new Error(`Falha ao carregar atleta (HTTP ${read.status})`);
+                  const data = await read.json();
+                  const fullAthletes = Array.isArray(data) ? data : Array.isArray(data?.athletes) ? data.athletes : [];
+                  const workout = {
+                    ...updated,
+                    id: updated.id || `wk-lb-${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+                    exercises: (updated.exercises || []).map((ex:any,idx:number)=>({...ex,order_index:idx}))
+                  };
+                  const next = fullAthletes.map((a:any) => String(a.id) === String(athleteId)
+                    ? { ...a, workouts: [workout, ...(Array.isArray(a.workouts) ? a.workouts : [])] }
+                    : a);
+                  const save = await fetch("/api/salvar", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${user.token}` },
+                    body: JSON.stringify(next)
+                  });
+                  if (!save.ok) throw new Error(`Falha ao salvar prescrição (HTTP ${save.status})`);
+                  setSaveMessage("Prescrição LB salva no histórico do atleta.");
+                  setLbPrescriptionDraft(null);
+                } catch (error:any) {
+                  setLoadError(error?.message || "Não foi possível salvar a Prescrição LB.");
+                } finally {
+                  setSaving(false);
+                }
               }}
             />
           </div>
