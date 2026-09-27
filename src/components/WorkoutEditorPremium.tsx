@@ -860,6 +860,70 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     return [...combinedLibrary].map(ex=>({ex,score:score(ex)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,5).map(x=>x.ex);
   }, [lbPrescriptionDraft, combinedLibrary, athleteModality]);
 
+  const scoreLbExerciseForBlock = (ex: EnrichedExercise, block: any) => {
+    const capacity = String(block?.capacity || "").toLowerCase();
+    const modality = String(athleteModality || "").toLowerCase();
+    const tokens = capacity.includes("reativ") || capacity.includes("cae") ? ["pliometr", "drop", "salto", "pogo", "stiffness"]
+      : capacity.includes("potência") ? ["potência", "salto", "jump", "balíst", "arremesso", "lpo"]
+      : capacity.includes("veloc") ? ["sprint", "acelera", "velocidade", "tiro", "agilidade"]
+      : capacity.includes("assimetr") || capacity.includes("unilateral") ? ["unilateral", "búlgar", "split", "step", "isométr", "single"]
+      : capacity.includes("tdf") || capacity.includes("rápid") ? ["explos", "balíst", "isométr", "jump", "salto", "lpo"]
+      : capacity.includes("força") || capacity.includes("impulso") ? ["agach", "terra", "deadlift", "isométr", "leg press", "força"]
+      : capacity.includes("aerób") ? ["corrida", "interval", "tempo", "bike", "erg"]
+      : [];
+    const hay = [ex.name, ex.category, ex.subcategory, ex.physicalQuality, ex.muscleGroup, ex.equipment, ...(ex.tags || []), ...(ex.sports || [])].filter(Boolean).join(" ").toLowerCase();
+    let score = tokens.reduce((acc,t)=>acc+(hay.includes(t)?3:0),0);
+    if (modality && hay.includes(modality)) score += 3;
+    if (block?.doseMode === "MICRO" && /complex|cluster|rest.?pause/.test(hay)) score -= 3;
+    return score;
+  };
+
+  const generateLbPrescription = () => {
+    if (!lbPrescriptionDraft) return;
+    const blocks = Array.isArray(lbPrescriptionDraft.blocks) && lbPrescriptionDraft.blocks.length
+      ? lbPrescriptionDraft.blocks
+      : [lbPrescriptionDraft];
+    const selected: Array<{ ex: EnrichedExercise; block: any }> = [];
+    const used = new Set<string>();
+    blocks.forEach((block:any) => {
+      if (!["MAIN","MICRO"].includes(block.doseMode)) return;
+      const limit = block.doseMode === "MAIN" ? 3 : 1;
+      const ranked = combinedLibrary
+        .map(ex => ({ ex, score: scoreLbExerciseForBlock(ex, block) }))
+        .filter(x => x.score > 0 && !used.has(x.ex.id))
+        .sort((a,b)=>b.score-a.score)
+        .slice(0, limit);
+      ranked.forEach(x => { used.add(x.ex.id); selected.push({ ex:x.ex, block }); });
+    });
+    if (!selected.length) {
+      toast.error("Não encontrei exercícios compatíveis suficientes na biblioteca.");
+      return;
+    }
+    const generated = selected.map(({ex,block},index) => {
+      const isMicro = block.doseMode === "MICRO";
+      const cap = String(block.capacity || "").toLowerCase();
+      const repsType: 'reps' | 'time' = ex.defaultRepsType || "reps";
+      let sets = isMicro ? 2 : (ex.defaultSets || 3);
+      let reps = isMicro ? (repsType === "time" ? "10-20s" : "2-5") : (ex.defaultReps || "4-6");
+      let weight = ex.defaultWeight || "RPE 7-8";
+      let rest = ex.recommendedRest || (isMicro ? "90-120s" : "2-3min");
+      if (/tdf|rápid|potência|reativ/.test(cap)) { weight = "Qualidade máxima"; rest = isMicro ? "90-180s" : "2-4min"; reps = "2-5"; }
+      if (/força|impulso/.test(cap) && !/rápid/.test(cap)) { weight = "RPE 7-9"; reps = isMicro ? "2-5" : "3-6"; rest = "2-4min"; }
+      if (/veloc/.test(cap)) { sets = isMicro ? 2 : 4; reps = "1-3 ações"; weight = "Máxima qualidade"; rest = "2-4min"; }
+      if (/aerób/.test(cap)) { sets = 1; reps = isMicro ? "5-10min" : "10-20min"; weight = "Zona-alvo"; rest = "—"; }
+      return {
+        id: `ex-lb-auto-${Date.now()}-${index}`, name: ex.name, muscleGroup: ex.muscleGroup,
+        sets, reps, weight, repsType, rest,
+        notes: `${isMicro ? "MICRODOSE" : "DOSE PRINCIPAL"} LB • ${block.capacity} • ${block.objective} • Ajustável pelo treinador.`,
+        videoUrl: ex.videoUrl || "", imageUrl: ex.imageUrl || "", executionMethod: "standard" as AdvancedExecutionMethod,
+        order_index: index
+      } as PrescribedExercise;
+    });
+    setEdited(prev => ({ ...prev, exercises: generated }));
+    setActiveMobileTab("workout");
+    toast.success(`Prescrição LB gerada: ${generated.length} exercícios. Revise e ajuste antes de salvar.`);
+  };
+
   // TROCAR EXERCÍCIO EXISTENTE POR OUTRO DA BIBLIOTECA (PRESERVANDO ESTRUTURA, BLOCO E ESTÁGIO)
   const swapExerciseWithLibrary = (currentExId: string, libEx: EnrichedExercise) => {
     const current = edited.exercises || [];
@@ -1802,7 +1866,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               ))}
             </div>
           )}
-          <p className="mt-3 text-[11px] opacity-70">A Decisão LB foi carregada. Escolha os exercícios no Prescritor Elite; a dose continua editável pelo treinador.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={generateLbPrescription} className="rounded-xl bg-emerald-500 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-950 hover:bg-emerald-400">⚡ Gerar Prescrição LB em 1 clique</button>
+            <span className="self-center text-[10px] opacity-60">Gera uma versão inicial editável com Dose Principal + Microdoses.</span>
+          </div>
+          <p className="mt-3 text-[11px] opacity-70">A Decisão LB foi carregada. O Método LB pode montar a primeira versão automaticamente; exercícios, séries, repetições, intensidade e intervalos continuam editáveis pelo treinador.</p>
         </div>
       )}
     <div className="w-full h-full md:max-w-[98vw] xl:max-w-[1720px] md:h-[97vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
