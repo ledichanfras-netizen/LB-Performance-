@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowLeft, CheckCircle2, ClipboardCheck, Dumbbell, Gauge, HeartPulse, Plus, ShieldCheck, Timer, UserRound, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { WorkoutEditorPremium } from "../components/WorkoutEditorPremium";
 import { lbFeatureFlags } from "../metodo-lb/featureFlags";
 
 type AthleteOption = { id: string; name: string; modality?: string };
@@ -269,6 +270,7 @@ export default function LbAssessmentSession() {
   const [loadingInterpret, setLoadingInterpret] = useState(false);
   const [interpretEditingId, setInterpretEditingId] = useState<string | null>(null);
   const [interpretForm, setInterpretForm] = useState({ comparator: "", noiseReference: "", contextText: "", convergence: "", confidence: "MODERATE", mainLimitation: "", missingData: "", conclusion: "" });
+  const [lbPrescriptionDraft, setLbPrescriptionDraft] = useState<any | null>(null);
   const [savedInterpretationIds, setSavedInterpretationIds] = useState<string[]>([]);
   const [savingInterpretation, setSavingInterpretation] = useState(false);
 
@@ -436,23 +438,49 @@ export default function LbAssessmentSession() {
 
 
   const goToPrescription = (payload?: any) => {
-    try {
-      // Route-based handoff: avoids localStorage/PWA timing issues.
-      // Payload is carried in the URL so the Hub can open the editor deterministically.
-      if (payload) {
-        const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(payload)))));
-        window.location.assign(`/hub/prescricao-lb?draft=${encoded}`);
-        return;
-      }
-      window.location.assign("/hub?tab=training");
-    } catch (error) {
-      console.error("Falha ao abrir prescrição LB:", error);
-      navigate("/hub");
+    if (!payload) {
+      setLoadError("Selecione Dose principal ou Microdose antes de abrir o prescritor.");
+      return;
     }
+    // Open inside Sessão LB. This avoids route/PWA/dashboard handoff entirely.
+    setLbPrescriptionDraft(payload);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (activeSession) {
     const testLabel = (code: string) => TESTS.find(t => t.code === code)?.label || code;
+
+    if (lbPrescriptionDraft) {
+      const athlete = athletes.find(a => String(a.id) === String(athleteId));
+      return (
+        <div className="min-h-screen bg-slate-950 text-white p-3 md:p-8">
+          <div className="max-w-6xl mx-auto">
+            <WorkoutEditorPremium
+              workout={{
+                id: "",
+                date: new Date().toISOString().slice(0,10),
+                name: `LB • ${lbPrescriptionDraft.capacity} • ${lbPrescriptionDraft.doseMode === "MICRO" ? "Microdose" : "Dose principal"}`,
+                phase: "Preparação Geral",
+                status: "planned",
+                exercises: [],
+                lbPrescriptionDraft
+              } as any}
+              athlete={athlete}
+              athleteModality={athlete?.modality}
+              athleteName={athlete?.name}
+              onCancel={() => setLbPrescriptionDraft(null)}
+              onSave={(updated:any) => {
+                try {
+                  localStorage.setItem("lb_workout_ready_to_save", JSON.stringify({ athleteId, workout: updated }));
+                  setSaveMessage("Prescrição LB montada. Retorne ao Hub para salvar no histórico do atleta.");
+                } catch {}
+                setLbPrescriptionDraft(null);
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
 
     if (interpretMode) {
       const decisions = interpretSessions.map((session:any) => ({ session, decision: buildAutoDecision(session) }));
