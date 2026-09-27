@@ -438,13 +438,16 @@ export default function LbAssessmentSession() {
 
 
   const goToPrescription = (payload?: any) => {
-    if (!payload) {
-      setLoadError("Selecione Dose principal ou Microdose antes de abrir o prescritor.");
+    if (!payload?.blocks?.length) {
+      setLoadError("Selecione pelo menos uma Dose principal ou Microdose antes de abrir o prescritor.");
       return;
     }
-    // Open inside Sessão LB. This avoids route/PWA/dashboard handoff entirely.
-    setLbPrescriptionDraft(payload);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setLoadError("");
+    setSaveMessage(`Abrindo Prescritor LB com ${payload.blocks.length} bloco(s) selecionado(s)...`);
+    // Leave Decision view explicitly and open the editor from the same session.
+    setLbPrescriptionDraft({ ...payload, openedFromDecision: true });
+    setInterpretMode(false);
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
   };
 
   if (activeSession) {
