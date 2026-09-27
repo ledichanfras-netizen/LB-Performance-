@@ -4,6 +4,7 @@ import { POTENCIA_EXERCISES } from "./exercises_potencia";
 import { CORE_EXERCISES } from "./exercises_core";
 import { AGILITY_SPEED_EXERCISES } from "./exercises_agility_speed";
 import { PREVENTIVE_EXERCISES } from "./exercises_preventive";
+import { LB_METHOD_EXERCISES } from "./exercises_lb_method";
 
 export interface EnrichedExercise {
   id: string;
@@ -1116,7 +1117,8 @@ const ALL_RAW_EXERCISES: EnrichedExercise[] = [
   ...POTENCIA_EXERCISES,
   ...CORE_EXERCISES,
   ...AGILITY_SPEED_EXERCISES,
-  ...PREVENTIVE_EXERCISES
+  ...PREVENTIVE_EXERCISES,
+  ...LB_METHOD_EXERCISES
 ];
 
 const seenNames = new Set<string>();
