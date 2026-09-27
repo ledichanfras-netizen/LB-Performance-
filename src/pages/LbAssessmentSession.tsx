@@ -458,8 +458,16 @@ export default function LbAssessmentSession() {
       const decisions = interpretSessions.map((session:any) => ({ session, decision: buildAutoDecision(session) }));
       const rank: Record<AutoDecision["level"], number> = { CRITICA: 4, ALTA: 3, MEDIA: 2, NORMAL: 1 };
       const topPriorities = decisions.filter(x => x.decision.level !== "NORMAL").sort((a,b)=>rank[b.decision.level]-rank[a.decision.level]).slice(0,3);
-      const prescriptionSuggestions = topPriorities.map((x, index) => {
-        const mode = dosePlan[x.session.id] || (index === 0 ? "MAIN" : "MICRO");
+      // Every assessed capacity receives a dose conduct. Only actionable findings
+      // become MAIN/MICRO by default; NORMAL findings remain MONITOR to avoid
+      // turning every test result into extra training load.
+      const orderedDecisions = [...decisions].sort((a,b)=>rank[b.decision.level]-rank[a.decision.level]);
+      const actionableIds = new Set(topPriorities.map((x:any)=>x.session.id));
+      const prescriptionSuggestions = orderedDecisions.map((x, index) => {
+        const actionableIndex = topPriorities.findIndex((p:any)=>p.session.id===x.session.id);
+        const defaultMode: "MAIN" | "MICRO" | "MONITOR" =
+          actionableIds.has(x.session.id) ? (actionableIndex === 0 ? "MAIN" : "MICRO") : "MONITOR";
+        const mode = dosePlan[x.session.id] || defaultMode;
         return { ...x, doseMode: mode, prescription: adaptDose(buildPrescriptionSuggestion(x.session, x.decision), mode) };
       });
       return (
@@ -517,8 +525,8 @@ export default function LbAssessmentSession() {
             </section>
             {prescriptionSuggestions.length > 0 && <section className="rounded-3xl border border-emerald-500/30 bg-slate-900 p-6">
               <p className="text-[10px] font-black uppercase tracking-[0.25em] text-emerald-400">Prescrição orientada pela decisão</p>
-              <h3 className="text-xl font-black mt-2">Plano sugerido para as prioridades detectadas</h3>
-              <p className="text-xs text-slate-400 mt-2">Sugestões iniciais do Método LB. O treinador continua responsável por ajustar exercícios, carga e calendário ao contexto do atleta.</p>
+              <h3 className="text-xl font-black mt-2">Conduta de dose para todas as capacidades avaliadas</h3>
+              <p className="text-xs text-slate-400 mt-2">Cada avaliação recebe uma conduta. Achados prioritários entram como Dose principal/Microdose; achados sem gatilho relevante ficam em Monitorar por padrão, evitando carga adicional desnecessária. O treinador pode alterar a conduta.</p>
               <div className="mt-5 space-y-3">{prescriptionSuggestions.map((item:any,index:number)=><div key={item.session.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
                 <div className="flex items-start justify-between gap-3"><div><p className="text-[9px] uppercase font-black text-emerald-400">Bloco {index+1} • {item.prescription.capacity}</p><h4 className="font-black mt-1">{item.prescription.objective}</h4></div><span className="text-[9px] font-black px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300">{item.decision.level}</span></div>
                 <div className="mt-4"><p className="text-[9px] uppercase font-black text-slate-500 mb-2">Quanto desta prioridade entra no microciclo?</p><div className="flex flex-wrap gap-2">{(["MAIN","MICRO","MONITOR","DEFER","NONE"] as const).map(mode=><button key={mode} type="button" onClick={()=>setDosePlan(prev=>({...prev,[item.session.id]:mode}))} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition ${item.doseMode===mode?"border-emerald-400 bg-emerald-500/15 text-emerald-300":"border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500"}`}>{doseLabel(mode)}</button>)}</div></div>
