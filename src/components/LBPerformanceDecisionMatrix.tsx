@@ -200,13 +200,10 @@ export const LBPerformanceDecisionMatrix: React.FC<LBPerformanceDecisionMatrixPr
               Ecossistema LB • Tomada de Decisão Baseada em Evidências
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              LB Performance Decision Matrix
+              Matriz de Decisão LB
             </h2>
             <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
-              Ponte direta entre biomarcadores laboratoriais e intervenções
-              práticas no campo. Conecte achados de IMTP, CMJ, Drop Jump,
-              Velocidade e Cargas às hipóteses fisiológicas, prioridades clínicas
-              e transferências diretas para a modalidade.
+              Cérebro central do Método LB: integra avaliações, contexto e monitoramento para definir prioridade de intervenção e orientar Dose Principal, Microdose ou Monitoramento antes da prescrição.
             </p>
           </div>
 
