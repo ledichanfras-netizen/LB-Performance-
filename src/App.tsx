@@ -2698,7 +2698,8 @@ const EliteHubApp: FC<{
                                             {ath.readinessDisplay}
                                           </span>
                                         ) : (
-                                          <span className="text-blue-400 font-black">
+                                          <span className="text-[#39FF14] font-black bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-[#39FF14]/30 shadow-[0_0_12px_rgba(57,255,20,0.25)] drop-shadow-[0_0_8px_rgba(57,255,20,0.5)] inline-flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-[#39FF14] animate-pulse shadow-[0_0_6px_#39FF14]" />
                                             {ath.readinessDisplay}
                                           </span>
                                         )}
@@ -4053,12 +4054,12 @@ const EliteHubApp: FC<{
                                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
                                       Score de Prontidão
                                     </p>
-                                    <p className="text-3xl font-black text-emerald-600 italic">
+                                    <p className="text-3xl font-black text-[#39FF14] drop-shadow-[0_0_10px_rgba(57,255,20,0.5)] italic">
                                       {data.readinessScore || 0}%
                                     </p>
-                                    <div className="w-full bg-slate-200 h-1 rounded-full mt-2 overflow-hidden">
+                                    <div className="w-full bg-slate-200 dark:bg-slate-900 h-1.5 rounded-full mt-2 overflow-hidden">
                                       <div
-                                        className="bg-emerald-500 h-full rounded-full"
+                                        className="bg-gradient-to-r from-emerald-500 to-[#39FF14] shadow-[0_0_10px_#39FF14] h-full rounded-full animate-pulse"
                                         style={{
                                           width: `${data.readinessScore || 0}%`,
                                         }}
@@ -6306,18 +6307,32 @@ const DashboardView: FC<{
             return (
               <div 
                 onClick={() => onAddWellness?.()}
-                className={`p-6 sm:p-7 rounded-[2.2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.005] ${theme.cardClasses}`}
+                className={`p-6 sm:p-7 rounded-[2.2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.005] relative overflow-hidden group ${theme.cardClasses}`}
               >
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                {/* Ambient pulsating neon green glow background */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#39FF14]/15 rounded-full blur-[70px] pointer-events-none animate-pulse -translate-y-1/2 translate-x-1/3" />
+                <div className="absolute bottom-0 left-0 w-52 h-52 bg-emerald-500/10 rounded-full blur-[60px] pointer-events-none -translate-x-1/3 translate-y-1/3" />
+
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
                   <div className="flex items-start gap-4 sm:gap-5 flex-1">
-                    <div className={`w-14 sm:w-16 h-14 sm:h-16 rounded-2xl flex items-center justify-center border shrink-0 ${theme.iconBgClasses}`}>
+                    <div className={`w-14 sm:w-16 h-14 sm:h-16 rounded-2xl flex items-center justify-center border shrink-0 relative ${theme.iconBgClasses}`}>
                       <Activity className="w-7 sm:w-8 h-7 sm:h-8" />
+                      <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#39FF14] opacity-80" />
+                        <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#39FF14] shadow-[0_0_8px_#39FF14]" />
+                      </span>
                     </div>
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${theme.subtextColor}`}>
-                          CONTROLE DE PRONTIDÃO DIÁRIA
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#39FF14] opacity-80" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#39FF14]" />
+                          </span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-[#39FF14] drop-shadow-[0_0_8px_rgba(57,255,20,0.5)]">
+                            CONTROLE DE PRONTIDÃO DIÁRIA
+                          </span>
+                        </div>
                         <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md border ${theme.statusBadgeClasses}`}>
                           {hasWellnessToday ? "Check-in de Hoje" : latestWellness ? "Último Registro" : "Pendente"}
                         </span>
@@ -6340,7 +6355,7 @@ const DashboardView: FC<{
 
                   <div className="flex items-center gap-4 shrink-0 w-full md:w-auto justify-between md:justify-end">
                     <div className="text-right">
-                      <span className={`text-[9px] font-black uppercase tracking-widest block ${theme.subtextColor}`}>Score</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest block text-slate-400">Score de Prontidão</span>
                       <span className={`text-4xl sm:text-5xl font-black font-mono tracking-tighter ${theme.scoreColor}`}>
                         {activeScore !== null ? `${activeScore}%` : "--"}
                       </span>
@@ -6359,7 +6374,7 @@ const DashboardView: FC<{
                 </div>
 
                 {/* ORIENTAÇÃO DE TREINO AO TREINADOR */}
-                <div className={`mt-5 p-4 rounded-2xl border ${theme.insightBoxClasses} text-left backdrop-blur-sm`}>
+                <div className={`mt-5 p-4 rounded-2xl border ${theme.insightBoxClasses} text-left backdrop-blur-sm relative z-10`}>
                   <div className={`flex items-center gap-2 mb-1.5 pb-1 ${theme.dividerColor}`}>
                     <ShieldAlert className={`w-4 h-4 ${theme.insightTitleClasses} shrink-0`} />
                     <span className={`text-[10px] font-black uppercase tracking-widest ${theme.insightTitleClasses}`}>
@@ -6483,7 +6498,10 @@ const DashboardView: FC<{
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-white block">Prontidão: {w.readinessScore || 0}%</span>
+                        <span className="text-xs font-black text-[#39FF14] drop-shadow-[0_0_8px_rgba(57,255,20,0.5)] flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[#39FF14] animate-pulse shadow-[0_0_8px_#39FF14]" />
+                          Prontidão: {w.readinessScore || 0}%
+                        </span>
                         {w.sleepStartTime && w.wakeUpTime && (
                           <span className="text-[10px] font-bold text-slate-400 bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-800">
                             🌙 {w.sleepStartTime} ➔ {w.wakeUpTime} ({w.sleepHoursFormatted || w.sleep + 'h'})
@@ -6759,8 +6777,8 @@ const DashboardView: FC<{
                     <span className="text-[10px] font-extrabold text-white flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Carga Crônica
                     </span>
-                    <span className="text-[10px] font-extrabold text-white flex items-center gap-1.5 animate-pulse">
-                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" /> Prontidão (%)
+                    <span className="text-[10px] font-extrabold text-[#39FF14] flex items-center gap-1.5 animate-pulse drop-shadow-[0_0_8px_rgba(57,255,20,0.5)]">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#39FF14] shadow-[0_0_8px_#39FF14] inline-block" /> Prontidão (%)
                     </span>
                   </div>
                 </div>
@@ -6815,7 +6833,7 @@ const DashboardView: FC<{
                       <YAxis 
                         yAxisId="right"
                         orientation="right"
-                        stroke="#f43f5e" 
+                        stroke="#10b981" 
                         fontSize={9} 
                         tickLine={false} 
                         axisLine={false}
@@ -6838,7 +6856,7 @@ const DashboardView: FC<{
                                     } else if (p.dataKey === "Carga Crônica" || p.name === "Carga Crônica") {
                                       itemColor = "#f59e0b";
                                     } else if (p.dataKey === "Prontidão" || p.name === "Prontidão" || p.name === "Prontidão (%)") {
-                                      itemColor = "#f43f5e";
+                                      itemColor = "#39FF14";
                                     }
                                     const isProntidao = p.dataKey === "Prontidão" || p.name === "Prontidão (%)";
                                     return (
@@ -6874,7 +6892,7 @@ const DashboardView: FC<{
                       />
                       <Area yAxisId="left" type="monotone" dataKey="Carga Aguda" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#acuteGrad)" />
                       <Line yAxisId="left" type="monotone" dataKey="Carga Crônica" stroke="#f59e0b" strokeWidth={2.5} strokeDasharray="5 5" dot={false} />
-                      <Line yAxisId="right" type="monotone" dataKey="Prontidão" stroke="#f43f5e" strokeWidth={2.5} dot={{ r: 3.5, stroke: '#ffffff', strokeWidth: 1.5 }} name="Prontidão (%)" connectNulls />
+                      <Line yAxisId="right" type="monotone" dataKey="Prontidão" stroke="#39FF14" strokeWidth={3} dot={{ r: 4, stroke: '#39FF14', strokeWidth: 2, fill: '#0c111d' }} activeDot={{ r: 6, stroke: '#39FF14', strokeWidth: 3, fill: '#ffffff' }} name="Prontidão (%)" connectNulls />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -6896,10 +6914,10 @@ const DashboardView: FC<{
               <div className="bg-[#080d16] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between shadow-2xl space-y-6">
                 <div>
                   <h4 className="text-xs font-black uppercase text-white tracking-widest flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-amber-500" />
+                    <Brain className="w-4 h-4 text-[#39FF14] animate-pulse drop-shadow-[0_0_8px_rgba(57,255,20,0.6)]" />
                     PRONTIDÃO & SINTOMAS (CHECK-IN)
                   </h4>
-                  <p className="text-[9px] font-bold text-amber-500 uppercase tracking-wider mt-0.5">Composição de Bem-estar Fisiológico</p>
+                  <p className="text-[9px] font-bold text-[#39FF14] uppercase tracking-wider mt-0.5 drop-shadow-[0_0_6px_rgba(57,255,20,0.4)]">Composição de Bem-estar Fisiológico</p>
                 </div>
 
                 <div className="relative flex items-center justify-center py-2 h-44">
@@ -6910,18 +6928,18 @@ const DashboardView: FC<{
                         cx="72" 
                         cy="72" 
                         r="56" 
-                        stroke="#f59e0b" 
+                        stroke="#39FF14" 
                         strokeWidth="12" 
                         fill="transparent" 
                         strokeDasharray="351" 
                         strokeDashoffset={351 - (351 * activeReadiness) / 100} 
-                        className="transition-all duration-1000"
+                        className="transition-all duration-1000 drop-shadow-[0_0_12px_rgba(57,255,20,0.7)]"
                       />
                     )}
                   </svg>
                   <div className="absolute flex flex-col items-center">
-                    <span className="text-2xl font-black text-white font-mono">{hasRealWellnessData ? `${activeReadiness}/100` : "--"}</span>
-                    <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest mt-1">
+                    <span className="text-2xl font-black text-[#39FF14] font-mono drop-shadow-[0_0_10px_rgba(57,255,20,0.5)]">{hasRealWellnessData ? `${activeReadiness}/100` : "--"}</span>
+                    <span className="text-[8px] font-black text-[#39FF14] uppercase tracking-widest mt-1 drop-shadow-[0_0_6px_rgba(57,255,20,0.5)] animate-pulse">
                       {hasRealWellnessData ? (activeReadiness >= 80 ? "EXCELENTE" : activeReadiness >= 50 ? "BOM" : "ATENÇÃO") : "SEM DADOS"}
                     </span>
                   </div>
@@ -6950,7 +6968,7 @@ const DashboardView: FC<{
                         <span className="text-white font-mono font-bold">{hasRealWellnessData ? `${s.val}%` : "--"}</span>
                       </div>
                       <div className="w-full bg-[#111726] rounded-full h-1.5 border border-slate-900 overflow-hidden">
-                        <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${hasRealWellnessData ? s.val : 0}%` }} />
+                        <div className="bg-gradient-to-r from-emerald-500 to-[#39FF14] h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(57,255,20,0.3)]" style={{ width: `${hasRealWellnessData ? s.val : 0}%` }} />
                       </div>
                     </div>
                   ))}

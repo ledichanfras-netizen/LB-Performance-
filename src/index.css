@@ -387,6 +387,146 @@ body.light-theme [class*="from-[#2a1b02]"] {
   border-color: #f59e0b !important;
 }
 
+/* =========================================================================
+   CONTROLE DE PRONTIDÃO DIÁRIA - TEMA VERDE APP COM BRILHO PULSANTE
+   (ALTA VISIBILIDADE EM MODO CLARO E MODO ESCURO)
+   ========================================================================= */
+
+@keyframes readiness-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(57, 255, 20, 0.25), 0 0 50px rgba(57, 255, 20, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 45px rgba(57, 255, 20, 0.5), 0 0 75px rgba(57, 255, 20, 0.25);
+  }
+}
+
+@keyframes readiness-glow-pulse-light {
+  0%, 100% {
+    box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.25), 0 0 20px rgba(16, 185, 129, 0.15);
+  }
+  50% {
+    box-shadow: 0 14px 35px -3px rgba(16, 185, 129, 0.45), 0 0 35px rgba(16, 185, 129, 0.3);
+  }
+}
+
+.readiness-card-elite,
+.readiness-card-pending {
+  animation: readiness-glow-pulse 3s infinite ease-in-out;
+}
+
+/* Light Theme Styling for Readiness Cards */
+body.light-theme .readiness-card-elite,
+body.light-theme .readiness-card-good,
+body.light-theme .readiness-card-pending {
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 50%, #f0fdf4 100%) !important;
+  border: 2px solid #10b981 !important;
+  color: #0f172a !important;
+  animation: readiness-glow-pulse-light 3s infinite ease-in-out !important;
+}
+
+body.light-theme .readiness-card-moderate {
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 50%, #fef3c7 100%) !important;
+  border: 2px solid #f59e0b !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.25) !important;
+}
+
+body.light-theme .readiness-score-text {
+  color: #047857 !important;
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.25) !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-score-text {
+  color: #b45309 !important;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
+}
+
+body.light-theme .readiness-card-critical .readiness-score-text {
+  color: #b91c1c !important;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.25) !important;
+}
+
+body.light-theme .readiness-icon-box {
+  background-color: #d1fae5 !important;
+  border-color: #10b981 !important;
+  color: #047857 !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35) !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-icon-box {
+  background-color: #fef3c7 !important;
+  border-color: #f59e0b !important;
+  color: #b45309 !important;
+}
+
+body.light-theme .readiness-insight-box {
+  background-color: #f0fdf4 !important;
+  border-color: #86efac !important;
+  color: #064e3b !important;
+  box-shadow: inset 0 1px 3px rgba(16, 185, 129, 0.08) !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-insight-box {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #78350f !important;
+}
+
+body.light-theme .readiness-insight-title {
+  color: #047857 !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-insight-title {
+  color: #b45309 !important;
+}
+
+body.light-theme .readiness-insight-text {
+  color: #065f46 !important;
+  font-weight: 600 !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-insight-text {
+  color: #92400e !important;
+  font-weight: 600 !important;
+}
+
+body.light-theme .readiness-status-badge {
+  background-color: #d1fae5 !important;
+  border-color: #34d399 !important;
+  color: #047857 !important;
+  font-weight: 900 !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-status-badge {
+  background-color: #fef3c7 !important;
+  border-color: #fbbf24 !important;
+  color: #b45309 !important;
+}
+
+body.light-theme .readiness-action-button {
+  background-color: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #059669 !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.45) !important;
+}
+
+body.light-theme .readiness-action-button:hover {
+  background-color: #059669 !important;
+}
+
+body.light-theme .readiness-card-moderate .readiness-action-button {
+  background-color: #f59e0b !important;
+  color: #ffffff !important;
+  border-color: #d97706 !important;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.45) !important;
+}
+
+body.light-theme .readiness-subtext {
+  color: #334155 !important;
+  font-weight: 700 !important;
+}
+
 /* Risco de Sobrecarga (Critical Overload) - Fundo Vermelho Claro com Alta Legibilidade em ambos os temas */
 .readiness-critical-card,
 body.light-theme .readiness-critical-card {
