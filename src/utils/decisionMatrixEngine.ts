@@ -261,7 +261,7 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
     finding: "ACWR Elevado (> 1.5 - Zona de Perigo Extremo)",
     targetBenchmark: "ACWR entre 0.8 e 1.3 (Sweet Spot)",
     context: "Pico agudo de volume/intensidade nos últimos 7 dias sem sustentação crônica prévia",
-    hypothesis: "Sobrecarga de fadiga aguda com desequilíbrio metabólico; risco relativo de lesão tecidual multiplicado por 2x a 4x",
+    hypothesis: "Sobrecarga de fadiga aguda com desequilíbrio metabólico; sinal de atenção para ajuste de carga e recuperação",
     priority: "Critica",
     intervention: "Deload Imediato de Carga: corte de 40% a 50% do volume na sessão seguinte e veto a estímulos máximos",
     practicalDetails: [
@@ -658,7 +658,7 @@ export function generateAthleteDecisionMatrix(
       metricValue: `${acwr.toFixed(2)}`,
       targetBenchmark: "0.80 a 1.30 (Sweet Spot)",
       context: "Relação Carga Aguda (7d) vs Crônica (28d)",
-      hypothesis: "Pico súbito de volume/intensidade nos últimos dias; fadiga aguda descompensada e risco de lesão multiplicado por 2x a 4x",
+      hypothesis: "Pico súbito de volume/intensidade nos últimos dias; fadiga aguda descompensada e necessidade de revisar carga e recuperação",
       priority: "Critica",
       intervention: "Deload Imediato: redução drástica de 40% a 50% no volume das próximas sessões e veto temporário a sprints máximos",
       practicalDetails: [
@@ -762,7 +762,7 @@ export function generateAthleteDecisionMatrix(
 
   let executiveSummary = "";
   if (overallStatus === "critico") {
-    executiveSummary = `Atenção Imediata: O atleta apresenta ${criticalCount} achado(s) crítico(s) com alto risco de lesão ou sobrecarga severa. Recomenda-se aplicar as intervenções prioritárias nas próximas 24 a 48 horas.`;
+    executiveSummary = `Atenção Imediata: O atleta apresenta ${criticalCount} achado(s) crítico(s) com alta prioridade de intervenção ou sobrecarga severa. Recomenda-se revisar o contexto e aplicar as intervenções prioritárias nas próximas 24 a 48 horas.`;
   } else if (overallStatus === "atencao") {
     executiveSummary = `O atleta apresenta ${highCount} pontos de intervenção com alta prioridade neuromuscular ou biomecânica. Ajustes nos blocos de treino são recomendados para destravar o potencial de transferência.`;
   } else if (overallStatus === "excelente") {
