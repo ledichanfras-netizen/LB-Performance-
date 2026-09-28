@@ -385,7 +385,7 @@ export default function LbAssessmentSession() {
       setInterpretSessions(payload.sessions || []);
       setInterpretMode(true);
     } catch (error: any) {
-      setLoadError(`Não foi possível gerar a Decisão LB: ${error?.message || "erro desconhecido"}`);
+      setLoadError(`Não foi possível gerar a Matriz de Decisão LB: ${error?.message || "erro desconhecido"}`);
     } finally { setLoadingInterpret(false); }
   };
 
@@ -530,14 +530,14 @@ export default function LbAssessmentSession() {
           <header className="border-b border-slate-800 bg-slate-950/95 sticky top-0 z-20 backdrop-blur">
             <div className="max-w-6xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
               <button onClick={() => setInterpretMode(false)} className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black uppercase tracking-widest"><ArrowLeft className="w-4 h-4"/> AVALIAR</button>
-              <div className="text-right"><p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Método LB Performance</p><h1 className="text-lg md:text-xl font-black uppercase italic">DECISÃO LB</h1></div>
+              <div className="text-right"><p className="text-[10px] text-emerald-400 font-black uppercase tracking-[0.3em]">Método LB Performance</p><h1 className="text-lg md:text-xl font-black uppercase italic">MATRIZ DE DECISÃO LB</h1></div>
             </div>
           </header>
           <main className="max-w-6xl mx-auto p-4 md:p-8 space-y-6">
             <section className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900 p-6 md:p-8">
               <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.25em]">DECIDIR • etapa 2</p>
-              <h2 className="text-2xl md:text-3xl font-black mt-2">Da avaliação para a decisão.</h2>
-              <p className="text-slate-400 mt-2 max-w-3xl">O LB processa qualidade, comparabilidade e coerência em segundo plano. O treinador vai direto ao que exige atenção; a análise técnica completa fica disponível apenas quando necessária.</p>
+              <h2 className="text-2xl md:text-3xl font-black mt-2">Da avaliação para a prioridade de intervenção.</h2>
+              <p className="text-slate-400 mt-2 max-w-3xl">A Matriz de Decisão LB cruza os achados da bateria e transforma evidência em prioridade de intervenção, conduta de dose e saída direta para a prescrição.</p>
             </section>
             {interpretationAlerts.length > 0 && <section className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5"><p className="text-[10px] font-black uppercase tracking-widest text-amber-300">Revisar antes de interpretar</p><div className="mt-3 space-y-2">{interpretationAlerts.map((a,i)=><p key={i} className="text-sm text-amber-100">• {a}</p>)}</div></section>}
             <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6">
@@ -554,7 +554,7 @@ export default function LbAssessmentSession() {
                 <div className="mt-4 space-y-2">{(session.metrics || []).map((m:any)=><div key={m.id} className="flex items-center justify-between gap-4 rounded-xl bg-slate-950 border border-slate-800 px-4 py-3"><span className="text-xs text-slate-400">{m.metricCode}</span><span className="font-black">{m.valueNumeric ?? m.valueText} <span className="text-xs text-slate-500">{m.unit || ""}</span></span></div>)}</div>
                 <div className="mt-4 pt-4 border-t border-slate-800 text-xs text-slate-500">Comparabilidade: <span className="text-white font-bold">{session.comparable_to_baseline ? "elegível" : "bloqueada"}</span></div>
                 <div className={`mt-4 rounded-2xl border p-4 ${decision.level==="CRITICA"?"border-red-500/30 bg-red-500/10":decision.level==="ALTA"?"border-amber-500/30 bg-amber-500/10":decision.level==="MEDIA"?"border-yellow-500/30 bg-yellow-500/10":"border-emerald-500/30 bg-emerald-500/10"}`}>
-                  <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-widest">Decisão LB</p><span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-slate-950/50">{decision.level}</span></div>
+                  <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-black uppercase tracking-widest">Matriz de Decisão LB</p><span className="text-[9px] font-black uppercase px-2 py-1 rounded-full bg-slate-950/50">{decision.level}</span></div>
                   <h4 className="font-black mt-2">{decision.title}</h4>
                   <p className="text-xs text-slate-300 mt-2">{decision.reason}</p>
                   <div className="mt-3 rounded-xl bg-slate-950/60 p-3"><p className="text-[9px] uppercase font-black text-emerald-400">Impacto na prescrição</p><p className="text-xs text-slate-200 mt-1">{decision.action}</p></div>
@@ -584,13 +584,13 @@ export default function LbAssessmentSession() {
               <p className="text-xs text-slate-400 mt-2">Cada avaliação recebe uma conduta. Achados prioritários entram como Dose principal/Microdose; achados sem gatilho relevante ficam em Monitorar por padrão, evitando carga adicional desnecessária. O treinador pode alterar a conduta.</p>
               <div className="mt-5 space-y-3">{prescriptionSuggestions.map((item:any,index:number)=><div key={item.session.id} className="rounded-2xl border border-slate-800 bg-slate-950 p-4">
                 <div className="flex items-start justify-between gap-3"><div><p className="text-[9px] uppercase font-black text-emerald-400">Bloco {index+1} • {item.prescription.capacity}</p><h4 className="font-black mt-1">{item.prescription.objective}</h4></div><span className="text-[9px] font-black px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-300">{item.decision.level}</span></div>
-                <div className="mt-4"><p className="text-[9px] uppercase font-black text-slate-500 mb-2">Quanto desta prioridade entra no microciclo?</p><div className="flex flex-wrap gap-2">{(["MAIN","MICRO","MONITOR","DEFER","NONE"] as const).map(mode=><button key={mode} type="button" onClick={()=>setDosePlan(prev=>({...prev,[item.session.id]:mode}))} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition ${item.doseMode===mode?"border-emerald-400 bg-emerald-500/15 text-emerald-300":"border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500"}`}>{doseLabel(mode)}</button>)}</div></div>
+                <div className="mt-4"><p className="text-[9px] uppercase font-black text-slate-500 mb-2">Conduta desta capacidade no microciclo:</p><div className="flex flex-wrap gap-2">{(["MAIN","MICRO","MONITOR","DEFER","NONE"] as const).map(mode=><button key={mode} type="button" onClick={()=>setDosePlan(prev=>({...prev,[item.session.id]:mode}))} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition ${item.doseMode===mode?"border-emerald-400 bg-emerald-500/15 text-emerald-300":"border-slate-700 bg-slate-900 text-slate-400 hover:border-slate-500"}`}>{doseLabel(mode)}</button>)}</div></div>
                 <div className="grid md:grid-cols-2 gap-3 mt-4 text-xs"><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Método</p><p className="mt-1 text-slate-200">{item.prescription.method}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Dose inicial</p><p className="mt-1 text-slate-200">{item.prescription.dose}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Critério de qualidade</p><p className="mt-1 text-slate-200">{item.prescription.quality}</p></div><div className="rounded-xl bg-slate-900 p-3"><p className="text-[9px] uppercase font-black text-slate-500">Progressão / reavaliação</p><p className="mt-1 text-slate-200">{item.prescription.progression} {item.prescription.reassessment}</p></div></div>
               </div>)}</div>
             </section>}
 
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Decisão LB automática</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matriz de Decisão LB</p>
               <h3 className="text-xl font-black mt-2">{interpretationAlerts.length ? "Atenção antes de prescrever" : "Bateria liberada para decisão de treino"}</h3>
               <p className="text-sm text-slate-400 mt-2">Qualidade, comparabilidade, coerência e limitações continuam protegidas pelo Método LB, mas deixam de ser etapas obrigatórias. Selecione Dose principal, Microdose, Monitorar, Adiar ou Não prescrever em cada capacidade. Quando terminar todas as escolhas, use o único botão Concluir para Prescrição.</p>
               {prescriptionSuggestions.some((item:any)=>item.doseMode==="MAIN" || item.doseMode==="MICRO") ? (()=>{ const selected=prescriptionSuggestions.filter((x:any)=>x.doseMode==="MAIN" || x.doseMode==="MICRO"); const primary:any=selected.find((x:any)=>x.doseMode==="MAIN") || selected[0]; const payload={ athleteId:athleteId, sessionGroupId, testType:primary.session.test_type, doseMode:primary.doseMode, capacity:primary.prescription.capacity, objective:primary.prescription.objective, method:primary.prescription.method, dose:primary.prescription.dose, quality:primary.prescription.quality, progression:primary.prescription.progression, reassessment:primary.prescription.reassessment, blocks:selected.map((item:any)=>({testType:item.session.test_type,doseMode:item.doseMode,capacity:item.prescription.capacity,objective:item.prescription.objective,method:item.prescription.method,dose:item.prescription.dose,quality:item.prescription.quality,progression:item.prescription.progression,reassessment:item.prescription.reassessment})), createdAt:new Date().toISOString() }; return <button type="button" onClick={()=>goToPrescription(payload)} className="mt-5 px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest">Concluir para Prescrição • {selected.length} bloco(s)</button>; })() : <p className="mt-5 text-xs text-amber-300">Nenhuma carga adicional selecionada. Altere uma capacidade para Dose principal ou Microdose se quiser abrir o prescritor.</p>}
@@ -642,11 +642,11 @@ export default function LbAssessmentSession() {
           <section className="grid md:grid-cols-3 gap-3">
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Qualidade</p><p className="font-black mt-1">{QUALITY.find(q=>q.value===qualityFlag)?.label}</p></div>
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Comparabilidade</p><p className="font-black mt-1">{qualityFlag==="VALID"||qualityFlag==="CAUTION" ? "Elegível para análise" : "Bloqueada"}</p></div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Próxima fase</p><p className="font-black mt-1 text-emerald-400">Decisão LB automática</p></div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4"><p className="text-[10px] text-slate-500 uppercase font-black">Próxima fase</p><p className="font-black mt-1 text-emerald-400">Matriz de Decisão LB</p></div>
           </section>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={openInterpretation} disabled={completedSessionIds.length !== activeSession.sessions.length || loadingInterpret} className="px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">{loadingInterpret ? "Carregando..." : "Analisar resultados → DECISÃO LB"}</button>
+            <button onClick={openInterpretation} disabled={completedSessionIds.length !== activeSession.sessions.length || loadingInterpret} className="px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed">{loadingInterpret ? "Carregando..." : "Analisar resultados → MATRIZ LB"}</button>
             <button onClick={() => { setActiveSession(null); setSelectedTests([]); setSaveMessage(""); }} className="px-5 py-3 rounded-xl border border-slate-700 text-xs font-black uppercase tracking-widest">Nova Sessão</button>
             <button onClick={() => navigate("/hub")} className="px-5 py-3 rounded-xl bg-slate-800 text-xs font-black uppercase tracking-widest">Voltar ao Hub</button>
           </div>
