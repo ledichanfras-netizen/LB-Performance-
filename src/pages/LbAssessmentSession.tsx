@@ -326,6 +326,15 @@ export default function LbAssessmentSession() {
       if (!response.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
       const createdSession = { sessionGroupId: payload.sessionGroupId, sessions: payload.sessions || [] };
       setActiveSession(createdSession);
+      setSessionGroupId(payload.sessionGroupId || "");
+      try {
+        localStorage.setItem("lb_active_assessment_session", JSON.stringify({
+          athleteId,
+          sessionGroupId: payload.sessionGroupId,
+          sessions: payload.sessions || [],
+          savedAt: new Date().toISOString()
+        }));
+      } catch {}
       setSaveMessage(`Sessão LB iniciada com ${createdSession.sessions.length || selectedTests.length} avaliação(ões).`);
     } catch (error: any) {
       setLoadError(`Não foi possível iniciar a Sessão LB: ${error?.message || "erro desconhecido"}`);
@@ -448,6 +457,48 @@ export default function LbAssessmentSession() {
     setLbPrescriptionDraft({ ...payload, openedFromDecision: true });
     setInterpretMode(false);
     window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+  };
+
+  const concludeToPrescription = () => {
+    try {
+      if (!interpretSessions.length) {
+        setLoadError("A Matriz LB não possui avaliações carregadas. Os dados salvos foram preservados.");
+        return;
+      }
+      const rank: Record<AutoDecision["level"], number> = { CRITICA: 4, ALTA: 3, MEDIA: 2, NORMAL: 1 };
+      const decisions = interpretSessions.map((session:any) => ({ session, decision: buildAutoDecision(session) }));
+      const top = decisions.filter(x => x.decision.level !== "NORMAL").sort((a,b)=>rank[b.decision.level]-rank[a.decision.level]).slice(0,3);
+      const actionableIds = new Set(top.map((x:any)=>x.session.id));
+      const selected = [...decisions].sort((a,b)=>rank[b.decision.level]-rank[a.decision.level]).map(x => {
+        const idx = top.findIndex((p:any)=>p.session.id===x.session.id);
+        const defaultMode: "MAIN" | "MICRO" | "MONITOR" = actionableIds.has(x.session.id) ? (idx === 0 ? "MAIN" : "MICRO") : "MONITOR";
+        const doseMode = dosePlan[x.session.id] || defaultMode;
+        return { ...x, doseMode, prescription: adaptDose(buildPrescriptionSuggestion(x.session, x.decision), doseMode) };
+      }).filter((x:any)=>x.doseMode==="MAIN" || x.doseMode==="MICRO");
+      if (!selected.length) {
+        setLoadError("Selecione pelo menos uma Dose principal ou Microdose.");
+        return;
+      }
+      const primary:any = selected.find((x:any)=>x.doseMode==="MAIN") || selected[0];
+      const groupId = activeSession?.sessionGroupId || sessionGroupId;
+      const payload = {
+        athleteId, sessionGroupId: groupId, testType: primary.session.test_type,
+        doseMode: primary.doseMode, capacity: primary.prescription.capacity,
+        objective: primary.prescription.objective, method: primary.prescription.method,
+        dose: primary.prescription.dose, quality: primary.prescription.quality,
+        progression: primary.prescription.progression, reassessment: primary.prescription.reassessment,
+        blocks: selected.map((item:any)=>({
+          testType:item.session.test_type,doseMode:item.doseMode,capacity:item.prescription.capacity,
+          objective:item.prescription.objective,method:item.prescription.method,dose:item.prescription.dose,
+          quality:item.prescription.quality,progression:item.prescription.progression,reassessment:item.prescription.reassessment
+        })),
+        createdAt:new Date().toISOString()
+      };
+      try { localStorage.setItem("lb_prescription_recovery", JSON.stringify(payload)); } catch {}
+      goToPrescription(payload);
+    } catch (error:any) {
+      setLoadError(`Falha ao abrir o Prescritor LB: ${error?.message || "erro inesperado"}. As avaliações permanecem salvas.`);
+    }
   };
 
   if (activeSession) {
@@ -593,7 +644,7 @@ export default function LbAssessmentSession() {
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Matriz de Decisão LB</p>
               <h3 className="text-xl font-black mt-2">{interpretationAlerts.length ? "Atenção antes de prescrever" : "Bateria liberada para decisão de treino"}</h3>
               <p className="text-sm text-slate-400 mt-2">Qualidade, comparabilidade, coerência e limitações continuam protegidas pelo Método LB, mas deixam de ser etapas obrigatórias. Selecione Dose principal, Microdose, Monitorar, Adiar ou Não prescrever em cada capacidade. Quando terminar todas as escolhas, use o único botão Concluir para Prescrição.</p>
-              {prescriptionSuggestions.some((item:any)=>item.doseMode==="MAIN" || item.doseMode==="MICRO") ? (()=>{ const selected=prescriptionSuggestions.filter((x:any)=>x.doseMode==="MAIN" || x.doseMode==="MICRO"); const primary:any=selected.find((x:any)=>x.doseMode==="MAIN") || selected[0]; const payload={ athleteId:athleteId, sessionGroupId, testType:primary.session.test_type, doseMode:primary.doseMode, capacity:primary.prescription.capacity, objective:primary.prescription.objective, method:primary.prescription.method, dose:primary.prescription.dose, quality:primary.prescription.quality, progression:primary.prescription.progression, reassessment:primary.prescription.reassessment, blocks:selected.map((item:any)=>({testType:item.session.test_type,doseMode:item.doseMode,capacity:item.prescription.capacity,objective:item.prescription.objective,method:item.prescription.method,dose:item.prescription.dose,quality:item.prescription.quality,progression:item.prescription.progression,reassessment:item.prescription.reassessment})), createdAt:new Date().toISOString() }; return <button type="button" onClick={()=>goToPrescription(payload)} className="mt-5 px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest">Concluir para Prescrição • {selected.length} bloco(s)</button>; })() : <p className="mt-5 text-xs text-amber-300">Nenhuma carga adicional selecionada. Altere uma capacidade para Dose principal ou Microdose se quiser abrir o prescritor.</p>}
+              {prescriptionSuggestions.some((item:any)=>item.doseMode==="MAIN" || item.doseMode==="MICRO") ? <button type="button" onClick={concludeToPrescription} className="mt-5 px-5 py-3 rounded-xl bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-widest">Concluir para Prescrição • {prescriptionSuggestions.filter((x:any)=>x.doseMode==="MAIN" || x.doseMode==="MICRO").length} bloco(s)</button> : <p className="mt-5 text-xs text-amber-300">Nenhuma carga adicional selecionada. Altere uma capacidade para Dose principal ou Microdose se quiser abrir o prescritor.</p>}
             </section>
           </main>
         </div>
