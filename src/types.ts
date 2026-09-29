@@ -632,6 +632,10 @@ export interface AnamnesisRecord {
 
 export type DecisionPriority = 'Critica' | 'Alta' | 'Media' | 'Baixa' | 'Normal';
 
+export type DecisionConduct = 'dose_principal' | 'microdose' | 'monitorar';
+
+export type DecisionConfidence = 'Alta' | 'Moderada' | 'Baixa';
+
 export type DecisionCategory = 
   | 'forca_maxima'
   | 'taxa_desenvolvimento_forca'
@@ -642,21 +646,37 @@ export type DecisionCategory =
   | 'capacidade_aerobica'
   | 'controle_carga_recuperacao';
 
+export interface AttentionSignal {
+  id: string;
+  type: 'dor' | 'assimetria' | 'queda_performance' | 'prontidao_baixa' | 'acwr_elevado' | 'qualidade_teste';
+  title: string;
+  severity: 'critico' | 'atencao' | 'moderado';
+  description: string;
+  actionRecommendation: string;
+}
+
 export interface DecisionMatrixRow {
   id: string;
   category: DecisionCategory;
-  finding: string;              // Achado (ex: "IMTP Baixo (< 30 N/kg)")
+  finding: string;              // Achado (ex: "Força Rápida / TDF Reduzida")
+  problemStatement?: string;    // Problema Ficha-Mãe
   metricValue?: string | number;// Valor mensurado real (se do atleta)
   targetBenchmark?: string;     // Valor padrão ou referência
-  context: string;              // Contexto (ex: "Atleta de colisão / meio de temporada")
-  hypothesis: string;           // Hipótese Fisiológica (ex: "Déficit de força máxima absoluta")
-  priority: DecisionPriority;   // Prioridade (Crítica, Alta, Média, Baixa, Normal)
-  intervention: string;         // Intervenção Prescrita (ex: "Treino de força máxima concêntrica/isométrica")
-  practicalDetails?: string[];  // Exercícios sugeridos, séries, repetições e dosagens
+  context: string;              // Contexto (ex: "Atleta de voleibol / meio de temporada")
+  hypothesis: string;           // Hipótese Fisiológica (ex: "Déficit de taxa de disparo de unidades rápidas")
+  priority: DecisionPriority;   // Nível de Prioridade / Intervenção (Crítica, Alta, Média, Baixa, Normal)
+  confidence?: DecisionConfidence; // Nível de Confiança da Evidência (Alta, Moderada, Baixa)
+  evidence?: string;            // Evidência Longitudinal ou Transversal
+  conduct?: DecisionConduct;    // Conduta: Dose Principal (1), Microdose (1-2), Monitorar
+  intervention: string;         // Intervenção Prescrita
+  practicalDetails?: string[];  // Exercícios sugeridos, séries, repetições, intervalos e dosagens
   monitoring: string;           // Monitoramento (ex: "IMTP a cada 3 semanas")
+  reassessmentTimeline?: string;// Prazo da Reavaliação (ex: "3 a 4 semanas")
   transfer: string;             // Transferência Esportiva (ex: "Sustentação de duelo corporal e aceleração")
   evidenceReference?: string;   // Referência científica (ex: "Comfort et al., Stone et al.")
   status?: 'detectado' | 'normal' | 'otimo'; // Para o diagnóstico dinâmico do atleta
+  isAttentionSignal?: boolean;  // Se deve constar no quadro de Sinais de Atenção
 }
+
 
 

@@ -7104,8 +7104,14 @@ const DashboardView: FC<{
             athlete={athlete}
             workouts={athlete.workouts || []}
             externalSessions={athlete.externalSessions || []}
+            onSaveWorkoutToAthlete={(newWorkout) => {
+              const currentWorkouts = Array.isArray(athlete.workouts) ? athlete.workouts : [];
+              onUpdateAthlete({
+                workouts: [newWorkout, ...currentWorkouts]
+              });
+            }}
             onNavigateToWorkout={() => {
-              toast.success("Consulte a aba Treinos para prescrever o protocolo de intervenção.");
+              toast.success("Prescrição gerada com sucesso e vinculada ao perfil do atleta!");
             }}
           />
         </div>
