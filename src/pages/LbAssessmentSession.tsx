@@ -494,8 +494,15 @@ export default function LbAssessmentSession() {
         })),
         createdAt:new Date().toISOString()
       };
-      try { localStorage.setItem("lb_prescription_recovery", JSON.stringify(payload)); } catch {}
-      goToPrescription(payload);
+      try {
+        localStorage.setItem("lb_prescription_recovery", JSON.stringify(payload));
+        localStorage.setItem("lb_prescription_draft", JSON.stringify(payload));
+      } catch {}
+      // Dedicated route handoff: forces a real screen transition and lets the Hub
+      // consume the same recovery draft if query decoding ever fails.
+      const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(payload)))));
+      navigate(`/hub/prescricao-lb?draft=${encoded}`);
+      window.scrollTo({ top: 0, behavior: "auto" });
     } catch (error:any) {
       setLoadError(`Falha ao abrir o Prescritor LB: ${error?.message || "erro inesperado"}. As avaliações permanecem salvas.`);
     }
