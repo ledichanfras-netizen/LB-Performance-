@@ -667,9 +667,12 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
             })),
             workouts: (a.workouts || []).map((wk: any) => ({
               ...wk,
+              date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
               durationMinutes: wk.duration_minutes,
               totalLoad: wk.total_load,
               trainerNotes: wk.trainer_notes,
+              updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : wk.updatedAt,
+              createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : wk.createdAt,
               exercises: (wk.prescribed_exercises || []).map((ex: any) => ({ 
                 ...ex, 
                 muscleGroup: ex.muscle_group,
@@ -899,8 +902,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         durationMinutes: wk.duration_minutes,
         totalLoad: wk.total_load,
         trainerNotes: wk.trainer_notes,
-        updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : (wk.updatedAt || new Date().toISOString()),
-        createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : (wk.createdAt || new Date().toISOString()),
+        updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : wk.updatedAt,
+        createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : wk.createdAt,
         exercises: (exByWorkout[wk.id] || []).map((ex: any) => ({ 
           ...ex, 
           muscleGroup: ex.muscle_group,
@@ -1273,7 +1276,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
              const { error: wkUpErr } = await safeUpsert('workouts', {
                id: wk.id,
                athlete_id: athlete.id,
-               date: wk.date,
+               date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
                name: wk.name || 'Treino',
                phase: wk.phase ?? null,
                status: wk.status ?? 'planned',
@@ -1283,7 +1286,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
                monotony: wk.monotony ?? 0,
                strain: wk.strain ?? 0,
                feedback: wk.feedback ?? null,
-               trainer_notes: wk.trainerNotes ?? null
+               trainer_notes: wk.trainerNotes ?? null,
+               updated_at: wk.updatedAt || new Date().toISOString()
              });
              if (wkUpErr) throw wkUpErr;
 

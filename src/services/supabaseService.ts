@@ -367,7 +367,7 @@ export const supabaseService = {
             durationMinutes: wk.duration_minutes,
             totalLoad: wk.total_load,
             trainerNotes: wk.trainer_notes,
-            updatedAt: wk.updated_at || wk.updatedAt || new Date().toISOString(),
+            updatedAt: wk.updated_at || wk.updatedAt,
             createdAt: wk.created_at || wk.createdAt,
             exercises: (wk.prescribed_exercises || []).map((ex: any, idx: number) => ({ 
               ...ex, 

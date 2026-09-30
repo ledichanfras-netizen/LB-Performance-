@@ -3533,9 +3533,64 @@ const EliteHubApp: FC<{
                                         return null;
                                       })()}
                                     </div>
-                                    <span className="text-[9px] md:text-[10px] font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-2.5 py-1 rounded-lg uppercase tracking-widest shrink-0">
-                                      {formatDate(w.date)}
-                                    </span>
+                                    <div
+                                      className="flex flex-wrap items-center gap-1.5 shrink-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {(() => {
+                                        const wkDateStr = (w.date || "").split("T")[0];
+                                        const todayStr = getLocalDateString();
+                                        const isTodayWorkout = wkDateStr === todayStr;
+
+                                        return (
+                                          <>
+                                            {isTodayWorkout && (
+                                              <span className="text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-lg bg-[#39FF14] text-slate-950 shadow-sm">
+                                                🔥 Treino do Dia
+                                              </span>
+                                            )}
+                                            {user.role === "coach" ? (
+                                              <div className="flex items-center gap-1 bg-slate-900/90 border border-slate-800 rounded-lg px-2 py-0.5">
+                                                <input
+                                                  type="date"
+                                                  value={wkDateStr}
+                                                  onChange={(e) => {
+                                                    if (e.target.value) {
+                                                      updateWorkout(selected.id, {
+                                                        ...w,
+                                                        date: e.target.value,
+                                                      });
+                                                    }
+                                                  }}
+                                                  className="bg-transparent text-[10px] font-black text-[#39FF14] outline-none cursor-pointer"
+                                                  title="Clique para alterar a data deste treino"
+                                                />
+                                                {!isTodayWorkout && w.status !== "completed" && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      updateWorkout(selected.id, {
+                                                        ...w,
+                                                        date: todayStr,
+                                                      });
+                                                    }}
+                                                    className="ml-1 px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-[#39FF14] text-amber-300 hover:text-slate-950 border border-amber-500/40 text-[8.5px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                                    title="Definir como Treino de Hoje para aparecer como Treino do Dia para o atleta"
+                                                  >
+                                                    ⚡ Hoje
+                                                  </button>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span className="text-[9px] md:text-[10px] font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-2.5 py-1 rounded-lg uppercase tracking-widest shrink-0">
+                                                {formatDate(w.date)}
+                                              </span>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
                                   </div>
 
                                   {/* Workout Name & Action Buttons Row */}

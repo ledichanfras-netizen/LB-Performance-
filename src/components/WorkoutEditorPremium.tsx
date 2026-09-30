@@ -297,6 +297,12 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   updateAthlete,
   generateAIWorkouts
 }) => {
+  const getTodayLocalDateStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const todayLocalStr = getTodayLocalDateStr();
+
   const [edited, setEdited] = useState<Workout>(() => {
     const rawExercises: PrescribedExercise[] = workout.exercises ? JSON.parse(JSON.stringify(workout.exercises)) : [];
     const hasDistinctOrder = rawExercises.some((x) => 
@@ -314,7 +320,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     return {
       ...workout,
       id: workout.id || `wk-man-${Date.now()}`,
-      date: workout.date?.split("T")[0] || new Date().toISOString().split("T")[0],
+      date: workout.date?.split("T")[0] || todayLocalStr,
       name: workout.name || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length) % 26))}` : "Treino A"),
       phase: workout.phase || "Preparação Geral",
       status: workout.status || "planned",
@@ -3078,13 +3084,37 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               <option>Prescrito Elite</option>
             </select>
 
-            {/* Quick Date Selector */}
-            <input
-              type="date"
-              value={(edited.date || "").split("T")[0]}
-              onChange={(e) => setEdited({ ...edited, date: e.target.value })}
-              className="hidden md:block bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-400 outline-none focus:border-[#39FF14] transition-all"
-            />
+            {/* Quick Date Selector + Treino do Dia (Visible on all screens) */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-slate-950/90 border border-slate-800 rounded-xl px-2.5 py-1">
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1 shrink-0">
+                <Calendar className="w-3.5 h-3.5 text-[#39FF14]" />
+                <span>Data:</span>
+              </span>
+              <input
+                type="date"
+                value={(edited.date || "").split("T")[0]}
+                onChange={(e) => setEdited({ ...edited, date: e.target.value })}
+                className="bg-transparent text-xs font-extrabold text-white outline-none focus:text-[#39FF14] transition-all cursor-pointer"
+                title="Data programada do treino (define quando aparece como Treino do Dia para o atleta)"
+              />
+              {(edited.date || "").split("T")[0] === todayLocalStr ? (
+                <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-[#39FF14]/15 text-[#39FF14] border border-[#39FF14]/30 shrink-0">
+                  ✓ Treino de Hoje
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEdited({ ...edited, date: todayLocalStr });
+                    toast.success("Data definida para HOJE! Clique em Salvar para liberar como Treino do Dia.");
+                  }}
+                  className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/20 hover:bg-[#39FF14] text-amber-300 hover:text-slate-950 border border-amber-500/40 transition-all cursor-pointer shrink-0"
+                  title="Definir a data deste treino para Hoje (aparecerá como Treino do Dia para o atleta)"
+                >
+                  ⚡ Definir Hoje
+                </button>
+              )}
+            </div>
 
             {/* Mini Realtime Stats Badge */}
             <div className="hidden lg:flex items-center gap-2 bg-slate-950/70 px-3 py-1.5 rounded-xl border border-slate-850 text-[10px] font-bold text-slate-400 shrink-0">
@@ -3133,7 +3163,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 onSave({
                   ...edited,
                   name: finalName,
-                  date: (edited.date || new Date().toISOString()).split("T")[0],
+                  date: (edited.date || todayLocalStr).split("T")[0],
                   updatedAt: new Date().toISOString(),
                   exercises: finalExercises
                 });
@@ -4963,13 +4993,45 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         </div>
 
         {/* WORKOUT FOOTER WORKSPACE */}
-        <div className="p-6 md:p-8 bg-[#0c111d] border-t border-slate-900 flex flex-col sm:flex-row gap-4 items-center justify-between shrink-0">
-          <button
-            onClick={onCancel}
-            className="w-full sm:w-auto px-8 py-4 bg-slate-950 text-slate-400 hover:text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all border border-slate-800 cursor-pointer"
-          >
-            DESCARTAR ALTERAÇÕES
-          </button>
+        <div className="p-5 md:p-7 bg-[#0c111d] border-t border-slate-900 flex flex-col lg:flex-row gap-4 items-center justify-between shrink-0">
+          <div className="flex flex-wrap items-center justify-between sm:justify-start gap-3 w-full lg:w-auto">
+            <button
+              onClick={onCancel}
+              className="px-6 py-3.5 bg-slate-950 text-slate-400 hover:text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all border border-slate-800 cursor-pointer"
+            >
+              DESCARTAR ALTERAÇÕES
+            </button>
+
+            {/* Footer Date Editor for convenience */}
+            <div className="flex flex-wrap items-center gap-2 bg-slate-950/90 border border-slate-800 rounded-xl px-3.5 py-2.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-[#39FF14]" />
+                <span>Data do Treino:</span>
+              </span>
+              <input
+                type="date"
+                value={(edited.date || "").split("T")[0]}
+                onChange={(e) => setEdited({ ...edited, date: e.target.value })}
+                className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs font-extrabold text-white outline-none focus:border-[#39FF14] cursor-pointer"
+              />
+              {(edited.date || "").split("T")[0] === todayLocalStr ? (
+                <span className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-[#39FF14]/15 text-[#39FF14] border border-[#39FF14]/30">
+                  ✓ Treino do Dia (Hoje)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEdited({ ...edited, date: todayLocalStr });
+                    toast.success("Data alterada para HOJE! Clique em Salvar Planilha para confirmar.");
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/20 hover:bg-[#39FF14] text-amber-300 hover:text-slate-950 border border-amber-500/40 transition-all cursor-pointer"
+                >
+                  ⚡ Definir para Hoje
+                </button>
+              )}
+            </div>
+          </div>
           
           <button
             onClick={() => {
@@ -4981,12 +5043,12 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               onSave({
                 ...edited,
                 name: finalName,
-                date: (edited.date || new Date().toISOString()).split("T")[0],
+                date: (edited.date || todayLocalStr).split("T")[0],
                 updatedAt: new Date().toISOString(),
                 exercises: finalExercises
               });
             }}
-            className="w-full sm:w-auto px-10 py-4 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-[#39FF14]/10 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full lg:w-auto px-10 py-4 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-[#39FF14]/10 flex items-center justify-center gap-2 cursor-pointer"
           >
             SALVAR PLANILHA DE ALTA PERFORMANCE
             <ChevronRight className="w-4 h-4 text-slate-950 stroke-[3]" />
