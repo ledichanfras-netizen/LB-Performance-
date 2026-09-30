@@ -104,6 +104,17 @@ Como posso ajudar na tomada de decisão do seu atleta hoje?`,
     }
   }, [isOpen, messages, isLoading]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -374,42 +385,48 @@ ${ath.workouts && ath.workouts.length > 0 ? ath.workouts.slice(0, 3).map(w => `-
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-2 sm:p-4">
+      <div
+        onClick={onClose}
+        className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-2 sm:p-4"
+      >
         <motion.div
+          onClick={(e) => e.stopPropagation()}
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.2 }}
           className={`bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl flex flex-col w-full overflow-hidden transition-all duration-300 ${
-            isExpanded ? "max-w-6xl h-[92vh]" : "max-w-4xl h-[85vh] max-h-[800px]"
+            isExpanded ? "max-w-6xl h-[92vh]" : "max-w-4xl h-[88vh] sm:h-[85vh] max-h-[820px]"
           }`}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border-b border-slate-800/80 px-4 py-3 sm:px-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-brand-primary flex items-center justify-center text-slate-950 shadow-lg shadow-brand-primary/20">
+          <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-slate-900 border-b border-slate-800/80 px-3 py-3 sm:px-6 flex items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-brand-primary flex items-center justify-center text-slate-950 shadow-lg shadow-brand-primary/20">
                   <Brain className="w-5 h-5 text-slate-950 font-black" />
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-slate-900 rounded-full" />
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-white font-black text-base tracking-wide flex items-center gap-2 uppercase italic">
-                    Chat de Performance IA
-                    <span className="text-[10px] uppercase font-black tracking-wider bg-brand-primary/20 text-brand-primary border border-brand-primary/30 px-2 py-0.5 rounded-full">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="text-white font-black text-xs sm:text-base tracking-wide flex items-center gap-2 uppercase italic truncate">
+                    <span>Chat IA</span>
+                    <span className="hidden md:inline text-[10px] uppercase font-black tracking-wider bg-brand-primary/20 text-brand-primary border border-brand-primary/30 px-2 py-0.5 rounded-full shrink-0">
                       Padrão Mundial
                     </span>
                   </h3>
                 </div>
-                <p className="text-xs text-slate-400">Fisiologia, Carga, Reabilitação & Análise Estratégica</p>
+                <p className="text-[10px] sm:text-xs text-slate-400 truncate">
+                  Fisiologia, Carga, Reabilitação & Análise Estratégica
+                </p>
               </div>
             </div>
 
             {/* Context Selector & Controls */}
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 rounded-lg px-2.5 py-1">
-                <User className="w-3.5 h-3.5 text-amber-400" />
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <div className="hidden md:flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 rounded-lg px-2.5 py-1 max-w-[210px]">
+                <User className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <select
                   value={currentAthleteId}
                   onChange={(e) => {
@@ -418,7 +435,7 @@ ${ath.workouts && ath.workouts.length > 0 ? ath.workouts.slice(0, 3).map(w => `-
                       onSelectAthlete(e.target.value);
                     }
                   }}
-                  className="bg-transparent text-xs text-slate-200 font-medium focus:outline-none cursor-pointer pr-1"
+                  className="bg-transparent text-xs text-slate-200 font-medium focus:outline-none cursor-pointer pr-1 truncate"
                 >
                   <option value="all" className="bg-slate-900 text-slate-200">
                     🌐 Sem atleta (Geral)
@@ -432,26 +449,31 @@ ${ath.workouts && ath.workouts.length > 0 ? ath.workouts.slice(0, 3).map(w => `-
               </div>
 
               <button
+                type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="hidden sm:flex p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                 title={isExpanded ? "Reduzir janela" : "Expandir janela"}
               >
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
 
               <button
+                type="button"
                 onClick={handleClearHistory}
-                className="p-2 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors"
+                className="p-2 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer"
                 title="Limpar Histórico"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
 
               <button
+                type="button"
                 onClick={onClose}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 font-black text-xs uppercase tracking-wider transition-all cursor-pointer shadow-sm shrink-0"
+                title="Fechar Chat IA"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4 stroke-[2.5]" />
+                <span>Fechar</span>
               </button>
             </div>
           </div>

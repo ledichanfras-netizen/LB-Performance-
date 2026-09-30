@@ -1480,6 +1480,7 @@ const EliteHubApp: FC<{
               {/* 1. PAINEL GERAL item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("dash");
                   setDashboardSubTab("pro");
                   setAiModelingResult(null);
@@ -1500,6 +1501,7 @@ const EliteHubApp: FC<{
               {/* 2. AVALIAÇÕES item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("assessment");
                   setAiModelingResult(null);
                 }}
@@ -1516,6 +1518,7 @@ const EliteHubApp: FC<{
               {/* 3. TREINOS item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("training");
                   setAiModelingResult(null);
                 }}
@@ -1532,6 +1535,7 @@ const EliteHubApp: FC<{
               {/* 4. CARGA item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("dash");
                   setDashboardSubTab("elite-monitoring");
                   setAiModelingResult(null);
@@ -1549,6 +1553,7 @@ const EliteHubApp: FC<{
               {/* 5. PRONTIDÃO item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("dash");
                   setDashboardSubTab("classic");
                   setAiModelingResult(null);
@@ -1567,6 +1572,7 @@ const EliteHubApp: FC<{
               {user?.role !== "athlete" && (
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("dash");
                     setDashboardSubTab("decision-matrix");
                     setAiModelingResult(null);
@@ -1585,6 +1591,7 @@ const EliteHubApp: FC<{
               {/* 6. DM E SAÚDE item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("injuries");
                   setAiModelingResult(null);
                 }}
@@ -1601,6 +1608,7 @@ const EliteHubApp: FC<{
               {/* COMPETIÇÕES item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("competitions");
                   setAiModelingResult(null);
                 }}
@@ -1617,6 +1625,7 @@ const EliteHubApp: FC<{
               {/* 7. MODELAGEM item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("ai-modeling");
                 }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black ${
@@ -1632,7 +1641,7 @@ const EliteHubApp: FC<{
               {/* CHAT IA item */}
               {user?.role !== "athlete" && (
                 <button
-                  onClick={() => setIsAiChatOpen(true)}
+                  onClick={() => setIsAiChatOpen((prev) => !prev)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black cursor-pointer ${
                     isAiChatOpen
                       ? "bg-[#10b981] text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-102"
@@ -1647,6 +1656,7 @@ const EliteHubApp: FC<{
               {/* 8. GUIA item */}
               <button
                 onClick={() => {
+                  setIsAiChatOpen(false);
                   setActiveTab("info");
                   setAiModelingResult(null);
                 }}
@@ -1714,6 +1724,7 @@ const EliteHubApp: FC<{
                 {/* 1. Painel Geral Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("dash");
                     setDashboardSubTab("pro");
                     setAiModelingResult(null);
@@ -1787,6 +1798,7 @@ const EliteHubApp: FC<{
                 {/* 2. Avaliações Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("assessment");
                     setAiModelingResult(null);
                   }}
@@ -1803,6 +1815,7 @@ const EliteHubApp: FC<{
                 {/* 3. Treinos Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("training");
                     setAiModelingResult(null);
                   }}
@@ -1819,6 +1832,7 @@ const EliteHubApp: FC<{
                 {/* 4. Carga Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("dash");
                     setDashboardSubTab("elite-monitoring");
                     setAiModelingResult(null);
@@ -1836,6 +1850,7 @@ const EliteHubApp: FC<{
                 {/* 5. Prontidão Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("dash");
                     setDashboardSubTab("classic");
                     setAiModelingResult(null);
@@ -1854,6 +1869,7 @@ const EliteHubApp: FC<{
                 {user?.role !== "athlete" && (
                   <button
                     onClick={() => {
+                      setIsAiChatOpen(false);
                       setActiveTab("dash");
                       setDashboardSubTab("decision-matrix");
                       setAiModelingResult(null);
@@ -1872,6 +1888,7 @@ const EliteHubApp: FC<{
                 {/* Nutrição & Hidratação LB Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("dash");
                     setDashboardSubTab("nutrition");
                     setAiModelingResult(null);
@@ -1889,6 +1906,7 @@ const EliteHubApp: FC<{
                 {/* 6. DM e Saúde Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("injuries");
                     setAiModelingResult(null);
                   }}
@@ -1910,6 +1928,7 @@ const EliteHubApp: FC<{
                 {/* Competições Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("competitions");
                     setAiModelingResult(null);
                   }}
@@ -1926,6 +1945,7 @@ const EliteHubApp: FC<{
                 {/* 7. Modelagem Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("ai-modeling");
                   }}
                   className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
@@ -1941,7 +1961,7 @@ const EliteHubApp: FC<{
                 {/* Chat IA Tab */}
                 {user?.role !== "athlete" && (
                   <button
-                    onClick={() => setIsAiChatOpen(true)}
+                    onClick={() => setIsAiChatOpen((prev) => !prev)}
                     className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                       isAiChatOpen
                         ? "border border-brand-primary/20 bg-gradient-to-r from-brand-primary/10 to-transparent text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.06)]"
@@ -1958,6 +1978,7 @@ const EliteHubApp: FC<{
                 {/* 8. Guia Tab */}
                 <button
                   onClick={() => {
+                    setIsAiChatOpen(false);
                     setActiveTab("info");
                     setAiModelingResult(null);
                   }}
