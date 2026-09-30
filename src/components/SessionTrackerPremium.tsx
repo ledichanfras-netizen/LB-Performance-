@@ -23,6 +23,7 @@ import {
 } from "../utils";
 import { RunningBlockTracker } from "./RunningBlockTracker";
 import { isFieldOrRunningExercise } from "../utils/runningBlockUtils";
+import { calculatePostWorkoutQuickTarget } from "../utils/nutritionEngine";
 
 // TTS Voice announcer
 const speakText = (text: string, enabled: boolean) => {
@@ -1107,7 +1108,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     const completedSession: Workout = {
       ...sessionToCalculate,
       status: "completed",
-      date: sessionDate.split("T")[0],
+      date: (sessionDate || new Date().toISOString()).split("T")[0],
       durationMinutes: finalDuration,
       rpe: overallRpe,
       feedback: feedbackNotes || session.feedback || "Treino concluído com biofeedback de alta performance.",
@@ -2996,6 +2997,47 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* RECUPERAÇÃO NUTRICIONAL PÓS-TREINO AUTOMÁTICA (CAMINHO 1 & 3) */}
+              {(() => {
+                const durMin = Math.max(15, parseInt(manualDurationMinutes, 10) || Math.round(totalElapsedTime / 60) || 60);
+                const nutri = calculatePostWorkoutQuickTarget(athleteWeight || 75, overallRpe, durMin);
+                return (
+                  <div className="lb-surface-card-highlight rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#39FF14]">
+                        🔋 Recuperação Nutricional Pós-Treino ({nutri.weightKg} kg • PSE {overallRpe})
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-slate-300">
+                        Janela: 0 a 60 min
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="lb-surface-subcard p-2.5 rounded-xl">
+                        <span className="text-[9px] font-bold text-slate-300 uppercase block">Proteína</span>
+                        <strong className="text-sm font-black text-[#39FF14] font-mono">
+                          {nutri.proteinGrams}g ({nutri.proteinGPerKg}g/kg)
+                        </strong>
+                      </div>
+                      <div className="lb-surface-subcard p-2.5 rounded-xl">
+                        <span className="text-[9px] font-bold text-slate-300 uppercase block">Carboidrato</span>
+                        <strong className="text-sm font-black text-amber-400 font-mono">
+                          {nutri.carbsGrams}g ({nutri.carbsGPerKg}g/kg)
+                        </strong>
+                      </div>
+                      <div className="lb-surface-subcard p-2.5 rounded-xl">
+                        <span className="text-[9px] font-bold text-slate-300 uppercase block">Reidratação</span>
+                        <strong className="text-sm font-black text-cyan-400 font-mono">
+                          +{nutri.rehydrationMl} ml
+                        </strong>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-200 leading-relaxed font-medium">
+                      <strong className="text-emerald-400 font-black">Equivalência Prática:</strong> {nutri.practicalSummary}
+                    </p>
+                  </div>
+                );
+              })()}
 
               {/* FEEDBACK NOTES AREA */}
               <div className="space-y-2">

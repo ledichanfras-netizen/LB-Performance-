@@ -93,25 +93,25 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
   const wellnessMap = new Map<string, number>();
   (athlete.wellness || []).forEach((w) => {
     if (w.date && w.readinessScore !== undefined) {
-      const dateStr = w.date.split('T')[0];
+      const dateStr = (w.date || "").split('T')[0];
       wellnessMap.set(dateStr, w.readinessScore);
     }
   });
 
   // Combine and sort sessions to show recent trends in graph
   const allSessions = [
-    ...workouts.filter((w) => w.status === "completed" && w.rpe).map((w) => ({
+    ...workouts.filter((w) => w.status === "completed" && w.rpe && w.date).map((w) => ({
       date: w.date,
       load: (w.durationMinutes || 0) * (w.rpe || 0),
     })),
-    ...externalSessions.map((s) => ({
+    ...externalSessions.filter((s) => s.date).map((s) => ({
       date: s.date,
       load: s.load || ((s.durationMinutes || 0) * (s.rpe || 0)),
     }))
   ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const recentSessionsWithLoad = allSessions.slice(-8).map((s) => {
-    const sDateOnly = s.date.split('T')[0];
+    const sDateOnly = (s.date || "").split('T')[0];
     const readiness = wellnessMap.get(sDateOnly) || null;
     return {
       date: new Date(s.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }),

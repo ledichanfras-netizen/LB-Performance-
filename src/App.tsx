@@ -95,6 +95,7 @@ import { AiPerformanceChatModal } from "./components/AiPerformanceChatModal";
 import { PwaInstallBanner } from "./components/PwaInstallBanner";
 import { AnamnesisModal } from "./components/AnamnesisModal";
 import { LBPerformanceDecisionMatrix } from "./components/LBPerformanceDecisionMatrix";
+import { NutritionGuidancePanel, SmartWorkoutNutritionCard } from "./components/NutritionGuidancePanel";
 import { WorkoutStravaShareModal } from "./components/WorkoutStravaShareModal";
 import { CommunityFeedModal } from "./components/CommunityFeedModal";
 import toast from "react-hot-toast";
@@ -150,7 +151,7 @@ import {
   Search,
   Pencil,
   HeartPulse,
-  Timer, Clock, Trophy, Camera, Upload, MessageCircle, Gift,
+  Timer, Clock, Trophy, Camera, Upload, MessageCircle, Gift, Utensils,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -930,7 +931,7 @@ const EliteHubApp: FC<{
         if (lastSession && lastSession.date && lastSession.date.startsWith(today) && lastSession.rpe >= 8) {
           list.push({
             id: `heavy-${a.id}-${today}`,
-            text: `“${a.name.split(" ")[0]} registrou carga alta (PSE ${lastSession.rpe})”`,
+            text: `“${(a.name || "Atleta").split(" ")[0]} registrou carga alta (PSE ${lastSession.rpe})”`,
             type: "info" as const,
             athleteId: a.id,
           });
@@ -945,7 +946,7 @@ const EliteHubApp: FC<{
           if (painEx) {
             list.push({
               id: `pain-${a.id}-${w.date || "unknown"}`,
-              text: `“${a.name.split(" ")[0]} relatou dor nível ${painEx.painLevel}”`,
+              text: `“${(a.name || "Atleta").split(" ")[0]} relatou dor nível ${painEx.painLevel}”`,
               type: "warning" as const,
               athleteId: a.id,
             });
@@ -967,21 +968,21 @@ const EliteHubApp: FC<{
           if (todayWellness.fatigue >= 8)
             list.push({
               id: `fatigue-${a.id}-${today}`,
-              text: `“${a.name.split(" ")[0]} relatou fadiga crítica (${todayWellness.fatigue}/10)”`,
+              text: `“${(a.name || "Atleta").split(" ")[0]} relatou fadiga crítica (${todayWellness.fatigue}/10)”`,
               type: "warning" as const,
               athleteId: a.id,
             });
           if (todayWellness.stress >= 8)
             list.push({
               id: `stress-${a.id}-${today}`,
-              text: `“${a.name.split(" ")[0]} relatou estresse elevado (${todayWellness.stress}/10)”`,
+              text: `“${(a.name || "Atleta").split(" ")[0]} relatou estresse elevado (${todayWellness.stress}/10)”`,
               type: "warning" as const,
               athleteId: a.id,
             });
           if ((todayWellness.readinessScore || 0) < 50)
             list.push({
               id: `readiness-${a.id}-${today}`,
-              text: `“${a.name.split(" ")[0]} está com prontidão baixa (${todayWellness.readinessScore || 0}%)”`,
+              text: `“${(a.name || "Atleta").split(" ")[0]} está com prontidão baixa (${todayWellness.readinessScore || 0}%)”`,
               type: "warning" as const,
               athleteId: a.id,
             });
@@ -989,7 +990,7 @@ const EliteHubApp: FC<{
           // Apenas notifica prontidão faltante se o atleta tem treino programado para hoje
           list.push({
             id: `missing-wel-${a.id}-${today}`,
-            text: `“${a.name.split(" ")[0]} tem treino hoje e não preencheu a prontidão”`,
+            text: `“${(a.name || "Atleta").split(" ")[0]} tem treino hoje e não preencheu a prontidão”`,
             type: "warning" as const,
             athleteId: a.id,
           });
@@ -1084,7 +1085,7 @@ const EliteHubApp: FC<{
   const [trainingLoadResult, setTrainingLoadResult] = useState<any>(null);
   const [healthResult, setHealthResult] = useState<any>(null);
   const [aiModelingLoading, setAiModelingLoading] = useState(false);
-  const [trainingSubTab, setTrainingSubTab] = useState<"planned" | "external">("planned");
+  const [trainingSubTab, setTrainingSubTab] = useState<"planned" | "external" | "nutrition">("planned");
   const [workoutStatusFilter, setWorkoutStatusFilter] = useState<"pending" | "completed" | "all">("pending");
   const [iaWorkoutsLoading, setIaWorkoutsLoading] = useState(false);
   const [iaInstructions, setIaInstructions] = useState("");
@@ -1632,9 +1633,13 @@ const EliteHubApp: FC<{
               {user?.role !== "athlete" && (
                 <button
                   onClick={() => setIsAiChatOpen(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black bg-brand-primary text-slate-950 hover:bg-lime-400 shadow-[0_0_15px_rgba(204,255,0,0.35)] cursor-pointer"
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black cursor-pointer ${
+                    isAiChatOpen
+                      ? "bg-[#10b981] text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)] scale-102"
+                      : "text-slate-400 hover:text-white"
+                  }`}
                 >
-                  <Brain className="w-4 h-4 shrink-0 text-slate-950" />
+                  <Brain className="w-4 h-4 shrink-0" />
                   <span>CHAT IA</span>
                 </button>
               )}
@@ -1761,7 +1766,7 @@ const EliteHubApp: FC<{
                               onClick={() => {
                                 setSelectedId(ath.id);
                                 setShowSidebarAthletes(false);
-                                toast.success(`Atleta: ${ath.name.split(" ")[0]} selecionado`);
+                                toast.success(`Atleta: ${(ath.name || "Atleta").split(" ")[0]} selecionado`);
                               }}
                               className={`flex items-center gap-2.5 w-full text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider border-b border-slate-900/40 last:border-0 hover:pl-5 transition-all truncate ${
                                 selectedId === ath.id
@@ -1864,6 +1869,23 @@ const EliteHubApp: FC<{
                   </button>
                 )}
 
+                {/* Nutrição & Hidratação LB Tab */}
+                <button
+                  onClick={() => {
+                    setActiveTab("dash");
+                    setDashboardSubTab("nutrition");
+                    setAiModelingResult(null);
+                  }}
+                  className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                    activeTab === "dash" && dashboardSubTab === "nutrition" && !aiModelingResult
+                      ? "border border-brand-primary/20 bg-gradient-to-r from-brand-primary/10 to-transparent text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.06)]"
+                      : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent"
+                  }`}
+                >
+                  <Utensils className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "nutrition" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
+                  <span>Nutrição & Hidratação</span>
+                </button>
+
                 {/* 6. DM e Saúde Tab */}
                 <button
                   onClick={() => {
@@ -1920,15 +1942,16 @@ const EliteHubApp: FC<{
                 {user?.role !== "athlete" && (
                   <button
                     onClick={() => setIsAiChatOpen(true)}
-                    className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-black uppercase tracking-wider transition-all duration-300 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20 hover:border-brand-primary shadow-lg cursor-pointer"
+                    className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                      isAiChatOpen
+                        ? "border border-brand-primary/20 bg-gradient-to-r from-brand-primary/10 to-transparent text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.06)]"
+                        : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent"
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Brain className="w-4 h-4 shrink-0 text-brand-primary" />
+                      <Brain className={`w-4 h-4 shrink-0 ${isAiChatOpen ? "text-brand-primary" : "text-slate-500"}`} />
                       <span>Chat IA</span>
                     </div>
-                    <span className="text-[9px] uppercase font-extrabold bg-brand-primary text-slate-950 px-1.5 py-0.5 rounded">
-                      Pro
-                    </span>
                   </button>
                 )}
 
@@ -2301,7 +2324,7 @@ const EliteHubApp: FC<{
                               </div>
                               <h3 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tight">
                                 {birthdayAthletesToday.length === 1 
-                                  ? `Aniversário de ${birthdayAthletesToday[0].name.split(" ")[0]}!`
+                                  ? `Aniversário de ${(birthdayAthletesToday[0].name || "Atleta").split(" ")[0]}!`
                                   : "Aniversariantes do Dia na Equipe!"}
                               </h3>
                               <p className="text-xs text-slate-300 font-medium max-w-xl leading-relaxed">
@@ -2315,7 +2338,7 @@ const EliteHubApp: FC<{
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
                           {birthdayAthletesToday.map((ath) => {
                             const age = calculateAge(ath.dob);
-                            const cleanFirstName = ath.name.split(" ")[0];
+                            const cleanFirstName = (ath.name || "Atleta").split(" ")[0];
                             return (
                               <div
                                 key={ath.id}
@@ -2777,7 +2800,7 @@ const EliteHubApp: FC<{
                           </div>
                           <h2 className="text-lg md:text-2xl font-black text-[#39FF14] uppercase tracking-wider italic">
                             {user.role === "athlete"
-                              ? `Feliz Aniversário, ${selected.name.split(" ")[0]}! 🥳🎈`
+                              ? `Feliz Aniversário, ${(selected.name || "Atleta").split(" ")[0]}! 🥳🎈`
                               : `Hoje é o Aniversário de ${selected.name}! 🥳🎈`}
                           </h2>
                           <p className="text-xs text-slate-200 leading-relaxed max-w-2xl font-medium">
@@ -2793,7 +2816,7 @@ const EliteHubApp: FC<{
                           <button
                             type="button"
                             onClick={() => {
-                              const cleanName = selected.name.split(" ")[0];
+                              const cleanName = (selected.name || "Atleta").split(" ")[0];
                               const text = `Fala, ${cleanName}! Passando aqui em nome da LB Sports para te desejar um feliz aniversário! Muito sucesso, saúde, evolução e que possamos continuar superando recordes e conquistando alta performance juntos! Tmj! 🚀🎂🎉`;
                               const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                               window.open(url, "_blank");
@@ -2830,7 +2853,7 @@ const EliteHubApp: FC<{
                           </button>
                           <div className="flex flex-col">
                             <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold italic uppercase tracking-tight text-white leading-none">
-                              Olá, {selected.name.split(" ")[0]}
+                              Olá, {(selected.name || "Atleta").split(" ")[0]}
                             </h1>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <span className="text-[10px] sm:text-[11px] font-black tracking-widest text-brand-primary uppercase">
@@ -3348,13 +3371,13 @@ const EliteHubApp: FC<{
                     {activeTab === "training" && (
                       <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-right-8 duration-700">
                         {/* Sub-tabs for training */}
-                        <div className="flex flex-wrap bg-slate-900/80 p-1 rounded-2xl border border-slate-800 max-w-xl gap-1">
+                        <div className="flex flex-wrap lb-segmented-group p-1.5 rounded-2xl max-w-3xl gap-1.5">
                           <button
                             onClick={() => setTrainingSubTab("planned")}
-                            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer ${
                               trainingSubTab === "planned"
-                                ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 font-black shadow-lg"
-                                : "text-slate-400 hover:text-slate-200"
+                                ? "lb-pill-active-green"
+                                : "lb-pill-inactive"
                             }`}
                           >
                             <ClipboardList className="w-4 h-4" />
@@ -3362,19 +3385,30 @@ const EliteHubApp: FC<{
                           </button>
                           <button
                             onClick={() => setTrainingSubTab("external")}
-                            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                            className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer ${
                               trainingSubTab === "external"
-                                ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20 font-black shadow-lg"
-                                : "text-slate-400 hover:text-slate-200"
+                                ? "lb-pill-active-green"
+                                : "lb-pill-inactive"
                             }`}
                           >
                             <Dumbbell className="w-4 h-4" />
                             <span>Sessão Externa</span>
                           </button>
                           <button
+                            onClick={() => setTrainingSubTab("nutrition")}
+                            className={`flex-1 min-w-[150px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                              trainingSubTab === "nutrition"
+                                ? "lb-pill-active-green"
+                                : "lb-pill-inactive"
+                            }`}
+                          >
+                            <Utensils className="w-4 h-4" />
+                            <span>Nutrição & Hidratação</span>
+                          </button>
+                          <button
                             type="button"
                             onClick={() => setModalState({ type: "community-feed" })}
-                            className="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/25 shadow-sm"
+                            className="flex-1 min-w-[150px] flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer lb-badge-amber shadow-sm hover:opacity-90"
                             title="Abrir Mural Social de Treinos com Kudos e Fotos"
                           >
                             <Flame className="w-4 h-4 fill-current text-amber-400 animate-pulse" />
@@ -3384,6 +3418,12 @@ const EliteHubApp: FC<{
 
                         {trainingSubTab === "planned" && (
                           <>
+                            <SmartWorkoutNutritionCard
+                              athlete={selected}
+                              workouts={selected.workouts || []}
+                              externalSessions={selected.externalSessions || []}
+                              onOpenFullNutritionTab={() => setTrainingSubTab("nutrition")}
+                            />
                             <div className="coach-section-heading flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                               <div>
                                 <h3 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-[#fcfdff] leading-none">
@@ -3471,7 +3511,7 @@ const EliteHubApp: FC<{
                                       </span>
                                       {(() => {
                                         const workoutDateStr =
-                                          w.date.split("T")[0];
+                                          (w.date || "").split("T")[0];
                                         const wellnessEntry = Array.isArray(selected.wellness)
                                           ? selected.wellness.find(
                                               (well) =>
@@ -3792,6 +3832,16 @@ const EliteHubApp: FC<{
                                 }
                               }}
                               onUpdateAthlete={(data) => updateAthlete(selected.id, data)}
+                            />
+                          </div>
+                        )}
+
+                        {trainingSubTab === "nutrition" && (
+                          <div className="animate-in fade-in duration-500">
+                            <NutritionGuidancePanel
+                              athlete={selected}
+                              workouts={selected.workouts || []}
+                              externalSessions={selected.externalSessions || []}
                             />
                           </div>
                         )}
@@ -4567,7 +4617,7 @@ const EliteHubApp: FC<{
                                       e.stopPropagation();
                                       const ath = athletes.find(x => x.id === n.athleteId);
                                       if (ath) {
-                                        const cleanName = ath.name.split(" ")[0];
+                                        const cleanName = (ath.name || "Atleta").split(" ")[0];
                                         const text = `Fala, ${cleanName}! Passando aqui em nome da LB Sports para te desejar um feliz aniversário! Muito sucesso, saúde, evolução e que possamos continuar superando recordes e conquistando alta performance juntos! Tmj! 🚀🎂🎉`;
                                         const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
                                         window.open(url, "_blank");
@@ -5185,7 +5235,7 @@ const DashboardView: FC<{
     const gymSessions = (athlete.workouts || [])
       .filter((w) => w.status === "completed" && w.rpe && w.date)
       .map((w) => ({
-        date: w.date.split("T")[0],
+        date: (w.date || "").split("T")[0],
         load: (w.rpe || 0) * (w.durationMinutes || 60),
         type: "gym",
       }));
@@ -5193,7 +5243,7 @@ const DashboardView: FC<{
     const externalSessions = (athlete.externalSessions || [])
       .filter((s) => s.date)
       .map((s) => ({
-        date: s.date.split("T")[0],
+        date: (s.date || "").split("T")[0],
         load: s.load || s.durationMinutes * s.rpe,
         type: "external",
       }));
@@ -5635,33 +5685,33 @@ const DashboardView: FC<{
     <div className="space-y-8 relative no-scrollbar">
 
       {/* SUB-TABS SEGMENTED CONTROLLER (Enables seamless swapping between PRO, CLASSIC, ELITE MONITORING, and DECISION MATRIX) */}
-      <div className="hidden md:flex flex-wrap md:flex-nowrap justify-between items-center bg-[#0d1324]/50 p-1.5 rounded-2xl border border-slate-800/80 max-w-4xl mx-auto backdrop-blur-xl gap-1">
+      <div className="hidden md:flex flex-wrap md:flex-nowrap justify-between items-center lb-segmented-group p-1.5 rounded-2xl max-w-4xl mx-auto backdrop-blur-xl gap-1.5">
         <button
           onClick={() => setDashboardSubTab("pro")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all cursor-pointer ${
             dashboardSubTab === "pro"
-              ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-[0_4px_20px_rgba(245,158,11,0.2)] font-black"
-              : "text-slate-400 hover:text-white"
+              ? "lb-pill-active-amber"
+              : "lb-pill-inactive"
           }`}
         >
           Painel Geral (PRO)
         </button>
         <button
           onClick={() => setDashboardSubTab("classic")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all cursor-pointer ${
             dashboardSubTab === "classic"
-              ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-[0_4px_20px_rgba(245,158,11,0.2)] font-black"
-              : "text-slate-400 hover:text-white"
+              ? "lb-pill-active-amber"
+              : "lb-pill-inactive"
           }`}
         >
           Check-in & Prontidão
         </button>
         <button
           onClick={() => setDashboardSubTab("elite-monitoring")}
-          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all ${
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all cursor-pointer ${
             dashboardSubTab === "elite-monitoring"
-              ? "bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 shadow-[0_4px_20px_rgba(245,158,11,0.2)] font-black"
-              : "text-slate-400 hover:text-white"
+              ? "lb-pill-active-amber"
+              : "lb-pill-inactive"
           }`}
         >
           Monitoramento de Carga
@@ -5669,16 +5719,27 @@ const DashboardView: FC<{
         {role !== "athlete" && (
           <button
             onClick={() => setDashboardSubTab("decision-matrix")}
-            className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
               dashboardSubTab === "decision-matrix"
-                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-[0_4px_20px_rgba(16,185,129,0.3)] font-black"
-                : "text-slate-400 hover:text-emerald-400"
+                ? "lb-pill-active-emerald"
+                : "lb-pill-inactive"
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Matriz LB</span>
           </button>
         )}
+        <button
+          onClick={() => setDashboardSubTab("nutrition")}
+          className={`flex-1 py-2.5 md:py-3 px-2 md:px-4 text-[9px] md:text-[10px] font-black uppercase tracking-wider md:tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+            dashboardSubTab === "nutrition"
+              ? "lb-pill-active-emerald"
+              : "lb-pill-inactive"
+          }`}
+        >
+          <Utensils className="w-3.5 h-3.5" />
+          <span>Nutrição LB</span>
+        </button>
       </div>
 
       {/* METRIC HELPER POPUPS / TOOLTIPS */}
@@ -6282,7 +6343,7 @@ const DashboardView: FC<{
                   LB PERFORMANCE ECOSYSTEM
                 </p>
                 <h1 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tight">
-                  Olá, <span className="text-brand-primary">{athlete.name.split(" ")[0]}</span>!
+                  Olá, <span className="text-brand-primary">{(athlete.name || "Atleta").split(" ")[0]}</span>!
                 </h1>
                 <p className="text-[10px] sm:text-xs text-slate-400 mt-1 font-bold">
                   Sua ficha está ativa na modalidade{" "}
@@ -6481,6 +6542,14 @@ const DashboardView: FC<{
               onUpdateAthlete={onUpdateAthlete}
             />
           )}
+
+          {/* Smart Fueling & Recovery Card for Athlete Home */}
+          <SmartWorkoutNutritionCard
+            athlete={athlete}
+            workouts={athlete.workouts || []}
+            externalSessions={athlete.externalSessions || []}
+            onOpenFullNutritionTab={() => setDashboardSubTab("nutrition")}
+          />
 
           {/* Quick list of wellness logs */}
           <div className="w-full">
@@ -7117,6 +7186,17 @@ const DashboardView: FC<{
         </div>
       )}
 
+      {/* ================== TAB 5: NUTRIÇÃO & HIDRATAÇÃO ESPORTIVA LB ================= */}
+      {dashboardSubTab === "nutrition" && (
+        <div className="animate-in fade-in duration-500">
+          <NutritionGuidancePanel
+            athlete={athlete}
+            workouts={athlete.workouts || []}
+            externalSessions={athlete.externalSessions || []}
+          />
+        </div>
+      )}
+
     </div>
   );
 };
@@ -7410,7 +7490,7 @@ const SessionTracker: FC<{
             </label>
             <input
               type="date"
-              value={session.date.split("T")[0]}
+              value={(session.date || "").split("T")[0]}
               onChange={(e) => setSession({ ...session, date: e.target.value })}
               className="w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs font-black text-white outline-none focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all"
             />
@@ -8016,7 +8096,7 @@ const WorkoutEditor: FC<{
             </label>
             <input
               type="date"
-              value={edited.date.split("T")[0]}
+              value={(edited.date || "").split("T")[0]}
               onChange={(e) => setEdited({ ...edited, date: e.target.value })}
               className="w-full bg-white border border-slate-200 rounded-xl p-4 text-xs md:text-sm outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all shadow-sm text-slate-900 font-bold"
             />
@@ -8181,7 +8261,7 @@ const WorkoutEditor: FC<{
               }));
               onSave({
                 ...edited,
-                date: edited.date.split("T")[0],
+                date: (edited.date || "").split("T")[0],
                 updatedAt: new Date().toISOString(),
                 exercises: finalExercises
               });
@@ -17000,7 +17080,7 @@ const AssessmentForm: FC<{
           </label>
           <input
             type="date"
-            value={date.split("T")[0]}
+            value={(date || "").split("T")[0]}
             onChange={(e) => setDate(e.target.value)}
             className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3 sm:p-4 text-xs sm:text-sm text-white font-black outline-none"
             required

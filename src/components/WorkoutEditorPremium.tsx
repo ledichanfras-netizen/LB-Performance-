@@ -651,7 +651,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const counts: Record<string, number> = {};
     let totalSets = 0;
     (edited.exercises || []).forEach(ex => {
-      const group = ex.muscleGroup.split("/")[0].trim().toUpperCase();
+      const group = (ex.muscleGroup || "GERAL").split("/")[0].trim().toUpperCase();
       const s = Number(ex.sets) || 0;
       counts[group] = (counts[group] || 0) + s;
       totalSets += s;
@@ -3081,7 +3081,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             {/* Quick Date Selector */}
             <input
               type="date"
-              value={edited.date.split("T")[0]}
+              value={(edited.date || "").split("T")[0]}
               onChange={(e) => setEdited({ ...edited, date: e.target.value })}
               className="hidden md:block bg-slate-950/80 hover:bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-400 outline-none focus:border-[#39FF14] transition-all"
             />
@@ -3133,7 +3133,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 onSave({
                   ...edited,
                   name: finalName,
-                  date: edited.date.split("T")[0],
+                  date: (edited.date || new Date().toISOString()).split("T")[0],
                   updatedAt: new Date().toISOString(),
                   exercises: finalExercises
                 });
@@ -4981,7 +4981,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               onSave({
                 ...edited,
                 name: finalName,
-                date: edited.date.split("T")[0],
+                date: (edited.date || new Date().toISOString()).split("T")[0],
                 updatedAt: new Date().toISOString(),
                 exercises: finalExercises
               });

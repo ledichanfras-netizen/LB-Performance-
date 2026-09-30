@@ -1512,3 +1512,383 @@ body.light-theme .exercise-filter-drawer button.bg-slate-900\/60:hover {
   color: #0f172a !important;
 }
 
+/* ==========================================================================
+   SISTEMA DE ALTA VISIBILIDADE (MODO CLARO & MODO ESCURO)
+   CARDS, BOTÕES, SELETORES E BADGES - MATRIZ LB & NUTRIÇÃO ESPORTIVA LB
+   ========================================================================== */
+
+/* Catch all remaining slate-900/95 and slate-950/95 surfaces in Light Mode */
+body.light-theme .bg-slate-900\/95,
+body.light-theme .bg-slate-950\/95,
+body.light-theme .bg-slate-950\/85,
+body.light-theme .bg-slate-950\/75,
+body.light-theme .bg-slate-950\/70 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Main Surface Card (Dark & Light) */
+.lb-surface-card {
+  background-color: #0d1322;
+  border: 1.5px solid rgba(51, 65, 85, 0.9);
+  color: #f8fafc;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.65);
+}
+
+body.light-theme .lb-surface-card {
+  background-color: #ffffff !important;
+  border: 1.5px solid #94a3b8 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 28px -6px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Highlighted Surface Card (Emerald / Nutrition / Active Conduct) */
+.lb-surface-card-highlight {
+  background: linear-gradient(135deg, #0b1917 0%, #0d1322 55%, #09131c 100%);
+  border: 2px solid rgba(57, 255, 20, 0.45);
+  color: #f8fafc;
+  box-shadow: 0 14px 34px -8px rgba(16, 185, 129, 0.18);
+}
+
+body.light-theme .lb-surface-card-highlight {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 60%, #ecfdf5 100%) !important;
+  border: 2px solid #16a34a !important;
+  color: #0f172a !important;
+  box-shadow: 0 12px 28px -6px rgba(22, 163, 74, 0.16) !important;
+}
+
+/* Attention / Red Flag Card (Dark & Light) */
+.lb-surface-card-alert {
+  background: linear-gradient(135deg, #280a14 0%, #0f1524 65%, #160c18 100%);
+  border: 2px solid rgba(244, 63, 94, 0.5);
+  color: #f8fafc;
+  box-shadow: 0 14px 32px -8px rgba(244, 63, 94, 0.2);
+}
+
+body.light-theme .lb-surface-card-alert {
+  background: linear-gradient(135deg, #fff1f2 0%, #ffffff 60%, #ffe4e6 100%) !important;
+  border: 2px solid #e11d48 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.15) !important;
+}
+
+/* Inner Subcard / Metric Box (Dark & Light) */
+.lb-surface-subcard {
+  background-color: #070b14;
+  border: 1.5px solid #1e293b;
+  color: #f1f5f9;
+}
+
+body.light-theme .lb-surface-subcard {
+  background-color: #f8fafc !important;
+  border: 1.5px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* Segmented Control Group Container (Dark & Light) */
+.lb-segmented-group {
+  background-color: #050811;
+  border: 1.5px solid #334155;
+  padding: 0.375rem;
+  border-radius: 1rem;
+}
+
+body.light-theme .lb-segmented-group {
+  background-color: #e2e8f0 !important;
+  border: 1.5px solid #94a3b8 !important;
+}
+
+/* Segmented Pill Buttons - Active & Inactive States */
+.lb-pill-btn {
+  font-weight: 900;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.lb-pill-inactive {
+  background-color: transparent;
+  color: #cbd5e1;
+  border: 1.5px solid transparent;
+}
+
+.lb-pill-inactive:hover {
+  background-color: rgba(51, 65, 85, 0.55);
+  color: #ffffff;
+}
+
+body.light-theme .lb-pill-inactive {
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  color: #1e293b !important;
+  border: 1.5px solid transparent !important;
+}
+
+body.light-theme .lb-pill-inactive:hover {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Active Green Pill */
+.lb-pill-active-green {
+  background-color: #39FF14 !important;
+  color: #020617 !important;
+  border: 1.5px solid #10b981 !important;
+  box-shadow: 0 0 15px rgba(57, 255, 20, 0.35);
+}
+
+.lb-pill-active-green span,
+.lb-pill-active-green svg {
+  color: #020617 !important;
+}
+
+body.light-theme .lb-pill-active-green {
+  background-color: #15803d !important;
+  color: #ffffff !important;
+  border: 1.5px solid #14532d !important;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3) !important;
+}
+
+body.light-theme .lb-pill-active-green span,
+body.light-theme .lb-pill-active-green svg {
+  color: #ffffff !important;
+}
+
+/* Active Amber Pill */
+.lb-pill-active-amber {
+  background-color: #fbbf24 !important;
+  color: #020617 !important;
+  border: 1.5px solid #d97706 !important;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.35);
+}
+
+.lb-pill-active-amber span,
+.lb-pill-active-amber svg {
+  color: #020617 !important;
+}
+
+body.light-theme .lb-pill-active-amber {
+  background-color: #f59e0b !important;
+  color: #0f172a !important;
+  border: 1.5px solid #b45309 !important;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+}
+
+body.light-theme .lb-pill-active-amber span,
+body.light-theme .lb-pill-active-amber svg {
+  color: #0f172a !important;
+}
+
+/* Active Rose / Intense Pill */
+.lb-pill-active-rose {
+  background-color: #e11d48 !important;
+  color: #ffffff !important;
+  border: 1.5px solid #fb7185 !important;
+  box-shadow: 0 0 15px rgba(225, 29, 72, 0.4);
+}
+
+.lb-pill-active-rose span,
+.lb-pill-active-rose svg {
+  color: #ffffff !important;
+}
+
+body.light-theme .lb-pill-active-rose {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1.5px solid #991b1b !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+}
+
+body.light-theme .lb-pill-active-rose span,
+body.light-theme .lb-pill-active-rose svg {
+  color: #ffffff !important;
+}
+
+/* Active Cyan / Blue Pill (Hydration & Monitorar) */
+.lb-pill-active-cyan {
+  background-color: #06b6d4 !important;
+  color: #020617 !important;
+  border: 1.5px solid #22d3ee !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.35);
+}
+
+.lb-pill-active-cyan span,
+.lb-pill-active-cyan svg {
+  color: #020617 !important;
+}
+
+body.light-theme .lb-pill-active-cyan {
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border: 1.5px solid #0369a1 !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3) !important;
+}
+
+body.light-theme .lb-pill-active-cyan span,
+body.light-theme .lb-pill-active-cyan svg {
+  color: #ffffff !important;
+}
+
+/* Secondary Action Button (Export, Print, Expand Ficha-Mãe) */
+.lb-btn-secondary {
+  background-color: #1e293b;
+  color: #f8fafc;
+  border: 1.5px solid #475569;
+  font-weight: 800;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.lb-btn-secondary:hover {
+  background-color: #334155;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+body.light-theme .lb-btn-secondary {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #64748b !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+}
+
+body.light-theme .lb-btn-secondary:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #15803d !important;
+  color: #0f172a !important;
+}
+
+/* Accent Action Button (Ver Equivalências, etc.) */
+.lb-btn-accent {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #39FF14;
+  border: 1.5px solid #10b981;
+  font-weight: 900;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.lb-btn-accent:hover {
+  background-color: rgba(16, 185, 129, 0.32);
+  border-color: #39FF14;
+}
+
+body.light-theme .lb-btn-accent {
+  background-color: #15803d !important;
+  color: #ffffff !important;
+  border: 1.5px solid #14532d !important;
+  box-shadow: 0 4px 12px rgba(21, 128, 61, 0.25) !important;
+}
+
+body.light-theme .lb-btn-accent span,
+body.light-theme .lb-btn-accent svg {
+  color: #ffffff !important;
+}
+
+body.light-theme .lb-btn-accent:hover {
+  background-color: #166534 !important;
+}
+
+/* Primary Hero CTA Button (Concluir para Prescrição 1 Clique / Salvar Ficha) */
+.lb-btn-primary-cta {
+  background: linear-gradient(135deg, #10b981 0%, #39FF14 100%);
+  color: #020617 !important;
+  border: 1.5px solid #34d399;
+  font-weight: 900;
+  box-shadow: 0 0 25px rgba(57, 255, 20, 0.35);
+  cursor: pointer;
+}
+
+.lb-btn-primary-cta span,
+.lb-btn-primary-cta svg {
+  color: #020617 !important;
+}
+
+body.light-theme .lb-btn-primary-cta {
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 100%) !important;
+  color: #ffffff !important;
+  border: 1.5px solid #14532d !important;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.35) !important;
+}
+
+body.light-theme .lb-btn-primary-cta span,
+body.light-theme .lb-btn-primary-cta svg {
+  color: #ffffff !important;
+}
+
+/* High-Contrast Semantic Badges (Dark & Light) */
+.lb-badge-emerald {
+  background-color: rgba(16, 185, 129, 0.18);
+  color: #39FF14;
+  border: 1.5px solid rgba(52, 211, 153, 0.45);
+}
+
+body.light-theme .lb-badge-emerald {
+  background-color: #dcfce7 !important;
+  color: #14532d !important;
+  border: 1.5px solid #16a34a !important;
+}
+
+.lb-badge-amber {
+  background-color: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1.5px solid rgba(251, 191, 36, 0.45);
+}
+
+body.light-theme .lb-badge-amber {
+  background-color: #fef3c7 !important;
+  color: #78350f !important;
+  border: 1.5px solid #d97706 !important;
+}
+
+.lb-badge-rose {
+  background-color: rgba(244, 63, 94, 0.2);
+  color: #fda4af;
+  border: 1.5px solid rgba(251, 113, 133, 0.5);
+}
+
+body.light-theme .lb-badge-rose {
+  background-color: #ffe4e6 !important;
+  color: #881337 !important;
+  border: 1.5px solid #e11d48 !important;
+}
+
+.lb-badge-cyan {
+  background-color: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
+  border: 1.5px solid rgba(34, 211, 238, 0.45);
+}
+
+body.light-theme .lb-badge-cyan {
+  background-color: #e0f2fe !important;
+  color: #0c4a6e !important;
+  border: 1.5px solid #0284c7 !important;
+}
+
+.lb-badge-neutral {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border: 1.5px solid #475569;
+}
+
+body.light-theme .lb-badge-neutral {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border: 1.5px solid #94a3b8 !important;
+}
+
+/* Sticky Execution Footer Bar in Decision Matrix */
+.lb-sticky-bar {
+  background-color: rgba(9, 14, 26, 0.96);
+  border: 2px solid #10b981;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85);
+}
+
+body.light-theme .lb-sticky-bar {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border: 2px solid #15803d !important;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.18) !important;
+}
+
+
