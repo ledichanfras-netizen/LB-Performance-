@@ -400,17 +400,11 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
   const [session, setSession] = useState<Workout>(() => {
     const rawExercisesList = Array.isArray(workout.exercises) ? [...workout.exercises] : [];
-    const hasDistinctOrder = rawExercisesList.some((x) => 
-      (typeof x.order_index === 'number' && x.order_index !== 0) || 
-      (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
-    );
-    const sortedExercises = hasDistinctOrder
-      ? [...rawExercisesList].sort((a: any, b: any) => {
-          const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
-          const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
-          return aIdx - bIdx;
-        })
-      : rawExercisesList;
+    const sortedExercises = [...rawExercisesList].sort((a: any, b: any) => {
+      const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+      const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+      return aIdx - bIdx;
+    });
 
     const rawExercises = sortedExercises.map((ex, idx) => ({ ...ex, order_index: idx }));
 

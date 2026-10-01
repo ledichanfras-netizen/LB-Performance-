@@ -305,17 +305,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
   const [edited, setEdited] = useState<Workout>(() => {
     const rawExercises: PrescribedExercise[] = workout.exercises ? JSON.parse(JSON.stringify(workout.exercises)) : [];
-    const hasDistinctOrder = rawExercises.some((x) => 
-      (typeof x.order_index === 'number' && x.order_index !== 0) || 
-      (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
-    );
-    const sorted = hasDistinctOrder
-      ? [...rawExercises].sort((a: any, b: any) => {
-          const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
-          const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
-          return aIdx - bIdx;
-        })
-      : rawExercises;
+    const sorted = [...rawExercises].sort((a: any, b: any) => {
+      const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+      const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+      return aIdx - bIdx;
+    });
     const indexed = sorted.map((ex, idx) => ({ ...ex, order_index: idx }));
     return {
       ...workout,
