@@ -1163,17 +1163,11 @@ const EliteHubApp: FC<{
           feedback: "",
           exercises: (() => {
             const rawExs = Array.isArray(workoutToClone.exercises) ? [...workoutToClone.exercises] : [];
-            const hasDistinct = rawExs.some(x => 
-              (typeof x.order_index === 'number' && x.order_index !== 0) || 
-              (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
-            );
-            const sorted = hasDistinct
-              ? rawExs.sort((a: any, b: any) => {
-                  const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
-                  const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
-                  return aIdx - bIdx;
-                })
-              : rawExs;
+            const sorted = [...rawExs].sort((a: any, b: any) => {
+              const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
+              const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
+              return aIdx - bIdx;
+            });
             return sorted.map((ex, exIdx) => ({
               ...ex,
               id: `ex-clone-${Date.now()}-${Math.random()}`,
@@ -3658,17 +3652,11 @@ const EliteHubApp: FC<{
                                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 no-scrollbar">
                                     {(() => {
                                       const exsList = Array.isArray(w.exercises) ? [...w.exercises] : [];
-                                      const hasDistinct = exsList.some(x => 
-                                        (typeof x.order_index === 'number' && x.order_index !== 0) || 
-                                        (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
-                                      );
-                                      const sorted = hasDistinct
-                                        ? [...exsList].sort((a: any, b: any) => {
-                                            const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof a.orderIndex === 'number' ? a.orderIndex : 9999);
-                                            const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
-                                            return aIdx - bIdx;
-                                          })
-                                        : exsList;
+                                      const sorted = [...exsList].sort((a: any, b: any) => {
+                                        const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+                                        const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+                                        return aIdx - bIdx;
+                                      });
                                       return sorted.map((ex, idx) => (
                                         <div
                                           key={ex.id || idx}
@@ -8030,7 +8018,12 @@ const WorkoutEditor: FC<{
 }> = ({ workout, onSave, onCancel }) => {
   const [edited, setEdited] = useState<Workout>(() => {
     const rawExs = workout.exercises ? [...workout.exercises] : [];
-    const indexed = rawExs.map((ex, idx) => ({ ...ex, order_index: idx }));
+    const sorted = [...rawExs].sort((a: any, b: any) => {
+      const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
+      const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
+      return aIdx - bIdx;
+    });
+    const indexed = sorted.map((ex, idx) => ({ ...ex, order_index: idx }));
     return {
       id: workout.id || `wk-man-${Date.now()}`,
       date: workout.date?.split("T")[0] || getLocalDateString(),

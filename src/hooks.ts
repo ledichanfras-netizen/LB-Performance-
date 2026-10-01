@@ -143,17 +143,11 @@ export const useAthletes = (token?: string | null) => {
       ...a,
       workouts: (a.workouts || []).map(w => {
         const exs = Array.isArray(w.exercises) ? [...w.exercises] : [];
-        const hasDistinctOrderIndex = exs.some((x) => 
-          (typeof x.order_index === 'number' && x.order_index !== 0) || 
-          (typeof (x as any).orderIndex === 'number' && (x as any).orderIndex !== 0)
-        );
-        const sortedExs = hasDistinctOrderIndex
-          ? [...exs].sort((x: any, y: any) => {
-              const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
-              const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
-              return xVal - yVal;
-            })
-          : exs;
+        const sortedExs = [...exs].sort((x: any, y: any) => {
+          const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
+          const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
+          return xVal - yVal;
+        });
 
         return {
           ...w,

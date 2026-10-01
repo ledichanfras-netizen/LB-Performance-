@@ -2118,6 +2118,18 @@ export function mergeAthletesWithLocalCache(
         .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date));
 
       const mergedWorkouts = mergeArrayById(lAth.workouts || [], rAth.workouts || [], deletedIds)
+        .map(w => {
+          const exs = Array.isArray(w.exercises) ? [...w.exercises] : [];
+          const sortedExs = [...exs].sort((x: any, y: any) => {
+            const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
+            const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
+            return xVal - yVal;
+          });
+          return {
+            ...w,
+            exercises: sortedExs.map((ex, idx) => ({ ...ex, order_index: idx }))
+          };
+        })
         .sort((a, b) => getSafeDateTime(b.date || (b as any).updatedAt) - getSafeDateTime(a.date || (a as any).updatedAt));
 
       const mergedExternalSessions = mergeArrayById(lAth.externalSessions || [], rAth.externalSessions || [], deletedIds)
