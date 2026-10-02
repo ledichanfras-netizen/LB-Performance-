@@ -9424,30 +9424,104 @@ const Vo2maxReport: FC<{
   history: Vo2max[];
 }> = ({ athlete, data, onClose, history }) => {
   const reportRef = useRef<HTMLDivElement>(null);
-  const previousData = getPreviousAssessment(data, history);
 
-  const handleExportJpeg = async () => {
+  // Helper para baixar uma página específica de forma 100% confiável (Padrão LB)
+  const downloadSinglePage = async (pageIndex: number, customToastId?: string) => {
     if (!reportRef.current) return;
-    const toastId = toast.loading("Otimizando layout para exportação...");
+    const pages = reportRef.current.querySelectorAll(".report-page");
+    const page = pages[pageIndex] as HTMLElement;
+    if (!page) {
+      toast.error(`Página ${pageIndex + 1} não encontrada.`);
+      return;
+    }
+
+    const tId = customToastId || toast.loading(`Renderizando Página ${pageIndex + 1} em alta resolução...`);
     try {
-      const pages = reportRef.current.querySelectorAll(".report-page");
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
-        const link = document.createElement("a");
-        link.download = `relatorio-vo2max-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
-        link.href = dataUrl;
-        link.click();
-        await new Promise((r) => setTimeout(r, 400));
-      }
-      toast.success("Arquivos gerados com sucesso!", { id: toastId });
+      const dataUrl = await toJpeg(page, {
+        quality: 0.96,
+        backgroundColor: "#FFFFFF",
+        pixelRatio: 2.5,
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const athleteSlug = athlete.name.toLowerCase().replace(/\s+/g, "-");
+      const pageLabel = pageIndex === 0 ? "dados-avaliacao" : "diretrizes-treinamento";
+      const filename = `relatorio-vo2max-${athleteSlug}-pag-${pageIndex + 1}-${pageLabel}.jpg`;
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = blobUrl;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 1500);
+
+      toast.success(`Página ${pageIndex + 1} baixada com sucesso!`, { id: tId });
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao gerar imagens.", { id: toastId });
+      toast.error(`Erro ao baixar Página ${pageIndex + 1}.`, { id: tId });
+    }
+  };
+
+  // Helper para baixar todas as páginas com intervalo seguro anti-bloqueio do navegador
+  const handleExportAllPages = async () => {
+    if (!reportRef.current) return;
+    const toastId = toast.loading("Iniciando exportação das 2 páginas...");
+    try {
+      const pages = reportRef.current.querySelectorAll(".report-page");
+      if (pages.length === 0) {
+        toast.error("Nenhuma página encontrada.", { id: toastId });
+        return;
+      }
+
+      for (let i = 0; i < pages.length; i++) {
+        toast.loading(`Gerando e baixando Página ${i + 1} de ${pages.length}...`, { id: toastId });
+        const page = pages[i] as HTMLElement;
+        const dataUrl = await toJpeg(page, {
+          quality: 0.96,
+          backgroundColor: "#FFFFFF",
+          pixelRatio: 2.5,
+        });
+
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const athleteSlug = athlete.name.toLowerCase().replace(/\s+/g, "-");
+        const pageLabel = i === 0 ? "dados-avaliacao" : "diretrizes-treinamento";
+        const filename = `relatorio-vo2max-${athleteSlug}-pag-${i + 1}-${pageLabel}.jpg`;
+
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = blobUrl;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        }, 2000);
+
+        if (i < pages.length - 1) {
+          await new Promise((r) => setTimeout(r, 1200));
+        }
+      }
+
+      toast.success("Download das 2 páginas enviado! Você também pode baixar cada uma pelos botões dedicados.", {
+        id: toastId,
+        duration: 5000,
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao gerar imagens das páginas.", { id: toastId });
     }
   };
 
@@ -9455,873 +9529,899 @@ const Vo2maxReport: FC<{
     triggerPrint();
   };
 
-  const evolutionData = [...history]
-    .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date))
-    .map((item) => ({
-      date: formatDate(item.date),
-      vo2: item.vo2max,
-      vam: item.vam,
-    }))
-    .filter(item => (item.vo2 !== undefined && item.vo2 > 0) || (item.vam !== undefined && item.vam > 0))
-    .slice(-6);
+  // Parâmetros Biométricos e Fisiológicos do Atleta
+  const athleteAge = calculateAge(athlete.dob);
+  const isFemale = athlete.gender === "F";
+  const athleteMass = athlete.weight || 70;
 
-  // Sports Science calculations & custom models
-  const sGender = athlete.gender;
-  const sAge = calculateAge(athlete.dob);
   const sVo2max = data.vo2max || 0;
+  const sVam = data.vam || data.maxSpeed || 0;
+  const sThresholdSpeed = data.thresholdSpeed || (sVam > 0 ? Number((sVam * 0.82).toFixed(1)) : 0);
   const sFcMax = data.maxHeartRate || 0;
-  const sVam = data.vam || 0;
+  const sFcThreshold = data.thresholdHeartRate || (sFcMax > 0 ? Math.round(sFcMax * 0.88) : 0);
   const sRec60s = data.rec60s || 0;
+  const sMaxVentilation = data.maxVentilation || 0;
+  const metsValue = sVo2max > 0 ? Number((sVo2max / 3.5).toFixed(1)) : 0;
+  const vamMetersPerSec = sVam > 0 ? Number((sVam / 3.6).toFixed(2)) : 0;
+  const thresholdRatioPct = sVam > 0 && sThresholdSpeed > 0 ? Math.round((sThresholdSpeed / sVam) * 100) : 82;
 
-  // 1. STATUS AERÓBICO GERAL (RESUMO EXECUTIVO)
-  let vo2Class = "Regular";
-  let vo2ClassColor = "text-yellow-600";
-  if (sGender === "M") {
-    if (sVo2max > 62) {
-      vo2Class = "Elite";
-      vo2ClassColor = "text-indigo-600";
-    } else if (sVo2max >= 55) {
-      vo2Class = "Excelente";
-      vo2ClassColor = "text-emerald-600";
-    } else if (sVo2max >= 45) {
-      vo2Class = "Normal";
-      vo2ClassColor = "text-green-600";
-    } else if (sVo2max >= 38) {
-      vo2Class = "Regular";
-      vo2ClassColor = "text-amber-600";
+  // Score Cardiorrespiratório LB (0 a 100)
+  let vo2Score = data.score || 50;
+  if (!data.score) {
+    if (!isFemale) {
+      if (sVo2max >= 62) vo2Score = Math.min(100, 95 + (sVo2max - 62) * 0.8);
+      else if (sVo2max >= 55) vo2Score = 85 + ((sVo2max - 55) / 7.0) * 10;
+      else if (sVo2max >= 45) vo2Score = 70 + ((sVo2max - 45) / 10.0) * 15;
+      else if (sVo2max >= 38) vo2Score = 50 + ((sVo2max - 38) / 7.0) * 20;
+      else vo2Score = Math.max(10, 10 + (sVo2max / 38) * 40);
     } else {
-      vo2Class = "Suboptimal";
-      vo2ClassColor = "text-red-600";
+      if (sVo2max >= 52) vo2Score = Math.min(100, 95 + (sVo2max - 52) * 0.8);
+      else if (sVo2max >= 45) vo2Score = 85 + ((sVo2max - 45) / 7.0) * 10;
+      else if (sVo2max >= 38) vo2Score = 70 + ((sVo2max - 38) / 7.0) * 15;
+      else if (sVo2max >= 32) vo2Score = 50 + ((sVo2max - 32) / 6.0) * 20;
+      else vo2Score = Math.max(10, 10 + (sVo2max / 32) * 40);
     }
-  } else {
-    if (sVo2max > 52) {
-      vo2Class = "Elite";
-      vo2ClassColor = "text-indigo-600";
-    } else if (sVo2max >= 45) {
-      vo2Class = "Excelente";
-      vo2ClassColor = "text-emerald-600";
-    } else if (sVo2max >= 38) {
-      vo2Class = "Normal";
-      vo2ClassColor = "text-green-600";
-    } else if (sVo2max >= 32) {
-      vo2Class = "Regular";
-      vo2ClassColor = "text-amber-600";
-    } else {
-      vo2Class = "Suboptimal";
-      vo2ClassColor = "text-red-600";
-    }
-  }
-
-  // aerobic features:
-  let vo2QualityText = "boa resistência aeróbica sistêmica de repouso";
-  if (sVam > 17 || (sGender === "F" && sVam > 15)) {
-    vo2QualityText = "excepcional Velocidade Aeróbica Máxima (VAM) e ótima taxa de tolerância mitocondrial ao lactato";
-  } else if (sRec60s > 45) {
-    vo2QualityText = "excelente eficiência de recuperação parassimpática celular (coração ágil pós-esforço)";
-  }
-
-  let vo2ProblemText = "manter o teto de potência sem sofrer de acidose precoce";
-  if (sRec60s < 30) {
-    vo2ProblemText = "baixo delta de recuperação autonômica cardíaca após alcançar o pico de estresse aeróbico";
-  } else if (sVo2max < 45 && sGender === "M") {
-    vo2ProblemText = "limiar cardiopulmonar reduzido diante de demandas continuadas de deslocamento vertical/horizontal de campo";
-  } else if (sVo2max < 38 && sGender === "F") {
-    vo2ProblemText = "tetos metabólicos e limiares de oxigenação reduzidos";
-  }
-
-  const veredictoResumo = `Atleta apresenta capacidade cardiovascular classificada como ${vo2Class.toUpperCase()}. Possui ${vo2QualityText}, contudo demonstra ponto de atenção em ${vo2ProblemText}.`;
-
-  // 2. SCORE CARDIOVASCULAR (0 a 100)
-  let vo2Score = 50;
-  if (sGender === "M") {
-    if (sVo2max >= 62) vo2Score = Math.min(100, 95 + (sVo2max - 62) * 0.8);
-    else if (sVo2max >= 55) vo2Score = 85 + ((sVo2max - 55) / 7.0) * 10;
-    else if (sVo2max >= 45) vo2Score = 70 + ((sVo2max - 45) / 10.0) * 15;
-    else if (sVo2max >= 38) vo2Score = 50 + ((sVo2max - 38) / 7.0) * 20;
-    else vo2Score = Math.max(10, 10 + (sVo2max / 38) * 40);
-  } else {
-    if (sVo2max >= 52) vo2Score = Math.min(100, 95 + (sVo2max - 52) * 0.8);
-    else if (sVo2max >= 45) vo2Score = 85 + ((sVo2max - 45) / 7.0) * 10;
-    else if (sVo2max >= 38) vo2Score = 70 + ((sVo2max - 38) / 7.0) * 15;
-    else if (sVo2max >= 32) vo2Score = 50 + ((sVo2max - 32) / 6.0) * 20;
-    else vo2Score = Math.max(10, 10 + (sVo2max / 32) * 40);
   }
   vo2Score = Math.round(vo2Score);
 
-  let vo2ScoreClass = "Baixo";
-  let vo2ScoreColor = "text-rose-600 border-rose-200 bg-rose-50";
-  if (vo2Score >= 85) { vo2ScoreClass = "Elite"; vo2ScoreColor = "text-indigo-600 border-indigo-200 bg-indigo-50"; }
-  else if (vo2Score >= 70) { vo2ScoreClass = "Bom"; vo2ScoreColor = "text-emerald-600 border-emerald-200 bg-emerald-50"; }
-  else if (vo2Score >= 50) { vo2ScoreClass = "Regular"; vo2ScoreColor = "text-amber-600 border-amber-200 bg-amber-50"; }
+  // Histórico Longitudinal e Deltas (Padrão IMTP)
+  const sortedHistory = [...history]
+    .filter((h) => (h.vo2max && h.vo2max > 0) || (h.vam && h.vam > 0))
+    .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date));
 
-  // 3. INTERPRETAÇÃO TÉCNICA (TREINADOR)
-  let sAerobicProfile = "Foco em Potência Aeróbica e Limiar de Lactato";
-  let sCapillaryAnalysis = "";
-  let sMetabolicEfficiencyStr = "";
-  let sCardiacRecoveryStr = "";
+  const previousVo2 = sortedHistory
+    .filter((h) => h.id !== data.id)
+    .slice(-1)[0];
 
-  if (vo2Class === "Elite" || vo2Class === "Excelente") {
-    sAerobicProfile = "Perfil Cardiovascular de Elite / Grande Capacidade de Transporte de Oxigênio";
-  } else if (vo2Class === "Normal") {
-    sAerobicProfile = "Perfil Aeróbico Balanceado / Nível de Condicionamento Estabilizado";
-  } else {
-    sAerobicProfile = "Perfil de Condicionamento Baixo / Fadiga de Acidose Precoce";
+  const getLongitudinalDelta = (current: number, previous: number | undefined, lowerIsBetter = false) => {
+    if (!previous || previous === 0 || !current) return null;
+    const diff = current - previous;
+    const pct = (diff / previous) * 100;
+    const improved = lowerIsBetter ? diff < 0 : diff > 0;
+    const sign = diff > 0 ? "+" : "";
+
+    let statusTrend: "positiva" | "estavel" | "atencao" = "estavel";
+    if (Math.abs(pct) >= 2.0) {
+      statusTrend = improved ? "positiva" : "atencao";
+    }
+
+    return {
+      diff,
+      pct,
+      improved,
+      text: `${sign}${pct.toFixed(1)}%`,
+      trend: statusTrend,
+      icon: statusTrend === "positiva" ? "▲" : statusTrend === "atencao" ? "▼" : "➔",
+      color: statusTrend === "positiva"
+        ? "text-emerald-700 bg-emerald-500/10 border-emerald-500/20"
+        : statusTrend === "atencao"
+        ? "text-red-700 bg-red-500/10 border-red-500/20"
+        : "text-amber-700 bg-amber-500/10 border-amber-500/20"
+    };
+  };
+
+  const vo2Delta = getLongitudinalDelta(sVo2max, previousVo2?.vo2max);
+  const vamDelta = getLongitudinalDelta(sVam, previousVo2?.vam || previousVo2?.maxSpeed);
+  const thresholdSpeedDelta = getLongitudinalDelta(sThresholdSpeed, previousVo2?.thresholdSpeed);
+  const fcMaxDelta = getLongitudinalDelta(sFcMax, previousVo2?.maxHeartRate, true);
+  const rec60sDelta = getLongitudinalDelta(sRec60s, previousVo2?.rec60s);
+  const scoreDelta = getLongitudinalDelta(vo2Score, previousVo2?.score);
+
+  // Perfil Cardiorrespiratório & Metabólico em 4 Quadrantes (Potência Aeróbia/VAM vs. Sustentação/Recuperação Vagal)
+  const isHighAerobicPower = sVo2max >= (isFemale ? 45 : 54) || sVam >= (isFemale ? 14.5 : 16.5);
+  const isFastRecovery = sRec60s >= 35 || (sRec60s === 0 && thresholdRatioPct >= 82);
+
+  let cardioProfile = {
+    quadrant: "Q1",
+    title: "MOTOR AERÓBIO & RECUPERAÇÃO VAGAL DE ELITE",
+    badgeColor: "bg-emerald-500/10 text-emerald-800 border-emerald-500/30",
+    dot: "🟢",
+    verdict: "Elevado consumo máximo de oxigênio (VO2 Máx) e alta Velocidade Aeróbica Máxima (VAM) aliados a rápida reativação parassimpática pós-esforço. Excelente capacidade de repetir estímulos intensos sem acidose precoce.",
+    coachInterpretation: "O atleta combina alto débito cardíaco central com eficiente densidade mitocondrial periférica e rápido clearance de lactato/H+. Apresenta ótima relação Limiar/VAM e rápida queda autonômica da frequência cardíaca nos primeiros 60s de pausa, suportando alta densidade de treinos intermitentes e jogos congestionados.",
+    athleteTranslation: "Seu pulmão e coração funcionam como um motor de alta cilindrada com resfriamento ultra-rápido! Você consegue dar tiros fortes seguidos, manter a velocidade no segundo tempo e recuperar o fôlego muito mais rápido que o adversário."
+  };
+
+  if (isHighAerobicPower && !isFastRecovery) {
+    cardioProfile = {
+      quadrant: "Q2",
+      title: "ALTA POTÊNCIA AERÓBIA (VAM) COM DÉFICIT DE RECUPERAÇÃO",
+      badgeColor: "bg-amber-500/10 text-amber-800 border-amber-500/30",
+      dot: "🟡",
+      verdict: "Excelente teto de VO2 Máx e VAM elevada, porém com cinética lenta de recuperação autonômica (Rec 60s) ou limiar metabólico distante do teto aeróbio.",
+      coachInterpretation: "O atleta atinge velocidades aeróbicas máximas altas, mas apresenta lentidão na restauração da fosfocreatina e na remoção de metabólitos entre esforços (baixa queda de FC em 60s). Priorizar treinos intermitentes fracionados (Fartlek 15s:15s, Tiros Antiglicolíticos e limiar) para otimizar a reativação vagal e o clearance de lactato.",
+      athleteTranslation: "Você tem um motor muito forte e atinge velocidades altas, mas seu corpo ainda demora um pouco para 'esfriar' e baixar os batimentos após cada sequência de sprints. Vamos treinar para que você recupere o fôlego em poucos segundos!"
+    };
+  } else if (!isHighAerobicPower && isFastRecovery) {
+    cardioProfile = {
+      quadrant: "Q3",
+      title: "BOA RECUPERAÇÃO COM LIMITAÇÃO DE TETO AERÓBIO (VAM)",
+      badgeColor: "bg-blue-500/10 text-blue-800 border-blue-500/30",
+      dot: "🔵",
+      verdict: "Ótima eficiência autonômica e boa tolerância submáxima, mas limitado pelo teto absoluto de VO2 Máx e Velocidade Aeróbica Máxima (VAM).",
+      coachInterpretation: "O sistema autonômico recupera bem entre esforços submáximos e o limiar relativo é estável, contudo o teto central de transporte de oxigênio (VO2 Máx e VAM) limita a intensidade máxima sustentada. Priorizar blocos de HIIT curto a 100-110% da VAM para expandir o volume sistólico e a potência aeróbia.",
+      athleteTranslation: "Você recupera muito bem os batimentos após o esforço e tem bom ritmo constante, mas precisamos aumentar a velocidade máxima do seu motor aeróbio para que você suporte ritmos de jogo mais intensos sem entrar no limite."
+    };
+  } else if (!isHighAerobicPower && !isFastRecovery) {
+    cardioProfile = {
+      quadrant: "Q4",
+      title: "EM DESENVOLVIMENTO CARDIORRESPIRATÓRIO GLOBAL",
+      badgeColor: "bg-red-500/10 text-red-800 border-red-500/30",
+      dot: "🔴",
+      verdict: "Necessidade de intervenção estruturada para elevação concomitante da base aeróbia mitocondrial, da VAM e da eficiência de recuperação pós-esforço.",
+      coachInterpretation: "Perfil que demanda construção progressiva da capacidade oxidativa periférica (capilarização e biogênese mitocondrial) combinada com estímulos controlados de potência aeróbia e tiros antiglicolíticos para evitar acidose precoce e fadiga central.",
+      athleteTranslation: "Estamos na fase de construção da sua base de fôlego e resistência. Vamos trabalhar de forma inteligente com treinos intervalados e antiglicolíticos para aumentar seu gás e acelerar sua recuperação entre um lance e outro!"
+    };
   }
 
-  if (sVam > 16) {
-    sCapillaryAnalysis = "Excepcional densidade capilar e volume sistólico mitocondrial. Atleta possui capacidade fantástica de remoção e reciclagem de lactato.";
-  } else {
-    sCapillaryAnalysis = "Volume mitocondrial e circulação capilar periférica moderados. Sujeito a estafa mecânica por acúmulo de lactato prematuro em tiros contínuos.";
-  }
-
-  const sThresholdSpeed = data.thresholdSpeed || 1;
-  if (sThresholdSpeed / (sVam || 1) > 0.8) {
-    sMetabolicEfficiencyStr = "Altíssima sustentabilidade de ritmo de corrida. O limiar anaeróbico está situado muito próximo da VAM, indicando ritmista eficiente.";
-  } else {
-    sMetabolicEfficiencyStr = "Baixo limiar de lactato relativo à VAM. Atleta opera sob regime anaeróbico precoce em velocidades medianas de jogo.";
-  }
-
-  if (sRec60s > 40) {
-    sCardiacRecoveryStr = "Fantástica recuperação pós-esforço imediata. Demonstra excelente responsividade do tônus vagal parassimpático pós-esforço extremo.";
-  } else {
-    sCardiacRecoveryStr = "Recuperação de frequência letárgica. O atleta permanece deprimido energeticamente por longos períodos pós-sprint, atrasando a reoxigenação.";
-  }
-
-  // 4. TRADUÇÃO SIMPLES (ATLETA)
-  let sVo2AthleteTranslation = "";
-  if (vo2Class === "Elite" || vo2Class === "Excelente") {
-    sVo2AthleteTranslation = "Seu pulmão e coração são verdadeiros motores de alta cavalaria! Você consegue correr o jogo inteiro sem perder a eficiência de fôlego nem cansar na finta mecânica. Vamos focar em manter esse teto fantástico trabalhando treinos de tiros longos.";
-  } else if (vo2Class === "Normal") {
-    sVo2AthleteTranslation = "Você está com um ótimo nível de fôlego para as disputas de jogo. Consegue manter a intensidade na maioria do tempo, mas podemos melhorar o seu tempo de recuperação entre os tiros para que você atropele seus adversários no segundo tempo.";
-  } else {
-    sVo2AthleteTranslation = "No momento seu fôlego ainda está esgotando um pouco antes do esperado ao dar tiros repetidos. Vamos trabalhar treinos intermitentes específicos para expandir o tamanho do seu motor cardiorrespiratório e acelerar a sua recuperação pós-sprint.";
-  }
-
-  // 5. EXPLICAÇÃO PARA PAIS
-  let sVo2ParentsExplanation = "";
-  if (sAge < 18) {
-    sVo2ParentsExplanation = "O monitoramento do VO2 Max avalia a eficiência de oxigenação celular do adolescente. Manter a capacidade aeróbica ideal melhora o transporte de nutrientes aos tecidos musculares em formação, evita o esgotamento precoce e fortalece a saúde do músculo do coração em desenvolvimento.";
-  } else {
-    sVo2ParentsExplanation = "A avaliação de consumo máximo de oxigênio (VO2) garante a saúde cardiovascular integrada do competidor. Controlar os limiares de acidose pulmonar e o retorno imediato da frequência cardíaca protege contra estresse cardíaco ou fadiga fadigante pós-sessão de suor intenso.";
-  }
-
-  // 6. IMPACTO NA PERFORMANCE
-  let sVo2PerformanceImpactText = "";
-  if (vo2Class === "Elite" || vo2Class === "Excelente") {
-    sVo2PerformanceImpactText = "O excelente motor aeróbico permite que o atleta realize sprints seguidos de alta velocidade e fintas explosivas mantendo a alta acuidade visual e técnica mesmo nos acréscimos.";
-  } else {
-    sVo2PerformanceImpactText = "Garantir uma subida de 5% no VO2 Max aumenta a capacidade de oxigenação muscular, o que permite acelerar a recuperação pós-finta e diminuir as caminhadas passivas em campo.";
-  }
-
-  // 7. METAS DE EVOLUÇÃO AERÓBICA
-  let bioTargetVo2 = 0;
-  let bioTargetVam = 0;
-  const bioTargetTimeframeVo2 = "6 a 8 semanas";
-
-  if (sVo2max > 0) {
-    bioTargetVo2 = parseFloat((sVo2max + (sVo2max < 50 ? 4.5 : 2.5)).toFixed(1));
-    bioTargetVam = parseFloat((sVam + 1.2).toFixed(1));
-  } else {
-    bioTargetVo2 = sGender === "M" ? 52 : 44;
-    bioTargetVam = sGender === "M" ? 17.5 : 15.0;
-  }
-
-  // IEA CALCULATIONS
-  const vamEff = Math.round(Math.min(100, (sVam / 20) * 105));
-  const recEff = Math.round(Math.min(100, (sRec60s / 50) * 105));
-  const totalEfficiencyVo2 = Math.round((vo2Score * 0.40) + (vamEff * 0.40) + (recEff * 0.20));
-
-  let efficiencyLevelVo2 = "baixa";
-  let efficiencyColorVo2 = "text-rose-600 border-rose-100 bg-rose-50/50 hover:bg-rose-50";
-  if (totalEfficiencyVo2 >= 85) {
-    efficiencyLevelVo2 = "elite";
-    efficiencyColorVo2 = "text-indigo-600 border-indigo-100 bg-indigo-50/50 hover:bg-indigo-55";
-  } else if (totalEfficiencyVo2 >= 70) {
-    efficiencyLevelVo2 = "alta";
-    efficiencyColorVo2 = "text-emerald-600 border-emerald-100 bg-emerald-50/50 hover:bg-emerald-55";
-  } else if (totalEfficiencyVo2 >= 50) {
-    efficiencyLevelVo2 = "moderada";
-    efficiencyColorVo2 = "text-amber-600 border-amber-100 bg-amber-50/50 hover:bg-amber-55";
-  }
-
-  // 8. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
-  let sVo2InterventionDirectives = [
-    { 
-      pillar: "Prioridade 1: Potência Aeróbica & VAM (High-Intensity)", 
-      directive: "Estimular o tempo gasto próximo ao VO2 Máx através de blocos intervalados fracionados prescritos com base na VAM, elevando o teto fisiológico e o débito cardíaco máximo." 
+  // Diretrizes de Intervenção Metodológica & Caminho de Treino Padrão Ouro LB (3 Pilares com KPI)
+  const methodologicalDirectives = [
+    {
+      pillar: "DIRETRIZ 1: CAMINHO PRIMÁRIO DE INTERVENÇÃO CARDIORRESPIRATÓRIA",
+      priority: (!isHighAerobicPower)
+        ? "EXPANSÃO DE POTÊNCIA AERÓBIA CENTRAL & VAM (HIIT CURTO)"
+        : (!isFastRecovery)
+          ? "CINÉTICA DE RECUPERAÇÃO VAGAL & CLEARANCE METABÓLICO"
+          : "MANUTENÇÃO SUPRAMÁXIMA & DENSIDADE ESPECÍFICA DE JOGO",
+      methodology: (!isHighAerobicPower)
+        ? `Prescrever blocos de Fartlek / HIIT curto fracionado em Z4/Z5 (ex: 2 blocos de 10-12x 15s:15s a 100-110% da VAM ≈ ${(sVam * 1.05).toFixed(1)} km/h com 2m30s entre blocos). Acumula elevado tempo em >90% do VO2 Máx, expandindo o débito cardíaco máximo sem excesso de fadiga mecânica.`
+        : (!isFastRecovery)
+          ? `Enfatizar protocolos intermitentes com controle de recuperação ativa (Z1: 50-60% VAM) e blocos de Limiar Anaeróbio (Z3: ${((sVam || 14) * 0.80).toFixed(1)} a ${((sVam || 14) * 0.90).toFixed(1)} km/h), estimulando transportadores MCT1/MCT4 para remoção acelerada de lactato e retorno rápido da FC.`
+          : `Aplicar estímulos de alta densidade em regime supramáximo (Z5: 105-120% da VAM) e jogos reduzidos/específicos, preservando o teto oxidativo com baixo volume total para maximizar o frescor neuromuscular.`,
+      kpi: (!isHighAerobicPower)
+        ? "Elevar a VAM em +0.8 a +1.5 km/h e expandir o VO2 Máx no próximo mesociclo."
+        : "Atingir queda de Frequência Cardíaca >35-45 bpm no 1º minuto pós-pico (Rec 60s)."
     },
-    { 
-      pillar: "Prioridade 2: Limiar Anaeróbio & Sustentação de Ritmo", 
-      directive: "Trabalhar em faixas de transição metabólica para postergar o acúmulo de íons H+, ampliando a capacidade de tolerar e sustentar altas velocidades sem fadiga precoce." 
+    {
+      pillar: "DIRETRIZ 2: POTÊNCIA ALÁTICA & CAPACIDADE DE REPETIR SPRINTS (ANTIGLICOLÍTICO / RSA)",
+      priority: "BIOGÊNESE MITOCONDRIAL EM FIBRAS RÁPIDAS (ESTEIRA, BIKE OU CAMPO)",
+      methodology: "Integrar sessões de Tiros Antiglicolíticos por Segundos (ex: 2 blocos de 6x 8s ou 5x 10s na Bike/Esteira com pausa alática de 45s-60s) ou Tiros / RSA em campo (5x 20m com 20s de micro-pausa). Promove adaptação oxidativa nas fibras Tipo II sem induzir acidose lática destrutiva.",
+      kpi: "Sustentar potência máxima em todos os tiros do bloco com rápida ressíntese de ATP-CP."
     },
-    { 
-      pillar: "Prioridade 3: Cinética de Recuperação & Densidade Mitocondrial", 
-      directive: "Desenvolver a capacidade de remoção de metabólitos e restauração energética nos intervalos, acelerando a reativação parassimpática pós-esforço." 
+    {
+      pillar: "DIRETRIZ 3: ECONOMIA DE CORRIDA & GESTÃO DAS ZONAS METABÓLICAS",
+      priority: "EFICIÊNCIA MECÂNICA SUBMÁXIMA & CONTROLE AUTONÔMICO",
+      methodology: `Utilizar a Velocidade de Limiar (${sThresholdSpeed} km/h • ${thresholdRatioPct}% da VAM) como âncora para sessões regenerativas (Z1 <${((sVam || 14) * 0.60).toFixed(1)} km/h) e aeróbias extensivas (Z2), reduzindo o custo energético por metro percorrido e prevenindo sobrecarga simpática crônica.`,
+      kpi: "Elevar a fração do Limiar Anaeróbio para ≥85% da VAM com menor percepção subjetiva de esforço (RPE)."
     }
   ];
 
-  if (sVo2max < 45) {
-    sVo2InterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Base Aeróbica & Densidade Capilar", 
-        directive: "Priorizar volume progressivo contínuo e fracionado extensivo para aumentar a capilarização muscular e a eficiência do transporte periférico de oxigênio." 
-      },
-      { 
-        pillar: "Prioridade 2: Economia de Corrida & Mecânica", 
-        directive: "Ajustar cadência e oscilação vertical para reduzir o custo energético por metro percorrido nas velocidades submáximas." 
-      },
-      { 
-        pillar: "Prioridade 3: Condicionamento Cardiovascular Central", 
-        directive: "Estímulos aeróbicos controlados com monitoramento cardíaco contínuo para ganho gradual de complacência ventricular." 
-      }
-    ];
-  } else if (sVo2max >= 60) {
-    sVo2InterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Treinamento Supramáximo & Anaeróbio Láctico", 
-        directive: "Aplicar estímulos curtos acima de 100% da VAM com micro-pausas para desafiar a capacidade máxima de tamponamento intracelular." 
-      },
-      { 
-        pillar: "Prioridade 2: Manutenção da Economia em Fadiga", 
-        directive: "Sessões específicas de manutenção técnica sob condições de acidose metabólica controlada." 
-      },
-      { 
-        pillar: "Prioridade 3: Periodização e Carga Competitiva", 
-        directive: "Adequar o volume e intensidade de acordo com o calendário competitivo para evitar overreaching e otimizar o tapering." 
-      }
-    ];
-  }
+  // Metas Quantitativas para o Próximo Ciclo (6 a 8 Semanas)
+  const baseVo2 = sVo2max > 0 ? sVo2max : (isFemale ? 42 : 50);
+  const baseVam = sVam > 0 ? sVam : (isFemale ? 14.0 : 16.0);
+  const targetVo2Min = Number((baseVo2 * 1.04).toFixed(1));
+  const targetVo2Max = Number((baseVo2 * 1.07).toFixed(1));
+  const targetVamMin = Number((baseVam + 0.8).toFixed(1));
+  const targetVamMax = Number((baseVam + 1.4).toFixed(1));
+  const targetRec60s = Math.max(40, sRec60s > 0 ? Math.round(sRec60s * 1.12) : 40);
 
-  const StatCard = ({
-    icon: Icon,
-    label,
-    value,
-    unit,
-    color,
-    description,
-    diff,
-  }: any) => (
-    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full group hover:border-brand-primary/20 transition-all font-sans">
-      <div className="flex items-center justify-between mb-3 font-sans">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg ${color} bg-opacity-10 shadow-sm`}>
-            <Icon className={`w-3.5 h-3.5 ${color.replace("bg-", "text-")}`} />
-          </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none font-bold font-sans">
-            {label}
-          </span>
-        </div>
-        {diff && (
-          <div className={`flex items-center gap-0.5 text-[9px] font-black ${diff.color}`}>
-            <span>{diff.icon}</span>
-            <span>{diff.percent}%</span>
-          </div>
-        )}
-      </div>
-      <div className="flex items-baseline gap-1 mt-auto font-sans">
-        <span className="text-xl font-black text-slate-950 italic tracking-tight font-sans">
-          {value || 0}
-        </span>
-        <span className="text-[10px] font-black text-slate-400 uppercase italic font-sans">
-          {unit}
-        </span>
-      </div>
-      {description && (
-        <p className="text-[8px] text-slate-500 mt-1 font-bold leading-tight uppercase italic opacity-85 font-sans">
-          {description}
-        </p>
-      )}
-    </div>
-  );
+  const totalPages = 2;
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
         
+        {/* Barra Superior Flutuante de Ações Rápidas (Padrão LB) */}
+        <div className="sticky top-2 z-50 mb-4 mx-2 md:mx-0 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-white no-print">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#39FF14] animate-pulse shrink-0" />
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-100 block leading-tight">
+                Relatório VO2 Máx & VAM • {athlete.name}
+              </span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase">
+                {totalPages} Páginas A4 • Monitoramento Cardiorrespiratório & Metabólico
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportAllPages}
+              className="flex items-center gap-1.5 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-md cursor-pointer"
+              title="Baixar ambas as páginas sequencialmente"
+            >
+              <Download size={14} />
+              <span>Baixar Todas (1 e 2)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(0)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 1 (Dados e Avaliação)"
+            >
+              <FileText size={14} className="text-[#39FF14]" />
+              <span>Pág. 1 (Dados)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(1)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 2 (Diretrizes e Treinamento)"
+            >
+              <FileText size={14} className="text-emerald-400" />
+              <span>Pág. 2 (Diretrizes)</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Imprimir ou Salvar em PDF"
+            >
+              <Printer size={14} />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 bg-slate-800/90 hover:bg-red-500/20 hover:text-red-400 text-slate-300 p-2 rounded-xl active:scale-95 transition-all border border-slate-700 cursor-pointer ml-1"
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          {/* Page 1 */}
-          <ReportPage pageNumber={1} totalPages={3}>
+          
+          {/* PÁGINA 1: RESULTADOS CARDIORRESPIRATÓRIOS & DIAGNÓSTICO METABÓLICO */}
+          <ReportPage pageNumber={1} totalPages={totalPages}>
             <ReportHeader
-              title="RELATÓRIO DE VO2 MAX"
-              subTitle="CAPACIDADE ERGOMÉTRICA & CARDIOVASCULAR"
+              title="Consumo Máximo de Oxigênio (VO2 Máx & VAM)"
+              subTitle="Padrão Ouro de Potência Aeróbia, Limiar Metabólico e Cinética de Recuperação Cardíaca"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[
-                { label: "VO2 MÁXIMO", value: `${data.vo2max} ml/kg/min` },
-                { label: "FITNESS SCORE", value: data.score || "N/A" }
+                { label: "VO2 MÁXIMO", value: `${sVo2max} ML/KG/MIN` },
+                { label: "VELOCIDADE VAM", value: `${sVam} KM/H` }
               ]}
             />
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 mt-4 font-sans">
-              <div className="bg-brand-primary p-6 rounded-3xl text-brand-dark shadow-xl relative overflow-hidden group flex flex-col justify-between">
-                <div className="absolute -right-4 -top-4 opacity-[0.05] group-hover:scale-110 transition-transform text-brand-dark">
-                  <HeartPulse className="w-24 h-24" />
-                </div>
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 italic font-bold">
-                    VO2 MÁXIMO
+            {/* Veredito Executivo & Perfil Cardiorrespiratório do Atleta */}
+            <div className="bg-slate-50 border border-slate-200 p-4.5 rounded-2xl mb-4.5 select-none font-sans">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 pb-2.5 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                    DIAGNÓSTICO CARDIORRESPIRATÓRIO DO CIENTISTA DO ESPORTE
                   </span>
-                  {previousData && previousData.vo2max && (
-                    <div className="flex items-center gap-1 text-[9px] font-black text-brand-dark bg-black/10 px-2 py-0.5 rounded-full">
-                      <span>{getDiff(data.vo2max, previousData.vo2max).icon}</span>
-                      <span>{getDiff(data.vo2max, previousData.vo2max).percent}%</span>
-                    </div>
-                  )}
                 </div>
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <h3 className="text-4xl font-black italic leading-none font-sans">
-                      {data.vo2max || 0}
-                    </h3>
-                    <span className="text-[10px] font-bold opacity-60 uppercase italic font-sans">
-                      ml/kg/min
-                    </span>
-                  </div>
-                  <p className="text-[8px] mt-4 font-black uppercase italic leading-relaxed text-brand-dark/80 font-bold font-sans">
-                    Consumo máximo de oxigênio relativo.
-                  </p>
-                </div>
+                <span className={`text-[8px] font-black px-2.5 py-1 rounded-full border ${cardioProfile.badgeColor}`}>
+                  {cardioProfile.dot} {cardioProfile.title}
+                </span>
               </div>
 
-              <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden group flex flex-col justify-between">
-                <div className="absolute -right-4 -top-4 text-orange-500 opacity-[0.03] group-hover:scale-110 transition-transform">
-                  <Zap className="w-24 h-24" />
-                </div>
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] italic font-bold font-sans">
-                    VAM
-                  </span>
-                  {previousData && (previousData.vam || previousData.thresholdSpeed) && (
-                    <div className="flex items-center gap-1 text-[9px] font-black text-orange-500 font-sans">
-                      <span>{getDiff(data.vam || data.thresholdSpeed, previousData.vam || previousData.thresholdSpeed).icon}</span>
-                      <span>{getDiff(data.vam || data.thresholdSpeed, previousData.vam || previousData.thresholdSpeed).percent}%</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <h3 className="text-4xl font-black text-slate-900 italic leading-none font-sans">
-                      {data.vam || data.thresholdSpeed || 0}
-                    </h3>
-                    <span className="text-xs font-bold text-slate-400 uppercase italic font-sans">
-                      KM/H
-                    </span>
-                  </div>
-                  <p className="text-[8px] mt-4 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                    Velocidade Aeróbica Máxima de corrida.
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold text-slate-800 uppercase leading-relaxed">
+                    {cardioProfile.verdict}
                   </p>
                 </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden group flex flex-col justify-between">
-                <div className="absolute -right-4 -top-4 text-rose-500 opacity-[0.03] group-hover:scale-110 transition-transform">
-                  <Activity className="w-24 h-24" />
-                </div>
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] italic font-bold font-sans">
-                    FC MÁXIMA
-                  </span>
-                  {previousData && previousData.maxHeartRate && (
-                    <div className="flex items-center gap-1 text-[9px] font-black text-rose-500 font-sans">
-                      <span>{getDiff(data.maxHeartRate, previousData.maxHeartRate, true).icon}</span>
-                      <span>{getDiff(data.maxHeartRate, previousData.maxHeartRate, true).percent}%</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <h3 className="text-4xl font-black text-slate-900 italic leading-none font-sans">
-                      {data.maxHeartRate || 0}
-                    </h3>
-                    <span className="text-xs font-bold text-slate-400 uppercase italic font-sans">
-                      BPM
-                    </span>
-                  </div>
-                  <p className="text-[8px] mt-4 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                    Frequência cardíaca máxima atingida.
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden group flex flex-col justify-between">
-                <div className="absolute -right-4 -top-4 text-purple-500 opacity-[0.03] group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-24 h-24" />
-                </div>
-                <div className="flex justify-between items-start mb-4">
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] italic font-bold font-sans">
-                    FITNESS SCORE
-                  </span>
-                  {previousData && previousData.score && (
-                    <div className="flex items-center gap-1 text-[9px] font-black text-purple-500 font-sans">
-                      <span>{getDiff(data.score || 0, previousData.score || 0).icon}</span>
-                      <span>{getDiff(data.score || 0, previousData.score || 0).percent}%</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <h3 className="text-4xl font-black text-slate-900 italic leading-none font-sans">
-                      {data.score || 0}
-                    </h3>
-                    <span className="text-xs font-bold text-slate-400 uppercase italic font-sans">
-                      PTS
-                    </span>
-                  </div>
-                  <p className="text-[8px] mt-4 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                    Pontuação de condicionamento aeróbico.
-                  </p>
+                <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 text-[8px] font-black uppercase text-slate-600 shrink-0">
+                  <span>Modalidade: <strong className="text-slate-950">{athlete.modality || "Geral"}</strong></span>
+                  <span className="text-slate-300">|</span>
+                  <span>Idade: <strong className="text-slate-950">{athleteAge} Anos</strong></span>
+                  <span className="text-slate-300">|</span>
+                  <span>Massa: <strong className="text-slate-950">{athleteMass} kg</strong></span>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <StatCard
-                icon={Activity}
-                label="FC Limiar"
-                value={data.thresholdHeartRate}
-                unit="bpm"
-                color="bg-red-500"
-                diff={
-                  previousData
-                    ? getDiff(
-                        data.thresholdHeartRate,
-                        previousData.thresholdHeartRate,
-                        true,
-                      )
-                    : null
-                }
-              />
-              <StatCard
-                icon={TrendingUp}
-                label="V. Máxima Peak"
-                value={data.maxSpeed}
-                unit="km/h"
-                color="bg-brand-primary"
-                diff={
-                  previousData
-                    ? getDiff(data.maxSpeed, previousData.maxSpeed)
-                    : null
-                }
-              />
-              <StatCard
-                icon={Droplets}
-                label="Ventilação Max"
-                value={data.maxVentilation}
-                unit="L/min"
-                color="bg-cyan-500"
-                diff={
-                  previousData
-                    ? getDiff(data.maxVentilation, previousData.maxVentilation)
-                    : null
-                }
-              />
-              <StatCard
-                icon={Activity}
-                label="Recup. 60s"
-                value={data.rec60s}
-                unit="bpm"
-                color="bg-emerald-500"
-                description="Delta FC 1min post-pico"
-                diff={
-                  previousData ? getDiff(data.rec60s, previousData.rec60s) : null
-                }
-              />
+            {/* Cabeçalho da Seção de Dados da Avaliação */}
+            <div className="flex justify-between items-center mb-2 px-0.5 select-none font-sans">
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                DADOS DA AVALIAÇÃO CARDIORRESPIRATÓRIA & ERGOMÉTRICA
+              </span>
+              <span className="text-[7.5px] font-bold text-slate-500 uppercase">
+                Monitoramento Individual • Foco em Prescrição por Zonas
+              </span>
             </div>
-          </ReportPage>
 
-          {/* Page 2 */}
-          <ReportPage pageNumber={2} totalPages={3}>
-            <ReportHeader
-              title="RELATÓRIO DE VO2 MAX"
-              subTitle="FOTOGRAFIA CARDIOVASCULAR E EVOLUÇÃO HISTÓRICA"
-              athlete={athlete}
-              date={formatDate(data.date)}
-              extraStats={[{ label: "PÁGINA", value: "02 DE 03" }]}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-              <div className="md:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-2 font-sans">
-                    <TrendingUp className="w-4 h-4 text-brand-primary" />
-                    <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em] font-bold">
-                      Histórico Aeróbico
-                    </h4>
-                  </div>
-                </div>
-                <div className="h-[260px] w-full mt-2">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart
-                      data={evolutionData}
-                      margin={{ top: 15, right: 5, left: -20, bottom: 5 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="eliteVo2Grad"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="#6366f1"
-                            stopOpacity={0.25}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="#6366f1"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="4 4"
-                        vertical={false}
-                        stroke="#f1f5f9"
-                      />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#64748b", fontSize: 9, fontWeight: 700 }}
-                      />
-                      {/* Left Axis for VO2Max */}
-                      <YAxis
-                        yAxisId="left"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#6366f1", fontSize: 9, fontWeight: 700 }}
-                        domain={["dataMin - 4", "dataMax + 4"]}
-                        label={{ value: "VO2 (ml/kg/min)", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 7, fill: "#6366f1", fontWeight: 700 } }}
-                      />
-                      {/* Right Axis for VAM */}
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#f97316", fontSize: 9, fontWeight: 700 }}
-                        domain={["dataMin - 2", "dataMax + 2"]}
-                        label={{ value: "VAM (km/h)", angle: 90, position: "insideRight", offset: -2, style: { fontSize: 7, fill: "#f97316", fontWeight: 700 } }}
-                      />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-slate-900 text-white p-3.5 rounded-2xl border border-slate-800 shadow-xl font-sans text-[10px] space-y-1.5 uppercase font-bold">
-                                <p className="text-slate-400 font-mono text-[9px] mb-1">DATA: {payload[0].payload.date}</p>
-                                <div className="flex items-center gap-2">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-                                  <span>VO2 MÁX: <span className="text-white font-extrabold text-xs">{payload[0].value}</span> ml/kg</span>
-                                </div>
-                                {payload[1] && (
-                                  <div className="flex items-center gap-2 pt-1 border-t border-slate-800/60">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
-                                    <span>VAM: <span className="text-orange-400 font-extrabold text-xs">{payload[1].value}</span> km/h</span>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Legend 
-                        verticalAlign="top" 
-                        height={32}
-                        iconSize={10}
-                        content={() => (
-                          <div className="flex justify-center gap-6 text-[9px] font-black text-slate-500 uppercase tracking-wider mb-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-3 h-1.5 rounded-sm bg-indigo-500"></span>
-                              <span>VO2 MAX (ml/kg/min)</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-3 h-0.5 bg-orange-500 block"></span>
-                              <span>VAM (km/h)</span>
-                            </div>
-                          </div>
-                        )}
-                      />
-                      <ReferenceLine
-                        yAxisId="left"
-                        y={athlete.gender === "M" ? 60 : 52}
-                        stroke="#818cf8"
-                        strokeDasharray="4 4"
-                        strokeWidth={1.5}
-                        label={{
-                          value: `ELITE GLOBAL (${athlete.gender === "M" ? "60" : "52"} ML/KG) 💎`,
-                          fill: "#818cf8",
-                          fontSize: 6.5,
-                          fontWeight: 900,
-                          position: "insideTopLeft",
-                          offset: 4
-                        }}
-                      />
-                      <Area
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="vo2"
-                        stroke="#6366f1"
-                        strokeWidth={3}
-                        fill="url(#eliteVo2Grad)"
-                        dot={{
-                          fill: "#6366f1",
-                          r: 4,
-                          stroke: "#FFFFFF",
-                          strokeWidth: 2,
-                        }}
-                        activeDot={{ r: 6 }}
-                      />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="vam"
-                        stroke="#f97316"
-                        strokeWidth={3.5}
-                        dot={{
-                          fill: "#f97316",
-                          r: 4,
-                          stroke: "#FFFFFF",
-                          strokeWidth: 2,
-                        }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex flex-col justify-between font-sans">
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Activity className="w-4 h-4 text-brand-primary" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-brand-primary">
-                      ZONAS DE TREINAMENTO (VAM)
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 font-bold mb-4 uppercase leading-relaxed">
-                    Prescrição baseada na sua Velocidade Aeróbica Máxima (VAM) de <span className="text-brand-primary font-black">{data.vam || 0} km/h</span>:
-                  </p>
-                  <div className="space-y-2">
-                    {[
-                      { zone: "Z1", name: "Recuperação", pct: "< 60%", speed: `${((data.vam || 0) * 0.55).toFixed(1)} km/h`, color: "border-blue-500 bg-blue-500/10" },
-                      { zone: "Z2", name: "Endurance", pct: "60-75%", speed: `${((data.vam || 0) * 0.68).toFixed(1)}-${((data.vam || 0) * 0.75).toFixed(1)} km/h`, color: "border-emerald-500 bg-emerald-500/10" },
-                      { zone: "Z3", name: "Limiar", pct: "75-90%", speed: `${((data.vam || 0) * 0.82).toFixed(1)}-${((data.vam || 0) * 0.90).toFixed(1)} km/h`, color: "border-orange-500 bg-orange-500/10" },
-                      { zone: "Z4", name: "VO2 Max", pct: "90-105%", speed: `${((data.vam || 0) * 0.97).toFixed(1)}-${((data.vam || 0) * 1.05).toFixed(1)} km/h`, color: "border-red-500 bg-red-500/10 animate-pulse" },
-                    ].map((z, idx) => (
-                      <div key={idx} className={`flex items-center justify-between p-2 rounded-xl border ${z.color} font-sans`}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] font-black">{z.zone}</span>
-                          <span className="text-[8px] font-black text-slate-300 uppercase">{z.name}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[8px] text-slate-400 font-bold block">{z.pct} VAM</span>
-                          <span className="text-[10px] font-black text-white italic">{z.speed}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-slate-800 flex items-start gap-2">
-                  <Info className="w-3.5 h-3.5 text-brand-primary shrink-0 mt-0.5" />
-                  <p className="text-[8px] text-slate-500 font-extrabold leading-snug italic uppercase tracking-wider">
-                    As zonas ajudam a controlar a carga de treino em tempo real.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </ReportPage>
-
-          {/* Page 3: Diagnóstico Cardiorrespiratório & Diretrizes */}
-          <ReportPage pageNumber={3} totalPages={3}>
-            <ReportHeader
-              title="RELATÓRIO DE VO2 MAX"
-              subTitle="DIAGNÓSTICO CARDIORRESPIRATÓRIO & DIRETRIZES"
-              athlete={athlete}
-              date={formatDate(data.date)}
-              extraStats={[{ label: "PERFIL", value: vo2Class.toUpperCase() }, { label: "PÁGINA", value: "03 DE 03" }]}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
+            {/* Painel Central dos 6 Resultados da Avaliação */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 mb-4.5 select-none font-sans">
               
-              {/* Column 1: Diagnóstico Fisiológico & Métricas Reais */}
-              <div className="space-y-5 overflow-hidden">
-                
-                {/* 1. STATUS AERÓBICO GERAL */}
-                <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
-                  <div className="absolute right-3 bottom-3 opacity-5">
-                    <Sparkles className="w-16 h-16 text-indigo-400" />
+              {/* Resultado 1: VO2 Máximo Relativo */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">VO2 Máximo Relativo</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Potência Aeróbia
+                    </span>
                   </div>
-                  <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono pb-1 border-b border-indigo-455/20">
-                    🔥 STATUS DIAGNÓSTICO GERAL
+                  <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
+                    {sVo2max} <span className="text-xs font-bold text-slate-500">ml/kg/min</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Equivalente Metabólico: <strong className="text-slate-800 font-black">{metsValue} METs</strong>
                   </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-2 leading-tight text-white">
-                    Veredito Cardiorrespiratório
-                  </h4>
-                  <p className="text-[10px] text-slate-200 leading-relaxed font-bold uppercase font-sans">
-                    {veredictoResumo}
-                  </p>
                 </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Teto Oxidativo</span>
+                  {vo2Delta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${vo2Delta.color}`}>
+                      {vo2Delta.icon} {vo2Delta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
 
-                {/* 2. PARÂMETROS FISIOLÓGICOS DO TESTE */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm space-y-3 font-sans">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block font-mono font-bold font-sans">
-                    📊 PARÂMETROS FISIOLÓGICOS COLETADOS
+              {/* Resultado 2: Velocidade Aeróbica Máxima (VAM) */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Velocidade Aeróbica Máx (VAM)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 uppercase">
+                      Velocidade / VO2
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-emerald-600 block italic mt-1 leading-none">
+                    {sVam} <span className="text-xs font-bold text-emerald-700">km/h</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Deslocamento em Campo: <strong className="text-slate-800 font-black">{vamMetersPerSec} m/s</strong>
                   </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
-                    Métricas de Consumo & Dinâmica
-                  </h4>
-                  
-                  <div className="space-y-2 font-sans text-[9.5px]">
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-bold text-slate-600 uppercase">VO2 Máx Estimado:</span>
-                      <span className="font-black text-brand-primary italic text-sm">{sVo2max} ml/kg/min</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-bold text-slate-600 uppercase">Velocidade Aeróbica Máxima (VAM):</span>
-                      <span className="font-black text-emerald-600 italic text-sm">{sVam} km/h</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-bold text-slate-600 uppercase">Frequência Cardíaca Máxima:</span>
-                      <span className="font-black text-slate-900 italic text-sm">{sFcMax} bpm</span>
-                    </div>
-                    {sRec60s > 0 && (
-                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <span className="font-bold text-slate-600 uppercase">Recuperação Cardíaca (60s):</span>
-                        <span className="font-black text-indigo-600 italic text-sm">-{sRec60s} bpm</span>
-                      </div>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Âncora de Prescrição</span>
+                  {vamDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${vamDelta.color}`}>
+                      {vamDelta.icon} {vamDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 3: Velocidade de Limiar Anaeróbio (L2) */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Velocidade de Limiar (L2)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-lime-200 bg-lime-50 text-lime-900 uppercase">
+                      Limiar de Lactato
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-brand-primary block italic mt-1 leading-none">
+                    {sThresholdSpeed} <span className="text-xs font-bold text-slate-500">km/h</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Sustentação Relativa: <strong className="text-slate-800 font-black">{thresholdRatioPct}% da VAM</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Eficiência Metabólica</span>
+                  {thresholdSpeedDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${thresholdSpeedDelta.color}`}>
+                      {thresholdSpeedDelta.icon} {thresholdSpeedDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 4: Frequência Cardíaca Máxima & Limiar */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">FC Máxima & FC de Limiar</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Resposta Cardíaca
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-slate-900 block italic mt-1 leading-none">
+                    {sFcMax} <span className="text-xs font-bold text-slate-500">bpm</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    FC Limiar (L2): <strong className="text-slate-800 font-black">{sFcThreshold} bpm</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Teto Cronotrópico</span>
+                  {fcMaxDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${fcMaxDelta.color}`}>
+                      {fcMaxDelta.icon} {fcMaxDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 5: Recuperação Cardíaca Autonômica @ 60s */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Recuperação Cardíaca (60s)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Tônus Vagal
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
+                    {sRec60s > 0 ? `-${sRec60s}` : 0} <span className="text-xs font-bold text-slate-500">bpm</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    FC após 1 min: <strong className="text-slate-800 font-black">{sFcMax > 0 && sRec60s > 0 ? `${sFcMax - sRec60s} bpm` : "Reativação Parassimpática"}</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Delta Pós-Esforço</span>
+                  {rec60sDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${rec60sDelta.color}`}>
+                      {rec60sDelta.icon} {rec60sDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 6: Score Cardiorrespiratório & Ventilação */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Score Cardiorrespiratório LB</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Índice Global
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <strong className="text-2xl font-black text-slate-950 block italic leading-none">
+                      {vo2Score} <span className="text-[10px] font-bold text-slate-500">pts / 100</span>
+                    </strong>
+                  </div>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Ventilação Máx (VE): <strong className="text-slate-900 font-black">{sMaxVentilation > 0 ? `${sMaxVentilation} L/min` : `Velocidade Pico ${data.maxSpeed || sVam} km/h`}</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Prontidão Aeróbia</span>
+                  {scoreDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${scoreDelta.color}`}>
+                      {scoreDelta.icon} {scoreDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Matriz Cardiorrespiratória de 4 Quadrantes (Potência Aeróbia vs. Recuperação Vagal) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  MATRIZ METABÓLICA DO ATLETA (POTÊNCIA AERÓBIA / VAM VS. CINÉTICA DE RECUPERAÇÃO)
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase">
+                  Classificação Fisiológica Funcional
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                
+                {/* Quadrante 1 */}
+                <div className={`p-3 rounded-xl border transition-all ${cardioProfile.quadrant === "Q1" ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-emerald-800 uppercase">QUADRANTE 1</span>
+                    {cardioProfile.quadrant === "Q1" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white uppercase">POSIÇÃO ATUAL</span>
                     )}
                   </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    ALTA VAM + RÁPIDA RECUPERAÇÃO
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Padrão de elite cardiorrespiratória. Alto teto de oxigênio com rápida remoção de lactato entre tiros.
+                  </p>
                 </div>
 
-                {/* 3. IMPACTO NA PERFORMANCE */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7px] font-black text-rose-500 uppercase tracking-widest block mb-2 font-mono select-none">
-                    ⚡ PERFORMANCE & ECONOMIA
+                {/* Quadrante 2 */}
+                <div className={`p-3 rounded-xl border transition-all ${cardioProfile.quadrant === "Q2" ? "bg-amber-50 border-amber-500 ring-2 ring-amber-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-amber-800 uppercase">QUADRANTE 2</span>
+                    {cardioProfile.quadrant === "Q2" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    ALTA VAM + RECUPERAÇÃO LENTA
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Alto motor aeróbio porém lento para baixar a FC pós-pico. Prioridade em limiar e intervalos ativos.
+                  </p>
+                </div>
+
+                {/* Quadrante 3 */}
+                <div className={`p-3 rounded-xl border transition-all ${cardioProfile.quadrant === "Q3" ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-blue-800 uppercase">QUADRANTE 3</span>
+                    {cardioProfile.quadrant === "Q3" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-blue-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    BAIXA VAM + RÁPIDA RECUPERAÇÃO
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Boa recuperação autonômica mas teto de velocidade aeróbia baixo. Prioridade em HIIT curto (100-110% VAM).
+                  </p>
+                </div>
+
+                {/* Quadrante 4 */}
+                <div className={`p-3 rounded-xl border transition-all ${cardioProfile.quadrant === "Q4" ? "bg-red-50 border-red-500 ring-2 ring-red-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-red-800 uppercase">QUADRANTE 4</span>
+                    {cardioProfile.quadrant === "Q4" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-red-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    BAIXA VAM + RECUPERAÇÃO LENTA
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Necessidade de base aeróbia mitocondrial conjunta com blocos progressivos de potência aeróbia e tiros.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Acompanhamento Longitudinal & Histórico Comparativo */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  ACOMPANHAMENTO TEMPORAL & LINHA DE BASE CARDIORRESPIRATÓRIA
+                </span>
+                <span className="text-[7.5px] font-bold text-slate-400 uppercase">Monitoramento Contínuo do Condicionamento</span>
+              </div>
+
+              {previousVo2 ? (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-[8px] font-bold text-slate-800 uppercase">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">VO2 Máximo Relativo</span>
+                    <strong className="text-xs font-black text-slate-950 block">{sVo2max} ml/kg/min</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {previousVo2.vo2max} ml/kg</span>
+                      {vo2Delta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${vo2Delta.color}`}>
+                          {vo2Delta.icon} {vo2Delta.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Velocidade Aeróbica (VAM)</span>
+                    <strong className="text-xs font-black text-emerald-600 block">{sVam} km/h</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {previousVo2.vam || previousVo2.maxSpeed || 0} km/h</span>
+                      {vamDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${vamDelta.color}`}>
+                          {vamDelta.icon} {vamDelta.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Velocidade de Limiar (L2)</span>
+                    <strong className="text-xs font-black text-brand-primary block">{sThresholdSpeed} km/h</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {previousVo2.thresholdSpeed || 0} km/h</span>
+                      {thresholdSpeedDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${thresholdSpeedDelta.color}`}>
+                          {thresholdSpeedDelta.icon} {thresholdSpeedDelta.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Recuperação @ 60s</span>
+                    <strong className="text-xs font-black text-slate-950 block">-{sRec60s} bpm</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: -{previousVo2.rec60s || 0} bpm</span>
+                      {rec60sDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${rec60sDelta.color}`}>
+                          {rec60sDelta.icon} {rec60sDelta.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between text-[8.5px] uppercase font-bold text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Primeira avaliação de VO2 Máx & VAM registrada. Esta coleta estabelece a linha de base fisiológica (Baseline) para cálculo automático de deltas nas próximas reavaliações.</span>
+                  </div>
+                  <span className="text-[7.5px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 shrink-0">
+                    BASELINE DEFINIDO
                   </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-2 border-b pb-1 font-bold">
-                    Economia de Corrida
-                  </h4>
-                  <div className="flex gap-3 items-start bg-rose-50/20 p-3 rounded-2xl border border-rose-100/30">
-                    <Zap className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+                </div>
+              )}
+            </div>
+          </ReportPage>
+
+          {/* PÁGINA 2: DIRETRIZES DE INTERVENÇÃO, ZONAS DE TREINAMENTO (VAM) E CAMINHO METODOLÓGICO */}
+          <ReportPage pageNumber={2} totalPages={totalPages}>
+            <ReportHeader
+              title="Diretrizes de Intervenção e Metodologia Cardiorrespiratória"
+              subTitle="Prescrição Baseada em Evidências, Zonas de VAM e Metas de Desempenho"
+              athlete={athlete}
+              date={formatDate(data.date)}
+              extraStats={[
+                { label: "DIRETRIZ 1", value: methodologicalDirectives[0].priority.slice(0, 16) },
+                { label: "PÁGINA", value: `02 DE ${String(totalPages).padStart(2, "0")}` }
+              ]}
+            />
+
+            {/* Alinhamento Estratégico: Treinador & Atleta */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 select-none font-sans">
+              
+              {/* Para a Comissão Técnica / Treinador */}
+              <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-800">
+                    <Target size={14} className="text-brand-primary" />
+                    <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest">
+                      PARECER TÉCNICO PARA O TREINADOR / PREPARADOR FÍSICO
+                    </span>
+                  </div>
+                  <p className="text-[9px] font-medium text-slate-200 uppercase leading-relaxed">
+                    {cardioProfile.coachInterpretation}
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-slate-800 flex justify-between items-center text-[7.5px] font-bold uppercase text-slate-400">
+                  <span>Gestão Metabólica:</span>
+                  <span className="text-brand-primary font-black">Individualizar tiros e intervalos pela VAM ({sVam} km/h • {vamMetersPerSec} m/s)</span>
+                </div>
+              </div>
+
+              {/* Tradução Direta para o Atleta */}
+              <div className="bg-emerald-50/70 border border-emerald-200 text-slate-900 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-emerald-200/60">
+                    <Zap size={14} className="text-emerald-700" />
+                    <span className="text-[8px] font-black text-emerald-800 uppercase tracking-widest">
+                      TRADUÇÃO DIRETA PARA O ATLETA (APLICAÇÃO NO JOGO)
+                    </span>
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-800 uppercase leading-relaxed italic">
+                    "{cardioProfile.athleteTranslation}"
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-emerald-200/60 flex justify-between items-center text-[7.5px] font-extrabold uppercase text-emerald-800">
+                  <span>Impacto Prático:</span>
+                  <span className="font-black">Sustentação de sprints repetidos e lucidez tática até o minuto final</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Zonas Individuais de Prescrição baseadas na VAM (Z1 a Z5) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 mb-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  ZONAS INDIVIDUALIZADAS PELA VAM — Z1 A Z5 ({sVam} KM/H)
+                </span>
+                <span className="text-[7.5px] font-bold text-slate-400 uppercase">
+                  Prescrição Direta para Campo, Pista e Esteira
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                {[
+                  {
+                    zone: "Z1 • REGENERATIVO",
+                    pct: "50% - 60% VAM",
+                    speed: `${((sVam || 14) * 0.50).toFixed(1)} - ${((sVam || 14) * 0.60).toFixed(1)} km/h`,
+                    ms: `${(((sVam || 14) * 0.55) / 3.6).toFixed(2)} m/s`,
+                    focus: "Recuperação Ativa",
+                    badge: "bg-sky-50 text-sky-800 border-sky-200"
+                  },
+                  {
+                    zone: "Z2 • AERÓBIO EXT.",
+                    pct: "65% - 75% VAM",
+                    speed: `${((sVam || 14) * 0.65).toFixed(1)} - ${((sVam || 14) * 0.75).toFixed(1)} km/h`,
+                    ms: `${(((sVam || 14) * 0.70) / 3.6).toFixed(2)} m/s`,
+                    focus: "Base / Limiar L1",
+                    badge: "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  },
+                  {
+                    zone: "Z3 • LIMIAR L2",
+                    pct: "80% - 90% VAM",
+                    speed: `${((sVam || 14) * 0.80).toFixed(1)} - ${((sVam || 14) * 0.90).toFixed(1)} km/h`,
+                    ms: `${(((sVam || 14) * 0.85) / 3.6).toFixed(2)} m/s`,
+                    focus: "Limiar Anaeróbio",
+                    badge: "bg-amber-50 text-amber-800 border-amber-200"
+                  },
+                  {
+                    zone: "Z4 • POTÊNCIA VO2",
+                    pct: "95% - 105% VAM",
+                    speed: `${((sVam || 14) * 0.95).toFixed(1)} - ${((sVam || 14) * 1.05).toFixed(1)} km/h`,
+                    ms: `${(((sVam || 14) * 1.00) / 3.6).toFixed(2)} m/s`,
+                    focus: "HIIT Longo / VAM",
+                    badge: "bg-orange-50 text-orange-800 border-orange-200"
+                  },
+                  {
+                    zone: "Z5 • SUPRAMÁXIMO",
+                    pct: "105% - 120% VAM",
+                    speed: `${((sVam || 14) * 1.05).toFixed(1)} - ${((sVam || 14) * 1.20).toFixed(1)} km/h`,
+                    ms: `${(((sVam || 14) * 1.12) / 3.6).toFixed(2)} m/s`,
+                    focus: "HIIT Curto / RSA",
+                    badge: "bg-red-50 text-red-800 border-red-200"
+                  }
+                ].map((z, idx) => (
+                  <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col justify-between">
                     <div>
-                      <p className="text-[9.5px] text-slate-800 font-bold uppercase leading-relaxed font-sans">
-                        {sVo2PerformanceImpactText}
+                      <div className="flex justify-between items-center gap-1 mb-1">
+                        <span className={`text-[6.5px] font-black px-1.5 py-0.5 rounded border uppercase truncate ${z.badge}`}>
+                          {z.zone}
+                        </span>
+                      </div>
+                      <span className="text-[6.5px] font-extrabold text-slate-400 uppercase block mb-0.5">{z.pct}</span>
+                      <strong className="text-[11px] font-black text-slate-950 italic block leading-tight">{z.speed}</strong>
+                    </div>
+                    <div className="mt-1.5 pt-1 border-t border-slate-100 flex justify-between items-center text-[6.5px] font-bold uppercase">
+                      <span className="text-slate-500">{z.ms}</span>
+                      <span className="text-slate-800 font-black">{z.focus}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Diretrizes de Intervenção Metodológica (As 3 Prioridades Práticas) */}
+            <div className="mb-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  CAMINHO METODOLÓGICO E PRIORIDADES DE PRESCRIÇÃO
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase">
+                  Diretrizes Baseadas nos Resultados Reais
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {methodologicalDirectives.map((dir, idx) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[7.5px] font-black text-brand-primary uppercase tracking-wider">
+                          {dir.pillar}
+                        </span>
+                        <span className="text-[7px] font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-black uppercase">
+                          PILAR 0{idx + 1}
+                        </span>
+                      </div>
+                      <strong className="text-[9.5px] font-black text-slate-950 uppercase italic block mb-1 leading-snug">
+                        {dir.priority}
+                      </strong>
+                      <p className="text-[8px] font-medium text-slate-700 uppercase leading-relaxed">
+                        {dir.methodology}
                       </p>
                     </div>
+
+                    <div className="mt-2 pt-1.5 border-t border-slate-200/80 flex items-center justify-between text-[7.5px] uppercase font-sans">
+                      <span className="font-black text-slate-500">Critério de Sucesso (KPI):</span>
+                      <strong className="text-slate-900 font-extrabold">{dir.kpi}</strong>
+                    </div>
                   </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Metas Quantitativas e Bloco de Periodização Recomendado */}
+            <div className="bg-slate-950 text-white rounded-2xl p-4 select-none font-sans flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="w-full md:w-auto flex-1">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#39FF14] animate-ping" />
+                  <p className="text-[8px] font-black tracking-widest text-[#39FF14] uppercase">
+                    METAS OBJETIVAS PARA O PRÓXIMO CICLO DE TREINAMENTO
+                  </p>
                 </div>
 
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">VO2 Máximo Alvo</span>
+                    <strong className="text-sm font-black text-[#39FF14] italic block mt-0.5">
+                      {targetVo2Min} - {targetVo2Max} ML/KG
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      ({(targetVo2Min / 3.5).toFixed(1)} - {(targetVo2Max / 3.5).toFixed(1)} METs • +4% a +7%)
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">Velocidade VAM Alvo</span>
+                    <strong className="text-sm font-black text-[#39FF14] italic block mt-0.5">
+                      {targetVamMin} - {targetVamMax} KM/H
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      ({(targetVamMin / 3.6).toFixed(2)} - {(targetVamMax / 3.6).toFixed(2)} m/s • Expansão VAM)
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center col-span-2 sm:col-span-1">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">Recuperação @ 60s Alvo</span>
+                    <strong className="text-sm font-black text-brand-primary italic block mt-0.5">
+                      &gt; {targetRec60s} BPM
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      (Queda Autonômica no 1º Minuto Pós-Pico)
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Column 2: Diretrizes & Metas */}
-              <div className="space-y-5 flex flex-col justify-between h-full">
-                
-                {/* 4. INTERPRETAÇÃO TÉCNICA */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans">
-                  <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono font-bold">
-                    📊 INTERPRETAÇÃO FISIOLÓGICA (TREINADOR)
-                  </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold mb-3 border-b pb-2">
-                    Capilarização & Delta Cardíaco
-                  </h4>
-                  
-                  <div className="space-y-2.5 text-[9.5px] leading-relaxed">
-                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1 text-[7.5px]">Capilarização Periférica:</span>
-                      <p className="text-slate-800 font-bold uppercase">{sCapillaryAnalysis}</p>
-                    </div>
-                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1 text-[7.5px]">Eficiência de Limiar de Lactato:</span>
-                      <p className="text-slate-800 font-bold uppercase">{sMetabolicEfficiencyStr}</p>
-                    </div>
-                    <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-black text-slate-500 uppercase block mb-1 text-[7.5px]">Delta Heart Recovery (60s):</span>
-                      <p className="text-slate-800 font-bold uppercase">{sCardiacRecoveryStr}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. DIRETRIZES METODOLÓGICAS */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm font-sans">
-                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono font-semibold">
-                    🚀 METODOLOGIA DE TREINO
-                  </span>
-                  <div className="flex justify-between items-baseline border-b pb-2 mb-3">
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
-                      Diretrizes de Intervenção para o Treinador
-                    </h4>
-                  </div>
-                  
-                  <div className="space-y-3 font-sans">
-                    {sVo2InterventionDirectives.map((item, idx) => (
-                      <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 font-sans font-bold">
-                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[8px] font-black shrink-0 mt-0.5 font-mono">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <span className="font-bold text-slate-900 uppercase block leading-tight text-[10px]">{item.pillar}</span>
-                          <span className="text-slate-600 font-medium text-[9px] leading-relaxed block mt-0.5 uppercase">{item.directive}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 6. METAS DE EVOLUÇÃO CARDIOVASCULAR */}
-                <div className="bg-slate-950 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden">
-                  <div className="absolute right-3 top-3 opacity-5">
-                    <Target className="w-16 h-16 text-emerald-400" />
-                  </div>
-                  <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono font-bold">
-                    🎯 METAS DE EVOLUÇÃO
-                  </span>
-                  
-                  <div className="grid grid-cols-2 gap-3 mb-2 font-sans">
-                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1 font-mono font-bold">META VO2 MAX</span>
-                      <span className="text-base font-black text-brand-primary italic font-sans">{bioTargetVo2} ml</span>
-                    </div>
-                    <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-455 uppercase block mb-1 font-mono font-bold font-semibold">META VAM</span>
-                      <span className="text-base font-black text-emerald-400 italic font-sans">{bioTargetVam} km/h</span>
-                    </div>
-                  </div>
-                  <div className="text-center bg-slate-900 p-1.5 text-[8px] font-black uppercase tracking-widest text-slate-400">
-                    Prazo sugerido: <span className="text-white font-bold">{bioTargetTimeframeVo2}</span>
-                  </div>
-                </div>
-
+              <div className="text-left md:text-right border-t md:border-t-0 border-slate-800 pt-3 md:pt-0 w-full md:w-auto flex flex-col shrink-0">
+                <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider leading-none">JANELA RECOMENDADA DE REAVALIAÇÃO</span>
+                <strong className="text-xs font-black italic text-brand-primary uppercase tracking-tight mt-1">6 A 8 SEMANAS DE INTERVENÇÃO</strong>
+                <span className="text-[7px] text-slate-400 uppercase mt-1 leading-normal max-w-xs">
+                  Reteste recomendado ao término do mesociclo para recalibrar a VAM e atualizar as zonas metabólicas.
+                </span>
               </div>
-
             </div>
           </ReportPage>
 
         </div>
 
-        {/* Buttons Row (Controls) */}
-        <div className="flex flex-col sm:flex-row gap-4 mt-8 no-print pb-20 px-4 md:px-0 font-sans">
-          <button
-            onClick={handleExportJpeg}
-            className="flex-grow flex items-center justify-center gap-2 bg-brand-primary text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-brand-primary/25 hover:bg-brand-dark transition-all active:scale-95 cursor-pointer font-sans"
-          >
-            <Download size={20} /> Baixar Páginas (JPEG)
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex-grow flex items-center justify-center gap-2 bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 cursor-pointer font-sans"
-          >
-            <Printer size={20} /> Imprimir / PDF
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-grow flex items-center justify-center gap-2 bg-slate-700 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-600 transition-all active:scale-95 cursor-pointer font-sans"
-          >
-            Fechar
-          </button>
+        {/* Barra Inferior de Exportação (Padrão LB) */}
+        <div className="mt-8 no-print pb-24 px-4 md:px-0 font-sans select-none w-full">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col text-center lg:text-left">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center justify-center lg:justify-start gap-2">
+                <Sparkles size={14} className="text-[#39FF14]" /> Exportação do Relatório VO2 Máx & VAM
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-xl">
+                Baixe o relatório completo de 2 páginas ou selecione individualmente a página desejada em alta definição (JPEG).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 w-full lg:w-auto">
+              <button
+                onClick={handleExportAllPages}
+                className="flex items-center justify-center gap-2 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 py-3.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-xl shadow-[#39FF14]/15 cursor-pointer"
+              >
+                <Download size={16} /> Baixar Ambas (Pág. 1 e 2)
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(0)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 1 (Dados e Avaliação)"
+              >
+                <FileText size={15} className="text-[#39FF14]" /> Baixar Pág. 1
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(1)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 2 (Diretrizes e Treinamento)"
+              >
+                <FileText size={15} className="text-emerald-400" /> Baixar Pág. 2
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 hover:text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+              >
+                <Printer size={16} /> Imprimir / PDF
+              </button>
+
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-red-900/40 hover:bg-red-950/40 text-red-400 py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+              >
+                <X size={16} /> Fechar
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
