@@ -1102,17 +1102,33 @@ export const WorkoutStravaShareModal: React.FC<WorkoutStravaShareModalProps> = (
                 </div>
 
                 {isPostedToFeed ? (
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Publicado</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>Publicado</span>
+                    </div>
+                    {onOpenFeed && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenFeed();
+                        }}
+                        className="py-1.5 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] font-bold uppercase tracking-wider border border-slate-700 transition-all cursor-pointer"
+                        title="Ver no Mural Social"
+                      >
+                        Ver Mural
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={handlePostToCommunity}
-                    className="py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[#39FF14] text-xs font-black uppercase tracking-wider border border-slate-700 hover:border-[#39FF14]/40 transition-all cursor-pointer shrink-0"
+                    className="py-2 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[#39FF14] text-xs font-black uppercase tracking-wider border border-[#39FF14]/30 hover:border-[#39FF14] shadow-sm shadow-[#39FF14]/10 transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
                   >
-                    Publicar
+                    <Flame className="w-3.5 h-3.5" />
+                    <span>Publicar</span>
                   </button>
                 )}
               </div>

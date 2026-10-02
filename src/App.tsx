@@ -72,6 +72,8 @@ import {
   calculateSleepHoursFromTimes,
   formatSleepHours,
   safeParseFloat,
+  getResolvedAthleteWeight,
+  getResolvedAthleteWeightInfo,
 } from "./utils";
 import {
   generateAIModeling,
@@ -3547,6 +3549,12 @@ const EliteHubApp: FC<{
                                         }
                                         return null;
                                       })()}
+                                      {w.isPostedToFeed && (
+                                        <span className="text-[9px] md:text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                          <span>Publicado</span>
+                                        </span>
+                                      )}
                                     </div>
                                     <span className="text-[9px] md:text-[10px] font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-2.5 py-1 rounded-lg uppercase tracking-widest shrink-0">
                                       {formatDate(w.date)}
@@ -3779,11 +3787,24 @@ const EliteHubApp: FC<{
                                             editingData: w,
                                           });
                                         }}
-                                        className="py-3 text-[10px] font-black tracking-widest uppercase bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 shadow-[0_0_15px_rgba(57,255,20,0.25)] flex items-center justify-center gap-1.5 cursor-pointer"
-                                        title="Gerar e compartilhar Card do Treino com a Logo LB Sports"
+                                        className={`py-3 text-[10px] font-black tracking-widest uppercase flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                                          w.isPostedToFeed
+                                            ? "bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 hover:border-emerald-500 shadow-sm"
+                                            : "bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 shadow-[0_0_15px_rgba(57,255,20,0.25)]"
+                                        }`}
+                                        title={w.isPostedToFeed ? "Treino já publicado no Mural Social. Clique para ver ou compartilhar Stories." : "Gerar e compartilhar Card do Treino com a Logo LB Sports"}
                                       >
-                                        <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                                        <span>POSTAR TREINO</span>
+                                        {w.isPostedToFeed ? (
+                                          <>
+                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
+                                            <span>PUBLICADO</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Share2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                                            <span>POSTAR TREINO</span>
+                                          </>
+                                        )}
                                       </Button>
                                       <Button
                                         onClick={(e) => {
@@ -9529,12 +9550,14 @@ const Vo2maxReport: FC<{
     triggerPrint();
   };
 
-  // Parâmetros Biométricos e Fisiológicos do Atleta
+  // Parâmetros Biométricos e Fisiológicos do Atleta (Puxando peso real e confiável de qualquer avaliação já realizada)
   const athleteAge = calculateAge(athlete.dob);
   const isFemale = athlete.gender === "F";
-  const athleteMass = athlete.weight || 70;
+  const weightInfo = useMemo(() => getResolvedAthleteWeightInfo(athlete, data), [athlete, data]);
+  const athleteMass = weightInfo.weight;
 
   const sVo2max = data.vo2max || 0;
+  const absoluteVo2LMin = sVo2max > 0 && athleteMass > 0 ? Number(((sVo2max * athleteMass) / 1000).toFixed(2)) : 0;
   const sVam = data.vam || data.maxSpeed || 0;
   const sThresholdSpeed = data.thresholdSpeed || (sVam > 0 ? Number((sVam * 0.82).toFixed(1)) : 0);
   const sFcMax = data.maxHeartRate || 0;
@@ -9801,7 +9824,12 @@ const Vo2maxReport: FC<{
                   <span className="text-slate-300">|</span>
                   <span>Idade: <strong className="text-slate-950">{athleteAge} Anos</strong></span>
                   <span className="text-slate-300">|</span>
-                  <span>Massa: <strong className="text-slate-950">{athleteMass} kg</strong></span>
+                  <span title={`Origem do Peso: ${weightInfo.sourceLabel}${weightInfo.date ? ` (${formatDate(weightInfo.date)})` : ''}`}>
+                    Massa: <strong className="text-slate-950">{athleteMass} kg</strong>
+                    {weightInfo.source !== 'fallback' && weightInfo.source !== 'profile' && (
+                      <span className="ml-1 text-[7px] text-emerald-600 font-bold lowercase">({weightInfo.sourceLabel})</span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -9819,11 +9847,11 @@ const Vo2maxReport: FC<{
             {/* Painel Central dos 6 Resultados da Avaliação */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 mb-4.5 select-none font-sans">
               
-              {/* Resultado 1: VO2 Máximo Relativo */}
+              {/* Resultado 1: VO2 Máximo Relativo e Absoluto */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">VO2 Máximo Relativo</span>
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">VO2 Máximo (Relativo & Absoluto)</span>
                     <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
                       Potência Aeróbia
                     </span>
@@ -9831,9 +9859,16 @@ const Vo2maxReport: FC<{
                   <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
                     {sVo2max} <span className="text-xs font-bold text-slate-500">ml/kg/min</span>
                   </strong>
-                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
-                    Equivalente Metabólico: <strong className="text-slate-800 font-black">{metsValue} METs</strong>
-                  </span>
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    {absoluteVo2LMin > 0 && (
+                      <span className="text-[8px] text-slate-700 font-bold block">
+                        VO2 Absoluto: <strong className="text-slate-950 font-black">{absoluteVo2LMin} L/min</strong> ({athleteMass} kg)
+                      </span>
+                    )}
+                    <span className="text-[8px] text-slate-500 font-semibold block">
+                      Equivalente Metabólico: <strong className="text-slate-800 font-black">{metsValue} METs</strong>
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
                   <span className="text-[7px] font-bold text-slate-500 uppercase">Teto Oxidativo</span>
@@ -11543,7 +11578,8 @@ const DropJumpReport: FC<{
 
   // Parâmetros do Atleta e Normalização de Métricas
   const athleteAge = calculateAge(athlete.dob);
-  const athleteMass = data.weight || athlete.weight || 70;
+  const weightInfo = useMemo(() => getResolvedAthleteWeightInfo(athlete, data), [athlete, data]);
+  const athleteMass = weightInfo.weight;
   const sRsiVal = data.rsi || 0;
   const sTcVal = data.contactTime || 0;
   const sJhVal = data.jumpHeight || 0;
@@ -11814,7 +11850,12 @@ const DropJumpReport: FC<{
                   <span className="text-slate-300">|</span>
                   <span>Idade: <strong className="text-slate-950">{athleteAge} Anos</strong></span>
                   <span className="text-slate-300">|</span>
-                  <span>Massa: <strong className="text-slate-950">{athleteMass} kg</strong></span>
+                  <span title={`Origem do Peso: ${weightInfo.sourceLabel}${weightInfo.date ? ` (${formatDate(weightInfo.date)})` : ''}`}>
+                    Massa: <strong className="text-slate-950">{athleteMass} kg</strong>
+                    {weightInfo.source !== 'fallback' && weightInfo.source !== 'profile' && (
+                      <span className="ml-1 text-[7px] text-emerald-600 font-bold lowercase">({weightInfo.sourceLabel})</span>
+                    )}
+                  </span>
                 </div>
               </div>
             </div>
@@ -17100,7 +17141,7 @@ const AssessmentForm: FC<{
         };
       case "imtp":
         return {
-          weight: athlete?.assessments?.bioimpedance?.[0]?.weight || 70,
+          weight: getResolvedAthleteWeight(athlete),
           peakForce: 0,
           relativePeakForce: 0,
           timeToPeakForce: 4000,
@@ -17116,11 +17157,8 @@ const AssessmentForm: FC<{
           observations: "",
         };
       case "cmj":
-        const latestBio = athlete?.assessments?.bioimpedance?.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        )?.[0];
         return {
-          weight: latestBio?.weight || 0,
+          weight: getResolvedAthleteWeight(athlete),
           height: 0,
           power: 0,
           depth: 30,
@@ -17131,7 +17169,7 @@ const AssessmentForm: FC<{
         };
       case "dropJump":
         return {
-          weight: 0,
+          weight: getResolvedAthleteWeight(athlete),
           dropHeight: 30,
           jumpHeight: 0,
           flightTime: 0,
@@ -17144,6 +17182,7 @@ const AssessmentForm: FC<{
         };
       case "vo2max":
         return {
+          weight: getResolvedAthleteWeight(athlete),
           vo2max: 0,
           maxHeartRate: 0,
           thresholdHeartRate: 0,
@@ -17803,7 +17842,12 @@ const AssessmentForm: FC<{
           {type === "vo2max" && (
             <>
               <Field
-                label="VO2 Máximo"
+                label="Peso do Atleta (kg) — Puxado de avaliações"
+                value={formData.weight !== undefined ? formData.weight : getResolvedAthleteWeight(athlete)}
+                onChange={(v) => updateField("weight", parseFloat(v) || 0)}
+              />
+              <Field
+                label="VO2 Máximo (ml/kg/min)"
                 value={formData.vo2max}
                 onChange={(v) => updateField("vo2max", parseFloat(v))}
               />

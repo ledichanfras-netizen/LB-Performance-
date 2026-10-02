@@ -479,6 +479,7 @@ export interface DropJump extends Assessment {
 }
 
 export interface Vo2max extends Assessment {
+  weight?: number;
   vo2max: number; 
   maxHeartRate: number; 
   thresholdHeartRate: number; 
@@ -501,7 +502,6 @@ export interface Speed extends Assessment {
   speed10m?: number;
   speed20m?: number;
   speed30m?: number;
-  maxSpeed?: number;
 }
 
 export type AssessmentType = 'bioimpedance' | 'isometricStrength' | 'imtp' | 'cmj' | 'dropJump' | 'vo2max' | 'speed' | 'postural';

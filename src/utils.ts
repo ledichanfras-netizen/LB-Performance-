@@ -2214,3 +2214,149 @@ export function mergeAthletesWithLocalCache(
   return Array.from(mergedMap.values());
 }
 
+export interface ResolvedWeightInfo {
+  weight: number;
+  source: 'direct' | 'bioimpedance' | 'imtp' | 'cmj' | 'dropJump' | 'vo2max' | 'profile' | 'fallback';
+  sourceLabel: string;
+  date?: string;
+}
+
+/**
+ * Puxa o peso mais confiável e recente do atleta a partir de qualquer avaliação já realizada
+ * (Bioimpedância, IMTP, CMJ, Drop Jump, VO2máx ou cadastro).
+ */
+export const getResolvedAthleteWeightInfo = (
+  athlete?: Athlete | null,
+  currentAssessment?: { weight?: number; date?: string } | null
+): ResolvedWeightInfo => {
+  // 1. Se a avaliação atual possui peso explícito válido (> 0)
+  if (currentAssessment?.weight && currentAssessment.weight > 0) {
+    return {
+      weight: Number(currentAssessment.weight.toFixed(1)),
+      source: 'direct',
+      sourceLabel: 'Avaliação Atual',
+      date: currentAssessment.date,
+    };
+  }
+
+  if (!athlete) {
+    return { weight: 70, source: 'fallback', sourceLabel: 'Padrão (70 kg)' };
+  }
+
+  // 2. Coleta todas as avaliações com registro de peso
+  const records: {
+    weight: number;
+    date: string;
+    source: 'bioimpedance' | 'imtp' | 'cmj' | 'dropJump' | 'vo2max';
+    sourceLabel: string;
+    priority: number;
+  }[] = [];
+
+  // Bioimpedância (Padrão ouro em composição corporal e balança médica)
+  (athlete.assessments?.bioimpedance || []).forEach((b) => {
+    if (b.weight && b.weight > 0) {
+      records.push({
+        weight: b.weight,
+        date: b.date || '',
+        source: 'bioimpedance',
+        sourceLabel: 'Bioimpedância',
+        priority: 1,
+      });
+    }
+  });
+
+  // IMTP (Plataforma de Força)
+  (athlete.assessments?.imtp || []).forEach((i) => {
+    if (i.weight && i.weight > 0) {
+      records.push({
+        weight: i.weight,
+        date: i.date || '',
+        source: 'imtp',
+        sourceLabel: 'Força Isométrica (IMTP)',
+        priority: 2,
+      });
+    }
+  });
+
+  // CMJ (Salto Vertical)
+  (athlete.assessments?.cmj || []).forEach((c) => {
+    if (c.weight && c.weight > 0) {
+      records.push({
+        weight: c.weight,
+        date: c.date || '',
+        source: 'cmj',
+        sourceLabel: 'Salto CMJ',
+        priority: 3,
+      });
+    }
+  });
+
+  // Drop Jump
+  (athlete.assessments?.dropJump || []).forEach((d) => {
+    if (d.weight && d.weight > 0) {
+      records.push({
+        weight: d.weight,
+        date: d.date || '',
+        source: 'dropJump',
+        sourceLabel: 'Drop Jump',
+        priority: 4,
+      });
+    }
+  });
+
+  // Outros testes de VO2máx já registrados
+  (athlete.assessments?.vo2max || []).forEach((v) => {
+    if (v.weight && v.weight > 0) {
+      records.push({
+        weight: v.weight,
+        date: v.date || '',
+        source: 'vo2max',
+        sourceLabel: 'VO2 Máx',
+        priority: 5,
+      });
+    }
+  });
+
+  if (records.length > 0) {
+    // Ordena pelo mais recente (data decrescente); em caso de empate, prioriza Bioimpedância > IMTP > CMJ > DJ > VO2
+    records.sort((a, b) => {
+      const timeA = a.date ? getSafeDateTime(a.date) : 0;
+      const timeB = b.date ? getSafeDateTime(b.date) : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return a.priority - b.priority;
+    });
+
+    const best = records[0];
+    return {
+      weight: Number(best.weight.toFixed(1)),
+      source: best.source,
+      sourceLabel: best.sourceLabel,
+      date: best.date,
+    };
+  }
+
+  // 3. Peso do perfil/cadastro do atleta
+  if (athlete.weight && athlete.weight > 0) {
+    return {
+      weight: Number(athlete.weight.toFixed(1)),
+      source: 'profile',
+      sourceLabel: 'Cadastro do Atleta',
+    };
+  }
+
+  // 4. Padrão de contingência caso nenhum dado exista
+  return {
+    weight: 70,
+    source: 'fallback',
+    sourceLabel: 'Padrão (70 kg)',
+  };
+};
+
+export const getResolvedAthleteWeight = (
+  athlete?: Athlete | null,
+  currentAssessment?: { weight?: number; date?: string } | null
+): number => {
+  return getResolvedAthleteWeightInfo(athlete, currentAssessment).weight;
+};
+
+
