@@ -11436,287 +11436,104 @@ const DropJumpReport: FC<{
   history: DropJump[];
 }> = ({ athlete, data, onClose, history }) => {
   const reportRef = useRef<HTMLDivElement>(null);
-  const previousData = getPreviousAssessment(data, history);
 
-  // Sports Scientist Metrics Analysis & Classifications
-  const sRsiVal = data.rsi || 0;
-  const sTcVal = data.contactTime || 0;
-  const sJhVal = data.jumpHeight || 0;
-  const getNormalizedStiffness = (stiffness: number | undefined) => {
-    if (!stiffness) return 0;
-    if (stiffness < 100) {
-      return Math.round(stiffness * 1000);
-    }
-    return Math.round(stiffness);
-  };
-  const sStiffVal = getNormalizedStiffness(data.stiffness);
-
-  // classifications:
-  // RSI
-  let sRsiClass = "Baixo";
-  let sRsiClassColor = "bg-red-100 text-red-700";
-  if (sRsiVal >= 2.0) { sRsiClass = "Elite"; sRsiClassColor = "bg-indigo-100 text-indigo-700"; }
-  else if (sRsiVal >= 1.5) { sRsiClass = "Bom"; sRsiClassColor = "bg-emerald-100 text-emerald-700"; }
-  else if (sRsiVal >= 1.0) { sRsiClass = "Moderado"; sRsiClassColor = "bg-amber-100 text-amber-700"; }
-
-  // TC
-  let sTcClass = "Lento";
-  let sTcClassColor = "bg-red-100 text-red-700";
-  if (sTcVal < 200) { sTcClass = "Rápido"; sTcClassColor = "bg-emerald-100 text-emerald-700"; }
-  else if (sTcVal <= 250) { sTcClass = "Moderado"; sTcClassColor = "bg-amber-100 text-amber-700"; }
-
-  // Altura do salto
-  let sJhClass = "Baixo";
-  let sJhClassColor = "bg-red-100 text-red-700";
-  if (sJhVal > 35) { sJhClass = "Alto"; sJhClassColor = "bg-emerald-100 text-emerald-700"; }
-  else if (sJhVal >= 25) { sJhClass = "Médio"; sJhClassColor = "bg-amber-100 text-amber-700"; }
-
-  // STATUS GERAL (RESUMO EXECUTIVO)
-  let sRsiLevel = "baixo";
-  if (sRsiVal >= 2.0) sRsiLevel = "nível de elite em";
-  else if (sRsiVal >= 1.5) sRsiLevel = "bom nível de";
-  else if (sRsiVal >= 1.0) sRsiLevel = "moderado nível de";
-
-  let sQuality = "ótima impulsão geral";
-  let sProblem = "absorção lenta do solo";
-
-  if (sTcVal < 200) {
-    sQuality = "excelente rapidez de resposta no solo (tempo de contato curto)";
-    if (sJhVal < 25) {
-      sProblem = "baixa capacidade de impulsão vertical (altura de voo reduzida)";
-    } else {
-      sProblem = "pequena perda de energia em saltos consecutivos";
-      sQuality = "excelente combinação de transição rápida no solo com impulsão vertical";
-    }
-  } else {
-    if (sJhVal >= 35) {
-      sQuality = "alta capacidade de força explosiva concêntrica (grande impulsão)";
-      sProblem = "absorção lenta de impacto que dissipa a energia reativa e prolonga o contato com o solo";
-    } else {
-      sQuality = "razoável amortecimento de queda";
-      sProblem = "velocidade de transição lenta entre as fases excêntrica e concêntrica (insuficiência de rigidez do tornozelo)";
-    }
-  }
-
-  const statusExecutivo = `Atleta apresenta ${sRsiLevel} reatividade. Demonstra ${sQuality}, porém apresenta limitação em ${sProblem}.`;
-
-  // SCORE DE PERFORMANCE (0 a 100)
-  // RSI Score (out of 100)
-  let sRsiScore = 0;
-  if (sRsiVal < 1.0) {
-    sRsiScore = sRsiVal * 50; 
-  } else if (sRsiVal < 1.5) {
-    sRsiScore = 50 + (sRsiVal - 1.0) * 40; // 50 to 70
-  } else if (sRsiVal < 2.0) {
-    sRsiScore = 70 + (sRsiVal - 1.5) * 40; // 70 to 90
-  } else {
-    sRsiScore = Math.min(100, 90 + (sRsiVal - 2.0) * 10); // 90 to 100
-  }
-
-  // TC Score (out of 100)
-  let sTcScore = 0;
-  if (sTcVal > 250) {
-    sTcScore = Math.max(10, 40 - (sTcVal - 250) / 2); // > 250 slow
-  } else if (sTcVal >= 200) {
-    sTcScore = 40 + ((250 - sTcVal) / 50) * 30; // 40 to 70
-  } else if (sTcVal >= 170) {
-    sTcScore = 70 + ((200 - sTcVal) / 30) * 20; // 70 to 90
-  } else {
-    sTcScore = Math.min(100, 90 + (170 - sTcVal) / 3); // 90 to 100
-  }
-
-  // Stiffness Score (out of 100)
-  let sStiffScore = 0;
-  if (sStiffVal < 10000) {
-    sStiffScore = 40 + (sStiffVal / 10000) * 10;
-  } else if (sStiffVal < 15000) {
-    sStiffScore = 50 + ((sStiffVal - 10000) / 5000) * 25; 
-  } else if (sStiffVal < 25000) {
-    sStiffScore = 75 + ((sStiffVal - 15000) / 10000) * 15; 
-  } else {
-    sStiffScore = Math.min(100, 90 + (sStiffVal - 25000) / 5000);
-  }
-
-  const perfScore = Math.round((sRsiScore * 0.5) + (sTcScore * 0.3) + (sStiffScore * 0.2));
-
-  let perfScoreClass = "Baixo";
-  let perfScoreColor = "text-rose-600 border-rose-200 bg-rose-50";
-  if (perfScore >= 85) { perfScoreClass = "Elite"; perfScoreColor = "text-indigo-600 border-indigo-200 bg-indigo-50"; }
-  else if (perfScore >= 70) { perfScoreClass = "Bom"; perfScoreColor = "text-emerald-600 border-emerald-200 bg-emerald-50"; }
-  else if (perfScore >= 50) { perfScoreClass = "Regular"; perfScoreColor = "text-amber-600 border-amber-200 bg-amber-50"; }
-
-  // INTERPRETAÇÃO TÉCNICA (TREINADOR)
-  let sNeuromuscularProfile = "";
-  let sSscEfficiency = "";
-  let sForceVelRelation = "";
-
-  if (sRsiVal >= 2.0 && sTcVal < 200) {
-    sNeuromuscularProfile = "Perfil Neuromuscular Altamente Reativo. O atleta possui uma reatividade elástica excepcional, agindo como uma mola de alta rigidez no decolagem dinâmica.";
-    sSscEfficiency = "O Ciclo Alongamento-Encurtamento (CAE) funciona com extrema eficiência rápida. O acúmulo de energia elástica no tendão de Aquiles e sua imediata restituição concêntrica ocorrem em tempo ideal, aproveitando o reflexo miotático de estiramento perfeitamente.";
-    sForceVelRelation = "Relação Força-Velocidade idealizada para potência de elite. O atleta não necessita afundar o centro de gravidade para produzir força explosiva; a rigidez de tornozelo permite transferência de forças em altíssima velocidade.";
-  } else if (sTcVal >= 200) {
-    sNeuromuscularProfile = "Perfil de Força Lenta / Amortecedor. O atleta apresenta excelente capacidade de força concêntrica, mas o tempo de contato prolongado indica que a força depende mais da contração muscular voluntária ativa do que do decolagem elástico reflexo rápido.";
-    sSscEfficiency = "O Ciclo Alongamento-Encurtamento (CAE) opera predominantemente na via lenta (amortecido). O excesso de flexão nos joelhos/quadril dissipa parte relevante da energia mecânica acumulada na fase excêntrica em forma de calor, reduzindo o efeito mola e a rigidez pliométrica.";
-    sForceVelRelation = "Predomínio de Força Absoluta sobre a Velocidade de Transição. O atleta decola bem alto, mas necessita de muito tempo no contato com o solo para recrutar suas unidades motoras dinâmicas, o que pode influenciar negativamente tarefas que exigem agilidade e acelerações puras.";
-  } else {
-    sNeuromuscularProfile = "Perfil Neuromuscular Moderadamente Reativo. O atleta está no limiar de transição ideal entre reatividade pura muscular e controle elástico articular.";
-    sSscEfficiency = "O Ciclo Alongamento-Encurtamento (CAE) opera de maneira regular. Há um bom pré-ativamento muscular, mas oscilações sutis na estabilização do tornozelo ainda consomem milissegundos valiosos que limitam o potencial completo do reflexo elástico.";
-    sForceVelRelation = "Relação Força-Velocidade equilibrada, porém com ampla margem de otimização da velocidade de contração plantar. A transição excêntrica-concêntrica pode ganhar aceleração com foco em pliometria de alta velocidade.";
-  }
-
-  // TRADUÇÃO SIMPLES (ATLETA)
-  let sAthleteTranslation = "";
-  if (sTcVal >= 200) {
-    sAthleteTranslation = "Você perde performance no tempo de reação ao solo. Sua força existe, mas não está sendo usada com velocidade. Resultado: menor explosão e eficiência esportiva em campo. Ao cair no chão, você 'amortece' o impacto dobrando demais os joelhos antes de saltar. Para ficar mais veloz e ágil em campo/quadra, faremos treinos para deixar seus tornozelos e panturrilhas firmes e fortes para empurrar o chão instantaneamente — como se o solo estivesse pegando fogo!";
-  } else if (sRsiVal >= 1.5) {
-    sAthleteTranslation = "Você já consegue agir de forma memorável como uma mola de alta velocidade! Seu pé bate e sai do solo de forma acelerada, aproveitando a força elástica natural e gratuita dos seus tendões. O foco agora é melhorar ainda mais a força de impulsão para decolar ainda mais alto mantendo essa resposta ultrarrápida de solo.";
-  } else {
-    sAthleteTranslation = "Seu corpo está no caminho certo para se tornar uma excelente mola elástica reativa. Atualmente, você reage bem na batida com o solo, mas há uma perda de energia mecânica pela descida sutil do calcanhar ao tocar o chão. Nosso foco será endurecer os calcanhares antes de encostar, ativando as subidas instantâneas.";
-  }
-
-  // EXPLICAÇÃO PARA PAIS
-  let sParentsExplanation = "";
-  if (calculateAge(athlete.dob) < 18) {
-    sParentsExplanation = "O teste de Drop Jump serve para monitorar se o desenvolvimento neuromuscular e motor do atleta está ocorrendo com total proteção de suas articulações. Ajustar a rigidez (stiffness) do tornozelo protege os joelhos e calcanhares contra sobrecargas e trancos repentinos, garantindo um crescimento saudável, seguro e livre de dores de crescimento, além de treinar um corpo super resistente contra torções e lesões esportivas comuns.";
-  } else {
-    sParentsExplanation = "Este mapeamento de força reativa é fundamental para garantir a integridade articular em movimentos esportivos de alta energia. Ao otimizar o tempo de contato e a rigidez do tendão, minimizamos a sobrecarga de absorção de impacto que vai diretamente para as articulações dos joelhos e quadril, maximizando a longevidade física e prevenindo tendinopatias e estresses ligamentares.";
-  }
-
-  // IMPACTO NO ESPORTE
-  let sSportsImpact = "";
-  if (sTcVal >= 200) {
-    sSportsImpact = "No ambiente competitivo real (sprints curtos, fintas e reações rápidas de movimentação), o tempo de contato prolongado com o solo funciona de forma equivalente a um leve freio de arrasto mecânico. Ao corrigir essa transição lenta, o atleta irá obter ganhos incríveis em seu primeiro passo de corrida (arranque explosivo), agilidade para fintas dinâmicas de desvio e controle balístico de impulsão.";
-  } else {
-    sSportsImpact = "A exemplar reatividade elástica do atleta se traduz diretamente em picos de aceleração de elite e mudanças de direção ágeis e extremamente dinâmicas em competições reais. O atleta consome menos energia física interna para acelerar, mantendo sua potência máxima de sprint por muito mais tempo graças ao eficiente aproveitamento elástico.";
-  }
-
-  // PLANO DE AÇÃO METODOLÓGICO (Sem receitas de bolo - Caminhos de treino)
-  let sTrainFocus = "";
-  let sDropInterventionDirectives: { pillar: string; directive: string }[] = [];
-  if (sTcVal >= 200) {
-    sTrainFocus = "Redução do Tempo de Contato, Ativação do Reflexo de Mola e Rigidez de Tornozelo (Stiffness)";
-    sDropInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Rigidez do Tornozelo (Ankle Stiffness)", 
-        directive: "Trabalhar a pré-ativação em dorsiflexão antes do contato com o solo para impedir que o calcanhar encoste no chão e dissipa energia elástica." 
-      },
-      { 
-        pillar: "Prioridade 2: Estímulo do Ciclo Alongamento-Encurtamento Curto (Fast SSC)", 
-        directive: "Priorizar estímulos pliométricos de transição ultrarrápida (<200ms), focando na intenção de descolar do solo instantaneamente sem grande flexão de joelhos." 
-      },
-      { 
-        pillar: "Prioridade 3: Gestão de Densidade e Qualidade", 
-        directive: "Limitar o volume por série a repetições de altíssima qualidade técnica e descanso completo, evitando que a fadiga neuromuscular prolongue o tempo de contato." 
-      }
-    ];
-  } else if (sRsiVal < 2.0) {
-    sTrainFocus = "Otimização da Transição Excêntrica-Concêntrica e Eficiência de Propulsão";
-    sDropInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Absorção e Re-aceleração sob Carga Gravitacional", 
-        directive: "Progredir gradualmente a altura de queda para desafiar a capacidade do complexo músculo-tendíneo de tolerar impacto e converter energia elástica em impulsão." 
-      },
-      { 
-        pillar: "Prioridade 2: Estabilidade Reativa Unilateral", 
-        directive: "Integrar estímulos reativos com apoio unilateral para equalizar a resposta elástica entre os membros e blindar tornozelos contra entorses em mudanças de direção." 
-      },
-      { 
-        pillar: "Prioridade 3: Combinação com Força Máxima Dinâmica", 
-        directive: "Associar o trabalho reativo ao desenvolvimento da força de base, garantindo que o atleta tenha tônus muscular para sustentar a rigidez da mola biológica." 
-      }
-    ];
-  } else {
-    sTrainFocus = "Transferência para Vetores Esportivos, Potência Multidirecional e Manutenção de Elite";
-    sDropInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Transferência Horizontal e Multidirecional", 
-        directive: "Canalizar a excelente reatividade vertical para sprints, desacelerações curtas e fintas de alta velocidade, conectando a rigidez do tendão à mecânica de campo." 
-      },
-      { 
-        pillar: "Prioridade 2: Manutenção da Reatividade sob Fadiga Específica", 
-        directive: "Testar a capacidade do atleta de manter tempos de contato curtos em momentos finais de treinos táticos e situações de estresse competitivo." 
-      },
-      { 
-        pillar: "Prioridade 3: Monitoramento Profilático do Tendão de Aquiles", 
-        directive: "Acompanhar a resposta de rigidez matinal e tônus do tríceps sural para evitar sobrecargas inflamatórias decorrentes do alto volume de impacto." 
-      }
-    ];
-  }
-
-  // METAS DE EVOLUÇÃO
-  let sTargetRsiVal = 0;
-  let sTargetTcVal = 0;
-  if (sRsiVal < 1.0) {
-    sTargetRsiVal = 1.30;
-    sTargetTcVal = Math.max(190, sTcVal - 40);
-  } else if (sRsiVal < 1.5) {
-    sTargetRsiVal = 1.75;
-    sTargetTcVal = Math.max(180, sTcVal - 30);
-  } else if (sRsiVal < 2.0) {
-    sTargetRsiVal = 2.20;
-    sTargetTcVal = Math.max(170, sTcVal - 20);
-  } else {
-    sTargetRsiVal = parseFloat((sRsiVal * 1.10).toFixed(2));
-    sTargetTcVal = Math.max(150, sTcVal - 10);
-  }
-
-  // Dynamic Verdict for Headline
-  let headlineStatus = "";
-  let headlineClass = "";
-  let headlineBullets: string[] = [];
-  let headlinePriority = "";
-
-  if (sRsiVal >= 2.0) {
-    headlineStatus = "ELITE: EXCELENTE REATIVIDADE ELÁSTICA E STIFFNESS";
-    headlineClass = "bg-indigo-950/90 text-indigo-100 border-indigo-800";
-    headlineBullets = [
-      "🟢 Reatividade e reflexo elástico em nível de elite mundial.",
-      "🟢 Excelente rigidez de tornozelo (stiffness) permitindo transferência instantânea de força.",
-      "🟢 Aproveitamento ideal do Ciclo Alongamento-Encurtamento (CAE)."
-    ];
-    headlinePriority = "Manter potência pliométrica terminal e focar em pliometria avançada de elite.";
-  } else if (sRsiVal >= 1.5) {
-    headlineStatus = "BOM: BOA BASE DE FORÇA E REATIVIDADE MODERADA";
-    headlineClass = "bg-emerald-950/90 text-emerald-100 border-emerald-800";
-    headlineBullets = [
-      "🟡 Boa base de força concêntrica demonstrada no salto.",
-      "🟢 Tempo de contato controlado e funcional com o solo.",
-      "🎯 Margem de ganho na transição elástica pura dos tornozelos."
-    ];
-    headlinePriority = "Otimizar a transição excêntrica-concêntrica para reduzir ainda mais o tempo de contato.";
-  } else {
-    headlineStatus = "ATENÇÃO: REATIVIDADE ABAIXO DO IDEAL PARA PERFORMANCE EXPLOSIVA";
-    headlineClass = "bg-rose-950/90 text-rose-100 border-rose-900";
-    headlineBullets = [
-      "🔴 Baixo aproveitamento do Ciclo Alongamento-Encurtamento (CAE) rápido.",
-      "🟡 Boa base de força concêntrica pura, mas transição lenta de solo.",
-      "🔴 Tempo de contato excessivamente longo no solo (amortecimento acentuado)."
-    ];
-    headlinePriority = "Redução imediata do tempo de contato com foco em stiffness de tornozelo.";
-  }
-
-  const handleExportJpeg = async () => {
+  // Helper para baixar página individual em alta resolução (Padrão LB)
+  const downloadSinglePage = async (pageIndex: number, customToastId?: string) => {
     if (!reportRef.current) return;
-    const toastId = toast.loading("Otimizando layout para exportação...");
+    const pages = reportRef.current.querySelectorAll(".report-page");
+    const page = pages[pageIndex] as HTMLElement;
+    if (!page) {
+      toast.error(`Página ${pageIndex + 1} não encontrada.`);
+      return;
+    }
+
+    const tId = customToastId || toast.loading(`Renderizando Página ${pageIndex + 1} em alta resolução...`);
     try {
-      const pages = reportRef.current.querySelectorAll(".report-page");
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
-        const link = document.createElement("a");
-        link.download = `relatorio-dropjump-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
-        link.href = dataUrl;
-        link.click();
-        await new Promise((r) => setTimeout(r, 400));
-      }
-      toast.success("Arquivos gerados com sucesso!", { id: toastId });
+      const dataUrl = await toJpeg(page, {
+        quality: 0.96,
+        backgroundColor: "#FFFFFF",
+        pixelRatio: 2.5,
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const athleteSlug = athlete.name.toLowerCase().replace(/\s+/g, "-");
+      const pageLabel = pageIndex === 0 ? "dados-avaliacao" : "diretrizes-treinamento";
+      const filename = `relatorio-dropjump-${athleteSlug}-pag-${pageIndex + 1}-${pageLabel}.jpg`;
+
+      const link = document.createElement("a");
+      link.download = filename;
+      link.href = blobUrl;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 1500);
+
+      toast.success(`Página ${pageIndex + 1} baixada com sucesso!`, { id: tId });
     } catch (e) {
       console.error(e);
-      toast.error("Falha ao gerar imagens.", { id: toastId });
+      toast.error(`Erro ao baixar Página ${pageIndex + 1}.`, { id: tId });
+    }
+  };
+
+  // Helper para baixar ambas as páginas em sequência com proteção anti-bloqueio
+  const handleExportAllPages = async () => {
+    if (!reportRef.current) return;
+    const toastId = toast.loading("Iniciando exportação das 2 páginas...");
+    try {
+      const pages = reportRef.current.querySelectorAll(".report-page");
+      if (pages.length === 0) {
+        toast.error("Nenhuma página encontrada.", { id: toastId });
+        return;
+      }
+
+      for (let i = 0; i < pages.length; i++) {
+        toast.loading(`Gerando e baixando Página ${i + 1} de ${pages.length}...`, { id: toastId });
+        const page = pages[i] as HTMLElement;
+        const dataUrl = await toJpeg(page, {
+          quality: 0.96,
+          backgroundColor: "#FFFFFF",
+          pixelRatio: 2.5,
+        });
+
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+
+        const athleteSlug = athlete.name.toLowerCase().replace(/\s+/g, "-");
+        const pageLabel = i === 0 ? "dados-avaliacao" : "diretrizes-treinamento";
+        const filename = `relatorio-dropjump-${athleteSlug}-pag-${i + 1}-${pageLabel}.jpg`;
+
+        const link = document.createElement("a");
+        link.download = filename;
+        link.href = blobUrl;
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+        }, 2000);
+
+        if (i < pages.length - 1) {
+          await new Promise((r) => setTimeout(r, 1200));
+        }
+      }
+
+      toast.success("Download das 2 páginas enviado! Você também pode baixar cada uma pelos botões dedicados.", {
+        id: toastId,
+        duration: 5000,
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Falha ao gerar imagens das páginas.", { id: toastId });
     }
   };
 
@@ -11724,624 +11541,906 @@ const DropJumpReport: FC<{
     triggerPrint();
   };
 
-  const evolutionData = [...history]
-    .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date))
-    .map((item) => ({
-      date: formatDate(item.date),
-      rsi: item.rsi || 0,
-      stiffness: getNormalizedStiffness(item.stiffness || 0),
-      jumpHeight: item.jumpHeight || 0,
-    }))
-    .filter(item => item.rsi > 0 || item.stiffness > 0)
-    .slice(-6);
+  // Parâmetros do Atleta e Normalização de Métricas
+  const athleteAge = calculateAge(athlete.dob);
+  const athleteMass = data.weight || athlete.weight || 70;
+  const sRsiVal = data.rsi || 0;
+  const sTcVal = data.contactTime || 0;
+  const sJhVal = data.jumpHeight || 0;
+  const sFlightVal = data.flightTime || (sJhVal > 0 ? Math.round(Math.sqrt((sJhVal * 8) / 9.80665) * 100) : 0);
+  const sDropHeight = data.dropHeight || 30;
 
-  const StatCard = ({
-    icon: Icon,
-    label,
-    value,
-    unit,
-    color,
-    description,
-    diff,
-  }: any) => (
-    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col h-full group hover:border-brand-primary/20 transition-all font-sans">
-      <div className="flex items-center justify-between mb-3 font-sans">
-        <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg ${color} bg-opacity-10 shadow-sm`}>
-            <Icon className={`w-3.5 h-3.5 ${color.replace("bg-", "text-")}`} />
-          </div>
-          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none font-bold">
-            {label}
-          </span>
-        </div>
-        {diff && (
-          <div className={`flex items-center gap-0.5 text-[9px] font-black ${diff.color}`}>
-            <span>{diff.icon}</span>
-            <span>{diff.percent}%</span>
-          </div>
-        )}
-      </div>
-      <div className="flex items-baseline gap-1 mt-auto">
-        <span className="text-xl font-black text-slate-950 italic tracking-tight">
-          {value || 0}
-        </span>
-        <span className="text-[10px] font-black text-slate-400 uppercase italic">
-          {unit}
-        </span>
-      </div>
-      {description && (
-        <p className="text-[8px] text-slate-500 mt-1 font-bold leading-tight uppercase italic opacity-85">
-          {description}
-        </p>
-      )}
-    </div>
-  );
+  const getNormalizedStiffness = (stiffness: number | undefined) => {
+    if (!stiffness) return 0;
+    if (stiffness < 100) return Math.round(stiffness * 1000);
+    return Math.round(stiffness);
+  };
+  const sStiffVal = getNormalizedStiffness(data.stiffness);
+
+  // Score de Reatividade LB (0 a 100)
+  let rsiScore = 0;
+  if (sRsiVal < 1.0) rsiScore = Math.max(10, sRsiVal * 50);
+  else if (sRsiVal < 1.5) rsiScore = 50 + ((sRsiVal - 1.0) / 0.5) * 20;
+  else if (sRsiVal < 2.0) rsiScore = 70 + ((sRsiVal - 1.5) / 0.5) * 18;
+  else if (sRsiVal < 2.5) rsiScore = 88 + ((sRsiVal - 2.0) / 0.5) * 8;
+  else rsiScore = Math.min(100, 96 + (sRsiVal - 2.5) * 8);
+
+  let tcScore = 0;
+  if (sTcVal > 280) tcScore = Math.max(10, 35 - ((sTcVal - 280) / 40) * 15);
+  else if (sTcVal > 250) tcScore = 35 + ((280 - sTcVal) / 30) * 15;
+  else if (sTcVal >= 200) tcScore = 50 + ((250 - sTcVal) / 50) * 25;
+  else if (sTcVal >= 160) tcScore = 75 + ((200 - sTcVal) / 40) * 20;
+  else tcScore = Math.min(100, 95 + ((160 - sTcVal) / 20) * 5);
+
+  let stiffScore = 0;
+  if (sStiffVal < 10000) stiffScore = Math.max(20, (sStiffVal / 10000) * 50);
+  else if (sStiffVal < 18000) stiffScore = 50 + ((sStiffVal - 10000) / 8000) * 25;
+  else if (sStiffVal < 26000) stiffScore = 75 + ((sStiffVal - 18000) / 8000) * 18;
+  else stiffScore = Math.min(100, 93 + ((sStiffVal - 26000) / 8000) * 7);
+
+  const dropJumpScore = Math.round(rsiScore * 0.50 + tcScore * 0.30 + stiffScore * 0.20);
+
+  // Histórico Longitudinal e Deltas (Padrão IMTP/VO2)
+  const sortedHistory = [...history]
+    .filter((h) => (h.rsi && h.rsi > 0) || (h.contactTime && h.contactTime > 0))
+    .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date));
+
+  const previousDropJump = sortedHistory
+    .filter((h) => h.id !== data.id)
+    .slice(-1)[0];
+
+  const getLongitudinalDelta = (current: number, previous: number | undefined, lowerIsBetter = false) => {
+    if (!previous || previous === 0 || !current) return null;
+    const diff = current - previous;
+    const pct = (diff / previous) * 100;
+    const improved = lowerIsBetter ? diff < 0 : diff > 0;
+    const sign = diff > 0 ? "+" : "";
+
+    let statusTrend: "positiva" | "estavel" | "atencao" = "estavel";
+    if (Math.abs(pct) >= 2.0) {
+      statusTrend = improved ? "positiva" : "atencao";
+    }
+
+    return {
+      diff,
+      pct,
+      improved,
+      text: `${sign}${pct.toFixed(1)}%`,
+      trend: statusTrend,
+      icon: statusTrend === "positiva" ? "▲" : statusTrend === "atencao" ? "▼" : "➔",
+      color: statusTrend === "positiva"
+        ? "text-emerald-700 bg-emerald-500/10 border-emerald-500/20"
+        : statusTrend === "atencao"
+        ? "text-red-700 bg-red-500/10 border-red-500/20"
+        : "text-amber-700 bg-amber-500/10 border-amber-500/20"
+    };
+  };
+
+  const rsiDelta = getLongitudinalDelta(sRsiVal, previousDropJump?.rsi);
+  const tcDelta = getLongitudinalDelta(sTcVal, previousDropJump?.contactTime, true);
+  const jhDelta = getLongitudinalDelta(sJhVal, previousDropJump?.jumpHeight);
+  const stiffDelta = getLongitudinalDelta(sStiffVal, getNormalizedStiffness(previousDropJump?.stiffness));
+  const flightDelta = getLongitudinalDelta(sFlightVal, previousDropJump?.flightTime);
+  const scoreDelta = getLongitudinalDelta(dropJumpScore, previousDropJump ? (previousDropJump.rsi && previousDropJump.rsi >= 1.5 ? 75 : 55) : undefined);
+
+  // Perfil Neuromuscular em 4 Quadrantes (Tc Fast SSC <200ms vs. RSI / Impulsão)
+  const isFastTc = sTcVal > 0 && sTcVal < 200;
+  const isHighReactivity = sRsiVal >= 1.80 || (sRsiVal === 0 && sJhVal >= 32);
+
+  let dropProfile = {
+    quadrant: "Q1",
+    title: "MOLA BIOLÓGICA DE ALTA RIGIDEZ & REATIVIDADE DE ELITE",
+    badgeColor: "bg-emerald-500/10 text-emerald-800 border-emerald-500/30",
+    dot: "🟢",
+    verdict: "Excelente eficiência no Ciclo Alongamento-Encurtamento rápido (Fast SSC <200ms) associada a expressiva impulsão vertical. Ótima rigidez de tornozelo (stiffness) e aproveitamento pleno da energia elástica sem dissipação mecânica.",
+    coachInterpretation: "O atleta possui pré-ativação de alta precisão em dorsiflexão e reflexo miotático apurado no tendão de Aquiles. Praticamente não há deformação excessiva de calcanhar; a força excêntrica de impacto é convertida instantaneamente em empuxo vertical com mínima dissipação térmica, transferindo diretamente para acelerações de 0-10m e mudanças bruscas de direção.",
+    athleteTranslation: "Seus pés agem como molas ultra-rápidas! Você toca o chão como se estivesse pegando fogo e decola na hora, sem afundar os joelhos nem encostar os calcanhares. Essa capacidade garante acelerações arrasadoras e saltos imediatos nas disputas esportivas."
+  };
+
+  if (!isFastTc && isHighReactivity) {
+    dropProfile = {
+      quadrant: "Q2",
+      title: "ALTA FORÇA CONCÊNTRICA COM TRANSIÇÃO LENTA (SLOW SSC)",
+      badgeColor: "bg-amber-500/10 text-amber-800 border-amber-500/30",
+      dot: "🟡",
+      verdict: "Elevada impulsão vertical e excelente força pura, porém com tempo de contato prolongado no solo (≥200ms). O atleta depende de flexão acentuada de joelhos para produzir força concêntrica em vez do reflexo de mola elástica.",
+      coachInterpretation: "Predomínio de componente concêntrico voluntário sobre a ação reflexa miotendínea. O afundamento mecânico dissipa parcela expressiva da energia elástica acumulada na fase excêntrica. Priorizar estímulos de Fast SSC com contato curto (<200ms), saltitos de tornozelo rígido e restrição de flexão para acelerar o primeiro passo.",
+      athleteTranslation: "Você é muito forte e salta alto, mas demora um pouco para 'sair do chão' porque amortece demais dobrando os joelhos. Vamos treinar para transformar sua força bruta em reflexo instantâneo, fazendo você decolar em milissegundos!"
+    };
+  } else if (isFastTc && !isHighReactivity) {
+    dropProfile = {
+      quadrant: "Q3",
+      title: "TRANSIÇÃO RÁPIDA DE SOLO COM DÉFICIT DE IMPULSÃO VERTICAL",
+      badgeColor: "bg-blue-500/10 text-blue-800 border-blue-500/30",
+      dot: "🔵",
+      verdict: "Tempo de contato ágil e curto (<200ms), contudo com baixa translocação vertical (altura de voo reduzida). Apresenta boa velocidade de reação, mas demanda ganho de força máxima dinâmica e impulso propulsivo sob carga.",
+      coachInterpretation: "Excelente pré-ativação articular de tornozelo e rápida decolagem do solo, contudo o atleta carece de magnitude de impulso propulsivo vertical. Há rigidez na mola, mas falta força de base nos extensores de joelho e quadril para empurrar o solo com alta magnitude durante o contato rápido.",
+      athleteTranslation: "Você reage com muita rapidez no chão e tem ótimo tempo de reflexo, mas ainda precisa de mais empurrão para subir mais alto. Construindo essa força de base, suas saídas de solo serão completas: ultra-rápidas e com máxima altura!"
+    };
+  } else if (!isFastTc && !isHighReactivity) {
+    dropProfile = {
+      quadrant: "Q4",
+      title: "EM CONSTRUÇÃO DE RIGIDEZ E REATIVIDADE GLOBAL",
+      badgeColor: "bg-red-500/10 text-red-800 border-red-500/30",
+      dot: "🔴",
+      verdict: "Necessidade de estruturação coordenada da força de sustentação e da mecânica de absorção. Contato com solo prolongado associado a menor altura de voo indica perda de energia e colapso articular.",
+      coachInterpretation: "Perfil que demanda bloco estrutural de adaptação neuromuscular e pliometria de base. Iniciar com drop landings controlados, saltitos contínuos de tornozelo e fortalecimento excêntrico/isométrico da cadeia posterior para construir tolerância mecânica antes de sobrecargas de queda mais elevadas.",
+      athleteTranslation: "Estamos iniciando seu treinamento de molas e força reativa. Vamos blindar seus tornozelos e panturrilhas para absorver o impacto com total firmeza, protegendo suas articulações e preparando seu corpo para decolar com rapidez!"
+    };
+  }
+
+  // As 3 Diretrizes Metodológicas de Intervenção com KPI Objetivo (Pilares 01, 02 e 03)
+  const methodologicalDirectives = [
+    {
+      pillar: "DIRETRIZ 1: CAMINHO PRIMÁRIO NEUROMUSCULAR (RIGIDEZ DE TORNOZELO & FAST SSC)",
+      priority: (!isFastTc)
+        ? "REDUÇÃO DO TEMPO DE CONTATO (<200MS) & PRÉ-ATIVAÇÃO DE TORNOZELO"
+        : (!isHighReactivity)
+          ? "EXPANSÃO DA FORÇA PROPULSIVA VERTICAL SOB CONTATO RÁPIDO"
+          : "POTÊNCIA REATIVA MULTIDIRECIONAL & MANUTENÇÃO DE ELITE",
+      methodology: (!isFastTc)
+        ? "Prescrever blocos de saltitos curtos de tornozelo rígido (pogo jumps), corda em alta cadência e Drop Jumps de menor altura (20cm) com foco estrito na intenção de descolar do solo instantaneamente sem tocar o calcanhar."
+        : (!isHighReactivity)
+          ? "Integrar Drop Jumps a 30cm com sobrecarga dinâmica de agachamento e empuxo vertical explosivo, estimulando a produção rápida de força concêntrica sem perder a rigidez articular."
+          : "Aplicar estímulos pliométricos complexos (Drop Jump seguido de sprint de 10m ou finta de aceleração), conectando a rigidez vertical à mecânica horizontal de campo.",
+      kpi: (!isFastTc)
+        ? `Reduzir o tempo de contato para patamar <${Math.max(185, sTcVal - 30)} ms mantendo o calcanhar alto.`
+        : `Elevar o RSI para patamar ≥${(sRsiVal * 1.15).toFixed(2)} com transição estável.`
+    },
+    {
+      pillar: "DIRETRIZ 2: GESTÃO DA ALTURA DE QUEDA & SOBRECARGA EXCÊNTRICA",
+      priority: "CALIBRAÇÃO DA ALTURA DA CAIXA (DROP HEIGHT)",
+      methodology: `Utilizar a altura de queda atual (${sDropHeight} cm) como âncora. Só progredir a caixa para 40cm se o atleta sustentar tempo de contato <200ms. Se o calcanhar colapsar ou o Tc subir acima de 230ms, regredir temporariamente para 20cm para preservar a integridade elástica do tendão.`,
+      kpi: "Manter a razão Voo/Contato >1.30 sem afundamento excessivo de joelhos no impacto."
+    },
+    {
+      pillar: "DIRETRIZ 3: BLINDAGEM DO TENDÃO DE AQUILES & ESTABILIDADE UNILATERAL",
+      priority: "ISOMETRIA DO TRÍCEPS SURAL & PREVENÇÃO DE TENDINOPATIAS",
+      methodology: "Realizar isometria pesada de panturrilha (solear e gastrocnêmio em máquina ou barra por 3-4 séries de 30-45s) combinada com aterrissagens rígidas unilaterais. Aumenta a rigidez tendínea e atua como blindagem biológica contra torções de tornozelo e fascite.",
+      kpi: "Simetria de resposta elástica entre os membros com diferença bilateral inferior a 8%."
+    }
+  ];
+
+  // Metas Quantitativas para o Próximo Ciclo (4 a 6 Semanas)
+  const targetRsi = Number((sRsiVal > 0 ? (sRsiVal < 1.5 ? sRsiVal + 0.35 : sRsiVal * 1.12) : 1.80).toFixed(2));
+  const targetTc = Math.max(165, sTcVal > 0 ? (sTcVal >= 220 ? sTcVal - 35 : sTcVal - 20) : 185);
+  const targetJh = Number((sJhVal > 0 ? sJhVal * 1.08 : 32).toFixed(1));
+  const targetStiff = Math.round(sStiffVal > 0 ? sStiffVal * 1.12 : 22000);
+
+  const totalPages = 2;
 
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
         
+        {/* Barra Superior Flutuante de Ações Rápidas (Padrão LB) */}
+        <div className="sticky top-2 z-50 mb-4 mx-2 md:mx-0 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-white no-print">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#39FF14] animate-pulse shrink-0" />
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-100 block leading-tight">
+                Relatório Drop Jump • {athlete.name}
+              </span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase">
+                {totalPages} Páginas A4 • Força Reativa, Rigidez (Stiffness) & Pliometria
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportAllPages}
+              className="flex items-center gap-1.5 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-md cursor-pointer"
+              title="Baixar ambas as páginas sequencialmente"
+            >
+              <Download size={14} />
+              <span>Baixar Todas (1 e 2)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(0)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 1 (Dados e Reatividade)"
+            >
+              <FileText size={14} className="text-[#39FF14]" />
+              <span>Pág. 1 (Dados)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(1)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 2 (Diretrizes e Pliometria)"
+            >
+              <FileText size={14} className="text-emerald-400" />
+              <span>Pág. 2 (Diretrizes)</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Imprimir ou Salvar em PDF"
+            >
+              <Printer size={14} />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 bg-slate-800/90 hover:bg-red-500/20 hover:text-red-400 text-slate-300 p-2 rounded-xl active:scale-95 transition-all border border-slate-700 cursor-pointer ml-1"
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
           
-          {/* Page 1 */}
-          <ReportPage pageNumber={1} totalPages={3}>
+          {/* PÁGINA 1: RESULTADOS BIOMÉTRICOS & DIAGNÓSTICO DE REATIVIDADE */}
+          <ReportPage pageNumber={1} totalPages={totalPages}>
             <ReportHeader
-              title="RELATÓRIO DE DROP JUMP"
-              subTitle="FORÇA REATIVA E RIGIDÉZ NEUROMUSCULAR DINÂMICA"
+              title="Força Reativa & Rigidez Neuromuscular (Drop Jump)"
+              subTitle="Padrão Ouro de Reatividade Elástica, Eficiência Fast SSC e Rigidez Tendínea (Stiffness)"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[
-                { label: "QUEDA (DROP)", value: `${data.dropHeight || 30} CM` },
-                { label: "PÁGINA", value: "01 DE 03" }
+                { label: "ÍNDICE RSI", value: `${sRsiVal.toFixed(2)}` },
+                { label: "ALTURA QUEDA", value: `${sDropHeight} CM` }
               ]}
             />
 
-            {/* 🚨 VEREDITO PRINCIPAL DE ELITE (HEADLINE) */}
-            <div className={`mt-4 p-4 rounded-2xl border ${headlineClass} font-sans shadow-sm`}>
-              <div className="flex items-center gap-2 mb-2 font-sans">
-                <Flame className="w-5 h-5 text-orange-400" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] font-bold text-orange-400">
-                  STATUS NEUROMUSCULAR ATUAL (VEREDITO ELITE)
+            {/* PILAR 1: Veredito Executivo do Cientista do Esporte & Contexto Biométrico */}
+            <div className="bg-slate-50 border border-slate-200 p-4.5 rounded-2xl mb-4.5 select-none font-sans">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 pb-2.5 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                    DIAGNÓSTICO REATIVO DO CIENTISTA DO ESPORTE
+                  </span>
+                </div>
+                <span className={`text-[8px] font-black px-2.5 py-1 rounded-full border ${dropProfile.badgeColor}`}>
+                  {dropProfile.dot} {dropProfile.title}
                 </span>
               </div>
-              <h3 className="text-sm font-black italic tracking-tight uppercase text-white">
-                {headlineStatus}
-              </h3>
-              <div className="mt-2.5 grid grid-cols-1 md:grid-cols-3 gap-3 text-[10px] leading-relaxed font-sans">
-                <div className="space-y-1">
-                  {headlineBullets.map((bullet, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5 font-medium">
-                      <span>{bullet}</span>
-                    </div>
-                  ))}
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold text-slate-800 uppercase leading-relaxed">
+                    {dropProfile.verdict}
+                  </p>
                 </div>
-                <div className="bg-white/5 p-2.5 rounded-xl border border-white/10 flex flex-col justify-center">
-                  <span className="text-[8px] font-black tracking-wider text-orange-400 uppercase">🎯 PRIORIDADE DE TREINO</span>
-                  <p className="font-extrabold text-[10px] text-white mt-0.5 uppercase italic">{headlinePriority}</p>
+                <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-xl border border-slate-200 text-[8px] font-black uppercase text-slate-600 shrink-0">
+                  <span>Modalidade: <strong className="text-slate-950">{athlete.modality || "Geral"}</strong></span>
+                  <span className="text-slate-300">|</span>
+                  <span>Idade: <strong className="text-slate-950">{athleteAge} Anos</strong></span>
+                  <span className="text-slate-300">|</span>
+                  <span>Massa: <strong className="text-slate-950">{athleteMass} kg</strong></span>
                 </div>
-                <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 flex flex-col items-center justify-center text-center">
-                  <span className="text-[8px] font-black tracking-wider text-slate-400 uppercase">SCORE DE PERFORMANCE</span>
-                  <div className="flex items-baseline gap-0.5 mt-1 font-sans">
-                    <span className="text-2xl font-black text-brand-primary italic">{perfScore}</span>
-                    <span className="text-[10px] font-bold text-slate-400">/100</span>
+              </div>
+            </div>
+
+            {/* Cabeçalho da Seção de Dados da Avaliação */}
+            <div className="flex justify-between items-center mb-2 px-0.5 select-none font-sans">
+              <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                DADOS DA AVALIAÇÃO DE FORÇA REATIVA & RIGIDEZ (DROP JUMP)
+              </span>
+              <span className="text-[7.5px] font-bold text-slate-500 uppercase">
+                Monitoramento Individual • Foco em Transição Excêntrica-Concêntrica
+              </span>
+            </div>
+
+            {/* PILAR 2: Painel Central dos 6 Resultados da Avaliação */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 mb-4.5 select-none font-sans">
+              
+              {/* Resultado 1: Índice de Força Reativa (RSI) */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Índice Reativo (RSI)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 uppercase">
+                      Reatividade
+                    </span>
                   </div>
-                  <span className={`text-[7px] font-black uppercase tracking-wider px-2 py-0.5 mt-1 rounded-full border ${perfScoreColor}`}>
-                    {perfScoreClass}
+                  <strong className="text-2xl font-black text-emerald-600 block italic mt-1 leading-none">
+                    {sRsiVal.toFixed(2)}
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Relação: <strong className="text-slate-800 font-black">Jh ({sJhVal}cm) / Tc ({(sTcVal / 1000).toFixed(2)}s)</strong>
                   </span>
                 </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Eficiência Elástica</span>
+                  {rsiDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${rsiDelta.color}`}>
+                      {rsiDelta.icon} {rsiDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 2: Tempo de Contato no Solo (Tc) */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Tempo de Contato (Tc)</span>
+                    <span className={`text-[7px] font-black px-1.5 py-0.5 rounded border uppercase ${sTcVal < 200 ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                      {sTcVal < 200 ? "Fast SSC (<200ms)" : "Slow SSC (Amortecido)"}
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
+                    {sTcVal} <span className="text-xs font-bold text-slate-500">ms</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Mecânica de Solo: <strong className="text-slate-800 font-black">{sTcVal < 200 ? "Decolagem Instantânea" : "Amortecimento Prolongado"}</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Transição de Solo</span>
+                  {tcDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${tcDelta.color}`}>
+                      {tcDelta.icon} {tcDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 3: Altura de Salto Reativo (Jh) */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Altura de Salto Reativo</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-lime-200 bg-lime-50 text-lime-900 uppercase">
+                      Impulsão
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-brand-primary block italic mt-1 leading-none">
+                    {sJhVal} <span className="text-xs font-bold text-slate-500">cm</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Queda Referência: <strong className="text-slate-800 font-black">{sDropHeight} cm</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Propulsão Vertical</span>
+                  {jhDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${jhDelta.color}`}>
+                      {jhDelta.icon} {jhDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 4: Rigidez Neuromuscular (Stiffness) */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Rigidez (Stiffness)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Tônus Tendíneo
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-slate-900 block italic mt-1 leading-none">
+                    {sStiffVal > 0 ? (sStiffVal / 1000).toFixed(1) : "--"} <span className="text-xs font-bold text-slate-500">kN/m</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Absoluto: <strong className="text-slate-800 font-black">{sStiffVal > 0 ? `${sStiffVal.toLocaleString("pt-BR")} N/m` : "Estabilidade Miotendínea"}</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Rigidez da Mola</span>
+                  {stiffDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${stiffDelta.color}`}>
+                      {stiffDelta.icon} {stiffDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 5: Tempo de Voo & Razão Voo/Contato */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Tempo de Voo (Tvoo)</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Fase Aérea
+                    </span>
+                  </div>
+                  <strong className="text-2xl font-black text-slate-950 block italic mt-1 leading-none">
+                    {sFlightVal} <span className="text-xs font-bold text-slate-500">ms</span>
+                  </strong>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Razão Voo/Contato: <strong className="text-slate-800 font-black">{sTcVal > 0 ? (sFlightVal / sTcVal).toFixed(2) : "--"}x</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Cinética Aérea</span>
+                  {flightDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${flightDelta.color}`}>
+                      {flightDelta.icon} {flightDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Resultado 6: Score de Reatividade LB */}
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-slate-500 uppercase tracking-wider">Score Reatividade LB</span>
+                    <span className="text-[7px] font-black px-1.5 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-700 uppercase">
+                      Índice Global
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <strong className="text-2xl font-black text-slate-950 block italic leading-none">
+                      {dropJumpScore} <span className="text-[10px] font-bold text-slate-500">pts / 100</span>
+                    </strong>
+                  </div>
+                  <span className="text-[8px] text-slate-500 font-semibold block mt-1">
+                    Classificação: <strong className="text-slate-900 font-black">{dropJumpScore >= 85 ? "Elite" : dropJumpScore >= 70 ? "Bom" : dropJumpScore >= 50 ? "Regular" : "Em Construção"}</strong>
+                  </span>
+                </div>
+                <div className="mt-2.5 pt-2 border-t border-slate-100 flex justify-between items-center">
+                  <span className="text-[7px] font-bold text-slate-500 uppercase">Prontidão Reativa</span>
+                  {scoreDelta ? (
+                    <span className={`text-[7.5px] font-black px-1.5 py-0.5 rounded border ${scoreDelta.color}`}>
+                      {scoreDelta.icon} {scoreDelta.text}
+                    </span>
+                  ) : (
+                    <span className="text-[7px] font-bold text-slate-400 uppercase">Baseline</span>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* PILAR 3: Matriz Funcional em 4 Quadrantes (Tc vs. Reatividade/Impulsão) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  MATRIZ REATIVA DO ATLETA (TEMPO DE CONTATO VS. EFICIÊNCIA ELÁSTICA)
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase">
+                  Classificação Biomecânica Funcional
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                
+                {/* Quadrante 1 */}
+                <div className={`p-3 rounded-xl border transition-all ${dropProfile.quadrant === "Q1" ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-emerald-800 uppercase">QUADRANTE 1</span>
+                    {dropProfile.quadrant === "Q1" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-emerald-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    RÁPIDO & ALTO (ELITE)
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Padrão de elite mundial. Tc &lt;200ms com alta conversão elástica e decolagem imediata.
+                  </p>
+                </div>
+
+                {/* Quadrante 2 */}
+                <div className={`p-3 rounded-xl border transition-all ${dropProfile.quadrant === "Q2" ? "bg-amber-50 border-amber-500 ring-2 ring-amber-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-amber-800 uppercase">QUADRANTE 2</span>
+                    {dropProfile.quadrant === "Q2" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    LENTO & ALTO (SLOW SSC)
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Forte impulsão porém amortece demais. Prioridade em Fast SSC e rigidez de tornozelo.
+                  </p>
+                </div>
+
+                {/* Quadrante 3 */}
+                <div className={`p-3 rounded-xl border transition-all ${dropProfile.quadrant === "Q3" ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-blue-800 uppercase">QUADRANTE 3</span>
+                    {dropProfile.quadrant === "Q3" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-blue-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    RÁPIDO & BAIXO (ÁGIL)
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Ótima velocidade de solo mas falta impulso vertical. Prioridade em força máxima de base.
+                  </p>
+                </div>
+
+                {/* Quadrante 4 */}
+                <div className={`p-3 rounded-xl border transition-all ${dropProfile.quadrant === "Q4" ? "bg-red-50 border-red-500 ring-2 ring-red-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[7.5px] font-black text-red-800 uppercase">QUADRANTE 4</span>
+                    {dropProfile.quadrant === "Q4" && (
+                      <span className="text-[6.5px] font-black px-1.5 py-0.5 rounded bg-red-600 text-white uppercase">POSIÇÃO ATUAL</span>
+                    )}
+                  </div>
+                  <strong className="text-[9px] font-black text-slate-950 uppercase block leading-tight">
+                    LENTO & BAIXO (BASE)
+                  </strong>
+                  <p className="text-[7.5px] text-slate-600 uppercase font-medium mt-1 leading-normal">
+                    Necessidade de estruturação mecânica, tolerância de impacto e introdução pliométrica.
+                  </p>
+                </div>
+
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 mt-4 font-sans">
-              <div className="bg-brand-primary p-8 rounded-[2.5rem] text-brand-dark shadow-xl relative overflow-hidden group">
-                <div className="absolute -right-4 -top-4 opacity-[0.05] group-hover:scale-110 transition-transform text-brand-dark">
-                  <TrendingUp className="w-32 h-32" />
-                </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 italic font-bold">
-                    ÍNDICE REATIVO (RSI)
-                  </span>
-                  {previousData && (
-                    <div className="flex items-center gap-1 text-[10px] font-black text-brand-dark bg-black/10 px-2 py-0.5 rounded-full">
-                      <span>{getDiff(data.rsi, previousData.rsi).icon}</span>
-                      <span>{getDiff(data.rsi, previousData.rsi).percent}%</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2 mt-4 animate-fadeIn">
-                  <h3 className="text-5xl font-black italic leading-none font-sans">
-                    {data.rsi?.toFixed(2) || "0.00"}
-                  </h3>
-                  <span className="text-sm font-bold opacity-60 uppercase italic font-sans">
-                    m/s
-                  </span>
-                </div>
-                <p className="text-[10px] mt-6 font-black uppercase italic leading-relaxed text-brand-dark/80 font-bold font-sans">
-                  MENSURA A CAPACIDADE DE ABSORVER A QUEDA E GERAR PROPULSÃO IMEDIATA, INDICANDO A EFICIÊNCIA DO CICLO ALONGAMENTO-ENCURTAMENTO RÁPIDO DO ATLETA.
-                </p>
+            {/* PILAR 4: Acompanhamento Temporal & Linha de Base */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  ACOMPANHAMENTO TEMPORAL & LINHA DE BASE DA FORÇA REATIVA
+                </span>
+                <span className="text-[7.5px] font-bold text-slate-400 uppercase">Monitoramento Contínuo da Eficiência Elástica</span>
               </div>
 
-              <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] relative overflow-hidden group">
-                <div className="absolute -right-4 -top-4 text-orange-500 opacity-[0.03] group-hover:scale-110 transition-transform">
-                  <Zap className="w-32 h-32" />
-                </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic font-bold font-sans">
-                    ALTURA DO SALTO
-                  </span>
-                  {previousData && (
-                    <div className="flex items-center gap-1 text-[10px] font-black text-orange-500 font-sans">
-                      <span>{getDiff(data.jumpHeight, previousData.jumpHeight).icon}</span>
-                      <span>{getDiff(data.jumpHeight, previousData.jumpHeight).percent}%</span>
+              {previousDropJump ? (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-[8px] font-bold text-slate-800 uppercase">
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Índice Reativo (RSI)</span>
+                    <strong className="text-xs font-black text-emerald-600 block">{sRsiVal.toFixed(2)}</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {(previousDropJump.rsi || 0).toFixed(2)}</span>
+                      {rsiDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${rsiDelta.color}`}>
+                          {rsiDelta.icon} {rsiDelta.text}
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-2 mt-4">
-                  <h3 className="text-5xl font-black text-slate-900 italic leading-none font-sans">
-                    {data.jumpHeight || 0}
-                  </h3>
-                  <span className="text-sm font-bold text-slate-400 uppercase italic font-sans">
-                    CM
-                  </span>
-                </div>
-                <p className="text-[10px] mt-6 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                  REPRESENTA A TRANSLOCAÇÃO VERTICAL MÁXIMA (EM CM) ATINGIDA APÓS O IMPACTO DE QUEDA.
-                </p>
-              </div>
+                  </div>
 
-              <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] relative overflow-hidden group">
-                <div className="absolute -right-4 -top-4 text-emerald-500 opacity-[0.03] group-hover:scale-110 transition-transform">
-                  <Activity className="w-32 h-32" />
-                </div>
-                <div className="flex justify-between items-start">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic font-bold font-sans">
-                    TEMPO DE VOO
-                  </span>
-                  {previousData && (
-                    <div className="flex items-center gap-1 text-[10px] font-black text-emerald-500 font-sans">
-                      <span>{getDiff(data.flightTime, previousData.flightTime).icon}</span>
-                      <span>{getDiff(data.flightTime, previousData.flightTime).percent}%</span>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Tempo de Contato (Tc)</span>
+                    <strong className="text-xs font-black text-slate-950 block">{sTcVal} ms</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {previousDropJump.contactTime || 0} ms</span>
+                      {tcDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${tcDelta.color}`}>
+                          {tcDelta.icon} {tcDelta.text}
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Altura de Salto (Jh)</span>
+                    <strong className="text-xs font-black text-brand-primary block">{sJhVal} cm</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {previousDropJump.jumpHeight || 0} cm</span>
+                      {jhDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${jhDelta.color}`}>
+                          {jhDelta.icon} {jhDelta.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                    <span className="text-slate-400 block text-[7px]">Rigidez (Stiffness)</span>
+                    <strong className="text-xs font-black text-slate-950 block">{sStiffVal > 0 ? `${(sStiffVal / 1000).toFixed(1)} kN/m` : "--"}</strong>
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-400">Anterior: {previousDropJump.stiffness ? `${(getNormalizedStiffness(previousDropJump.stiffness) / 1000).toFixed(1)} kN/m` : "--"}</span>
+                      {stiffDelta && (
+                        <span className={`text-[7px] font-black px-1 rounded ${stiffDelta.color}`}>
+                          {stiffDelta.icon} {stiffDelta.text}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-baseline gap-2 mt-4">
-                  <h3 className="text-5xl font-black text-emerald-600 italic leading-none font-sans">
-                    {data.flightTime || 0}
-                  </h3>
-                  <span className="text-sm font-bold text-slate-400 uppercase italic font-sans">
-                    MS
+              ) : (
+                <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between text-[8.5px] uppercase font-bold text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Primeira avaliação de Drop Jump registrada. Esta coleta estabelece a linha de base neuromuscular (Baseline) para cálculo automático de deltas nas próximas reavaliações.</span>
+                  </div>
+                  <span className="text-[7.5px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 shrink-0">
+                    BASELINE DEFINIDO
                   </span>
                 </div>
-                <p className="text-[10px] mt-6 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                  DURAÇÃO TOTAL DA FASE AÉREA DO ATLETA (EM MS) APÓS O IMPULSO REATIVO DO SOLO.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <StatCard
-                icon={Zap}
-                label="FORÇA MÉDIA"
-                value={data.meanForce}
-                unit="N"
-                color="bg-blue-500"
-                description="REPRESENTA A PRODUÇÃO DE FORÇA MÉDIA CONCÊNTRICA APLICADA NO SOLO."
-                diff={
-                  previousData && data.meanForce && previousData.meanForce
-                    ? getDiff(data.meanForce, previousData.meanForce)
-                    : null
-                }
-              />
-              <StatCard
-                icon={TrendingUp}
-                label="POTÊNCIA MÉDIA"
-                value={data.meanPower}
-                unit="W"
-                color="bg-purple-500"
-                description="TAXA MÉDIA DE TRANSFERÊNCIA DE POTÊNCIA CONCÊNTRICA DO MOVIMENTO."
-                diff={
-                  previousData && data.meanPower && previousData.meanPower
-                    ? getDiff(data.meanPower, previousData.meanPower)
-                    : null
-                }
-              />
-              <StatCard
-                icon={Activity}
-                label="RIGIDEZ (STIFFNESS)"
-                value={getNormalizedStiffness(data.stiffness).toLocaleString('pt-BR')}
-                unit="N/m"
-                color="bg-red-500"
-                description="CAPACIDADE PASSIVO-ATIVA DAS ARTICULAÇÕES E TENDÕES DE ABSORVER IMPACTOS."
-                diff={
-                  previousData && data.stiffness && previousData.stiffness
-                    ? getDiff(getNormalizedStiffness(data.stiffness), getNormalizedStiffness(previousData.stiffness))
-                    : null
-                }
-              />
-              <StatCard
-                icon={Activity}
-                label="TEMPO DE CONTATO"
-                value={data.contactTime}
-                unit="ms"
-                color="bg-orange-500"
-                description="DURAÇÃO TOTAL DA TRANSIÇÃO DE TOQUE NO SOLO. MENOR TEMPO SIGNIFICA REATIVIDADE MAIOR."
-                diff={
-                  previousData && data.contactTime && previousData.contactTime
-                    ? getDiff(data.contactTime, previousData.contactTime)
-                    : null
-                }
-              />
+              )}
             </div>
           </ReportPage>
 
-          {/* Page 2 */}
-          <ReportPage pageNumber={2} totalPages={3}>
+          {/* PÁGINA 2: DIRETRIZES DE INTERVENÇÃO, ZONAS PLIOMÉTRICAS E CAMINHO METODOLÓGICO */}
+          <ReportPage pageNumber={2} totalPages={totalPages}>
             <ReportHeader
-              title="RELATÓRIO DE DROP JUMP"
-              subTitle="HISTÓRICO E COMPOSIÇÃO DE FORÇA REATIVA"
+              title="Diretrizes de Intervenção e Metodologia Pliométrica"
+              subTitle="Prescrição Baseada em Evidências, Zonas de Treinamento e Metas de Desempenho"
               athlete={athlete}
               date={formatDate(data.date)}
-              extraStats={[{ label: "PÁGINA", value: "02 DE 03" }]}
+              extraStats={[
+                { label: "DIRETRIZ 1", value: methodologicalDirectives[0].priority.slice(0, 16) },
+                { label: "PÁGINA", value: `02 DE ${String(totalPages).padStart(2, "0")}` }
+              ]}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-              <div className="md:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+            {/* PILAR 5: Alinhamento Estratégico Dual (Treinador & Atleta) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 select-none font-sans">
+              
+              {/* Para a Comissão Técnica / Treinador */}
+              <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col justify-between shadow-sm">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 font-sans">
-                      <TrendingUp className="w-4 h-4 text-brand-primary" />
-                      <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.2em] font-bold">
-                        Evolução de RSI & Rigidez Neuromuscular
-                      </h4>
-                    </div>
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-800">
+                    <Target size={14} className="text-brand-primary" />
+                    <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest">
+                      PARECER TÉCNICO PARA O TREINADOR / PREPARADOR FÍSICO
+                    </span>
                   </div>
-                  <p className="text-[9.5px] text-slate-400 uppercase font-black tracking-wider mb-6 italic">
-                    *Gráfico de Duplo Eixo: Barra mostra Rigidez (N/m - Eixo Dir.) e Linha mostra Reatividade (RSI - Eixo Esq.)
+                  <p className="text-[9px] font-medium text-slate-200 uppercase leading-relaxed">
+                    {dropProfile.coachInterpretation}
                   </p>
                 </div>
-                
-                <div className="h-[230px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart
-                      data={evolutionData}
-                      margin={{ top: 10, right: -5, left: -25, bottom: 0 }}
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#f1f5f9"
-                      />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 8, fontWeight: 900 }}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        orientation="left"
-                        stroke="#39FF14"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 8, fontWeight: 900 }}
-                        domain={[0, 'dataMax + 0.5']}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        stroke="#3b82f6"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fill: "#94a3b8", fontSize: 8, fontWeight: 900 }}
-                        domain={[0, 'auto']}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#0f172a",
-                          border: "1px solid #1e293b",
-                          borderRadius: "16px",
-                          color: "#fff",
-                          fontFamily: "sans-serif",
-                          fontSize: "10px",
-                          fontWeight: "bold"
-                        }}
-                      />
-                      <Legend 
-                        wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }}
-                        verticalAlign="top"
-                        height={36}
-                      />
-                      <Bar
-                        yAxisId="right"
-                        dataKey="stiffness"
-                        name="Rigidez (N/m)"
-                        fill="#3b82f6"
-                        radius={[4, 4, 0, 0]}
-                        barSize={16}
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="rsi"
-                        name="Índice RSI"
-                        stroke="#39FF14"
-                        strokeWidth={3}
-                        dot={{ fill: "#39FF14", r: 4 }}
-                      />
-                      <ReferenceLine
-                        yAxisId="left"
-                        y={sTargetRsiVal}
-                        stroke="#f59e0b"
-                        strokeDasharray="4 4"
-                        strokeWidth={2}
-                        label={{
-                          value: `META: ${sTargetRsiVal.toFixed(2)}`,
-                          fill: "#f59e0b",
-                          fontSize: 8,
-                          fontWeight: "bold",
-                          position: "top"
-                        }}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                <div className="mt-3 pt-2 border-t border-slate-800 flex justify-between items-center text-[7.5px] font-bold uppercase text-slate-400">
+                  <span>Gestão Mecânica:</span>
+                  <span className="text-brand-primary font-black">Meta de contato &lt;200ms com dorsiflexão prévia ativa</span>
                 </div>
               </div>
 
-              <div className="bg-slate-900 p-6 rounded-[2rem] text-white flex flex-col justify-between font-sans">
+              {/* Tradução Direta para o Atleta */}
+              <div className="bg-emerald-50/70 border border-emerald-200 text-slate-900 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
                 <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Zap className="w-4 h-4 text-orange-400" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-orange-400 font-bold">
-                      BENCHMARK & CLASSIFICAÇÃO RSI
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-emerald-200/60">
+                    <Zap size={14} className="text-emerald-700" />
+                    <span className="text-[8px] font-black text-emerald-800 uppercase tracking-widest">
+                      TRADUÇÃO DIRETA PARA O ATLETA (APLICAÇÃO NO JOGO)
+                    </span>
+                  </div>
+                  <p className="text-[9px] font-bold text-slate-800 uppercase leading-relaxed italic">
+                    "{dropProfile.athleteTranslation}"
+                  </p>
+                </div>
+                <div className="mt-3 pt-2 border-t border-emerald-200/60 flex justify-between items-center text-[7.5px] font-extrabold uppercase text-emerald-800">
+                  <span>Impacto Prático:</span>
+                  <span className="font-black">Arrancadas explosivas de 1º passo e fintas sem perda de velocidade</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* PILAR 6: Zonas Individuais de Prescrição Pliométrica (Z1 a Z5) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 mb-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[9px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  ZONAS INDIVIDUALIZADAS DE PRESCRIÇÃO PLIOMÉTRICA (Z1 A Z5)
+                </span>
+                <span className="text-[7.5px] font-bold text-slate-400 uppercase">
+                  Progressão Baseada no Tempo de Contato e Tolerância de Impacto
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                {[
+                  {
+                    zone: "Z1 • PRÉ-ATIVAÇÃO",
+                    mode: "Saltitos & Corda",
+                    target: "Tc < 160-180 ms",
+                    focus: "Tornozelo Rígido",
+                    badge: "bg-sky-50 text-sky-800 border-sky-200"
+                  },
+                  {
+                    zone: "Z2 • DROP TÉCNICO",
+                    mode: "Caixa Baixa (20cm)",
+                    target: "Tc < 190 ms",
+                    focus: "Decolagem Imediata",
+                    badge: "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  },
+                  {
+                    zone: "Z3 • DROP PADRÃO",
+                    mode: "Caixa 30cm (Avaliação)",
+                    target: "Tc < 200 ms",
+                    focus: "Máximo RSI Elástico",
+                    badge: "bg-amber-50 text-amber-800 border-amber-200"
+                  },
+                  {
+                    zone: "Z4 • SOBRECARGA",
+                    mode: "Caixa 40cm (Avançado)",
+                    target: "Tc < 220 ms",
+                    focus: "Freio Excêntrico",
+                    badge: "bg-orange-50 text-orange-800 border-orange-200"
+                  },
+                  {
+                    zone: "Z5 • TRANSFERÊNCIA",
+                    mode: "Salto + Sprint 10m",
+                    target: "Contato Mínimo",
+                    focus: "Primeiro Passo",
+                    badge: "bg-red-50 text-red-800 border-red-200"
+                  }
+                ].map((z, idx) => (
+                  <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-center gap-1 mb-1">
+                        <span className={`text-[6.5px] font-black px-1.5 py-0.5 rounded border uppercase truncate ${z.badge}`}>
+                          {z.zone}
+                        </span>
+                      </div>
+                      <span className="text-[6.5px] font-extrabold text-slate-400 uppercase block mb-0.5">{z.mode}</span>
+                      <strong className="text-[11px] font-black text-slate-950 italic block leading-tight">{z.target}</strong>
+                    </div>
+                    <div className="mt-1.5 pt-1 border-t border-slate-100 flex justify-between items-center text-[6.5px] font-bold uppercase">
+                      <span className="text-slate-800 font-black">{z.focus}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PILAR 7: Caminho Metodológico e Prioridades de Prescrição */}
+            <div className="mb-4 select-none font-sans">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
+                  CAMINHO METODOLÓGICO E PRIORIDADES DE PRESCRIÇÃO
+                </span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase">
+                  Diretrizes Baseadas nos Resultados Reais
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {methodologicalDirectives.map((dir, idx) => (
+                  <div key={idx} className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[7.5px] font-black text-brand-primary uppercase tracking-wider">
+                          {dir.pillar}
+                        </span>
+                        <span className="text-[7px] font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-black uppercase">
+                          PILAR 0{idx + 1}
+                        </span>
+                      </div>
+                      <strong className="text-[9.5px] font-black text-slate-950 uppercase italic block mb-1 leading-snug">
+                        {dir.priority}
+                      </strong>
+                      <p className="text-[8px] font-medium text-slate-700 uppercase leading-relaxed">
+                        {dir.methodology}
+                      </p>
+                    </div>
+
+                    <div className="mt-2 pt-1.5 border-t border-slate-200/80 flex items-center justify-between text-[7.5px] uppercase font-sans">
+                      <span className="font-black text-slate-500">Critério de Sucesso (KPI):</span>
+                      <strong className="text-slate-900 font-extrabold">{dir.kpi}</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PILAR 8: Metas Quantitativas e Bloco de Periodização Recomendado */}
+            <div className="bg-slate-950 text-white rounded-2xl p-4 select-none font-sans flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div className="w-full md:w-auto flex-1">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#39FF14] animate-ping" />
+                  <p className="text-[8px] font-black tracking-widest text-[#39FF14] uppercase">
+                    METAS OBJETIVAS PARA O PRÓXIMO CICLO DE TREINAMENTO
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-2">
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">RSI Alvo</span>
+                    <strong className="text-sm font-black text-[#39FF14] italic block mt-0.5">
+                      &ge; {targetRsi.toFixed(2)}
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      (Índice Reativo)
                     </span>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <div className="border border-slate-800 rounded-xl overflow-hidden text-[9px] uppercase tracking-wider font-bold">
-                      <div className="grid grid-cols-3 bg-slate-950 p-2 text-slate-400 border-b border-slate-800">
-                        <span>NÍVEL</span>
-                        <span className="text-center">RSI</span>
-                        <span className="text-right">STATUS</span>
-                      </div>
-                      
-                      {/* Elite Row */}
-                      <div className={`grid grid-cols-3 p-2.5 border-b border-slate-800/50 items-center ${sRsiVal >= 2.0 ? "bg-indigo-950/80 text-indigo-300 font-black relative" : "text-slate-400 opacity-60"}`}>
-                        <div className="flex items-center gap-1.5">
-                          {sRsiVal >= 2.0 && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />}
-                          <span>ELITE</span>
-                        </div>
-                        <span className="text-center">&gt; 2.0</span>
-                        <span className="text-right italic">{sRsiVal >= 2.0 ? "ATUAL ●" : "EXCEPCIONAL"}</span>
-                      </div>
-
-                      {/* Bom Row */}
-                      <div className={`grid grid-cols-3 p-2.5 border-b border-slate-800/50 items-center ${sRsiVal >= 1.5 && sRsiVal < 2.0 ? "bg-emerald-950/80 text-emerald-300 font-black relative" : "text-slate-400 opacity-60"}`}>
-                        <div className="flex items-center gap-1.5">
-                          {sRsiVal >= 1.5 && sRsiVal < 2.0 && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />}
-                          <span>BOM</span>
-                        </div>
-                        <span className="text-center">1.5 - 2.0</span>
-                        <span className="text-right italic">{sRsiVal >= 1.5 && sRsiVal < 2.0 ? "ATUAL ●" : "AVANÇADO"}</span>
-                      </div>
-
-                      {/* Moderado Row */}
-                      <div className={`grid grid-cols-3 p-2.5 border-b border-slate-800/50 items-center ${sRsiVal >= 1.0 && sRsiVal < 1.5 ? "bg-amber-950/80 text-amber-300 font-black relative" : "text-slate-400 opacity-60"}`}>
-                        <div className="flex items-center gap-1.5">
-                          {sRsiVal >= 1.0 && sRsiVal < 1.5 && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />}
-                          <span>MODERADO</span>
-                        </div>
-                        <span className="text-center">1.0 - 1.5</span>
-                        <span className="text-right italic">{sRsiVal >= 1.0 && sRsiVal < 1.5 ? "ATUAL ●" : "INTERMEDIÁRIO"}</span>
-                      </div>
-
-                      {/* Baixo Row */}
-                      <div className={`grid grid-cols-3 p-2.5 items-center ${sRsiVal < 1.0 ? "bg-rose-950/80 text-rose-300 font-black relative" : "text-slate-400 opacity-60"}`}>
-                        <div className="flex items-center gap-1.5">
-                          {sRsiVal < 1.0 && <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />}
-                          <span>BAIXO</span>
-                        </div>
-                        <span className="text-center">&lt; 1.0</span>
-                        <span className="text-right italic">{sRsiVal < 1.0 ? "ATUAL ●" : "RESTRITIVO"}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800 mt-2">
-                      <div className="flex justify-between items-center mb-1 text-[8px] text-slate-400 uppercase tracking-wider font-bold">
-                        <span>PONTUAÇÃO ATUAL RSI</span>
-                        <span className="font-extrabold text-white italic">{sRsiVal.toFixed(2)} RSI</span>
-                      </div>
-                      <div className="relative h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
-                        <div 
-                          className="h-full bg-brand-primary transition-all duration-1000"
-                          style={{ width: `${Math.min((sRsiVal / 3.0) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </div>
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">Tempo Contato Alvo</span>
+                    <strong className="text-sm font-black text-[#39FF14] italic block mt-0.5">
+                      &lt; {targetTc} MS
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      (Fast SSC no Solo)
+                    </span>
                   </div>
-                </div>
 
-                <div>
-                  <div className="space-y-2 mt-4 pt-4 border-t border-slate-800">
-                    <p className="text-[9.5px] text-slate-400 font-medium leading-relaxed uppercase">
-                      Para maximizar o RSI, mantenha o calcanhar elevado durante o contato curto com o solo para maior stiffness: <span className="text-white font-extrabold">{data.stiffness ? `${getNormalizedStiffness(data.stiffness).toLocaleString('pt-BR')} N/m` : "stiffness ideal"}</span>.
-                    </p>
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">Salto Alvo</span>
+                    <strong className="text-sm font-black text-brand-primary italic block mt-0.5">
+                      &ge; {targetJh} CM
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      (Impulsão Vertical)
+                    </span>
                   </div>
-                  
-                  <div className="mt-4 pt-4 border-t border-slate-800 flex items-start gap-2">
-                    <Info className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />
-                    <p className="text-[8px] text-slate-500 font-black leading-snug italic uppercase tracking-wider">
-                      "O tempo curto de contato com solo sem rebote define a força reativa terminal."
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* SEÇÃO TRADUTORA DE ELITE - COMUNICAÇÃO DE ALTO NÍVEL (Opção 3) */}
-            <div className="mt-6 bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm font-sans">
-              <div className="flex items-center gap-2 mb-6">
-                <BookOpen className="w-5 h-5 text-brand-primary" />
-                <h4 className="text-xs font-black text-slate-900 uppercase tracking-[0.25em] font-bold">
-                  Tradução Prática do Resultado (Alta Performance Integrada)
-                </h4>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6">
-                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase">PARA O OUTLOOK DO TREINADOR</span>
-                    </div>
-                    <p className="text-[11px] text-slate-700 font-medium leading-relaxed">
-                      {data.rsi >= 2.0 
-                        ? "Excelente capacidade elástica elogiável. Prescrever volume de saltos curtos (< 200ms contato) ou pliometria de alta intensidade em barreiras médias sem rebote para converter rigidez de base em aceleração linear agressiva."
-                        : "Dominância de componente concêntrico lento identificável. Necessário reduzir tempo de transição focando em pliometria extensiva rápida (tornozelo estático), cordas e drop jump de menor altura (20cm) enfatizando decolagem instantânea."
-                      }
-                    </p>
-                  </div>
-                  <div className="text-[8px] font-black text-blue-500 uppercase tracking-widest mt-4 italic">
-                    Conceito Técnico: Ciclo Alongamento-Encurtamento (CAE)
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ReportPage>
-
-          {/* Page 3: Diagnóstico de Elite & Prescrição */}
-          <ReportPage pageNumber={3} totalPages={3}>
-            <ReportHeader
-              title="RELATÓRIO DE DROP JUMP"
-              subTitle="DIAGNÓSTICO ESPORTIVO E DIRETRIZES DE ELITE"
-              athlete={athlete}
-              date={formatDate(data.date)}
-              extraStats={[{ label: "PÁGINA", value: "03 DE 03" }]}
-            />
-
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3.5 font-sans text-slate-800 text-[10.5px]">
-              {/* Left Column: Diagnóstico Mecânico e Metas */}
-              <div className="md:col-span-1 space-y-3 flex flex-col justify-between">
-                
-                {/* 1. STATUS GERAL (RESUMO EXECUTIVO) */}
-                <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 relative overflow-hidden shadow-sm">
-                  <div className="absolute right-1 top-1 text-orange-500 opacity-20">
-                    <Flame className="w-8 h-8" />
-                  </div>
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1 font-bold">
-                    🔥 1. Status Diagnóstico Geral
-                  </h4>
-                  <p className="font-medium leading-relaxed text-[10px]">
-                    {statusExecutivo}
-                  </p>
-                </div>
-
-                {/* 2. DIAGNÓSTICO MECÂNICO DE CONTATO E REATIVIDADE */}
-                <div className="bg-white border border-slate-200/80 p-3.5 rounded-xl shadow-sm space-y-2">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
-                    ⏱️ 2. Diagnóstico Mecânico do Contato
-                  </h4>
-                  <div className="space-y-1.5 text-[9.5px]">
-                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                      <span className="font-bold text-slate-700 uppercase">Tempo de Contato (Tc):</span>
-                      <span className={`font-black ${sTcVal >= 250 ? "text-rose-600" : sTcVal >= 200 ? "text-amber-600" : "text-emerald-700"}`}>
-                        {sTcVal} ms ({sTcVal >= 200 ? "Lento / Amortecido" : "Rápido / Reativo"})
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                      <span className="font-bold text-slate-700 uppercase">Índice de Força Reativa (RSI):</span>
-                      <span className={`font-black ${sRsiVal < 1.5 ? "text-amber-600" : "text-emerald-700"}`}>
-                        {sRsiVal.toFixed(2)} ({sRsiVal >= 2.0 ? "Excelente" : sRsiVal >= 1.5 ? "Bom" : "Em Desenvolvimento"})
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                      <span className="font-bold text-slate-700 uppercase">Altura de Salto Reativo:</span>
-                      <span className="font-black text-slate-900">
-                        {sJhVal.toFixed(1)} cm
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. METAS DE EVOLUÇÃO E CRITÉRIOS */}
-                <div className="bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-xl shadow-sm">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-amber-900 mb-1.5 flex items-center gap-1 font-bold">
-                    🎯 3. Critérios e Metas de Reavaliação
-                  </h4>
-                  <div className="space-y-1 text-[9px] text-slate-700 font-medium leading-relaxed">
-                    <p>• <strong>Alvo de RSI:</strong> Evoluir de <strong>{sRsiVal.toFixed(2)}</strong> para <strong>{sTargetRsiVal.toFixed(2)}</strong>.</p>
-                    <p>• <strong>Tempo de Contato Alvo:</strong> Reduzir para patamar inferior a <strong>&lt;{sTargetTcVal} ms</strong>.</p>
-                    <p>• <strong>Janela de Reavaliação Sugerida:</strong> Nova coleta de Drop Jump em <strong>4 a 6 semanas</strong>.</p>
+                  <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-xl text-center">
+                    <span className="text-[7px] text-slate-400 block uppercase font-bold font-mono">Stiffness Alvo</span>
+                    <strong className="text-sm font-black text-brand-primary italic block mt-0.5">
+                      &ge; {(targetStiff / 1000).toFixed(1)} kN/m
+                    </strong>
+                    <span className="text-[6.5px] text-slate-400 block mt-0.5 font-bold font-mono">
+                      (Rigidez Tendínea)
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Técnico e Diretrizes Metodológicas */}
-              <div className="md:col-span-1 space-y-3 flex flex-col justify-between">
-                
-                {/* 4. INTERPRETAÇÃO TÉCNICA (TREINADOR) */}
-                <div className="bg-white border border-slate-200/80 p-3.5 rounded-xl shadow-sm space-y-2 flex-grow">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
-                    📊 4. Interpretação Mecânica para o Treinador
-                  </h4>
-                  <div>
-                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Perfil Neuromuscular e Rigidez (Stiffness):</span>
-                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sNeuromuscularProfile}</p>
-                  </div>
-                  <div>
-                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Eficiência do Ciclo Alongamento-Encurtamento (CAE):</span>
-                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sSscEfficiency}</p>
-                  </div>
-                  <div>
-                    <span className="font-extrabold text-slate-900 block text-[9px] uppercase">Comportamento de Frenagem e Propulsão:</span>
-                    <p className="text-slate-600 text-[9.5px] leading-relaxed mt-0.5">{sForceVelRelation}</p>
-                  </div>
-                </div>
-
-                {/* 5. DIRETRIZES METODOLÓGICAS DE INTERVENÇÃO */}
-                <div className="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 shadow-sm">
-                  <h4 className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1 flex items-center gap-1 font-bold">
-                    🚀 5. Diretrizes Metodológicas de Intervenção
-                  </h4>
-                  <p className="text-[8px] font-extrabold text-slate-400 mb-2 uppercase tracking-wide">
-                    FOCO PRINCIPAL: {sTrainFocus}
-                  </p>
-                  <div className="space-y-2">
-                    {sDropInterventionDirectives.map((item, idx) => (
-                      <div key={idx} className="border-l-2 border-orange-500/60 pl-2">
-                        <span className="font-extrabold text-slate-100 text-[9.5px] block">{item.pillar}</span>
-                        <span className="text-[9px] text-slate-300 leading-normal block mt-0.5">{item.directive}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              <div className="text-left md:text-right border-t md:border-t-0 border-slate-800 pt-3 md:pt-0 w-full md:w-auto flex flex-col shrink-0">
+                <span className="text-[8px] font-black text-slate-400 block uppercase tracking-wider leading-none">JANELA RECOMENDADA DE REAVALIAÇÃO</span>
+                <strong className="text-xs font-black italic text-brand-primary uppercase tracking-tight mt-1">4 A 6 SEMANAS DE INTERVENÇÃO</strong>
+                <span className="text-[7px] text-slate-400 uppercase mt-1 leading-normal max-w-xs">
+                  Reteste recomendado após mesociclo pliométrico para avaliar redução de tempo de contato e ganho de stiffness.
+                </span>
               </div>
             </div>
           </ReportPage>
 
         </div>
 
-        {/* Buttons Row (Controls) */}
-        <div className="flex flex-col sm:flex-row gap-4 mt-8 no-print pb-20 px-4 md:px-0 font-sans">
-          <button
-            onClick={handleExportJpeg}
-            className="flex-grow flex items-center justify-center gap-2 bg-brand-primary text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-2xl shadow-brand-primary/25 hover:bg-brand-dark transition-all active:scale-95 cursor-pointer font-sans"
-          >
-            <Download size={20} /> Baixar Páginas (JPEG)
-          </button>
-          <button
-            onClick={handlePrint}
-            className="flex-grow flex items-center justify-center gap-2 bg-slate-800 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-700 transition-all active:scale-95 cursor-pointer font-sans"
-          >
-            <Printer size={20} /> Imprimir / PDF
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-grow flex items-center justify-center gap-2 bg-slate-700 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-600 transition-all active:scale-95 cursor-pointer font-sans"
-          >
-            Fechar
-          </button>
+        {/* Barra Inferior de Exportação (Padrão LB) */}
+        <div className="mt-8 no-print pb-24 px-4 md:px-0 font-sans select-none w-full">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col text-center lg:text-left">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center justify-center lg:justify-start gap-2">
+                <Sparkles size={14} className="text-[#39FF14]" /> Exportação do Relatório Drop Jump
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-xl">
+                Baixe o relatório completo de 2 páginas ou selecione individualmente a página desejada em alta definição (JPEG).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 w-full lg:w-auto">
+              <button
+                onClick={handleExportAllPages}
+                className="flex items-center justify-center gap-2 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 py-3.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-xl shadow-[#39FF14]/15 cursor-pointer"
+              >
+                <Download size={16} /> Baixar Ambas (Pág. 1 e 2)
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(0)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 1 (Dados e Reatividade)"
+              >
+                <FileText size={15} className="text-[#39FF14]" /> Baixar Pág. 1
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(1)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 2 (Diretrizes e Pliometria)"
+              >
+                <FileText size={15} className="text-emerald-400" /> Baixar Pág. 2
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 hover:text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+              >
+                <Printer size={16} /> Imprimir / PDF
+              </button>
+
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-red-900/40 hover:bg-red-950/40 text-red-400 py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+              >
+                <X size={16} /> Fechar
+              </button>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );
