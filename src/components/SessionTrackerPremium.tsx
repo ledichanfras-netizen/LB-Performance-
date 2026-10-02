@@ -1127,12 +1127,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
   if (isEditingCompleted) {
     return (
-      <div id="completed-workout-edit-modal" className="w-full max-w-4xl max-h-[92vh] sm:max-h-[88vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] shadow-2xl text-slate-100 p-4 sm:p-6 flex flex-col gap-4 animate-in fade-in duration-300 relative overflow-y-auto no-scrollbar">
+      <div id="completed-workout-edit-modal" className="w-full max-w-4xl max-h-[100dvh] sm:max-h-[calc(100dvh-16px)] md:max-h-[calc(100dvh-24px)] bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] shadow-2xl text-slate-100 p-4 sm:p-6 flex flex-col gap-3 animate-in fade-in duration-300 relative overflow-y-auto no-scrollbar">
         {/* BACKGROUND GLOW */}
         <div id="edit-glow" className="absolute -top-12 -right-12 w-48 h-48 bg-brand-primary/5 rounded-full blur-[80px] pointer-events-none" />
         
         {/* EDITING HEADER */}
-        <div id="edit-header" className="flex justify-between items-start gap-4 border-b border-slate-900 pb-3 shrink-0">
+        <div id="edit-header" className="flex justify-between items-start gap-3 border-b border-slate-900 pb-3 shrink-0">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <span className="text-[9px] font-black text-[#39FF14] uppercase tracking-widest bg-[#39FF14]/10 border border-[#39FF14]/25 px-2.5 py-0.5 rounded-md">
@@ -1152,6 +1152,15 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             </h2>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => triggerFinish(false)}
+              className="px-3 py-2 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 rounded-xl transition-all cursor-pointer text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm"
+              title="Salvar Alterações"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+              <span className="hidden sm:inline">Salvar</span>
+            </button>
             {onShareStrava && (
               <button
                 type="button"
@@ -1165,13 +1174,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             )}
             <button
               id="edit-close-btn"
-              onClick={() => {
-                if (window.confirm("Deseja realmente sair e descartar as alterações deste treino?")) {
-                  onCancel();
-                }
-              }}
+              onClick={onCancel}
               className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-all cursor-pointer shrink-0"
-              title="Sair da Edição"
+              title="Cancelar e Sair"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1499,31 +1504,31 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         </div>
 
         {/* BOTTOM ACTION BUTTONS */}
-        <div id="edit-footer-actions" className="border-t border-slate-900 pt-3 flex flex-col sm:flex-row items-center gap-2 sm:gap-4 shrink-0">
+        <div id="edit-footer-actions" className="sticky bottom-0 z-20 bg-slate-950/95 backdrop-blur-md border-t border-slate-900 pt-3 pb-1 flex flex-row items-center gap-2 sm:gap-3 shrink-0">
           <button
-            id="edit-save-btn"
-            onClick={() => triggerFinish(false)}
-            className="w-full sm:flex-1 py-3 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-[#39FF14]/15 cursor-pointer flex items-center justify-center gap-1.5"
+            id="edit-cancel-btn"
+            onClick={onCancel}
+            className="px-4 sm:px-5 py-2.5 border border-slate-800 hover:border-slate-600 bg-slate-900 text-slate-300 hover:text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center shrink-0"
           >
-            <Check className="w-4 h-4 stroke-[2.5]" />
-            <span>Salvar Alterações</span>
+            Cancelar
           </button>
           {onShareStrava && (
             <button
               type="button"
               onClick={() => onShareStrava(session)}
-              className="w-full sm:w-auto px-5 py-3 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-[#39FF14]/30 hover:border-[#39FF14]/60 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5"
+              className="px-3.5 sm:px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-[#39FF14]/30 hover:border-[#39FF14]/60 font-black text-[10px] sm:text-xs uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
             >
-              <Share2 className="w-4 h-4" />
-              <span>Postar Treino</span>
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Postar Treino</span>
             </button>
           )}
           <button
-            id="edit-cancel-btn"
-            onClick={onCancel}
-            className="w-full sm:w-auto px-6 py-3 border border-slate-800 hover:border-slate-600 text-slate-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+            id="edit-save-btn"
+            onClick={() => triggerFinish(false)}
+            className="flex-1 py-2.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-[#39FF14]/15 cursor-pointer flex items-center justify-center gap-1.5"
           >
-            Voltar
+            <Check className="w-4 h-4 stroke-[2.5]" />
+            <span>Salvar Alterações</span>
           </button>
         </div>
       </div>
@@ -1531,7 +1536,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   }
 
   return (
-    <div className="coach-session-shell w-full min-h-screen md:min-h-0 md:h-[97vh] md:max-w-6xl bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto md:overflow-hidden shadow-2xl text-slate-100 p-3 sm:p-6 md:p-8 space-y-4 md:space-y-6 flex flex-col animate-in fade-in duration-300">
+    <div className="coach-session-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-6xl bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-y-auto shadow-2xl text-slate-100 p-3 sm:p-5 md:p-6 space-y-3 md:space-y-4 flex flex-col animate-in fade-in duration-300">
       
       {isHeaderCollapsed ? (
         /* COMPACT FOCUS HEADER FOR MOBILE */
@@ -1915,7 +1920,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       </div>
 
       {/* DETAILED ACTIVE WORKOUT CARD OR FULL WORKOUT VIEW */}
-      <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-6 no-scrollbar">
         {session.exercises.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             Nenhum exercício carregado neste treino.
@@ -2806,7 +2811,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       </div>
 
       {/* FOOTER NAVIGATION & COMPLETION HUB */}
-      <div className="border-t border-slate-900 pt-5 flex flex-col md:flex-row items-center justify-between gap-4 shrink-0">
+      <div className="sticky bottom-0 z-20 bg-slate-950/95 backdrop-blur-md border-t border-slate-900 pt-3 pb-1 flex flex-col md:flex-row items-center justify-between gap-3 shrink-0">
         
         {/* EXERCISES NAVIGATOR */}
         <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-start">

@@ -1549,7 +1549,44 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, rsaEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(rsaEx.id);
-    toast.success("🏃‍♂️ Tiros / RSA (2 Blocos • 5x 20m) adicionado!", { icon: "🏃‍♂️" });
+    toast.success("🏃‍♂️ Tiros / RSA (2 Blocos • 5x 20m) adicionado! Você pode alternar entre Metros (m) e Segundos (s), Campo, Esteira ou Bike.", { icon: "🏃‍♂️" });
+  };
+
+  // Adiciona Tiros Antiglicolíticos por Segundos (Esteira ou Bike)
+  const addAntiGlycolyticSprintsTemplate = (ergometer: "bike" | "esteira" = "bike") => {
+    const isBike = ergometer === "bike";
+    const antiGlycEx: PrescribedExercise = {
+      id: `ex-antiglyc-${Date.now()}`,
+      name: isBike
+        ? "Tiros na Bike — Protocolo Antiglicolítico (Alático)"
+        : "Tiros na Esteira — Protocolo Antiglicolítico (Alático)",
+      muscleGroup: isBike ? "Potência Alática & Biogênese Mitocondrial (Bike)" : "Velocidade & Potência Alática (Esteira)",
+      sets: 2,
+      reps: isBike ? "6x 8s" : "5x 10s",
+      repsType: "time",
+      fieldUnit: "time",
+      weight: isBike ? "Watts Pico Alático (Antiglicolítico)" : "Alta Velocidade Alática (Antiglicolítico)",
+      rest: "3min",
+      intraSetRest: 45,
+      workRestRatio: "1:6",
+      notes: isBike
+        ? "[TIROS ANTIGLICOLÍTICOS • BIKE 🚴‍♂️⚡] 2 blocos de 6 tiros de 8s em alta potência alática com 45s de pausa entre tiros (ressíntese de ATP-CP sem acidose lática) e 3min entre blocos."
+        : "[TIROS ANTIGLICOLÍTICOS • ESTEIRA 🏃⚡] 2 blocos de 5 tiros de 10s na esteira em alta velocidade alática com 45s de pausa passiva nos apoios laterais e 3min entre blocos.",
+      trainingMode: "conditioning",
+      metricType: "sprint",
+      executionMethod: "sprint_rsa",
+      isStructuredRunning: true
+    };
+    const current = edited.exercises || [];
+    const reindexed = [...current, antiGlycEx].map((e, i) => ({ ...e, order_index: i }));
+    setEdited({ ...edited, exercises: reindexed });
+    setExpandedExerciseId(antiGlycEx.id);
+    toast.success(
+      isBike
+        ? "🚴‍♂️ Tiros Antiglicolíticos na Bike (6x 8s • Pausa 45s) adicionado!"
+        : "🏃 Tiros Antiglicolíticos na Esteira (5x 10s • Pausa 45s) adicionado!",
+      { icon: isBike ? "🚴‍♂️" : "🏃" }
+    );
   };
 
   // Adiciona Pirâmide de Campo
@@ -2046,14 +2083,14 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   }, [isFilterDrawerOpen]);
 
   return (
-    <div className="coach-editor-shell w-full h-full md:max-w-[98vw] xl:max-w-[1720px] md:h-[97vh] bg-slate-950 md:border md:border-slate-900 md:rounded-[2.5rem] overflow-y-auto shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
+    <div className="coach-editor-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-[98vw] xl:max-w-[1720px] bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
       
-      {/* MOBILE HEADER & TAB SWITCHER */}
-      <div className="lg:hidden shrink-0 bg-[#0c111d] border-b border-slate-900 px-4 py-3 flex items-center justify-between gap-2 w-full">
-        <div className="flex gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-900/60 flex-1">
+      {/* MOBILE & TABLET HEADER & TAB SWITCHER */}
+      <div className="lg:hidden shrink-0 bg-[#0c111d] border-b border-slate-900 px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 w-full">
+        <div className="flex gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-900/60 flex-1 min-w-0">
           <button
             onClick={() => setActiveMobileTab("workout")}
-            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-center ${
+            className={`flex-1 py-1.5 px-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-center truncate ${
               activeMobileTab === "workout"
                 ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20"
                 : "text-slate-400 hover:text-white"
@@ -2063,7 +2100,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           </button>
           <button
             onClick={() => setActiveMobileTab("library")}
-            className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-center ${
+            className={`flex-1 py-1.5 px-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all text-center truncate ${
               activeMobileTab === "library"
                 ? "bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20"
                 : "text-slate-400 hover:text-white"
@@ -2072,17 +2109,42 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             ⚡ Prescritor Elite
           </button>
         </div>
-        <button
-          onClick={onCancel}
-          className="p-2 bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white rounded-xl border border-slate-800 transition-colors shrink-0"
-          title="Fechar"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              const finalName = (edited.name || "").trim() || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length || 0) % 26))}` : "Treino A");
+              const finalExercises = (edited.exercises || []).map((ex, i) => ({
+                ...ex,
+                order_index: i
+              }));
+              onSave({
+                ...edited,
+                name: finalName,
+                date: (edited.date || todayLocalStr).split("T")[0],
+                updatedAt: new Date().toISOString(),
+                exercises: finalExercises
+              });
+            }}
+            className="px-2.5 py-2 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1 shrink-0 cursor-pointer"
+            title="Salvar Planilha"
+          >
+            <Check className="w-3.5 h-3.5 stroke-[3]" />
+            <span className="hidden sm:inline">Salvar</span>
+          </button>
+          <button
+            onClick={onCancel}
+            className="px-2.5 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white rounded-xl border border-slate-800 transition-colors shrink-0 flex items-center gap-1 text-[10px] font-black uppercase tracking-wider cursor-pointer"
+            title="Cancelar e Fechar"
+          >
+            <X className="w-4 h-4" />
+            <span className="hidden sm:inline">Cancelar</span>
+          </button>
+        </div>
       </div>
 
       {/* LEFT COLUMN: MULTI-TAB PRESCRIÇÃO PLATFORM */}
-      <div className={`coach-editor-library ${activeMobileTab === "library" ? "flex" : "hidden"} lg:flex w-full lg:w-[380px] xl:w-[420px] bg-[#0c111d] border-b lg:border-b-0 lg:border-r border-slate-900 p-5 lg:p-6 flex-col overflow-y-auto no-scrollbar relative`}>
+      <div className={`coach-editor-library ${activeMobileTab === "library" ? "flex" : "hidden"} lg:flex flex-1 lg:flex-none w-full lg:w-[380px] xl:w-[420px] min-h-0 bg-[#0c111d] border-b lg:border-b-0 lg:border-r border-slate-900 p-4 sm:p-5 lg:p-6 flex-col overflow-y-auto no-scrollbar relative`}>
         
         {/* PLATFORM HEADER */}
         <div className="flex items-center justify-between mb-5 shrink-0">
@@ -3043,7 +3105,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       </div>
 
       {/* RIGHT WORKOUT WORKSPACE */}
-      <div className={`coach-editor-workspace ${activeMobileTab === "workout" ? "flex" : "hidden"} lg:flex flex-1 flex-col bg-[#05080e] overflow-hidden`}>
+      <div className={`coach-editor-workspace ${activeMobileTab === "workout" ? "flex" : "hidden"} lg:flex flex-1 min-h-0 flex-col bg-[#05080e] overflow-hidden`}>
         
         {/* STREAMLINED WORKOUT HEADER BAR - ZERO FRICTION PRESCRIPTION */}
         <div className="py-2 px-3 sm:px-5 border-b border-slate-900 flex flex-wrap items-center justify-between gap-2 shrink-0 bg-[#0c111d]/95 backdrop-blur-md select-none">
@@ -3364,7 +3426,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         )}
 
         {/* WORKOUT LIST WITH SMART BENTO METRICS FOR BALANCING */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 no-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 no-scrollbar">
           
           {/* Realtime muscular loading bars */}
           {muscleDistribution.distribution.length > 0 && (
@@ -3532,17 +3594,37 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
               <div>
                 <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1.5">
-                  Velocidade, Pista & Campo (Blocos & Intervalados)
+                  Velocidade, Pista, Campo, Esteira & Bike (Tiros em Metros ou Segundos & Antiglicolítico)
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <button
                     type="button"
                     onClick={addSprintRsaTemplate}
                     className="px-2.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Tiros Curtos / RSA (2 Blocos de 5x 20m com micro-pausas)"
+                    title="Adicionar Tiros / RSA (Prescrição em Metros ou Segundos)"
                   >
                     <span>🏃‍♂️</span>
-                    <span className="group-hover:text-white">Tiros / RSA (5x 20m)</span>
+                    <span className="group-hover:text-white">Tiros / RSA (m ou s)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => addAntiGlycolyticSprintsTemplate("esteira")}
+                    className="px-2.5 py-1.5 bg-teal-950/40 hover:bg-teal-900/50 border border-teal-500/40 hover:border-teal-400 text-teal-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Tiros Antiglicolíticos na Esteira por Segundos (5x 10s / 45s pausa)"
+                  >
+                    <span>🏃⚡</span>
+                    <span className="group-hover:text-white">Tiros Esteira (Segs / Antiglicolítico)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => addAntiGlycolyticSprintsTemplate("bike")}
+                    className="px-2.5 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
+                    title="Adicionar Tiros Antiglicolíticos na Bike por Segundos (6x 8s / 45s pausa)"
+                  >
+                    <span>🚴‍♂️⚡</span>
+                    <span className="group-hover:text-white">Tiros Bike (Segs / Antiglicolítico)</span>
                   </button>
 
                   <button
@@ -3724,7 +3806,12 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                           )}
                           {ex.executionMethod === "sprint_rsa" && (
                             <span className="px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                              ⚡ Tiros / RSA • {ex.intraSetRest ?? 20}s
+                              {(ex.name || "").toLowerCase().includes("bike")
+                                ? "🚴‍♂️ Tiros Bike"
+                                : (ex.name || "").toLowerCase().includes("esteira")
+                                ? "🏃 Tiros Esteira"
+                                : "⚡ Tiros / RSA"}{" "}
+                              • {ex.intraSetRest ?? 20}s
                             </span>
                           )}
                           {ex.executionMethod === "pyramid_field" && (
@@ -3754,7 +3841,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                               {isFieldOrRunningExercise(ex) ? "Tiros" : "Volume"}
                             </span>
                             <span className="text-slate-200 text-xs font-extrabold">
-                              {ex.clusterReps || ex.reps}{ex.repsType === "time" ? "s" : ""}
+                              {ex.clusterReps || ex.reps}
+                              {ex.repsType === "time" && !String(ex.clusterReps || ex.reps || "").toLowerCase().includes("s") ? "s" : ""}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
@@ -4591,83 +4679,280 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                   </div>
                                 )}
 
-                                {/* Métodos de Campo e Quadra: Tiros Curtos / RSA */}
-                                {ex.executionMethod === "sprint_rsa" && (
-                                  <div className="space-y-3 p-3.5 bg-emerald-950/20 border border-emerald-500/25 rounded-2xl shadow-inner">
-                                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                                      <div className="sm:col-span-6">
-                                        <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
-                                          Estrutura de Tiros por Bloco (ex: 5x 20m ou 4x 30m)
-                                        </label>
-                                        <div className="flex flex-wrap items-center gap-1.5">
-                                          {methodMeta.repsPresets?.map((preset) => (
-                                            <button
-                                              key={preset}
-                                              type="button"
-                                              onClick={() => updateExFields(ex.id, { reps: preset, repsType: "meters" })}
-                                              className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer ${
-                                                ex.reps === preset
-                                                  ? "bg-emerald-500 text-slate-950 font-black shadow"
-                                                  : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-emerald-400 border border-slate-800"
-                                              }`}
-                                            >
-                                              {preset}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                      <div className="sm:col-span-3">
-                                        <div className="flex items-center justify-between mb-1">
-                                          <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block">
-                                            Micro-Pausa Intra-Série
+                                {/* Métodos de Campo, Quadra, Esteira e Bike: Tiros / RSA & Antiglicolítico */}
+                                {ex.executionMethod === "sprint_rsa" && (() => {
+                                  const exNameLower = (ex.name || "").toLowerCase();
+                                  const exNotesLower = (ex.notes || "").toLowerCase();
+                                  const exRepsLower = String(ex.reps || "").toLowerCase();
+                                  const isSecondsUnit =
+                                    ex.repsType === "time" ||
+                                    ex.fieldUnit === "time" ||
+                                    (exRepsLower.includes("s") && !exRepsLower.includes("m"));
+                                  const currentModality: "campo" | "esteira" | "bike" =
+                                    exNameLower.includes("bike") || exNotesLower.includes("bike")
+                                      ? "bike"
+                                      : exNameLower.includes("esteira") || exNotesLower.includes("esteira")
+                                      ? "esteira"
+                                      : "campo";
+                                  const isAntiGlyc =
+                                    exNameLower.includes("antiglicol") ||
+                                    exNotesLower.includes("antiglicol") ||
+                                    currentModality === "bike" ||
+                                    currentModality === "esteira" ||
+                                    (ex.intraSetRest ?? 20) >= 40;
+                                  const distancePresets = methodMeta.repsPresets || ['5x 20m', '4x 30m', '6x 15m', '4x 10m', '3x 40m', '6x 20m'];
+                                  const secondsPresets = (methodMeta as any).timeRepsPresets || ['6x 6s', '8x 8s', '5x 10s', '6x 10s', '5x 12s', '5x 15s', '4x 20s', '10x 6s'];
+                                  const activePresets = isSecondsUnit ? secondsPresets : distancePresets;
+
+                                  return (
+                                    <div className="space-y-3.5 p-3.5 bg-emerald-950/20 border border-emerald-500/25 rounded-2xl shadow-inner">
+                                      {/* Linha 1: Seletor de Ambiente/Ergômetro (Campo, Esteira, Bike Antiglicolítico) + Unidade (Metros vs Segundos) */}
+                                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pb-2.5 border-b border-emerald-500/20">
+                                        <div>
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
+                                            Modalidade / Equipamento & Protocolo Metabólico
                                           </label>
-                                          <span className="text-[8px] text-emerald-300 font-bold">⚡ ATP-CP</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          {methodMeta.intraRestPresets?.map((sec) => (
+                                          <div className="flex flex-wrap items-center gap-1.5">
                                             <button
-                                              key={sec}
                                               type="button"
-                                              onClick={() => updateExField(ex.id, "intraSetRest", sec)}
-                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
-                                                (ex.intraSetRest ?? 20) === sec
-                                                  ? "bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow"
-                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              onClick={() => {
+                                                const nextReps = isSecondsUnit ? (ex.reps || "5x 10s") : (exRepsLower.includes("m") ? ex.reps : "5x 20m");
+                                                const shouldRename =
+                                                  exNameLower.includes("esteira") ||
+                                                  exNameLower.includes("bike") ||
+                                                  exNameLower.includes("tiros curtos") ||
+                                                  !ex.name;
+                                                updateExFields(ex.id, {
+                                                  name: shouldRename ? "Tiros Curtos com Mudança de Direção (RSA)" : ex.name,
+                                                  muscleGroup: "Velocidade / Aceleração (Campo / Quadra)",
+                                                  trainingMode: "speed",
+                                                  reps: nextReps,
+                                                  weight: "100% Sprint Máximo",
+                                                  intraSetRest: 20,
+                                                  workRestRatio: "1:5",
+                                                  notes: `Tiros Curtos / RSA (Campo/Pista): ${ex.sets || 2} blocos de ${nextReps} em velocidade máxima. Micro-pausa de 20s entre tiros e ${ex.rest || "2m30s"} entre blocos.`
+                                                });
+                                              }}
+                                              className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border ${
+                                                currentModality === "campo"
+                                                  ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-md"
+                                                  : "bg-slate-950/90 text-slate-300 border-slate-800 hover:border-emerald-500/40"
                                               }`}
                                             >
-                                              {sec}s
+                                              <span>🏃‍♂️</span>
+                                              <span>Campo / Pista (RSA)</span>
                                             </button>
-                                          ))}
-                                        </div>
-                                      </div>
-                                      <div className="sm:col-span-3">
-                                        <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
-                                          Descanso Inter-Blocos
-                                        </label>
-                                        <div className="flex items-center gap-1">
-                                          {methodMeta.restPresets?.map((pRest) => (
+
                                             <button
-                                              key={pRest}
                                               type="button"
-                                              onClick={() => updateExField(ex.id, "rest", pRest)}
-                                              className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
-                                                ex.rest === pRest
-                                                  ? "bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow"
-                                                  : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                              onClick={() => {
+                                                const nextReps = exRepsLower.includes("s") ? ex.reps : "5x 10s";
+                                                const shouldRename =
+                                                  exNameLower.includes("mudança de direção") ||
+                                                  exNameLower.includes("bike") ||
+                                                  exNameLower.includes("rsa") ||
+                                                  !ex.name;
+                                                updateExFields(ex.id, {
+                                                  name: shouldRename ? "Tiros na Esteira — Protocolo Antiglicolítico / Velocidade" : ex.name,
+                                                  muscleGroup: "Velocidade & Potência Alática (Esteira)",
+                                                  trainingMode: "conditioning",
+                                                  repsType: "time",
+                                                  fieldUnit: "time",
+                                                  reps: nextReps,
+                                                  weight: "Alta Velocidade Alática (Antiglicolítico)",
+                                                  intraSetRest: 45,
+                                                  rest: "3min",
+                                                  workRestRatio: "1:5",
+                                                  notes: `[TIROS NA ESTEIRA • ANTIGLICOLÍTICO 🏃⚡] ${ex.sets || 2} blocos de ${nextReps} na esteira em alta velocidade alática com 45s de pausa passiva nos apoios laterais (ressíntese ATP-CP sem acumular lactato) e 3min entre blocos.`
+                                                });
+                                              }}
+                                              className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border ${
+                                                currentModality === "esteira"
+                                                  ? "bg-teal-400 text-slate-950 border-teal-300 shadow-md"
+                                                  : "bg-slate-950/90 text-slate-300 border-slate-800 hover:border-teal-500/40"
                                               }`}
                                             >
-                                              {pRest}
+                                              <span>🏃⚡</span>
+                                              <span>Esteira (Antiglicolítico / Tiros)</span>
                                             </button>
-                                          ))}
+
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const nextReps = exRepsLower.includes("s") ? ex.reps : "6x 8s";
+                                                const shouldRename =
+                                                  exNameLower.includes("mudança de direção") ||
+                                                  exNameLower.includes("esteira") ||
+                                                  exNameLower.includes("rsa") ||
+                                                  !ex.name;
+                                                updateExFields(ex.id, {
+                                                  name: shouldRename ? "Tiros na Bike / AirBike — Protocolo Antiglicolítico (Alático)" : ex.name,
+                                                  muscleGroup: "Potência Alática & Biogênese Mitocondrial (Bike)",
+                                                  trainingMode: "conditioning",
+                                                  repsType: "time",
+                                                  fieldUnit: "time",
+                                                  reps: nextReps,
+                                                  weight: "Watts Pico Alático (Antiglicolítico)",
+                                                  intraSetRest: 45,
+                                                  rest: "3min",
+                                                  workRestRatio: "1:6",
+                                                  notes: `[TIROS NA BIKE • ANTIGLICOLÍTICO 🚴‍♂️⚡] ${ex.sets || 2} blocos de ${nextReps} em alta potência alática (RPM/Watts altos) com 45s de pausa entre tiros (biogênese mitocondrial sem acidose glicolítica) e 3min entre blocos.`
+                                                });
+                                              }}
+                                              className={`px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 border ${
+                                                currentModality === "bike"
+                                                  ? "bg-cyan-400 text-slate-950 border-cyan-300 shadow-md"
+                                                  : "bg-slate-950/90 text-slate-300 border-slate-800 hover:border-cyan-500/40"
+                                              }`}
+                                            >
+                                              <span>🚴‍♂️⚡</span>
+                                              <span>Bike / AirBike (Antiglicolítico)</span>
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
+                                            Unidade de Prescrição dos Tiros
+                                          </label>
+                                          <div className="inline-flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const currentCountMatch = String(ex.reps || "").match(/(\d+)\s*[xX]/);
+                                                const count = currentCountMatch ? currentCountMatch[1] : "5";
+                                                const nextReps = exRepsLower.includes("m") ? ex.reps : `${count}x 20m`;
+                                                updateExFields(ex.id, {
+                                                  repsType: "meters",
+                                                  fieldUnit: "meters",
+                                                  reps: nextReps
+                                                });
+                                              }}
+                                              className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                                                !isSecondsUnit
+                                                  ? "bg-emerald-500 text-slate-950 shadow font-black"
+                                                  : "text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              <span>📏 Por Metros (m)</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const currentCountMatch = String(ex.reps || "").match(/(\d+)\s*[xX]/);
+                                                const count = currentCountMatch ? currentCountMatch[1] : "6";
+                                                const nextReps = exRepsLower.includes("s") ? ex.reps : `${count}x 10s`;
+                                                updateExFields(ex.id, {
+                                                  repsType: "time",
+                                                  fieldUnit: "time",
+                                                  reps: nextReps
+                                                });
+                                              }}
+                                              className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                                                isSecondsUnit
+                                                  ? "bg-emerald-500 text-slate-950 shadow font-black"
+                                                  : "text-slate-400 hover:text-white"
+                                              }`}
+                                            >
+                                              <span>⏱️ Por Segundos (s)</span>
+                                            </button>
+                                          </div>
                                         </div>
                                       </div>
+
+                                      {/* Linha 2: Presets de Tiros (Metros ou Segundos), Micro-pausa e Pausa Inter-blocos */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                                        <div className="sm:col-span-6">
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
+                                            {isSecondsUnit
+                                              ? "Estrutura de Tiros por Tempo / Segundos (ex: 6x 8s, 5x 10s, 5x 15s)"
+                                              : "Estrutura de Tiros por Distância / Metros (ex: 5x 20m ou 4x 30m)"}
+                                          </label>
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            {activePresets.map((preset: string) => (
+                                              <button
+                                                key={preset}
+                                                type="button"
+                                                onClick={() =>
+                                                  updateExFields(ex.id, {
+                                                    reps: preset,
+                                                    repsType: isSecondsUnit ? "time" : "meters",
+                                                    fieldUnit: isSecondsUnit ? "time" : "meters"
+                                                  })
+                                                }
+                                                className={`px-2.5 py-1.5 rounded-lg text-[8.5px] font-black uppercase transition-all cursor-pointer ${
+                                                  ex.reps === preset
+                                                    ? "bg-emerald-500 text-slate-950 font-black shadow"
+                                                    : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-emerald-400 border border-slate-800"
+                                                }`}
+                                              >
+                                                {preset}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        <div className="sm:col-span-3">
+                                          <div className="flex items-center justify-between mb-1">
+                                            <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block">
+                                              {isAntiGlyc ? "Pausa Antiglicolítica" : "Micro-Pausa Intra-Série"}
+                                            </label>
+                                            <span className="text-[8px] text-emerald-300 font-bold">⚡ ATP-CP</span>
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-1">
+                                            {methodMeta.intraRestPresets?.map((sec) => (
+                                              <button
+                                                key={sec}
+                                                type="button"
+                                                onClick={() => updateExField(ex.id, "intraSetRest", sec)}
+                                                className={`flex-1 min-w-[32px] py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                  (ex.intraSetRest ?? 20) === sec
+                                                    ? "bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow"
+                                                    : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                                }`}
+                                              >
+                                                {sec}s
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                        <div className="sm:col-span-3">
+                                          <label className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1">
+                                            Descanso Inter-Blocos
+                                          </label>
+                                          <div className="flex items-center gap-1">
+                                            {methodMeta.restPresets?.map((pRest) => (
+                                              <button
+                                                key={pRest}
+                                                type="button"
+                                                onClick={() => updateExField(ex.id, "rest", pRest)}
+                                                className={`flex-1 py-1.5 text-[9px] font-black rounded-lg border transition-all cursor-pointer ${
+                                                  ex.rest === pRest
+                                                    ? "bg-emerald-500 text-slate-950 border-emerald-400 font-black shadow"
+                                                    : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                                                }`}
+                                              >
+                                                {pRest}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-emerald-300/90 font-bold bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-500/20">
+                                        <span>
+                                          {currentModality === "bike"
+                                            ? `🚴‍♂️ Bike Antiglicolítico: ${ex.sets || 2} blocos x ${ex.reps || "6x 8s"} • Pausa de ${ex.intraSetRest ?? 45}s para ressíntese alática pura (sem lactato)`
+                                            : currentModality === "esteira"
+                                            ? `🏃 Esteira (${isAntiGlyc ? "Antiglicolítico" : "RSA"}): ${ex.sets || 2} blocos x ${ex.reps || "5x 10s"} • Pausa de ${ex.intraSetRest ?? 45}s nos apoios laterais`
+                                            : `🏃‍♂️ Densidade: ${ex.sets || 2} blocos x ${ex.reps || (isSecondsUnit ? "5x 10s" : "5x 20m")} • 100% Velocidade Máxima sem perda de potência`}
+                                        </span>
+                                        <span className="text-emerald-400 font-black">
+                                          {isAntiGlyc ? "Via Alática ATP-CP (Antiglicolítico • Baixa Acidose)" : "Relação Esforço:Pausa ~1:5 (RPE 9)"}
+                                        </span>
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-emerald-300/90 font-bold bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-500/20">
-                                      <span>🏃 Densidade: {ex.sets || 2} blocos x {ex.reps || "5x 20m"} • 100% Velocidade Máxima sem perda de potência</span>
-                                      <span className="text-emerald-400 font-black">Relação Esforço:Pausa ~1:5 (RPE 9)</span>
-                                    </div>
-                                  </div>
-                                )}
+                                  );
+                                })()}
 
                                 {/* Métodos de Campo e Quadra: Pirâmide de Campo */}
                                 {ex.executionMethod === "pyramid_field" && (

@@ -1553,12 +1553,12 @@ export const InjuriesView: FC<InjuriesViewProps> = ({
       {/* 6. EDITING INJURY MODAL */}
       <AnimatePresence>
         {editingInjury && (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/85 backdrop-blur-lg overflow-y-auto p-4 animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/85 backdrop-blur-lg overflow-y-auto p-2 sm:p-4 animate-in fade-in duration-200">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-2xl bg-gradient-to-br from-[#020617] via-slate-950 to-[#020617] border border-white/10 rounded-[2rem] p-6 sm:p-8 md:p-10 shadow-2xl relative space-y-6 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-2xl bg-gradient-to-br from-[#020617] via-slate-950 to-[#020617] border border-white/10 rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-2xl relative space-y-5 max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] overflow-y-auto my-auto no-scrollbar"
             >
               <button
                 type="button"
@@ -1733,18 +1733,18 @@ export const InjuriesView: FC<InjuriesViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex gap-4 pt-2">
+                <div className="sticky bottom-0 z-20 -mx-2 px-2 py-3 bg-slate-950/95 backdrop-blur-md border-t border-slate-900 flex gap-3 pt-3">
                   <button
                     type="button"
                     onClick={() => setEditingInjury(null)}
-                    className="w-1/3 border border-slate-800 hover:bg-slate-950 rounded-2xl text-[10px] font-black py-4 uppercase tracking-[0.2em] text-slate-400 transition-all active:scale-95"
+                    className="w-1/3 border border-slate-800 hover:bg-slate-950 rounded-2xl text-[10px] font-black py-3.5 uppercase tracking-[0.15em] text-slate-400 transition-all active:scale-95"
                   >
                     Descartar Alterações
                   </button>
                   <Button
                     type="submit"
                     variant="primary"
-                    className="w-2/3 text-[10px] font-black py-4 uppercase tracking-[0.2em]"
+                    className="w-2/3 text-[10px] font-black py-3.5 uppercase tracking-[0.2em]"
                   >
                     Salvar Alterações
                   </Button>

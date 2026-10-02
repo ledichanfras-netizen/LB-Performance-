@@ -2125,7 +2125,7 @@ const EliteHubApp: FC<{
             </div>
           </aside>
 
-          <div className="flex-grow flex flex-col min-h-screen pb-20 md:pb-0 md:h-screen md:overflow-y-scroll no-scrollbar bg-brand-dark">
+          <div className="flex-grow flex flex-col min-h-screen min-h-[100dvh] pb-24 md:pb-16 md:h-[100dvh] md:overflow-y-scroll no-scrollbar bg-brand-dark">
             <main className="w-full max-w-[1600px] mx-auto px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 relative z-[10] flex-grow no-scrollbar auto-rows-min">
               {iframeCookieWarning && (
                 <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -3916,7 +3916,7 @@ const EliteHubApp: FC<{
 
             {/* MODALS - All with optimized responsiveness */}
             {modalState.type === "athlete" && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/80 backdrop-blur-md overflow-y-auto pt-10 sm:pt-20 p-4">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-3 sm:px-4">
                 <AthleteForm
                   onCancel={() => setModalState({ type: null })}
                   onSave={(d) => {
@@ -3928,7 +3928,7 @@ const EliteHubApp: FC<{
             )}
 
             {modalState.type === "edit-athlete" && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/80 backdrop-blur-md overflow-y-auto pt-10 sm:pt-20 p-4">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-3 sm:px-4">
                 <AthleteForm
                   initialData={modalState.editingData}
                   onCancel={() => setModalState({ type: null })}
@@ -3967,7 +3967,7 @@ const EliteHubApp: FC<{
             )}
 
             {modalState.type === "active-session" && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/80 backdrop-blur-md overflow-y-auto p-0 sm:p-4 md:py-8">
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto p-0 sm:p-2 md:p-3">
                 <SessionTrackerPremium
                   workout={modalState.editingData}
                   athleteWeight={selected?.assessments?.bioimpedance?.[0]?.weight || selected?.weight}
@@ -3995,7 +3995,7 @@ const EliteHubApp: FC<{
 
             {modalState.type === "edit-workout" ||
             modalState.type === "workout" ? (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/80 backdrop-blur-md overflow-y-auto pt-10 sm:pt-20 p-4">
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/85 backdrop-blur-md overflow-hidden p-0 sm:p-2 md:p-3">
                 <WorkoutEditorPremium
                   workout={
                     modalState.type === "workout"
@@ -4027,7 +4027,7 @@ const EliteHubApp: FC<{
             ) : null}
 
             {modalState.type === "assessment" && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/80 backdrop-blur-md overflow-y-auto pt-10 sm:pt-20 p-2 sm:p-4">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-2 sm:px-4">
                 <AssessmentForm
                   type={modalState.assessmentType!}
                   initialData={modalState.editingData}
@@ -4360,7 +4360,7 @@ const EliteHubApp: FC<{
             )}
 
             {modalState.type === "wellness" && selected && user && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-brand-dark/80 backdrop-blur-2xl overflow-y-auto pt-10 sm:pt-20 p-2 sm:p-4">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-brand-dark/85 backdrop-blur-2xl overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-2 sm:px-4">
                 <WellnessForm
                   role={user.role}
                   isFemale={selected.gender === "F"}
@@ -4374,7 +4374,7 @@ const EliteHubApp: FC<{
             )}
 
             {modalState.type === "edit-wellness" && selected && user && (
-              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-brand-dark/80 backdrop-blur-2xl overflow-y-auto pt-10 sm:pt-20 p-2 sm:p-4">
+              <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-brand-dark/85 backdrop-blur-2xl overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-2 sm:px-4">
                 <WellnessForm
                   role={user.role}
                   isFemale={selected.gender === "F"}
@@ -16789,17 +16789,17 @@ const AthleteForm: FC<{
           }}
         />
 
-        <div className="flex flex-col sm:flex-row gap-4 border-t border-slate-800 pt-10">
+        <div className="sticky bottom-0 z-30 bg-slate-900/95 backdrop-blur-md flex flex-row gap-3 border-t border-slate-800 pt-4 pb-2 -mx-2 px-2">
           <Button
             onClick={onCancel}
             variant="secondary"
-            className="w-full py-5"
+            className="w-1/2 py-3.5"
           >
             Cancelar
           </Button>
           <Button
             type="submit"
-            className="w-full py-5 bg-brand-primary text-brand-dark"
+            className="w-1/2 py-3.5 bg-brand-primary text-brand-dark"
           >
             Salvar Perfil Elite
           </Button>
@@ -17723,11 +17723,11 @@ const AssessmentForm: FC<{
           />
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 pt-4">
-          <Button onClick={onCancel} variant="secondary" className="w-full">
-            Voltar
+        <div className="sticky bottom-0 z-30 bg-slate-900/95 backdrop-blur-md flex flex-row gap-3 pt-4 pb-2 -mx-2 px-2 border-t border-slate-800">
+          <Button onClick={onCancel} variant="secondary" className="w-1/2 py-3.5">
+            Cancelar
           </Button>
-          <Button type="submit" className="w-full">
+          <Button type="submit" className="w-1/2 py-3.5">
             Salvar Dados
           </Button>
         </div>
@@ -18411,13 +18411,13 @@ const WellnessForm: FC<{
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-5 pt-10 border-t border-slate-800">
+      <div className="sticky bottom-0 z-30 bg-slate-900/95 backdrop-blur-md flex flex-row gap-3 pt-4 pb-2 -mx-2 px-2 border-t border-slate-800">
         <Button
           onClick={onCancel}
           variant="secondary"
-          className="w-full py-6 uppercase font-black tracking-[0.2em] border-slate-800 text-slate-500 hover:text-white transition-all text-xs"
+          className="w-1/2 py-4 uppercase font-black tracking-[0.15em] border-slate-800 text-slate-400 hover:text-white transition-all text-xs"
         >
-          Descartar
+          Cancelar
         </Button>
         <Button
           onClick={() => {
@@ -18437,7 +18437,7 @@ const WellnessForm: FC<{
               date 
             });
           }}
-          className="w-full py-6 uppercase font-black tracking-[0.2em] shadow-[0_0_30px_rgba(57,255,20,0.2)] text-xs"
+          className="w-1/2 py-4 uppercase font-black tracking-[0.15em] shadow-[0_0_30px_rgba(57,255,20,0.2)] text-xs"
         >
           Confirmar Bio-Sync
         </Button>

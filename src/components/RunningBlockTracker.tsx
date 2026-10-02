@@ -217,8 +217,18 @@ export const RunningBlockTracker: FC<RunningBlockTrackerProps> = ({
     syncBlocksToExercise(updatedBlocks);
   };
 
+  // Sincroniza se a prescrição do exercício mudar externamente (ex: metros <-> segundos)
+  useEffect(() => {
+    setBlocks(getOrGenerateRunningBlocks(exercise));
+  }, [exercise.reps, exercise.sets, exercise.repsType, exercise.fieldUnit, exercise.intraSetRest, exercise.rest, exercise.executionMethod]);
+
   const currentBlock = blocks[activeBlockIndex] || blocks[0];
   const metrics = calculateBlocksMetrics(blocks);
+  const exNameLower = (exercise.name || "").toLowerCase();
+  const exNotesLower = (exercise.notes || "").toLowerCase();
+  const isBikeMode = exNameLower.includes("bike") || exNotesLower.includes("bike");
+  const isTreadmillMode = exNameLower.includes("esteira") || exNotesLower.includes("esteira");
+  const isAntiGlycMode = exNameLower.includes("antiglicol") || exNotesLower.includes("antiglicol") || (exercise.intraSetRest ?? 20) >= 40;
 
   // Calcula contadores de conclusão
   const totalSteps = blocks.reduce((acc, b) => acc + b.steps.filter(s => s.type === 'sprint' || s.type === 'interval').length, 0);
@@ -235,13 +245,22 @@ export const RunningBlockTracker: FC<RunningBlockTrackerProps> = ({
               <Activity className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-100 dark:text-white">
-                  Treino de Campo por Blocos
+                  {isBikeMode
+                    ? "Tiros na Bike por Blocos"
+                    : isTreadmillMode
+                    ? "Tiros na Esteira por Blocos"
+                    : "Treino de Tiros / Campo por Blocos"}
                 </span>
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                   {blocks.length} {blocks.length === 1 ? 'Bloco' : 'Blocos'}
                 </span>
+                {isAntiGlycMode && (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                    ⚡ Antiglicolítico (Alático)
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-slate-400 font-medium">
                 {exercise.notes || `${metrics.totalSprintsCount} tiros totais • Densidade controlada`}
@@ -302,8 +321,20 @@ export const RunningBlockTracker: FC<RunningBlockTrackerProps> = ({
 
           <div className="running-block-tracker-stat bg-slate-950/70 border border-slate-800 p-2.5 rounded-xl flex items-center justify-between">
             <div>
-              <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">Distância Total</span>
-              <span className="text-sm font-black text-cyan-400">{metrics.totalDistanceMeters}m</span>
+              <span className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider block">
+                {metrics.totalDistanceMeters === 0 && metrics.totalWorkTimeSeconds > 0
+                  ? "Tempo Total de Tiros"
+                  : metrics.totalDistanceMeters > 0 && metrics.totalWorkTimeSeconds > 0
+                  ? "Volume (Dist / Tempo)"
+                  : "Distância Total"}
+              </span>
+              <span className="text-sm font-black text-cyan-400">
+                {metrics.totalDistanceMeters === 0 && metrics.totalWorkTimeSeconds > 0
+                  ? `${metrics.totalWorkTimeSeconds}s (${metrics.totalSprintsCount} tiros)`
+                  : metrics.totalDistanceMeters > 0 && metrics.totalWorkTimeSeconds > 0
+                  ? `${metrics.totalDistanceMeters}m • ${metrics.totalWorkTimeSeconds}s`
+                  : `${metrics.totalDistanceMeters}m`}
+              </span>
             </div>
             <Zap className="w-4 h-4 text-cyan-400" />
           </div>
@@ -543,7 +574,22 @@ export const RunningBlockTracker: FC<RunningBlockTrackerProps> = ({
                     </div>
 
                     {/* Registro de Tempo Real / Cronômetro do Tiro */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {step.targetType === 'time' && step.targetValue > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTimerSecondsRemaining(step.targetValue);
+                            setTimerActiveStepId(step.id);
+                            setIsTimerRunning(true);
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all"
+                          title={`Iniciar contagem regressiva de ${step.targetValue}s para este tiro`}
+                        >
+                          <Play className="w-3 h-3 fill-cyan-300" />
+                          <span>Timer {step.targetValue}s</span>
+                        </button>
+                      )}
                       <div className="running-block-tracker-input flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
                         <span className="text-[8px] font-black text-slate-400 uppercase">Tempo:</span>
                         <input
@@ -551,7 +597,7 @@ export const RunningBlockTracker: FC<RunningBlockTrackerProps> = ({
                           step="0.01"
                           value={step.actualTimeSeconds || ""}
                           onChange={(e) => updateStepActualTime(activeBlockIndex, sIdx, parseFloat(e.target.value) || 0)}
-                          placeholder="0.00"
+                          placeholder={step.targetType === 'time' ? `${step.targetValue}.0` : "0.00"}
                           className="w-14 bg-transparent text-right font-mono font-bold text-xs text-slate-100 dark:text-white focus:outline-none"
                         />
                         <span className="text-[9px] font-bold text-slate-400">s</span>

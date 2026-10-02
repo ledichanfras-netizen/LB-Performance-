@@ -43,7 +43,7 @@
 
   .coach-editor-shell,
   .coach-session-shell {
-    container-type: inline-size;
+    min-height: 0;
   }
 
   .coach-action-bar {
@@ -1245,12 +1245,12 @@ html, body {
 }
 
 .animate-in {
-  animation: eliteFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: eliteFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes eliteFadeIn {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .no-scrollbar::-webkit-scrollbar {

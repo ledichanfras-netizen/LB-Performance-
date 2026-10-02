@@ -598,12 +598,12 @@ export const InteractiveBodyMap: FC<InteractiveBodyMapProps> = ({
       {/* REGION SELECTION MODAL / DRAWER */}
       <AnimatePresence>
         {selectedRegion && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-6 relative"
+              className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 md:p-8 max-w-xl w-full max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] overflow-y-auto my-auto shadow-2xl space-y-5 relative no-scrollbar"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -764,17 +764,17 @@ export const InteractiveBodyMap: FC<InteractiveBodyMapProps> = ({
                 </div>
 
                 {/* ACTIONS */}
-                <div className="flex items-center gap-3 pt-2">
+                <div className="sticky bottom-0 z-20 -mx-2 px-2 py-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center gap-3 pt-3">
                   <button
                     type="button"
                     onClick={() => setSelectedRegion(null)}
-                    className="w-1/3 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs uppercase rounded-xl tracking-wider transition-colors"
+                    className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-black text-xs uppercase rounded-xl tracking-wider transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="w-2/3 py-3.5 bg-brand-primary hover:bg-lime-400 text-slate-950 font-black text-xs uppercase rounded-xl tracking-wider shadow-lg shadow-brand-primary/20 transition-all active:scale-95"
+                    className="w-2/3 py-3 bg-brand-primary hover:bg-lime-400 text-slate-950 font-black text-xs uppercase rounded-xl tracking-wider shadow-lg shadow-brand-primary/20 transition-all active:scale-95"
                   >
                     Salvar no Histórico do DM
                   </button>

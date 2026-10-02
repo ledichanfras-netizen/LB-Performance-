@@ -186,18 +186,21 @@ export const detectSpecialMethod = (ex: Partial<PrescribedExercise>): {
     };
   }
 
-  // 11. Tiros Curtos / RSA (Repeated Sprint Ability)
+  // 11. Tiros Curtos / RSA & Antiglicolítico (Metros ou Segundos • Campo, Esteira ou Bike)
   if (
     nameLower.includes("rsa") || 
     nameLower.includes("tiro") || 
     nameLower.includes("sprint") || 
+    nameLower.includes("antiglicol") ||
     notesLower.includes("rsa") || 
     notesLower.includes("tiros curtos") ||
-    repsStr.toLowerCase().includes("x") && repsStr.toLowerCase().includes("m")
+    notesLower.includes("antiglicol") ||
+    (repsStr.toLowerCase().includes("x") && (repsStr.toLowerCase().includes("m") || (repsStr.toLowerCase().includes("s") && !repsStr.includes(":"))))
   ) {
+    const isAntiGlycolytic = nameLower.includes("antiglicol") || notesLower.includes("antiglicol") || nameLower.includes("bike") || nameLower.includes("esteira");
     return {
       method: 'sprint_rsa',
-      intraSetRest: ex.intraSetRest ?? 20,
+      intraSetRest: ex.intraSetRest ?? (isAntiGlycolytic ? 45 : 20),
       rest: ex.rest || "2m30s"
     };
   }
@@ -481,16 +484,16 @@ export const getSpecialMethodMeta = (method?: AdvancedExecutionMethod) => {
     case 'sprint_rsa':
       return {
         id: 'sprint_rsa' as const,
-        name: 'Tiros Curtos / RSA (Repeated Sprint Ability)',
-        badge: '🏃‍♂️ Tiros Curtos / RSA',
+        name: 'Tiros / RSA & Antiglicolítico (Metros ou Segundos • Campo, Esteira ou Bike)',
+        badge: '🏃‍♂️ Tiros / RSA & Antiglicolítico',
         icon: '🏃‍♂️',
         bg: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
         cardBg: 'bg-emerald-500/10 dark:bg-emerald-950/25 border-emerald-500/30 text-emerald-200',
         activeRing: 'ring-emerald-500/40 border-emerald-500',
         accentColor: 'text-emerald-400',
         buttonBg: 'bg-emerald-600 hover:bg-emerald-500 text-white',
-        description: 'Sprints curtos em velocidade máxima (100%) com micro-pausas intra-série (15s a 30s) e pausa inter-blocos (2m30s a 3min).',
-        scientificRationale: 'Desenvolve a potência alática máxima (via ATP-CP) e a taxa de desenvolvimento de força (RFD) horizontal. A micro-pausa incompleta (15s-25s) treina a habilidade neuromuscular e metabólica de repetir tiros sem queda de rendimento mecânico.',
+        description: 'Tiros em velocidade/potência máxima prescritos por Distância (Metros) ou por Tempo (Segundos). Aplicável em Campo/Pista (RSA), Esteira ou Bike/AirBike (Treinos Antiglicolíticos Aláticos).',
+        scientificRationale: 'Desenvolve a potência alática máxima (via ATP-CP) e a taxa de desenvolvimento de força (RFD). Em Campo/Pista (15s-25s micro-pausa) treina a habilidade de repetir sprints (RSA). Na Esteira ou Bike por segundos (ex: tiros de 6s a 10s com pausa antiglicolítica de 45s a 60s), estimula biogênese mitocondrial nas fibras rápidas (Tipo II) e potência alática pura sem acidose lática deletéria.',
         defaultSets: 2,
         defaultReps: '5x 20m',
         defaultWeight: '100% Sprint',
@@ -498,8 +501,9 @@ export const getSpecialMethodMeta = (method?: AdvancedExecutionMethod) => {
         defaultIntraRest: 20,
         defaultInterRest: '2m30s',
         repsPresets: ['5x 20m', '4x 30m', '6x 15m', '4x 10m', '3x 40m', '6x 20m'],
+        timeRepsPresets: ['6x 6s', '8x 8s', '5x 10s', '6x 10s', '5x 12s', '5x 15s', '4x 20s', '10x 6s'],
         restPresets: ['2min', '2m30s', '3min', '4min'],
-        intraRestPresets: [15, 20, 25, 30, 45]
+        intraRestPresets: [15, 20, 25, 30, 45, 60, 90]
       };
     case 'pyramid_field':
       return {
@@ -851,26 +855,52 @@ export const structureExerciseForMethod = (
   }
 
   if (method === 'sprint_rsa') {
-    const setsCount = 2;
+    const setsCount = currentEx.sets && currentEx.sets >= 1 ? currentEx.sets : 2;
+    const exNameLower = (currentEx.name || "").toLowerCase();
+    const exNotesLower = (currentEx.notes || "").toLowerCase();
+    const curRepsLower = String(currentEx.reps || "").toLowerCase().trim();
+    const isErgOrAntiGlyc =
+      exNameLower.includes("bike") ||
+      exNameLower.includes("airbike") ||
+      exNameLower.includes("esteira") ||
+      exNameLower.includes("antiglicol") ||
+      exNotesLower.includes("antiglicol") ||
+      exNotesLower.includes("bike") ||
+      exNotesLower.includes("esteira");
+    const isSecondsMode =
+      currentEx.repsType === "time" ||
+      currentEx.fieldUnit === "time" ||
+      isErgOrAntiGlyc ||
+      (curRepsLower.includes("s") && !curRepsLower.includes("m"));
+
+    const defaultRepsVal = isSecondsMode
+      ? (curRepsLower.includes("s") ? String(currentEx.reps) : "6x 8s")
+      : (curRepsLower.includes("m") ? String(currentEx.reps) : "5x 20m");
+    const defaultIntra = currentEx.intraSetRest ?? (isErgOrAntiGlyc ? 45 : 20);
+
     return {
       ...currentEx,
       executionMethod: "sprint_rsa",
-      trainingMode: "speed",
+      trainingMode: isErgOrAntiGlyc ? "conditioning" : "speed",
       metricType: "sprint",
-      repsType: "meters",
-      fieldUnit: "meters",
+      repsType: isSecondsMode ? "time" : "meters",
+      fieldUnit: isSecondsMode ? "time" : "meters",
       sets: setsCount,
-      reps: currentEx.reps && currentEx.reps.toLowerCase().includes("m") ? currentEx.reps : "5x 20m",
-      weight: "100% Sprint Máximo",
-      intraSetRest: currentEx.intraSetRest ?? 20,
+      reps: defaultRepsVal,
+      weight: isErgOrAntiGlyc ? "Potência Alática Máx (Antiglicolítico)" : "100% Sprint Máximo",
+      intraSetRest: defaultIntra,
       rest: currentEx.rest && currentEx.rest !== "20s" && currentEx.rest !== "90s" ? currentEx.rest : "2m30s",
-      workRestRatio: "1:5",
-      notes: "[TIROS CURTOS / RSA 🏃‍♂️] 2 blocos de 5x 20m com 20s de micro-pausa entre tiros e 2m30s entre blocos.",
+      workRestRatio: isErgOrAntiGlyc ? "1:6" : "1:5",
+      notes: isErgOrAntiGlyc
+        ? `[TIROS ANTIGLICOLÍTICOS • ${exNameLower.includes("bike") ? "BIKE" : "ESTEIRA / ERGÔMETRO"} ⚡] ${setsCount} blocos de ${defaultRepsVal} em alta potência alática com ${defaultIntra}s de pausa entre tiros (sem acúmulo de lactato) e 2m30s entre blocos.`
+        : isSecondsMode
+        ? `[TIROS POR TEMPO / RSA ⏱️] ${setsCount} blocos de ${defaultRepsVal} em velocidade máxima com ${defaultIntra}s de micro-pausa entre tiros e 2m30s entre blocos.`
+        : `[TIROS CURTOS / RSA 🏃‍♂️] ${setsCount} blocos de ${defaultRepsVal} com ${defaultIntra}s de micro-pausa entre tiros e 2m30s entre blocos.`,
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 5,
         weight: 0,
-        rpe: currentEx.performedSets?.[sIdx]?.rpe || 9
+        rpe: currentEx.performedSets?.[sIdx]?.rpe || (isErgOrAntiGlyc ? 8.5 : 9)
       }))
     };
   }
@@ -1291,17 +1321,30 @@ export const calculateFieldCourtMetrics = (workout: Workout): FieldCourtMetrics 
     const numSets = ex.sets || 1;
     const repsStr = String(ex.reps || "").toLowerCase().trim();
 
-    // 1. Tiros / RSA: ex "5x 20m" or "4x 30m"
-    if (method === 'sprint_rsa' || (repsStr.includes('x') && repsStr.includes('m'))) {
-      const match = repsStr.match(/(\d+)\s*x\s*(\d+)\s*m/i);
-      if (match) {
-        const reps = parseInt(match[1], 10) || 1;
-        const meters = parseInt(match[2], 10) || 20;
+    // 1. Tiros / RSA & Antiglicolítico: ex "5x 20m", "4x 30m" ou por segundos "6x 8s", "5x 10s"
+    if (method === 'sprint_rsa' || (repsStr.includes('x') && (repsStr.includes('m') || (repsStr.includes('s') && !repsStr.includes(':'))))) {
+      const matchMeters = repsStr.match(/(\d+)\s*x\s*(\d+)\s*m/i);
+      if (matchMeters && ex.repsType !== 'time') {
+        const reps = parseInt(matchMeters[1], 10) || 1;
+        const meters = parseInt(matchMeters[2], 10) || 20;
         const sprintMeters = numSets * reps * meters;
         totalDistanceMeters += sprintMeters;
         sprintDistanceMeters += sprintMeters;
         totalSprintsCount += numSets * reps;
         highIntensitySeconds += numSets * reps * Math.max(2, Math.round(meters / 6));
+        return;
+      }
+      const matchSeconds = repsStr.match(/(\d+)\s*x\s*(\d+)\s*s?/i);
+      if (matchSeconds && (ex.repsType === 'time' || repsStr.includes('s'))) {
+        const reps = parseInt(matchSeconds[1], 10) || 1;
+        const seconds = parseInt(matchSeconds[2], 10) || 10;
+        const totalWorkSec = numSets * reps * seconds;
+        const isBike = (ex.name || "").toLowerCase().includes("bike");
+        const estMeters = isBike ? 0 : totalWorkSec * 6;
+        totalDistanceMeters += estMeters;
+        sprintDistanceMeters += estMeters;
+        totalSprintsCount += numSets * reps;
+        highIntensitySeconds += totalWorkSec;
         return;
       }
     }

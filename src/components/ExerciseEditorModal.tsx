@@ -139,34 +139,44 @@ export const ExerciseEditorModal: FC<ExerciseEditorModalProps> = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="bg-[#0c111d] border border-slate-850 w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] text-slate-100"
+          className="bg-[#0c111d] border border-slate-850 w-full max-w-3xl rounded-3xl md:rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] text-slate-100 my-auto"
         >
           {/* Header */}
-          <div className="p-6 md:p-8 border-b border-slate-900 flex items-center justify-between bg-slate-950 shrink-0">
+          <div className="p-4 sm:p-6 md:px-8 md:py-5 border-b border-slate-900 flex items-center justify-between gap-3 bg-slate-950 shrink-0">
             <div>
-              <h3 className="text-xl md:text-2xl font-black text-white uppercase tracking-tight flex items-center gap-2">
+              <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-tight flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-brand-primary animate-pulse" />
                 <span>{exercise ? "Editar Exercício" : "Novo Exercício Customizado"}</span>
               </h3>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wide mt-0.5">
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wide mt-0.5">
                 {exercise ? "Atualize os metadados técnicos e mídias do exercício" : "Crie um exercício para a biblioteca enriquecida"}
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-850 transition-all cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="px-3.5 py-2 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Salvar</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-850 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* Form Content */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 no-scrollbar">
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 no-scrollbar">
             
             {/* Seção 1: Identificação Básica */}
             <div className="space-y-4">

@@ -44,11 +44,12 @@ export function isFieldOrRunningExercise(ex: PrescribedExercise): boolean {
   const fieldKeywords = [
     "corrida", "tiro", "sprint", "rsa", "fartlek", "shuttle", "hiit",
     "aceleração", "desaceleração", "mudança de direção", "cod",
-    "trote", "pista", "tração elástico", "trenó", "pro agility"
+    "trote", "pista", "tração elástico", "trenó", "pro agility",
+    "esteira", "bike", "airbike", "ergômetro", "ergometro", "antiglicolítico", "antiglicolitico"
   ];
 
   const hasKeyword = fieldKeywords.some(kw => name.includes(kw) || muscleGroup.includes(kw));
-  const hasMeterOrIntervalNotation = reps.includes("m") || reps.includes("x") || reps.includes("+") || reps.includes("-");
+  const hasMeterOrIntervalNotation = reps.includes("m") || reps.includes("s") || reps.includes("x") || reps.includes("+") || reps.includes("-");
 
   if (hasKeyword && hasMeterOrIntervalNotation) return true;
 
@@ -68,12 +69,24 @@ export function getOrGenerateRunningBlocks(ex: PrescribedExercise): RunningBlock
   const blockRestSec = parseSecondsFromRestString(ex.rest, 120);
   const repsStr = (ex.reps || "").trim();
 
-  // Caso 1: Tiros Curtos / RSA (ex: "5x 20m", "4x 30m")
-  if (ex.executionMethod === 'sprint_rsa' || repsStr.toLowerCase().includes('x')) {
-    // Tenta extrair repetições e distância
-    const match = repsStr.match(/(\d+)\s*[xX]\s*(\d+)\s*m?/i);
+  // Caso 1: Tiros Curtos / RSA & Antiglicolítico (ex: "5x 20m", "4x 30m" ou por segundos "6x 8s", "5x 10s")
+  if ((ex.executionMethod === 'sprint_rsa' || (repsStr.toLowerCase().includes('x') && !repsStr.includes(':'))) && !repsStr.includes('+')) {
+    const nameLower = (ex.name || "").toLowerCase();
+    const notesLower = (ex.notes || "").toLowerCase();
+    const isAntiGlyc = nameLower.includes("antiglicol") || notesLower.includes("antiglicol") || intraRest >= 40;
+    const isBike = nameLower.includes("bike") || notesLower.includes("bike");
+    const isTreadmill = nameLower.includes("esteira") || notesLower.includes("esteira");
+
+    const isTimeBased =
+      ex.repsType === 'time' ||
+      ex.fieldUnit === 'time' ||
+      /\d+\s*[xX]\s*\d+\s*s(eg)?\b/i.test(repsStr) ||
+      (!repsStr.toLowerCase().includes('m') && repsStr.toLowerCase().includes('s'));
+
+    const match = repsStr.match(/(\d+)\s*[xX]\s*(\d+)\s*(m|s|seg)?/i);
     const count = match ? parseInt(match[1]) : 5;
-    const distance = match ? parseInt(match[2]) : (parseInt(repsStr.replace(/[^0-9]/g, '')) || 20);
+    const targetVal = match ? parseInt(match[2]) : (parseInt(repsStr.replace(/[^0-9]/g, '')) || (isTimeBased ? 10 : 20));
+    const unitLabel = isTimeBased ? 's' : 'm';
 
     const blocks: RunningBlock[] = [];
     for (let b = 1; b <= numBlocks; b++) {
@@ -82,12 +95,16 @@ export function getOrGenerateRunningBlocks(ex: PrescribedExercise): RunningBlock
         steps.push({
           id: `step-sprint-${b}-${r}`,
           type: 'sprint',
-          label: `Tiro ${r}/${count} • ${distance}m`,
-          targetType: 'distance',
-          targetValue: distance,
-          targetUnit: 'm',
-          intensityTarget: '100% Velocidade Máxima',
-          notes: 'Esforço máximo de aceleração sem quebra de postura',
+          label: `Tiro ${r}/${count} • ${targetVal}${unitLabel}`,
+          targetType: isTimeBased ? 'time' : 'distance',
+          targetValue: targetVal,
+          targetUnit: isTimeBased ? 's' : 'm',
+          intensityTarget: ex.weight || (isAntiGlyc ? 'Potência Alática Máxima (Antiglicolítico)' : '100% Velocidade Máxima'),
+          notes: isBike
+            ? 'RPM / Watts altos na Bike mantendo via alática pura'
+            : isTreadmill
+            ? 'Tiro em alta velocidade na Esteira com mecânica limpa'
+            : 'Esforço máximo de aceleração sem quebra de postura',
           isCompleted: false
         });
 
@@ -96,11 +113,11 @@ export function getOrGenerateRunningBlocks(ex: PrescribedExercise): RunningBlock
           steps.push({
             id: `step-microrest-${b}-${r}`,
             type: 'recovery_rest',
-            label: `Micro-Pausa • ${intraRest}s`,
+            label: `${isAntiGlyc ? 'Pausa Antiglicolítica' : 'Micro-Pausa'} • ${intraRest}s`,
             targetType: 'time',
             targetValue: intraRest,
             targetUnit: 's',
-            intensityTarget: 'Caminhada lenta / Respiração profunda',
+            intensityTarget: isAntiGlyc ? 'Recuperação Alática (Ressíntese ATP-CP sem acidose)' : 'Caminhada lenta / Respiração profunda',
             notes: 'Recuperação dos estoques de fosfocreatina (ATP-CP)',
             isCompleted: false
           });
@@ -109,20 +126,24 @@ export function getOrGenerateRunningBlocks(ex: PrescribedExercise): RunningBlock
 
       blocks.push({
         id: `block-${b}`,
-        name: `Bloco ${b} de ${numBlocks} (${count}x ${distance}m)`,
+        name: `Bloco ${b} de ${numBlocks} (${count}x ${targetVal}${unitLabel}${isBike ? ' • Bike' : isTreadmill ? ' • Esteira' : ''})`,
         repeatCount: 1,
         steps,
         blockRestSeconds: blockRestSec,
         blockRestLabel: `Recuperação Completa entre Blocos (${Math.round(blockRestSec / 60)}m${blockRestSec % 60 ? (blockRestSec % 60) + 's' : ''})`,
-        notes: `Velocidade mantida em todos os tiros com densidade ideal.`,
+        notes: isAntiGlyc
+          ? `Protocolo Antiglicolítico: Manter potência alática alta em todos os tiros de ${targetVal}${unitLabel} sem acumular lactato.`
+          : `Velocidade mantida em todos os tiros com densidade ideal.`,
         isCompleted: false
       });
     }
     return blocks;
   }
 
-  // Caso 2: Pirâmide de Campo (ex: "10-20-30-40-30-20-10m")
+  // Caso 2: Pirâmide de Campo (ex: "10-20-30-40-30-20-10m" ou "5-10-15-20-15-10-5s")
   if (ex.executionMethod === 'pyramid_field' || repsStr.includes('-')) {
+    const isPyrTime = ex.repsType === 'time' || (repsStr.toLowerCase().includes('s') && !repsStr.toLowerCase().includes('m'));
+    const pyrUnit = isPyrTime ? 's' : 'm';
     const distances = repsStr
       .split(/[-–—]/)
       .map(part => parseInt(part.replace(/[^0-9]/g, '')))
@@ -135,15 +156,15 @@ export function getOrGenerateRunningBlocks(ex: PrescribedExercise): RunningBlock
       const steps: RunningStep[] = [];
       pyramidDistances.forEach((dist, idx) => {
         const isLast = idx === pyramidDistances.length - 1;
-        const progressiveRest = Math.min(60, Math.max(15, Math.round(dist * 0.8)));
+        const progressiveRest = Math.min(60, Math.max(15, Math.round(dist * (isPyrTime ? 1.5 : 0.8))));
 
         steps.push({
           id: `step-pyr-${b}-${idx}`,
           type: 'sprint',
-          label: `Tiro ${idx + 1}/${pyramidDistances.length} • ${dist}m`,
-          targetType: 'distance',
+          label: `Tiro ${idx + 1}/${pyramidDistances.length} • ${dist}${pyrUnit}`,
+          targetType: isPyrTime ? 'time' : 'distance',
           targetValue: dist,
-          targetUnit: 'm',
+          targetUnit: pyrUnit,
           intensityTarget: dist <= 20 ? '100% Aceleração Explosiva' : '95-100% Velocidade Máxima',
           isCompleted: false
         });
@@ -163,12 +184,12 @@ export function getOrGenerateRunningBlocks(ex: PrescribedExercise): RunningBlock
 
       blocks.push({
         id: `block-pyr-${b}`,
-        name: `Pirâmide ${b} de ${numBlocks} (${pyramidDistances.join(' - ')}m)`,
+        name: `Pirâmide ${b} de ${numBlocks} (${pyramidDistances.join(' - ')}${pyrUnit})`,
         repeatCount: 1,
         steps,
         blockRestSeconds: blockRestSec,
         blockRestLabel: `Descanso Pós-Pirâmide (${Math.round(blockRestSec / 60)}min)`,
-        notes: `Volume da pirâmide: ${pyramidDistances.reduce((a, b) => a + b, 0)}m`,
+        notes: `Volume da pirâmide: ${pyramidDistances.reduce((a, b) => a + b, 0)}${pyrUnit}`,
         isCompleted: false
       });
     }
