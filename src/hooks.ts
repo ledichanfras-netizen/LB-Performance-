@@ -233,6 +233,7 @@ export const useAthletes = (token?: string | null) => {
               throw new Error("O navegador bloqueou os cookies de segurança da visualização (iframe). Por favor, clique em 'Open in a new tab' (Abrir em nova aba) no canto superior direito do AI Studio para acessar o sistema normalmente.");
             }
             if (!res.ok) {
+              if(res.status===401)window.dispatchEvent(new Event('lb:session-invalid'));
               throw new Error(`Erro do servidor (/api/ler): ${res.status} ${resText}`);
             }
             return JSON.parse(resText);

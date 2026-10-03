@@ -18753,12 +18753,23 @@ const App: FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const invalidateSession = () => {
+      safeLocalStorage.removeItem("lb_user");
+      try { clearAthleteCaches(localStorage); } catch {}
+      setUser(null);
+      toast.error("Sua sessão foi atualizada. Entre novamente com sua nova senha.", {id:"secure-session-login"});
+    };
+    window.addEventListener("lb:session-invalid", invalidateSession);
+    return () => window.removeEventListener("lb:session-invalid", invalidateSession);
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/venda" element={<Venda />} />
-        <Route path="/contas" element={<AccountSetup />} />
+        <Route path="/contas" element={<AccountSetup onAuthenticated={data=>{try{clearAthleteCaches(localStorage);}catch{} safeLocalStorage.setItem("lb_user",JSON.stringify(data));setUser(data);}} />} />
         <Route path="/assinaturas" element={user ? <Billing user={user} /> : <Navigate to="/hub" replace />} />
         <Route
           path="/dashboard"

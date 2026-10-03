@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-export default function AccountSetup() {
+import type { UserWithPlan } from '../utils/plan';
+export default function AccountSetup({onAuthenticated}:{onAuthenticated:(user:UserWithPlan)=>void}) {
  const [inviteRole,setInviteRole]=useState('coach');const [token,setToken]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);
  const call=async(e:React.FormEvent<HTMLFormElement>,path:string)=>{
   e.preventDefault();setBusy(true);setMessage('');const form=e.currentTarget;
   const body=Object.fromEntries(new FormData(form));
-  try{const response=await fetch(`/api/accounts/${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body)});const data=await response.json();if(!response.ok) throw Error(data.error);if(path==='login'){if(!data.platformAdmin) throw Error('Esta área é reservada à administração.');setToken(data.token);setMessage('Administração autenticada.');}else if(path==='setup-admin'){setMessage('Administração configurada. Entre com sua nova senha.');form.reset();}else if(path==='accept'){setMessage('Senha definida. Entre no aplicativo; o acesso depende da assinatura vinculada.');form.reset();}else if(path==='organizations') setMessage(`Organização criada: ${data.id}`);else setMessage(`Convite: ${data.token}\nExpira em: ${new Date(data.expires_at).toLocaleString('pt-BR')}`);
+  try{const response=await fetch(`/api/accounts/${path}`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body)});const data=await response.json();if(!response.ok) throw Error(data.error);if(path==='login'){if(!data.platformAdmin) throw Error('Esta área é reservada à administração.');setToken(data.token);onAuthenticated(data);setMessage('Administração autenticada. Use Voltar para acessar seus atletas.');}else if(path==='setup-admin'){setMessage('Administração configurada. Entre com sua nova senha.');form.reset();}else if(path==='accept'){setMessage('Senha definida. Entre no aplicativo; o acesso depende da assinatura vinculada.');form.reset();}else if(path==='organizations') setMessage(`Organização criada: ${data.id}`);else setMessage(`Convite: ${data.token}\nExpira em: ${new Date(data.expires_at).toLocaleString('pt-BR')}`);
   }catch(err){setMessage((err as Error).message);}finally{setBusy(false);}
  };
  const input='text-black p-2 rounded w-full';
