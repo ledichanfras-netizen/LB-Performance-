@@ -109,3 +109,30 @@ test('invitation and manual renewal end to end with PostgreSQL',async()=>{
  assert.equal((await db.query('SELECT * FROM lb_billing.entries')).rows.length,1);
  }finally{await new Promise<void>(resolve=>server.close(()=>resolve()));await db.close();}
 });
+
+test('batch save refuses foreign nested IDs and ownership reassignment',async()=>{
+ const {validateScopedSave}=await import('./saveScope');const db=new PGlite();
+ try{await db.exec(`CREATE TABLE athletes(id text PRIMARY KEY);CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);
+ CREATE TABLE wellness(id text PRIMARY KEY,athlete_id text);CREATE TABLE external_sessions(id text PRIMARY KEY,athlete_id text);CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text);
+ CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text);CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text);
+ CREATE TABLE bioimpedance(id text PRIMARY KEY,athlete_id text);CREATE TABLE isometric_strength(id text PRIMARY KEY,athlete_id text);CREATE TABLE cmj(id text PRIMARY KEY,athlete_id text);CREATE TABLE drop_jump(id text PRIMARY KEY,athlete_id text);CREATE TABLE vo2max(id text PRIMARY KEY,athlete_id text);CREATE TABLE speed(id text PRIMARY KEY,athlete_id text);CREATE TABLE imtp(id text PRIMARY KEY,athlete_id text);CREATE TABLE general_strength(id text PRIMARY KEY,athlete_id text);
+ INSERT INTO athletes VALUES('a'),('b');INSERT INTO lb_accounts.athlete_scopes VALUES('a','org1'),('b','org2');INSERT INTO wellness VALUES('foreign','b');`);
+ const adapter={query:(q:string,p:any[])=>q.includes('pg_advisory_xact_lock')?Promise.resolve({rows:[]}):db.query(q,p)} as any;
+ const coach={user_id:'u',organization_id:'org1',role:'coach'};
+ await assert.rejects(()=>validateScopedSave(adapter,coach,[{id:'b'}]));
+ await assert.rejects(()=>validateScopedSave(adapter,coach,[{id:'a',wellness:[{id:'foreign'}]}]));
+ await assert.rejects(()=>validateScopedSave(adapter,coach,[{id:'new1',wellness:[{id:'same'}]},{id:'new2',wellness:[{id:'same'}]}]));
+ await validateScopedSave(adapter,coach,[{id:'a',wellness:[{id:'new'}]}]);
+ await assert.rejects(()=>validateScopedSave(adapter,{...coach,role:'athlete'},[{id:'a'}]));
+ }finally{await db.close();}
+});
+
+test('expired student subscription is not overridden by an organization license',async()=>{
+ const {hasSportsAccess}=await import('./entitlement');
+ const student={user_id:'student',organization_id:'org',role:'athlete'};
+ const ownExpired={query:async()=>({rows:[{allowed:false}]})} as any;
+ assert.equal(await hasSportsAccess(ownExpired,student),false);
+ let calls=0;const included={query:async()=>({rows:++calls===1?[]:[{id:'license'}]})} as any;
+ assert.equal(await hasSportsAccess(included,student),true);
+ assert.equal(await hasSportsAccess(ownExpired,{...student,platform_admin:true}),true);
+});

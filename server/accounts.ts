@@ -26,7 +26,7 @@ export function accountRouter(pool: Pool, secret: string) {
   const {rows}=await pool.query('SELECT u.*,m.organization_id,m.platform_admin,m.session_version FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE lower(u.username)=lower($1) AND m.active',[username.trim()]);
   const u=rows[0];if(!u || !/^\$2[aby]\$/.test(u.password || '') || !await bcrypt.compare(password,u.password)) return res.status(401).json({error:'Credenciais inválidas.'});
   const token=jwt.sign({id:u.id,role:u.role,athleteId:u.athlete_id,organizationId:u.organization_id,accountMode:'scoped',sessionVersion:u.session_version},secret,{expiresIn:'2h'});
-  res.json({token,id:u.id,role:u.role,athleteId:u.athlete_id,organizationId:u.organization_id,platformAdmin:u.platform_admin,accountMode:'scoped'});
+  res.json({token,plan:u.platform_admin ? 'pro' : 'free',id:u.id,role:u.role,athleteId:u.athlete_id,organizationId:u.organization_id,platformAdmin:u.platform_admin,accountMode:'scoped'});
  }));
  router.post('/accept',run(async(req:any,res:any)=>{
   const {token,password}=req.body;if(typeof token!=='string' || !/^[a-f0-9]{64}$/.test(token) || !validPassword(password)) throw Error('INVALID');

@@ -1,5 +1,9 @@
 
 export interface UserWithPlan {
+  id?: string;
+  organizationId?: string;
+  accountMode?: 'scoped';
+  platformAdmin?: boolean;
   role: 'coach' | 'athlete';
   athleteId?: string;
   token?: string;

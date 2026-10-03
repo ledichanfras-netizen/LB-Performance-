@@ -52,3 +52,20 @@ Sessões scoped passam a poder consultar billing após validar versão no banco;
 financeira scoped vem de platform_admin persistido, sem depender da lista de IDs de legado.
 Os fluxos esportivos existentes ainda não foram conectados às novas rotas: salvar avaliação,
 criar atleta e prescrever treino por conta scoped continuam desativados.
+
+## Integração esportiva de treinador
+SCOPED_SPORTS_ENABLED=false por padrão. Quando ativado em staging, /ler filtra as tabelas
+normalizadas (incluindo exercícios e séries) pela organização persistida. Uma lista vazia
+não aciona fallback global. /salvar de treinador valida todos os IDs pais/filhos dentro da
+mesma transação e vincula novos atletas à organização. O fallback Supabase direto é recusado
+para sessão scoped. Estudantes não podem usar o salvamento completo: fluxo de escrita
+restrita de execução/prontidão ainda pendente. Exclusões scoped usam o serviço transacional;
+exclusão de atleta exige arquivamento administrativo e fica bloqueada nesta fase.
+IA verifica treinador e ID de atleta autorizado antes da chamada; hooks de análise/geração,
+modelagem e IMTP passam o ID. Chamadas sem ID (alguns componentes) são bloqueadas, não liberadas.
+Quando ACCOUNTS_ENABLED=true, /auth/login usa contas seguras e rejeita tokens legados nas APIs.
+Fallback de credencial fixa e recriação da senha padrão removidos desta branch. Não implantar
+antes de provisionar e validar a conta administrativa substituta. Main/produção não alterados.
+BILLING_ENFORCE=false por padrão; se ativado, validade/tolerância são consultadas no servidor.
+Assinatura individual expirada do aluno tem prioridade sobre licença do treinador. Administração
+pode renovar pagamentos vencidos sem ser bloqueada pela licença.

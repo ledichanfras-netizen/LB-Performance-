@@ -1003,7 +1003,7 @@ export const useAthletes = (token?: string | null) => {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, athleteId: athlete.id })
       });
 
       if (!res.ok) {
@@ -1349,7 +1349,7 @@ export const useAthletes = (token?: string | null) => {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, athleteId: athlete.id })
       });
 
       if (!res.ok) {
