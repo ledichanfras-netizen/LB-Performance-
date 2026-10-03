@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { scopedAthletes } from './scope';
 
 export const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex');
 export const validPassword = (password: unknown): password is string => typeof password === 'string' && password.length >= 12 && Buffer.byteLength(password,'utf8') <= 72;
@@ -14,7 +15,7 @@ export function accountRouter(pool: Pool, secret: string) {
   try {const token=req.headers.authorization?.split(' ')[1];if(!token) return res.status(401).json({error:'Faça login.'});
    const claims=jwt.verify(token,secret) as any;
    if(claims.accountMode!=='scoped') return res.status(401).json({error:'Entre pelo login seguro.'});
-   const {rows}=await pool.query('SELECT m.*,u.role FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active', [claims.id]);
+   const {rows}=await pool.query('SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active', [claims.id]);
    if(!rows[0] || rows[0].session_version!==claims.sessionVersion) return res.status(401).json({error:'Sessão inválida.'});req.account=rows[0];next();
   }catch{res.status(401).json({error:'Sessão inválida.'});}
  };
@@ -36,6 +37,7 @@ export function accountRouter(pool: Pool, secret: string) {
  }));
  router.use(auth);
  router.get('/me',(req:any,res)=>res.json(req.account));
+ router.get('/athletes',run(async(req:any,res:any)=>res.json(await scopedAthletes(pool,req.account))));
  router.post('/organizations',run(async(req:any,res:any)=>{
   if(!req.account.platform_admin) return res.status(403).json({error:'Apenas o administrador.'});
   const {name}=req.body;if(typeof name!=='string' || !name.trim() || name.length>100) throw Error('INVALID');

@@ -27,3 +27,14 @@ Depois validar novo administrador, trocar JWT_SECRET e remover login fixo, auto-
 nascimento e recriação da senha padrão. Isso ainda não foi feito neste incremento para evitar
 bloqueio do acesso existente sem credencial substituta validada.
 Não aplicar nenhuma destas etapas automaticamente em produção.
+
+## Progresso verificado em 03/10/2026
+Schemas accounts e billing aplicados ao projeto LB-Performance-Staging, sem alteração
+nas contas, senhas ou atletas existentes. Sete tabelas verificadas com RLS e sem USAGE
+para anon/authenticated. Teste PostgreSQL local confirma isolamento e bloqueio direto.
+Endpoint de listagem /api/accounts/athletes consulta escopo persistido, sem privilégio
+esportivo global para administrador. Salvamento/exclusão esportiva scoped seguem bloqueados.
+Cache do hub separado por identidade/organização; hub remonta quando muda a sessão,
+logout limpa caches de atletas. Essa alteração não substitui autorização no servidor.
+Bootstrap administrativo preparado em scripts/bootstrap-accounts.ts, ainda não executado;
+requer senha nova fornecida por variável de ambiente. Não gera nem divulga senha ao usuário.
