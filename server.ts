@@ -1,4 +1,5 @@
 import express from 'express';
+import { billingRouter } from './server/billing';
 import compression from 'compression';
 import { Pool } from 'pg';
 import cors from 'cors';
@@ -347,6 +348,8 @@ const authMiddleware = (req: any, res: any, next: any) => {
     return res.status(401).json({ error: 'Token inválido' });
   }
 };
+
+apiRouter.use('/billing', billingRouter(pool, authMiddleware));
 
 // Health check
 apiRouter.get('/health', async (req, res) => {

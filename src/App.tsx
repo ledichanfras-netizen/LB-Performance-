@@ -105,6 +105,7 @@ import { toJpeg } from "html-to-image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
+  CheckCircle2,
   Download,
   Printer,
   Scale,
@@ -166,6 +167,7 @@ import {
 } from "react-router-dom";
 import Home from "./pages/Home";
 import Venda from "./pages/Venda";
+import Billing from "./pages/Billing";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
 import { UserWithPlan, isPro } from "./utils/plan";
@@ -18753,6 +18755,7 @@ const App: FC = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/venda" element={<Venda />} />
+        <Route path="/assinaturas" element={user ? <Billing user={user} /> : <Navigate to="/hub" replace />} />
         <Route
           path="/dashboard"
           element={
