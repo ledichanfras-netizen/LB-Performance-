@@ -168,6 +168,7 @@ import {
 import Home from "./pages/Home";
 import Venda from "./pages/Venda";
 import Billing from "./pages/Billing";
+import AccountSetup from "./pages/AccountSetup";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
 import { UserWithPlan, isPro } from "./utils/plan";
@@ -18755,6 +18756,7 @@ const App: FC = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/venda" element={<Venda />} />
+        <Route path="/contas" element={<AccountSetup />} />
         <Route path="/assinaturas" element={user ? <Billing user={user} /> : <Navigate to="/hub" replace />} />
         <Route
           path="/dashboard"

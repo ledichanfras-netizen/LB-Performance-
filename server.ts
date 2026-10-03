@@ -1,5 +1,6 @@
 import express from 'express';
 import { billingRouter } from './server/billing';
+import { accountRouter } from './server/accounts';
 import compression from 'compression';
 import { Pool } from 'pg';
 import cors from 'cors';
@@ -342,6 +343,9 @@ const authMiddleware = (req: any, res: any, next: any) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if ((decoded as any).accountMode === 'scoped') {
+      return res.status(403).json({ error: 'Acesso esportivo por organização ainda em validação.' });
+    }
     req.user = decoded;
     next();
   } catch (error) {
@@ -349,6 +353,7 @@ const authMiddleware = (req: any, res: any, next: any) => {
   }
 };
 
+apiRouter.use('/accounts', accountRouter(pool, JWT_SECRET));
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
 
 // Health check
