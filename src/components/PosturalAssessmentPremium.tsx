@@ -665,7 +665,7 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ ...payload, athleteId: athlete.id })
       });
 
       if (!res.ok) {

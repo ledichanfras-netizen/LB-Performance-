@@ -11,7 +11,8 @@
     "start": "tsx server.ts",
     "dev": "tsx server.ts",
     "build": "vite build",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:accounts": "node --import tsx --test server/accounts.test.ts server/billing.test.ts server/cache.test.ts server/database.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",
@@ -44,6 +45,7 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
     "@types/jsonwebtoken": "^9.0.6",
