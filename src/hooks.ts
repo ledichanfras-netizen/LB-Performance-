@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { athleteCacheKey } from './utils/accountCache';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
 import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId } from './utils';
 import { ENRICHED_LIBRARY } from './data/exercises';
@@ -123,9 +124,10 @@ const ensureImtpAndMigrate = (a: any): Athlete => {
 };
 
 export const useAthletes = (token?: string | null) => {
+  const cacheKey = athleteCacheKey(token);
   const [rawAthletes, setRawAthletes] = useState<Athlete[]>(() => {
     // Lazy initialization from cache for instant load
-    const cached = safeLocalStorage.getItem('lb_athletes_cache');
+    const cached = safeLocalStorage.getItem(cacheKey);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
@@ -206,9 +208,9 @@ export const useAthletes = (token?: string | null) => {
   // Update cache whenever athletes change
   useEffect(() => {
     if (athletes.length > 0) {
-      safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(athletes));
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(athletes));
     }
-  }, [athletes]);
+  }, [athletes, cacheKey]);
 
   const api = {
     async loadAthletes(isSilent = false): Promise<Athlete[]> {
@@ -339,7 +341,7 @@ export const useAthletes = (token?: string | null) => {
     try {
       if (!isSupabaseConfigured && !token) {
         console.log('[Sync] Banco/Supabase não configurado e sem token. Utilizando apenas cache local/armazenamento offline.');
-        const cached = safeLocalStorage.getItem('lb_athletes_cache');
+        const cached = safeLocalStorage.getItem(cacheKey);
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
@@ -396,7 +398,7 @@ export const useAthletes = (token?: string | null) => {
         // Retrieve local athletes from cache and memory to prevent losing offline/unsynced entries
         const localCachedAthletes = (() => {
           try {
-            const cached = safeLocalStorage.getItem('lb_athletes_cache');
+            const cached = safeLocalStorage.getItem(cacheKey);
             if (cached) {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -421,7 +423,7 @@ export const useAthletes = (token?: string | null) => {
         }
 
         setAthletes(mergedAthletes);
-        safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(mergedAthletes));
+        safeLocalStorage.setItem(cacheKey, JSON.stringify(mergedAthletes));
         setLastSyncedAt(new Date());
         console.log('Dados dos atletas atualizados, mesclados e cacheados.');
         lastSyncTimeRef.current = Date.now();
@@ -440,7 +442,7 @@ export const useAthletes = (token?: string | null) => {
       // Fallback cache recovery if state is fully empty but local storage has cache
       let hasLocalCache = false;
       if (athletes.length === 0) {
-        const cached = safeLocalStorage.getItem('lb_athletes_cache');
+        const cached = safeLocalStorage.getItem(cacheKey);
         if (cached) {
           try {
             const parsed = JSON.parse(cached).filter((a: any) => !a.id.startsWith('model-'));
@@ -580,7 +582,7 @@ export const useAthletes = (token?: string | null) => {
 
   const save = async (newAthletes: Athlete[], specificAthleteId?: string) => {
     // Immediate local state and cache update for maximum responsiveness
-    safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(newAthletes));
+    safeLocalStorage.setItem(cacheKey, JSON.stringify(newAthletes));
     console.log("Iniciando sincronização em segundo plano...");
     setSyncing(true);
     try {
@@ -689,7 +691,7 @@ export const useAthletes = (token?: string | null) => {
         await supabaseService.deleteWellness(wellnessId);
       }
       
-      safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(updated));
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
       toast.success("Check-in removido!");
     } catch (e) {
       logError("Erro ao deletar wellness:", e);
@@ -762,7 +764,7 @@ export const useAthletes = (token?: string | null) => {
         await supabaseService.deleteWorkout(workoutId);
       }
       
-      safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(updated));
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
       toast.success("Treino removido!");
     } catch (e) {
       logError("Erro ao deletar treino:", e);
@@ -868,7 +870,7 @@ export const useAthletes = (token?: string | null) => {
         await supabaseService.deleteAssessment(type, assessmentId);
       }
 
-      safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(updatedAthletes));
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(updatedAthletes));
       toast.success(`Avaliação removida!`);
     } catch (e) {
       logError("Erro ao deletar avaliação:", e);
@@ -1001,7 +1003,7 @@ export const useAthletes = (token?: string | null) => {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, athleteId: athlete.id })
       });
 
       if (!res.ok) {
@@ -1347,7 +1349,7 @@ export const useAthletes = (token?: string | null) => {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, athleteId: athlete.id })
       });
 
       if (!res.ok) {
@@ -1509,7 +1511,7 @@ export const useAthletes = (token?: string | null) => {
         await supabaseService.deleteExternalSession(sessionId);
       }
       
-      safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(updated));
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
       await save(updated, athleteId);
       toast.success("Sessão removida!");
     } catch (e) {
@@ -1531,7 +1533,7 @@ export const useAthletes = (token?: string | null) => {
       
       const newAthletes = [demoAthlete, ...athletes.filter(a => a.id !== demoAthlete.id)];
       setAthletes(newAthletes);
-      safeLocalStorage.setItem('lb_athletes_cache', JSON.stringify(newAthletes));
+      safeLocalStorage.setItem(cacheKey, JSON.stringify(newAthletes));
       
       toast.success("Atleta de demonstração importado com sucesso!", { id: toastId });
     } catch (e: any) {

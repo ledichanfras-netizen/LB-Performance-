@@ -1,4 +1,10 @@
 import express from 'express';
+import { billingRouter } from './server/billing';
+import { accountRouter } from './server/accounts';
+import { saveStudentData } from './server/studentSave';
+import { hasSportsAccess } from './server/entitlement';
+import { validateScopedSave, attachSavedAthletes } from './server/saveScope';
+import { scopedDelete, mayAccessAthlete, ScopeDenied } from './server/scope';
 import compression from 'compression';
 import { Pool } from 'pg';
 import cors from 'cors';
@@ -332,7 +338,7 @@ app.use(express.json({ limit: '50mb' }));
 const apiRouter = express.Router();
 
 // Auth Middleware
-const authMiddleware = (req: any, res: any, next: any) => {
+const authMiddleware = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: 'Token não fornecido' });
@@ -341,12 +347,33 @@ const authMiddleware = (req: any, res: any, next: any) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if(process.env.ACCOUNTS_ENABLED === 'true' && (decoded as any).accountMode !== 'scoped') {
+      return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
+    }
+    if ((decoded as any).accountMode === 'scoped') {
+      if (process.env.SCOPED_SPORTS_ENABLED !== 'true' && !req.originalUrl.startsWith('/api/billing/')) return res.status(403).json({error:'Acesso por organização ainda não ativado.'});
+      const claims = decoded as any;
+      const membership = await pool.query('SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active',[claims.id]);
+      const account=membership.rows[0];
+      if(!account || account.session_version!==claims.sessionVersion)return res.status(401).json({error:'Sessão inválida.'});
+      if(process.env.BILLING_ENFORCE === 'true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account)) return res.status(402).json({error:'Assinatura vencida ou não liberada. Renove seu acesso.'});
+      req.account=account;
+      claims.role=account.role;claims.athleteId=account.athlete_id;claims.organizationId=account.organization_id;
+    }
     req.user = decoded;
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Token inválido' });
   }
 };
+
+const scopedAccountRouter = accountRouter(pool, JWT_SECRET);
+apiRouter.use('/accounts', scopedAccountRouter);
+apiRouter.use('/auth', (req,res,next) => {
+  if(req.path === '/login' && process.env.ACCOUNTS_ENABLED === 'true') return scopedAccountRouter(req,res,next);
+  next();
+});
+apiRouter.use('/billing', billingRouter(pool, authMiddleware));
 
 // Health check
 apiRouter.get('/health', async (req, res) => {
@@ -390,18 +417,6 @@ apiRouter.post('/auth/login', async (req, res) => {
   const trimmedPassword = (password || '').trim();
 
   console.log(`[LOGIN] Tentativa: usuário=[${trimmedUsername}]`);
-
-  // 1. Hardcoded fallback
-  if (trimmedUsername.toLowerCase() === 'leandro' && trimmedPassword === 'techno10') {
-    console.log(`[LOGIN] SUCESSO: Hardcoded Coach [${trimmedUsername}]`);
-    try {
-      const token = jwt.sign({ username: 'Leandro', role: 'coach', plan: 'pro' }, JWT_SECRET, { expiresIn: '24h' });
-      return res.json({ role: 'coach', token, plan: 'pro' });
-    } catch (jwtErr: any) {
-      console.error("[LOGIN] Erro ao gerar JWT:", jwtErr.message);
-      return res.status(500).json({ error: "Erro interno na geração do token." });
-    }
-  }
 
   try {
     // 2. Local Database
@@ -537,6 +552,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
   try {
     const loadFromSupabase = async () => {
+        if ((req as any).account) throw new Error('Banco indisponível para leitura protegida.');
         console.log(`[SERVIÇO] Carregando dados via Supabase Fallback... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
 
         const fetchTableSafely = async (tableName: string) => {
@@ -777,19 +793,21 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     console.log(`[SERVIÇO] Buscando atletas no banco local... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
     
     // Condições WHERE para otimização
-    const whereClause = isAthlete && athleteId ? 'WHERE athlete_id = $1' : '';
-    const params = isAthlete && athleteId ? [athleteId] : [];
+    const scoped=(req as any).account;
+    const scopedIds="SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id)" + (isAthlete ? " AND athlete_id=$2" : "");
+    const whereClause = scoped ? `WHERE athlete_id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE athlete_id = $1' : '';
+    const params = scoped ? (isAthlete ? [scoped.organization_id,athleteId] : [scoped.organization_id]) : isAthlete && athleteId ? [athleteId] : [];
 
     let athletesRes, wellnessRes, workoutsRes, exercisesRes, performedSetsRes, 
         strengthRes, cmjRes, vo2Res, bioRes, speedRes, externalRes, dropJumpRes, imtpRes;
 
     try {
       const dbQueries = await Promise.all([
-        pool.query(`SELECT * FROM athletes ${isAthlete && athleteId ? 'WHERE id = $1' : ''} ORDER BY name ASC`, params),
+        pool.query(`SELECT * FROM athletes ${scoped ? `WHERE id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE id = $1' : ''} ORDER BY name ASC`, params),
         pool.query(`SELECT * FROM wellness ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM workouts ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM prescribed_exercises ${isAthlete && athleteId ? 'WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)' : ''} ORDER BY order_index ASC, id ASC`, params),
-        pool.query(`SELECT * FROM performed_sets ${isAthlete && athleteId ? 'WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))' : ''}`, params),
+        pool.query(`SELECT * FROM prescribed_exercises ${scoped ? `WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id IN (${scopedIds}))` : isAthlete && athleteId ? 'WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)' : ''} ORDER BY order_index ASC, id ASC`, params),
+        pool.query(`SELECT * FROM performed_sets ${scoped ? `WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id IN (${scopedIds})))` : isAthlete && athleteId ? 'WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))' : ''}`, params),
         pool.query(`SELECT * FROM isometric_strength ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM cmj ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM vo2max ${whereClause} ORDER BY date DESC`, params),
@@ -820,7 +838,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     }
 
     // SE NÃO HOUVER ATLETAS NO BANCO LOCAL, TENTAR SUPABASE
-    if (athletesRes.rows.length === 0) {
+    if (athletesRes.rows.length === 0 && !(req as any).account) {
       console.warn("[SERVIÇO] Banco local conectado mas está VAZIO. Tentando Supabase...");
       const formatted = await loadFromSupabase();
       return res.json(formatted);
@@ -1059,6 +1077,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
 apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   const athletes = req.body;
+  if ((req as any).account?.role === 'athlete') {
+    try {return res.json(await saveStudentData(pool,(req as any).account,athletes));}
+    catch {return res.status(403).json({error:'Não foi possível salvar os registros próprios do aluno.'});}
+  }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
   if (!isDbConnected && process.env.DATABASE_URL) {
@@ -1074,6 +1096,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
   // Definimos o helper para encapsular a lógica de salvamento via REST Proxy
   const doSupabaseProxyFallback = async () => {
+    if ((req as any).account) throw new Error('Fallback direto desativado para conta por organização.');
     const maskedUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 15) + "..." : "NÃO DEFINIDA";
     console.warn(`Express API: Utilizando o Supabase REST Proxy para sincronizar os dados (${maskedUrl})...`);
     
@@ -1568,7 +1591,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   try {
     console.log(`Iniciando transação para salvar ${athletes.length} atletas...`);
     await client.query('BEGIN');
-    
+    if ((req as any).account) await validateScopedSave(client,(req as any).account,athletes);
     for (const athlete of athletes) {
       console.log(`Salvando atleta: ${athlete.name} (${athlete.id})`);
       await client.query(
@@ -1808,6 +1831,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       }
     }
 
+    if ((req as any).account) await attachSavedAthletes(client,(req as any).account,athletes);
     await client.query('COMMIT');
     console.log('Dados salvos com sucesso!');
     res.json({ message: 'Dados sincronizados com sucesso!' });
@@ -1819,6 +1843,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.error('Erro ao executar ROLLBACK:', rollError.message);
       }
     }
+    if ((req as any).account) return res.status(error instanceof ScopeDenied ? 403 : 503).json({error:'Não foi possível salvar os dados autorizados.'});
     console.error('Erro ao salvar dados no banco Postgres (Acionando fallback automático para Supabase Proxy):', error);
     
     try {
@@ -1837,6 +1862,14 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
 // Deletion endpoints
 apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
+  if ((req as any).account) {
+    const scope=(req as any).account;
+    try{
+      if(scope.role!=='coach' || !await mayAccessAthlete(pool,scope,req.params.id))return res.status(403).json({error:'Atleta indisponível.'});
+      await pool.query('INSERT INTO lb_accounts.athlete_archives(athlete_id,organization_id,archived_by) VALUES($1,$2,$3) ON CONFLICT(athlete_id) DO NOTHING',[req.params.id,scope.organization_id,scope.user_id]);
+      return res.json({message:'Atleta arquivado. Histórico preservado.'});
+    }catch{return res.status(503).json({error:'Não foi possível arquivar o atleta.'});}
+  }
   const { id } = req.params;
   const dbConfigured = !!process.env.DATABASE_URL;
 
@@ -1915,6 +1948,10 @@ apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
 });
 
 apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
+  if ((req as any).account) {
+    try { return res.json(await scopedDelete(pool,(req as any).account,'workouts',req.params.id)); }
+    catch { return res.status(403).json({error:'Registro indisponível ou ação não permitida.'}); }
+  }
   const { id } = req.params;
   console.log(`[API] Solicitando exclusão do treino: ${id}`);
   
@@ -1970,6 +2007,10 @@ apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
 });
 
 apiRouter.delete('/wellness/:id', authMiddleware, async (req, res) => {
+  if ((req as any).account) {
+    try { return res.json(await scopedDelete(pool,(req as any).account,'wellness',req.params.id)); }
+    catch { return res.status(403).json({error:'Registro indisponível ou ação não permitida.'}); }
+  }
   const { id } = req.params;
   if (!process.env.DATABASE_URL || !isDbConnected) {
     try {
@@ -1996,6 +2037,10 @@ apiRouter.delete('/wellness/:id', authMiddleware, async (req, res) => {
 });
 
 apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
+  if ((req as any).account) {
+    try { return res.json(await scopedDelete(pool,(req as any).account,'sessions',req.params.id)); }
+    catch { return res.status(403).json({error:'Registro indisponível ou ação não permitida.'}); }
+  }
   const { id } = req.params;
   if (!process.env.DATABASE_URL || !isDbConnected) {
     try {
@@ -2022,6 +2067,10 @@ apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
 });
 
 apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
+  if ((req as any).account) {
+    try { return res.json(await scopedDelete(pool,(req as any).account,req.params.type,req.params.id)); }
+    catch { return res.status(403).json({error:'Registro indisponível ou ação não permitida.'}); }
+  }
   const { type, id } = req.params;
   const tableMap: Record<string, string> = {
     'bioimpedance': 'bioimpedance',
@@ -2061,8 +2110,19 @@ apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
   }
 });
 
+const aiScopeGuard = async (req:any,res:any,next:any) => {
+  if(!req.account)return next();
+  if(req.account.role!=='coach')return res.status(403).json({error:'Ação restrita ao treinador.'});
+  if(req.path==='/ai-search-exercises')return next();
+  const id=req.body?.athleteId || req.body?.athleteContext?.id || req.body?.athlete?.id;
+  try{
+    if(typeof id!=='string' || !await mayAccessAthlete(pool,req.account,id))return res.status(403).json({error:'Selecione um atleta autorizado para usar IA.'});
+    next();
+  }catch{return res.status(503).json({error:'Não foi possível validar o atleta.'});}
+};
+
 // AI endpoints under apiRouter
-apiRouter.post('/generate-workouts', authMiddleware, async (req, res) => {
+apiRouter.post('/generate-workouts', authMiddleware, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -2113,7 +2173,7 @@ apiRouter.post('/generate-workouts', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.post('/generate-imtp-ai', authMiddleware, async (req, res) => {
+apiRouter.post('/generate-imtp-ai', authMiddleware, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -2180,7 +2240,7 @@ apiRouter.post('/generate-imtp-ai', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.post('/generate-postural-ai', authMiddleware, async (req, res) => {
+apiRouter.post('/generate-postural-ai', authMiddleware, aiScopeGuard, async (req, res) => {
   const { painZones, presetType, notes, photoAnterior, photoLateral, photoPosterior } = req.body;
 
   if (!process.env.GEMINI_API_KEY) {
@@ -2314,7 +2374,7 @@ Assegure que os termos clínicos e nomes de exercícios sejam em português bras
   }
 });
 
-apiRouter.post('/generate-ai-modeling', authMiddleware, async (req, res) => {
+apiRouter.post('/generate-ai-modeling', authMiddleware, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -2383,7 +2443,7 @@ apiRouter.post('/generate-ai-modeling', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.post('/analyze-performance', authMiddleware, async (req, res) => {
+apiRouter.post('/analyze-performance', authMiddleware, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   if (!process.env.GEMINI_API_KEY) {
     console.error("[AI Analysis] GEMINI_API_KEY not configured on the server.");
@@ -2433,7 +2493,7 @@ apiRouter.post('/analyze-performance', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.post('/ai-search-exercises', authMiddleware, async (req, res) => {
+apiRouter.post('/ai-search-exercises', authMiddleware, aiScopeGuard, async (req, res) => {
   const { query } = req.body;
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: "Chave de API do Gemini não configurada no servidor." });
@@ -2502,7 +2562,7 @@ Regras de Seleção:
   }
 });
 
-apiRouter.post('/ai-prescribe-workout', authMiddleware, async (req, res) => {
+apiRouter.post('/ai-prescribe-workout', authMiddleware, aiScopeGuard, async (req, res) => {
   const { athleteData, objective, restrictions, timeAvailable, equipment, periodizationPhase, library } = req.body;
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: "Chave de API do Gemini não configurada no servidor." });
@@ -2599,7 +2659,7 @@ Retorne o plano de treino estritamente em formato JSON estruturado com uma anál
   }
 });
 
-apiRouter.post('/ai-chat', authMiddleware, async (req, res) => {
+apiRouter.post('/ai-chat', authMiddleware, aiScopeGuard, async (req, res) => {
   const { messages, athleteContext } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -3076,12 +3136,7 @@ async function runSetup(retries = 1) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
     
-    // Create default coach user if not exists
-    await client.query(`
-      INSERT INTO users (id, username, password, role, plan) 
-      VALUES ('coach-1', 'Leandro', 'techno10', 'coach', 'pro') 
-      ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, plan = EXCLUDED.plan
-    `);
+    // Administrative accounts are provisioned explicitly; never reset passwords on startup.
 
     // Create performance indexes
     await client.query(`CREATE INDEX IF NOT EXISTS idx_wellness_athlete_date ON wellness (athlete_id, date DESC);`).catch(() => {});

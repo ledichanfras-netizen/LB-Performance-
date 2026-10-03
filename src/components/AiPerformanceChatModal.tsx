@@ -205,6 +205,7 @@ ${ath.workouts && ath.workouts.length > 0 ? ath.workouts.slice(0, 3).map(w => `-
             images: m.images,
           })),
           athleteContext,
+          athleteId: currentAthlete?.id,
         }),
       });
 

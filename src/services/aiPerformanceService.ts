@@ -107,7 +107,7 @@ export async function generateAIModeling(athlete: Athlete): Promise<PerformanceM
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, athleteId: athlete.id })
     });
 
     if (!res.ok) {
@@ -197,7 +197,7 @@ export async function generateImtpAiAnalysis(
         "Content-Type": "application/json",
         ...(token ? { "Authorization": `Bearer ${token}` } : {})
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, athleteId: athlete.id })
     });
 
     if (!res.ok) {
@@ -247,6 +247,7 @@ export async function searchExercisesWithAi(query: string): Promise<{ exerciseId
 }
 
 export async function prescribeWorkoutWithAi(params: {
+  athleteId?: string;
   athleteData: string;
   objective: string;
   restrictions: string;
