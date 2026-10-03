@@ -23,3 +23,8 @@ A implementação está na branch feat/manual-billing-foundation. Produção e m
 ## Limites desta entrega
 A opção A registra pagamentos confirmados manualmente: o app não cobra cartão nem verifica Pix automaticamente. A base separa planos, assinaturas e lançamentos para implementar checkout e webhooks na opção B. Integração online depende de escolher provedor, conta comercial e credenciais de teste; nenhum pagamento real é executado nesta entrega.
 Não habilitar produção sem validar o fluxo no ambiente implantado. As flags ficam desativadas no exemplo para implantação controlada.
+
+## Implantação LBHUB em 03/10/2026
+
+O usuário autorizou a implantação após validar DATABASE_URL pelo Session pooler. O banco LBHUB contém a conta Leandro e 38 atletas. Schemas de contas/cobrança são preparados sem alterar registros esportivos. data-access-schema.sql habilita RLS e revoga acesso direto de clientes às tabelas existentes, pois o login é JWT nativo e o servidor faz autorização usando PostgreSQL.
+O primeiro administrador usa a conta Leandro existente, selecionada por ID após conferir username/role. A senha nova é definida pelo proprietário em /contas com código único; não é definida em código nem coletada no chat. BILLING_ENFORCE permanece false até validar esse acesso e os planos. A ativação exige novo login e invalida tokens anteriores.
