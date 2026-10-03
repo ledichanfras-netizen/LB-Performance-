@@ -334,7 +334,7 @@ app.use(express.json({ limit: '50mb' }));
 const apiRouter = express.Router();
 
 // Auth Middleware
-const authMiddleware = (req: any, res: any, next: any) => {
+const authMiddleware = async (req: any, res: any, next: any) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: 'Token não fornecido' });
@@ -344,7 +344,14 @@ const authMiddleware = (req: any, res: any, next: any) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     if ((decoded as any).accountMode === 'scoped') {
-      return res.status(403).json({ error: 'Acesso esportivo por organização ainda em validação.' });
+      if (!req.originalUrl.startsWith('/api/billing/')) {
+        return res.status(403).json({ error: 'Acesso esportivo por organização ainda em validação.' });
+      }
+      const claims = decoded as any;
+      const membership = await pool.query('SELECT m.session_version FROM lb_accounts.memberships m WHERE m.user_id=$1 AND m.active', [claims.id]);
+      if (!membership.rows[0] || membership.rows[0].session_version !== claims.sessionVersion) {
+        return res.status(401).json({ error: 'Sessão inválida.' });
+      }
     }
     req.user = decoded;
     next();

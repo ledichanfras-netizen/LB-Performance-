@@ -38,3 +38,17 @@ Cache do hub separado por identidade/organização; hub remonta quando muda a se
 logout limpa caches de atletas. Essa alteração não substitui autorização no servidor.
 Bootstrap administrativo preparado em scripts/bootstrap-accounts.ts, ainda não executado;
 requer senha nova fornecida por variável de ambiente. Não gera nem divulga senha ao usuário.
+
+## Incremento de proteção das operações
+Rotas privadas do piloto: PATCH /accounts/athletes/:id/profile altera somente nome/modalidade
+por treinador da organização; DELETE /accounts/records/:type/:id verifica proprietário no
+banco e faz exclusão transacional (incluindo séries/exercícios de treino). Aluno pode excluir
+somente próprio wellness/sessão externa. A rota de contexto IA entrega apenas identificação
+do atleta autorizado; não integra ainda o contexto completo nem as chamadas de IA legadas.
+Login/aceitação limitados por identidade em janelas de 15 minutos usando contador PostgreSQL;
+limites 20/10. Isso não substitui proteção global contra abuso ou ataques volumétricos.
+Aplicar account-rate-schema.sql antes de ativar o piloto.
+Sessões scoped passam a poder consultar billing após validar versão no banco; administração
+financeira scoped vem de platform_admin persistido, sem depender da lista de IDs de legado.
+Os fluxos esportivos existentes ainda não foram conectados às novas rotas: salvar avaliação,
+criar atleta e prescrever treino por conta scoped continuam desativados.

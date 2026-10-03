@@ -16,7 +16,12 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
       if (!req.user?.id) return res.status(403).json({ error: 'Entre com uma conta cadastrada no banco.' });
       const { rows } = await pool.query('SELECT id, role FROM users WHERE id=$1', [req.user.id]);
       if (!rows[0]) return res.status(401).json({ error: 'Conta inexistente.' });
-      req.billingAdmin = rows[0].role === 'coach' && (process.env.BILLING_ADMIN_USER_IDS || '').split(',').map(x => x.trim()).includes(rows[0].id);
+      if (req.user.accountMode === 'scoped') {
+        const membership = await pool.query('SELECT platform_admin FROM lb_accounts.memberships WHERE user_id=$1 AND active', [rows[0].id]);
+        req.billingAdmin = rows[0].role === 'coach' && membership.rows[0]?.platform_admin === true;
+      } else {
+        req.billingAdmin = rows[0].role === 'coach' && (process.env.BILLING_ADMIN_USER_IDS || '').split(',').map(x => x.trim()).includes(rows[0].id);
+      }
       next();
     } catch { res.status(503).json({ error: 'Banco indisponível para gestão comercial.' }); }
   });

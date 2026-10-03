@@ -25,3 +25,8 @@ test('administrator cannot grant courtesy as revenue',async()=>{
  process.env.BILLING_ADMIN_USER_IDS='admin';
  await fixture({id:'admin'},async()=>({rows:[{id:'admin',role:'coach'}]}),async url=>assert.equal((await fetch(url+'/subscriptions/example/renew',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:'1234567890123456',amountCents:100,method:'courtesy',reason:'Teste'})})).status,400));
 });
+
+test('scoped financial permission comes from persisted membership',async()=>{
+ process.env.BILLING_ENABLED='true';process.env.BILLING_ADMIN_USER_IDS='coach-new';
+ await fixture({id:'coach-new',accountMode:'scoped'},async(q:string)=>({rows:q.includes('platform_admin')?[{platform_admin:false}]:[{id:'coach-new',role:'coach'}]}),async url=>assert.equal((await fetch(url+'/plans',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,403));
+});
