@@ -1,71 +1,25 @@
-# Contas e organizações — piloto desativado
+# Ativação de contas, organizações e cobrança manual
 
-Contas por convite em /contas; APIs em /api/accounts. ACCOUNTS_ENABLED=false por padrão.
-Convites: token aleatório de 256 bits, apenas hash no banco, validade de 48 horas,
-uso único com transação e bloqueio da linha. Senha: bcrypt custo 12, mínimo 12 caracteres,
-limite de 72 bytes. Sessão: duas horas, versão conferida no banco a cada operação administrativa.
-Somente administrador persistido em memberships pode criar organizações e convites.
-Administração não concede acesso esportivo global. Convite de aluno exige vínculo do atleta à organização.
+A implementação está na branch feat/manual-billing-foundation. Produção e main não foram alteradas.
 
-## Preparação antes da ativação
-1. Backup e banco de staging. Aplicar accounts-schema.sql sem expor lb_accounts na Data API.
-2. Revogar acesso público à tabela users e corrigir os caminhos legados. Migrar senhas em texto puro.
-3. Provisionar organização LB, conta administrativa com hash de senha nova e membership platform_admin.
-   Não há endpoint público para criar o primeiro administrador ou elevar privilégios.
-4. Associar os atletas existentes à organização LB na tabela athlete_scopes, após conferir órfãos.
-5. Testar cadastro, expiração, repetição e sessão inválida em staging.
-6. Adicionar rate limiting distribuído aos endpoints de login/aceitação antes de expô-los publicamente.
+## Fluxo implementado
+- /contas: configuração única do administrador, aceitação de convite, criação de organizações e convite de treinador/aluno; redefinição de senha para usuário vinculado ao mesmo espaço.
+- Login com bcrypt, sessão de duas horas, versão de sessão consultada no banco e limite distribuído de tentativas. Redefinir senha invalida sessões anteriores.
+- Treinadores consultam e alteram apenas atletas de sua organização. Alunos registram prontidão, sessões externas e execução de seus próprios treinos; não alteram prescrição.
+- Leituras, salvamento, exclusões, IA e cache respeitam os vínculos. Atleta excluído é arquivado, preservando registros.
+- /assinaturas: planos de aluno/treinador, preço, duração, tolerância e limite de atletas; vínculo do plano, recebimento confirmado, cortesia, renovação, suspensão e cancelamento da renovação; histórico financeiro.
+- Liberação conferida no servidor pela validade/tolerância. Um aluno sem assinatura individual pode ser coberto por licença ativa de treinador do mesmo espaço. Uma assinatura individual vencida ou suspensa tem prioridade. Cancelamento da renovação preserva o prazo já concedido.
 
-## Sequência restante antes de acesso esportivo
-O token scoped é deliberadamente rejeitado pelo middleware das APIs esportivas legadas,
-pois /ler ainda carrega todos os atletas para coach. As rotas /accounts usam autenticação própria.
-Assim, o piloto não abre uma segunda via para consultar dados sem isolamento.
-Implementar filtros por athlete_scopes em todas as leituras e validação do vínculo em todas
-as escritas/exclusões; novos atletas precisam de atribuição atômica. Revisar rotas de IA,
-api/*.js, acesso direto Supabase e caches antes de habilitar esportes para novas contas.
-Depois validar novo administrador, trocar JWT_SECRET e remover login fixo, auto-registro por
-nascimento e recriação da senha padrão. Isso ainda não foi feito neste incremento para evitar
-bloqueio do acesso existente sem credencial substituta validada.
-Não aplicar nenhuma destas etapas automaticamente em produção.
+## Implantação em staging
+1. Confirmar serviço Render e conferir que usa exclusivamente LB-Performance-Staging.
+2. Aplicar accounts-schema.sql, billing-schema.sql, account-rate-schema.sql e commercial-controls-schema.sql nessa ordem. Manter schemas privados fora da Data API e acesso público a users revogado.
+3. Configurar DATABASE_URL e JWT_SECRET forte e exclusivo. Ativar ACCOUNTS_ENABLED, SCOPED_SPORTS_ENABLED e BILLING_ENABLED. Manter BILLING_ENFORCE=false durante o teste inicial.
+4. Gerar um código aleatório de 32 bytes; guardar apenas SHA256 em ADMIN_SETUP_TOKEN_HASH. Para criar a conta Leandro, definir ADMIN_SETUP_ALLOW_CREATE=true e ADMIN_SETUP_USERNAME=Leandro. Alternativamente, definir ADMIN_SETUP_USER_ID de treinador existente verificado. Não usar conta de regressão como administrador.
+5. Em /contas, o proprietário informa o código privado e define pessoalmente uma senha de pelo menos 12 caracteres. O código não é senha permanente. O processo só funciona quando ainda não existe administrador, vincula atletas existentes à organização LB e não redefine outras contas.
+6. Remover variáveis ADMIN_SETUP_* após configurar e testar o novo login. Criar organização e convite de outro treinador; criar aluno nesse espaço e convite correspondente.
+7. Criar plano, vincular assinatura, confirmar recebimento/cortesia e ativar BILLING_ENFORCE=true. Conferir bloqueio de conta sem licença, prazo vencido, suspensão, renovação duplicada, aluno próprio e tentativa de acesso entre organizações.
+8. Validar prontidão, avaliações, treino, execução e IA no serviço implantado antes de promover para produção. Fazer backup e inventário de contas/atletas da produção antes da migração.
 
-## Progresso verificado em 03/10/2026
-Schemas accounts e billing aplicados ao projeto LB-Performance-Staging, sem alteração
-nas contas, senhas ou atletas existentes. Sete tabelas verificadas com RLS e sem USAGE
-para anon/authenticated. Teste PostgreSQL local confirma isolamento e bloqueio direto.
-Endpoint de listagem /api/accounts/athletes consulta escopo persistido, sem privilégio
-esportivo global para administrador. Salvamento/exclusão esportiva scoped seguem bloqueados.
-Cache do hub separado por identidade/organização; hub remonta quando muda a sessão,
-logout limpa caches de atletas. Essa alteração não substitui autorização no servidor.
-Bootstrap administrativo preparado em scripts/bootstrap-accounts.ts, ainda não executado;
-requer senha nova fornecida por variável de ambiente. Não gera nem divulga senha ao usuário.
-
-## Incremento de proteção das operações
-Rotas privadas do piloto: PATCH /accounts/athletes/:id/profile altera somente nome/modalidade
-por treinador da organização; DELETE /accounts/records/:type/:id verifica proprietário no
-banco e faz exclusão transacional (incluindo séries/exercícios de treino). Aluno pode excluir
-somente próprio wellness/sessão externa. A rota de contexto IA entrega apenas identificação
-do atleta autorizado; não integra ainda o contexto completo nem as chamadas de IA legadas.
-Login/aceitação limitados por identidade em janelas de 15 minutos usando contador PostgreSQL;
-limites 20/10. Isso não substitui proteção global contra abuso ou ataques volumétricos.
-Aplicar account-rate-schema.sql antes de ativar o piloto.
-Sessões scoped passam a poder consultar billing após validar versão no banco; administração
-financeira scoped vem de platform_admin persistido, sem depender da lista de IDs de legado.
-Os fluxos esportivos existentes ainda não foram conectados às novas rotas: salvar avaliação,
-criar atleta e prescrever treino por conta scoped continuam desativados.
-
-## Integração esportiva de treinador
-SCOPED_SPORTS_ENABLED=false por padrão. Quando ativado em staging, /ler filtra as tabelas
-normalizadas (incluindo exercícios e séries) pela organização persistida. Uma lista vazia
-não aciona fallback global. /salvar de treinador valida todos os IDs pais/filhos dentro da
-mesma transação e vincula novos atletas à organização. O fallback Supabase direto é recusado
-para sessão scoped. Estudantes não podem usar o salvamento completo: fluxo de escrita
-restrita de execução/prontidão ainda pendente. Exclusões scoped usam o serviço transacional;
-exclusão de atleta exige arquivamento administrativo e fica bloqueada nesta fase.
-IA verifica treinador e ID de atleta autorizado antes da chamada; hooks de análise/geração,
-modelagem e IMTP passam o ID. Chamadas sem ID (alguns componentes) são bloqueadas, não liberadas.
-Quando ACCOUNTS_ENABLED=true, /auth/login usa contas seguras e rejeita tokens legados nas APIs.
-Fallback de credencial fixa e recriação da senha padrão removidos desta branch. Não implantar
-antes de provisionar e validar a conta administrativa substituta. Main/produção não alterados.
-BILLING_ENFORCE=false por padrão; se ativado, validade/tolerância são consultadas no servidor.
-Assinatura individual expirada do aluno tem prioridade sobre licença do treinador. Administração
-pode renovar pagamentos vencidos sem ser bloqueada pela licença.
+## Limites desta entrega
+A opção A registra pagamentos confirmados manualmente: o app não cobra cartão nem verifica Pix automaticamente. A base separa planos, assinaturas e lançamentos para implementar checkout e webhooks na opção B. Integração online depende de escolher provedor, conta comercial e credenciais de teste; nenhum pagamento real é executado nesta entrega.
+Não habilitar produção sem validar o fluxo no ambiente implantado. As flags ficam desativadas no exemplo para implantação controlada.

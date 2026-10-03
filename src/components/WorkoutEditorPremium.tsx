@@ -1966,6 +1966,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
     try {
       const response = await prescribeWorkoutWithAi({
+        athleteId: athlete?.id,
         athleteData: `${athleteName} (${aiAgeRange})`,
         objective: aiFocusGoal,
         restrictions: "Nenhuma restrição de lesão relatada",

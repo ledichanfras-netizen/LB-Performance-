@@ -7,9 +7,21 @@ export async function validateScopedSave(client:Pick<PoolClient,'query'>,scope:A
  // Serializes organization saves, and locks IDs shared across organizations before checking ownership.
  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[scope.organization_id]);
  const seen=new Map<string,string>();
+ if(process.env.BILLING_ENFORCE==='true' && !(scope as any).platform_admin){
+  const license=await client.query('SELECT p.athlete_limit FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE s.user_id=$1',[scope.user_id]);
+  const limit=license.rows[0]?.athlete_limit;
+  if(typeof limit==='number'){
+   const count=await client.query('SELECT count(*)::int AS total FROM lb_accounts.athlete_scopes s WHERE s.organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives a WHERE a.athlete_id=s.athlete_id)',[scope.organization_id]);
+   const existingIds=await client.query('SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE athlete_id=ANY($1::text[])',[athletes.map(a=>a.id)]);
+   const known=new Set(existingIds.rows.map((a:any)=>a.athlete_id));
+   if(count.rows[0].total+athletes.filter(a=>!known.has(a.id)).length>limit)throw new ScopeDenied();
+  }
+ }
  const ids=athletes.map(a=>a?.id);if(ids.some(x=>typeof x!=='string' || !x || x.length>200) || new Set(ids).size!==ids.length)throw new ScopeDenied();
  for(const athlete of [...athletes].sort((a,b)=>a.id.localeCompare(b.id))){
   await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`athlete:${athlete.id}`]);
+  const archived=await client.query('SELECT athlete_id FROM lb_accounts.athlete_archives WHERE athlete_id=$1',[athlete.id]);
+  if(archived.rows.length)throw new ScopeDenied();
   const existing=await client.query('SELECT a.id,s.organization_id FROM public.athletes a LEFT JOIN lb_accounts.athlete_scopes s ON s.athlete_id=a.id WHERE a.id=$1',[athlete.id]);
   if(existing.rows.length && existing.rows[0].organization_id!==scope.organization_id)throw new ScopeDenied();
   const collections:[string,any[],string][]=[['wellness',athlete.wellness || [],'athlete_id'],['external_sessions',athlete.externalSessions || [],'athlete_id'],['workouts',athlete.workouts || [],'athlete_id']];

@@ -4,12 +4,12 @@ export type AccountScope = { user_id:string; organization_id:string; role:string
 export async function scopedAthletes(db:Pick<Pool,'query'>, account:AccountScope) {
  const result=await db.query(`SELECT a.id,a.name,a.modality FROM public.athletes a
  JOIN lb_accounts.athlete_scopes s ON s.athlete_id=a.id
- WHERE s.organization_id=$1 AND ($2::text='coach' OR ($2::text='athlete' AND a.id=$3))
+ WHERE s.organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=a.id) AND ($2::text='coach' OR ($2::text='athlete' AND a.id=$3))
  ORDER BY a.name,a.id`,[account.organization_id,account.role,account.athlete_id || null]);
  return result.rows;
 }
 export async function mayAccessAthlete(db:Pick<Pool,'query'>, account:AccountScope, athleteId:string) {
- const result=await db.query(`SELECT 1 FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND athlete_id=$2
+ const result=await db.query(`SELECT 1 FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND athlete_id=$2 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id)
  AND ($3::text='coach' OR ($3::text='athlete' AND athlete_id=$4))`,[account.organization_id,athleteId,account.role,account.athlete_id || null]);
  return result.rows.length===1;
 }

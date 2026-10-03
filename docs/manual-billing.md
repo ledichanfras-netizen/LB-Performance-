@@ -1,36 +1,11 @@
-# Gestão comercial — primeiro incremento
+# Opção A sobre a base da opção B
 
-Rota: /assinaturas. API: /api/billing. Desativado por padrão.
+O administrador cria planos para aluno e treinador em /assinaturas: valor em centavos, duração em dias, tolerância e limite de atletas. Vincula um usuário ao plano e confirma manualmente um recebimento Pix, cartão externo ou transferência. Cortesias são registradas separadamente de receita.
 
-## Entrega
-Planos com preços em centavos, assinaturas de contas existentes, pagamentos manuais,
-cortesias e testes separados da receita; renovação antecipada preserva período pago;
-renovação vencida começa no momento do registro; tolerância calculada na leitura.
-Renovações são transacionais, serializadas por assinatura e deduplicadas por requestId.
-O administrador é autorizado por ID de uma conta real de treinador consultada no banco,
-nunca pelo plano recebido no navegador ou pelo token legado sem ID.
+Cada renovação tem chave de idempotência, transação e bloqueio de assinatura; uma repetição da mesma solicitação não duplica receita nem prazo. O prazo parte do maior valor entre vencimento atual e agora. Suspensão bloqueia acesso; retomada mantém o prazo; cancelamento de renovação mantém o acesso até vencer. Histórico registra pagamentos e ações administrativas.
 
-## Ativação em staging
-1. Backup do banco e confirmação da identidade da conta administrativa.
-   Antes de ativar: remover políticas públicas de users e substituir o login fixo;
-   um ID autorizado não protege uma conta que pode ser modificada anonimamente.
-2. Aplicar server/billing-schema.sql com uma conexão privilegiada ao banco de staging.
-   Não expor lb_billing na Data API. Não há acesso para anon/authenticated.
-3. Definir BILLING_ADMIN_USER_IDS com os IDs existentes e BILLING_ENABLED=true.
-4. Entrar com conta persistida no banco; token legado sem ID não funciona neste módulo.
-5. Testar plano, vínculo, renovação, repetição da mesma requestId e acesso de aluno.
+As tabelas lb_billing.plans, subscriptions, entries e audit_events são privadas, protegidas por RLS e acessadas apenas pelo servidor. A autoridade financeira vem da membership persistida; o administrador não recebe acesso esportivo global.
 
-## Não é liberação de produção
-Não aplica schema automaticamente nem modifica banco remoto.
-Não bloqueia APIs esportivas por vencimento nesta fase.
-Não implementa isolamento dos atletas por organização: isso precisa anteceder venda a outros treinadores.
-Não remove ainda o login legado: a substituição exige provisionar e validar primeiro a conta administrativa.
-Não implementa cancelamento, suspensão, histórico na interface, escolha da data de recebimento,
-limite de atletas, checkout nem webhooks. O contrato reserva identificadores de provedor.
-As regras atuais de acesso direto ao Supabase devem ser corrigidas antes de ativar bloqueio comercial.
-Duração inicial é em dias, não meses de calendário. Os períodos são exibidos com horário.
+A opção B poderá adicionar identificação do cliente no provedor, checkout, assinatura recorrente e eventos de webhook únicos/validados. O evento confirmado alimentará a mesma rotina transacional de concessão de prazo. Redirecionamento do navegador nunca será confirmação de pagamento.
 
-## Próximo incremento
-Provisionar login administrativo seguro; organizações e membros; filtrar todas as rotas,
-remover caminhos diretos sem autorização e separar cache por conta; depois aplicar validade
-nas operações protegidas. Cortesia e pagamento manual permanecem disponíveis com a futura integração online.
+A ativação e as variáveis necessárias estão em accounts-rollout.md. Checkout e webhooks de provedor não estão implementados; a entrega atual é cobrança manual.

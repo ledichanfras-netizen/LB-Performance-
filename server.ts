@@ -1,6 +1,7 @@
 import express from 'express';
 import { billingRouter } from './server/billing';
 import { accountRouter } from './server/accounts';
+import { saveStudentData } from './server/studentSave';
 import { hasSportsAccess } from './server/entitlement';
 import { validateScopedSave, attachSavedAthletes } from './server/saveScope';
 import { scopedDelete, mayAccessAthlete, ScopeDenied } from './server/scope';
@@ -350,7 +351,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
       return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
     }
     if ((decoded as any).accountMode === 'scoped') {
-      if (process.env.SCOPED_SPORTS_ENABLED !== 'true') return res.status(403).json({error:'Acesso por organização ainda não ativado.'});
+      if (process.env.SCOPED_SPORTS_ENABLED !== 'true' && !req.originalUrl.startsWith('/api/billing/')) return res.status(403).json({error:'Acesso por organização ainda não ativado.'});
       const claims = decoded as any;
       const membership = await pool.query('SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active',[claims.id]);
       const account=membership.rows[0];
@@ -793,7 +794,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     
     // Condições WHERE para otimização
     const scoped=(req as any).account;
-    const scopedIds="SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE organization_id=$1" + (isAthlete ? " AND athlete_id=$2" : "");
+    const scopedIds="SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id)" + (isAthlete ? " AND athlete_id=$2" : "");
     const whereClause = scoped ? `WHERE athlete_id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE athlete_id = $1' : '';
     const params = scoped ? (isAthlete ? [scoped.organization_id,athleteId] : [scoped.organization_id]) : isAthlete && athleteId ? [athleteId] : [];
 
@@ -1076,6 +1077,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
 apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   const athletes = req.body;
+  if ((req as any).account?.role === 'athlete') {
+    try {return res.json(await saveStudentData(pool,(req as any).account,athletes));}
+    catch {return res.status(403).json({error:'Não foi possível salvar os registros próprios do aluno.'});}
+  }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
   if (!isDbConnected && process.env.DATABASE_URL) {
@@ -1857,7 +1862,14 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
 // Deletion endpoints
 apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
-  if ((req as any).account) return res.status(403).json({error:'Exclusão de atleta exige arquivamento administrativo nesta fase.'});
+  if ((req as any).account) {
+    const scope=(req as any).account;
+    try{
+      if(scope.role!=='coach' || !await mayAccessAthlete(pool,scope,req.params.id))return res.status(403).json({error:'Atleta indisponível.'});
+      await pool.query('INSERT INTO lb_accounts.athlete_archives(athlete_id,organization_id,archived_by) VALUES($1,$2,$3) ON CONFLICT(athlete_id) DO NOTHING',[req.params.id,scope.organization_id,scope.user_id]);
+      return res.json({message:'Atleta arquivado. Histórico preservado.'});
+    }catch{return res.status(503).json({error:'Não foi possível arquivar o atleta.'});}
+  }
   const { id } = req.params;
   const dbConfigured = !!process.env.DATABASE_URL;
 
