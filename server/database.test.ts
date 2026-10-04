@@ -94,6 +94,14 @@ test('invitation and manual renewal end to end with PostgreSQL',async()=>{
  const base=`http://127.0.0.1:${(server.address() as any).port}`;
  const post=async(path:string,body:any)=>fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  try{
+ await db.query('INSERT INTO lb_accounts.memberships(user_id,organization_id,platform_admin) VALUES($1,$2,true)',['admin',org]);
+ const jwt=(await import('jsonwebtoken')).default;const adminToken=jwt.sign({id:'admin',accountMode:'scoped',sessionVersion:1},'test-secret');
+ const invitePost=(body:any)=>fetch(base+'/accounts/invites',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${adminToken}`},body:JSON.stringify(body)});
+ const organizations=await fetch(base+'/accounts/organizations',{headers:{Authorization:`Bearer ${adminToken}`}});assert.equal(organizations.status,200);assert.equal((await organizations.json())[0].id,org);
+ const generated=await invitePost({organizationId:' '+org+' ',username:' coach.generated ',role:'coach',athleteId:''});assert.equal(generated.status,201);assert.match((await generated.json()).token,/^[a-f0-9]{64}$/);
+ assert.equal((await invitePost({organizationId:org,username:'coach.generated',role:'coach'})).status,409);
+ const ownerInvite=await invitePost({organizationId:org,username:'Leandro',role:'coach'});assert.equal(ownerInvite.status,400);assert.match((await ownerInvite.json()).error,/administrador/);
+ assert.equal((await invitePost({organizationId:'LB',username:'another.coach',role:'coach'})).status,400);
  assert.equal((await post('/accounts/accept',{token:expired,password:'a-new-safe-password'})).status,400);
  assert.equal((await post('/accounts/accept',{token:invite,password:'a-new-safe-password'})).status,201);
  assert.equal((await post('/accounts/accept',{token:invite,password:'a-new-safe-password'})).status,400);

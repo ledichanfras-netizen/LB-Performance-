@@ -58,6 +58,7 @@ export function accountRouter(pool: Pool, secret: string) {
   const {rows}=await pool.query('SELECT id,name,modality FROM public.athletes WHERE id=$1',[req.params.id]);
   res.json({athlete:rows[0]});
  }));
+ router.get('/organizations',run(async(req:any,res:any)=>{if(!req.account.platform_admin)return res.status(403).json({error:'Apenas o administrador.'});res.json((await pool.query('SELECT id,name FROM lb_accounts.organizations ORDER BY name')).rows);}));
  router.post('/organizations',run(async(req:any,res:any)=>{
   if(!req.account.platform_admin) return res.status(403).json({error:'Apenas o administrador.'});
   const {name}=req.body;if(typeof name!=='string' || !name.trim() || name.length>100) throw Error('INVALID');
@@ -65,17 +66,24 @@ export function accountRouter(pool: Pool, secret: string) {
  }));
  router.post('/invites',run(async(req:any,res:any)=>{
   if(!req.account.platform_admin) return res.status(403).json({error:'Apenas o administrador pode convidar.'});
-  const {organizationId,username,role,athleteId=null}=req.body;
-  if(typeof username!=='string' || !/^[a-zA-Z0-9._@-]{3,100}$/.test(username) || !['coach','athlete'].includes(role) || (role==='coach' && athleteId!==null) || (role==='athlete' && typeof athleteId!=='string')) throw Error('INVALID');
+  const organizationId=typeof req.body.organizationId==='string'?req.body.organizationId.trim().toLowerCase():'';
+  const username=typeof req.body.username==='string'?req.body.username.trim():'';
+  const role=req.body.role;const athleteId=typeof req.body.athleteId==='string'?req.body.athleteId.trim()||null:null;
+  if(!/^[a-zA-Z0-9._@-]{3,100}$/.test(username))return res.status(400).json({error:'Use um usuário de 3 a 100 caracteres, sem espaços: letras, números, ponto, hífen ou @.'});
+  if(!['coach','athlete'].includes(role))return res.status(400).json({error:'Selecione Treinador ou Aluno.'});
+  if((role==='coach' && athleteId!==null) || (role==='athlete' && !athleteId))return res.status(400).json({error:'Para aluno, informe seu identificador. Para treinador, deixe o identificador de aluno vazio.'});
+  if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(organizationId) || !(await pool.query('SELECT id FROM lb_accounts.organizations WHERE id=$1',[organizationId])).rows.length)return res.status(400).json({error:'Selecione uma organização cadastrada.'});
   const existing=await pool.query('SELECT id,role,athlete_id FROM public.users WHERE lower(username)=lower($1)',[username]);
   let targetId=null;
-  if(existing.rows.length){const u=existing.rows[0];if(u.role!==role || (role==='athlete' && u.athlete_id!==athleteId))throw Error('INVALID');
+  if(existing.rows.length){const u=existing.rows[0];if(u.role!==role || (role==='athlete' && u.athlete_id!==athleteId))return res.status(400).json({error:'Esse usuário já pertence a outra conta. Escolha um novo nome de usuário.'});
    const member=await pool.query('SELECT organization_id,platform_admin FROM lb_accounts.memberships WHERE user_id=$1',[u.id]);
-   if(member.rows[0] && (member.rows[0].organization_id!==organizationId || member.rows[0].platform_admin))throw Error('INVALID');
-   if(role==='coach' && !member.rows.length)throw Error('INVALID');targetId=u.id;
+   if(member.rows[0]?.platform_admin)return res.status(400).json({error:'Esse é o usuário administrador. Use um novo usuário para o treinador, por exemplo treinador.teste.'});
+   if(member.rows[0] && member.rows[0].organization_id!==organizationId)return res.status(400).json({error:'Esse usuário pertence a outra organização. Escolha um novo usuário.'});
+   if(role==='coach' && !member.rows.length)return res.status(400).json({error:'Conta existente sem organização. Use um novo usuário para este convite.'});targetId=u.id;
   }
-  if(role==='athlete'){const scope=await pool.query('SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE athlete_id=$1 AND organization_id=$2',[athleteId,organizationId]);if(!scope.rows.length) throw Error('INVALID');}
+  if(role==='athlete'){const scope=await pool.query('SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE athlete_id=$1 AND organization_id=$2',[athleteId,organizationId]);if(!scope.rows.length)return res.status(400).json({error:'O aluno não está vinculado à organização selecionada.'});}
   await pool.query('UPDATE lb_accounts.invites SET revoked_at=now() WHERE lower(username)=lower($1) AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at<=now()',[username]);
+  if((await pool.query('SELECT id FROM lb_accounts.invites WHERE lower(username)=lower($1) AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now()',[username])).rows.length)return res.status(409).json({error:'Já existe um convite válido para esse usuário. Use o convite anterior ou aguarde sua expiração.'});
   const token=randomBytes(32).toString('hex');const {rows}=await pool.query("INSERT INTO lb_accounts.invites(id,token_hash,organization_id,username,role,athlete_id,created_by,expires_at,target_user_id) VALUES($1,$2,$3,$4,$5,$6,$7,now()+interval '48 hours',$8) RETURNING id,expires_at",[randomUUID(),tokenHash(token),organizationId,username,role,athleteId,req.account.user_id,targetId]);
   res.status(201).json({...rows[0],token});
  }));
