@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import { accountRouter, validPassword, tokenHash } from './accounts';
 import jwt from 'jsonwebtoken';
-test('password validates UTF8 bytes and minimum length',()=>{
- assert.equal(validPassword('short'),false);assert.equal(validPassword('a'.repeat(12)),true);
+test('password validates UTF8 bytes and minimum length of 8',()=>{
+ assert.equal(validPassword('short'),false);assert.equal(validPassword('a'.repeat(7)),false);assert.equal(validPassword('a'.repeat(8)),true);
  assert.equal(validPassword('a'.repeat(73)),false);assert.equal(validPassword('😀'.repeat(19)),false);
 });
 test('invite storage uses deterministic SHA256 hash',()=>{assert.equal(tokenHash('a').length,64);assert.notEqual(tokenHash('a'),tokenHash('b'));});

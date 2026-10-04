@@ -270,3 +270,52 @@ test('supervisor HTTP reads require a live explicit link and never grant coach a
  await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_accounts.supervisor_links'));await db.exec('RESET ROLE');
  }finally{await new Promise<void>(r=>server.close(()=>r()));await db.close();}
 });
+
+test('student invites are organization-scoped, revocable, and usable with an 8-character password',async()=>{
+ const express=(await import('express')).default;const jwt=(await import('jsonwebtoken')).default;const {accountRouter}=await import('./accounts');
+ const db=new PGlite();await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
+ CREATE TABLE users(id text PRIMARY KEY,username text UNIQUE,password text,role text,athlete_id text,plan text);
+ CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
+ INSERT INTO users VALUES('admin','Owner','','coach',NULL,'pro'),('coach','Trainer','','coach',NULL,'free'),('student','Existing','','athlete','a','free');
+ INSERT INTO athletes VALUES('a','Ana','Tennis'),('b','Bruno','Run');`);
+ for(const f of ['accounts-schema.sql','supervisor-schema.sql','account-rate-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
+ const own='11111111-1111-4111-8111-111111111111',org='22222222-2222-4222-8222-222222222222',other='33333333-3333-4333-8333-333333333333';
+ await db.query('INSERT INTO lb_accounts.organizations(id,name) VALUES($1,$2),($3,$4),($5,$6)',[own,'Owner',org,'Trainer',other,'Other']);
+ await db.query('INSERT INTO lb_accounts.memberships(user_id,organization_id,platform_admin) VALUES($1,$2,true),($3,$4,false),($5,$4,false)',['admin',own,'coach',org,'student']);
+ await db.query('INSERT INTO lb_accounts.athlete_scopes VALUES($1,$2),($3,$4)',['a',org,'b',other]);
+ const adapter={query:(q:string,p?:any[])=>db.query(q,p),connect:async()=>({query:(q:string,p?:any[])=>db.query(q,p),release:()=>{}})} as any;
+ process.env.ACCOUNTS_ENABLED='true';process.env.JWT_SECRET='test-secret';process.env.BILLING_ENABLED='false';
+ const app=express();app.use(express.json());app.use('/accounts',accountRouter(adapter,'test-secret'));const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));
+ const base=`http://127.0.0.1:${(server.address() as any).port}/accounts`;
+ const request=(path:string,user='coach',method='GET',body?:any)=>fetch(base+path,{method,headers:{'Content-Type':'application/json',Authorization:`Bearer ${jwt.sign({id:user,sessionVersion:1,accountMode:'scoped'},'test-secret')}`},body:body===undefined?undefined:JSON.stringify(body)});
+ const invite=(username:string,organizationId=org,athleteId='a',role='athlete')=>({username,organizationId,athleteId:role==='coach'?null:athleteId,role});
+ try{
+ const orgs=await request('/access/organizations');assert.equal(orgs.status,200);assert.deepEqual((await orgs.json()).map((o:any)=>o.id),[org]);
+ const list=await request(`/access/athletes?organizationId=${org}`);assert.equal(list.status,200);assert.equal((await list.json())[0].login_username,'Existing');
+ assert.equal((await request(`/access/athletes?organizationId=${other}`)).status,403);
+ assert.equal((await request('/invites','coach','POST',invite('foreign',other,'b'))).status,403);
+ assert.equal((await request('/invites','coach','POST',invite('foreign-athlete',org,'b'))).status,400);
+ assert.equal((await request('/invites','coach','POST',invite('new-coach',org,'','coach'))).status,403);
+ assert.equal((await request('/organizations','coach','POST',{name:'No'})).status,403);
+ assert.equal((await request(`/access/invites?organizationId=${org}`,'student')).status,403);
+ assert.equal((await request('/invites','admin','POST',invite('unlinked'))).status,403);
+ const generated=await request('/invites','coach','POST',invite('ana.new'));assert.equal(generated.status,201);const data=await generated.json();
+ const pending=await request(`/access/invites?organizationId=${org}`);const history=await pending.json();assert.equal(history.items[0].status,'pending');assert.equal(history.items[0].athlete_name,'Ana');assert.equal('token_hash' in history.items[0],false);assert.equal('token' in history.items[0],false);
+ assert.equal((await request(`/access/invites/${data.id}`,'admin','DELETE')).status,403);
+ assert.equal((await request(`/access/invites/${data.id}`,'coach','DELETE')).status,200);
+ assert.equal((await request('/accept','coach','POST',{token:data.token,password:'Pass1234'})).status,400);
+ const again=await request('/invites','coach','POST',invite('ana.new'));assert.equal(again.status,201);const next=await again.json();
+ const accepted=await request('/accept','coach','POST',{token:next.token,password:'Pass1234'});assert.equal(accepted.status,201);assert.equal((await accepted.json()).username,'ana.new');
+ assert.equal((await request('/accept','coach','POST',{token:next.token,password:'Pass1234'})).status,400);
+ const logged=await request('/login','coach','POST',{username:'ana.new',password:'Pass1234'});assert.equal(logged.status,200);const pupil=await logged.json();assert.equal(pupil.organizationId,org);assert.equal(pupil.role,'athlete');
+ const onlyOwn=await fetch(base+'/athletes',{headers:{Authorization:`Bearer ${pupil.token}`}});assert.deepEqual((await onlyOwn.json()).map((a:any)=>a.id),['a']);
+ assert.equal((await request('/invites','coach','POST',invite('Existing'))).status,201);
+ await db.query('INSERT INTO lb_accounts.supervisor_links(supervisor_id,organization_id,granted_by) VALUES($1,$2,$1)',['admin',org]);
+ assert.equal((await request('/invites','admin','POST',invite('trainer.two',org,'','coach'))).status,201);
+ const filtered=await request(`/access/invites?organizationId=${org}`);assert.ok((await filtered.json()).items.every((i:any)=>i.role==='athlete'));
+ const created=await request('/organizations','admin','POST',{name:'New Trainer'});assert.equal(created.status,201);const newOrg=await created.json();assert.equal((await db.query('SELECT * FROM lb_accounts.supervisor_links WHERE supervisor_id=$1 AND organization_id=$2',['admin',newOrg.id])).rows.length,1);
+ assert.equal((await request('/invites','admin','POST',invite('new.trainer',newOrg.id,'','coach'))).status,201);
+ await db.query('INSERT INTO lb_accounts.athlete_archives(athlete_id,organization_id,archived_by) VALUES($1,$2,$3)',['a',org,'coach']);
+ assert.equal((await request('/invites','coach','POST',invite('archived'))).status,400);
+ }finally{await new Promise<void>(r=>server.close(()=>r()));await db.close();}
+});
