@@ -1935,3 +1935,22 @@ body.light-theme .lb-sticky-bar {
 }
 
 
+
+/* Billing forms must remain legible in both global themes and native menus. */
+.billing-page .billing-field {
+  display: block;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 2px solid #94a3b8 !important;
+  border-radius: 8px;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a;
+  color-scheme: light;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.billing-page .billing-field::placeholder { color: #475569 !important; opacity: 1; }
+.billing-page .billing-field option { background-color: #ffffff !important; color: #0f172a !important; }
+.billing-page .billing-field:focus-visible { outline: 3px solid #22c55e; outline-offset: 2px; }
