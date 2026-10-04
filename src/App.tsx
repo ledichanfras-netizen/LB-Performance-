@@ -6875,8 +6875,9 @@ const DashboardView: FC<{
               .slice(0, 15)
               .reverse()
               .map(w => ({
-                day: w.date ? w.date.split("-")[2] : "",
-                hours: w.sleep || 0
+                day: w.date ? w.date.slice(0, 10).split("-").slice(1).reverse().join("/") : "",
+                fullDate: w.date ? formatDate(w.date) : "Sem data",
+                hours: safeParseFloat(w.sleep) || 0
               }))
           : [];
 
@@ -7161,21 +7162,23 @@ const DashboardView: FC<{
                   </div>
                 </div>
 
-                <div className="h-44 w-full">
+                <div className="w-full overflow-x-auto pb-2" aria-label="Histórico de sono por data. Deslize para ver todas as noites.">
                   {hasRealSleepData ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={sleepChartData}>
+                    <div style={{ minWidth: Math.max(320, sleepChartData.length * 46), height: 240 }}><ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={sleepChartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#0e1322" vertical={false} />
-                        <XAxis dataKey="day" stroke="#475569" fontSize={8} tickLine={false} axisLine={false} />
-                        <YAxis stroke="#475569" fontSize={8} tickLine={false} axisLine={false} domain={[0, 12]} />
-                        <Tooltip 
+                        <XAxis dataKey="day" stroke="#64748b" tick={{ fill: "#64748b", fontSize: 11 }} interval={0} angle={-45} textAnchor="end" height={52} tickMargin={10} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#475569" fontSize={11} width={30} tickLine={false} axisLine={false} domain={[0, 12]} />
+                        <Tooltip
+                          labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullDate || _label}
+                          formatter={(value: any) => { const minutes = Math.round(Number(value) * 60); return [`${Math.floor(minutes / 60)}h ${minutes % 60}min`, "Sono"]; }}
                           contentStyle={{ backgroundColor: "#0e1322", border: "1px solid #1e293b", borderRadius: "0.5rem" }}
                           labelStyle={{ fontSize: "10px", fontWeight: "bold", color: "#3b82f6" }}
                           itemStyle={{ fontSize: "10px", fontWeight: "bold" }}
                         />
                         <Bar dataKey="hours" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                       </BarChart>
-                    </ResponsiveContainer>
+                    </ResponsiveContainer></div>
                   ) : (
                     <div className="h-full w-full flex flex-col items-center justify-center bg-[#0e1322] rounded-2xl border border-dashed border-slate-800 p-4">
                       <Moon className="w-8 h-8 text-slate-700 mb-2" />
@@ -7186,7 +7189,7 @@ const DashboardView: FC<{
                 </div>
 
                 <div className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest leading-relaxed">
-                  {hasRealSleepData ? `Histórico de sono de cada noite de ${athlete.name}.` : "Sem registros individuais de sono para exibir."}
+                  {hasRealSleepData ? `Histórico de sono de ${athlete.name} — datas em dia/mês. Deslize o gráfico para ver todas as noites.` : "Sem registros individuais de sono para exibir."}
                 </div>
               </div>
 
