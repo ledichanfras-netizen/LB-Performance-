@@ -233,11 +233,24 @@ test('supervisor HTTP reads require a live explicit link and never grant coach a
  const base=`http://127.0.0.1:${(server.address() as any).port}/accounts/supervisor`;
  const request=(path:string,user='admin',method='GET',body?:any)=>fetch(base+path,{method,headers:{Authorization:`Bearer ${jwt.sign({id:user,accountMode:'scoped',sessionVersion:1},'test-secret')}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
  try{
+ const previousBilling=process.env.BILLING_ENABLED;process.env.BILLING_ENABLED='false';
  const path=`/organizations/${o2}`;
  assert.equal((await request('/organizations','coach')).status,403);
  assert.equal((await request(path+'/athletes')).status,403);
  assert.equal((await request(path+'/link','coach','PUT',{enabled:true})).status,403);
  assert.equal((await request(path+'/link','admin','PUT',{enabled:true})).status,200);
+ const view=await request(path+'/view','admin','POST',{coachId:'coach'});assert.equal(view.status,200);
+ const viewUser=await view.json();assert.equal(viewUser.plan,'free');assert.equal(viewUser.platformAdmin,false);assert.equal(viewUser.supervision,true);
+ const claims=jwt.verify(viewUser.token,'test-secret') as any;assert.equal(claims.id,'admin');assert.equal(claims.supervisedUserId,'coach');assert.equal(claims.exp-claims.iat,900);
+ const {resolveSupervisedAccount}=await import('./supervisor');
+ const context=await resolveSupervisedAccount(adapter,claims,'GET','/ler');assert.equal(context.user_id,'coach');assert.equal(context.organization_id,o2);assert.equal(context.platform_admin,false);
+ for(const [method,path] of [['POST','/salvar'],['DELETE','/atletas/other'],['POST','/ai-chat'],['GET','/billing/overview'],['GET','/accounts/me']])await assert.rejects(()=>resolveSupervisedAccount(adapter,claims,method,path),/READ_ONLY/);
+ assert.equal((await fetch(base.replace('/supervisor','')+'/me',{headers:{Authorization:`Bearer ${viewUser.token}`}})).status,403);
+ assert.equal((await request(path+'/view','admin','POST',{coachId:'admin'})).status,404);
+ await db.query("UPDATE lb_accounts.memberships SET active=false WHERE user_id='coach'");await assert.rejects(()=>resolveSupervisedAccount(adapter,claims,'GET','/ler'),/DENIED/);await db.query("UPDATE lb_accounts.memberships SET active=true WHERE user_id='coach'");
+ await assert.rejects(()=>resolveSupervisedAccount(adapter,{...claims,targetSessionVersion:0},'GET','/ler'),/DENIED/);
+ await assert.rejects(()=>resolveSupervisedAccount(adapter,{...claims,sessionVersion:0},'GET','/ler'),/DENIED/);
+
  const list=await request(path+'/athletes');assert.equal(list.status,200);assert.deepEqual((await list.json()).map((a:any)=>a.id),['other']);
  assert.equal((await request(path+'/athletes/own')).status,404);
  for(const kind of Object.keys(supervisorTables)){
@@ -249,6 +262,9 @@ test('supervisor HTTP reads require a live explicit link and never grant coach a
  assert.equal((await request(path+'/athletes/other','admin','PATCH',{name:'Changed'})).status,404);
  assert.equal((await request(path+'/link','admin','PUT',{enabled:false})).status,200);
  assert.equal((await request(path+'/athletes/other')).status,403);
+ await assert.rejects(()=>resolveSupervisedAccount(adapter,claims,'GET','/ler'),/DENIED/);
+ assert.equal((await request(path+'/view','admin','POST',{coachId:'coach'})).status,403);
+ process.env.BILLING_ENABLED=previousBilling;
  assert.equal((await db.query('SELECT * FROM lb_accounts.supervisor_audit')).rows.length,2);
  assert.equal((await db.query("SELECT name FROM athletes WHERE id='other'")).rows[0].name,'Other');
  await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_accounts.supervisor_links'));await db.exec('RESET ROLE');

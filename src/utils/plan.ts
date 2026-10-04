@@ -1,6 +1,9 @@
 
 export interface UserWithPlan {
   platformAdmin?: boolean;
+  supervision?: boolean;
+  supervisedName?: string;
+  organizationId?: string;
   role: 'coach' | 'athlete';
   athleteId?: string;
   token?: string;

@@ -18,6 +18,7 @@ export function accountRouter(pool: Pool, secret: string) {
  const auth:RequestHandler=async(req:any,res,next)=>{
   try {const token=req.headers.authorization?.split(' ')[1];if(!token) return res.status(401).json({error:'Faça login.'});
    const claims=jwt.verify(token,secret) as any;
+   if(claims.supervision===true)return res.status(403).json({error:'Supervisão permite somente consulta no aplicativo.'});
    if(claims.accountMode!=='scoped') return res.status(401).json({error:'Entre pelo login seguro.'});
    const {rows}=await pool.query('SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active', [claims.id]);
    if(!rows[0] || rows[0].session_version!==claims.sessionVersion) return res.status(401).json({error:'Sessão inválida.'});req.account=rows[0];next();
@@ -50,7 +51,7 @@ export function accountRouter(pool: Pool, secret: string) {
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
  }));
  router.use(auth);
- router.use('/supervisor',supervisorRouter(pool));
+ router.use('/supervisor',supervisorRouter(pool,secret));
  router.get('/me',(req:any,res)=>res.json(req.account));
  router.get('/athletes',run(async(req:any,res:any)=>res.json(await scopedAthletes(pool,req.account))));
  router.patch('/athletes/:id/profile',run(async(req:any,res:any)=>res.json(await scopedAthleteProfile(pool,req.account,req.params.id,req.body))));

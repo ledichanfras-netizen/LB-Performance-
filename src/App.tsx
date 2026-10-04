@@ -1,4 +1,4 @@
-import React, { FC, useState, useMemo, useEffect, useRef } from "react";
+import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -169,6 +169,8 @@ import {
 import Home from "./pages/Home";
 import Venda from "./pages/Venda";
 import Billing from "./pages/Billing";
+import SupervisionFrame from "./components/SupervisionFrame";
+import { setSupervisionToken } from "./utils/supervisionSession";
 import Supervisor from "./pages/Supervisor";
 import AccountSetup from "./pages/AccountSetup";
 import { clearAthleteCaches } from "./utils/accountCache";
@@ -663,6 +665,7 @@ const EliteHubApp: FC<{
   };
 
   const handleLogout = () => {
+    if(user?.supervision){setUser(null);return;}
     try { clearAthleteCaches(localStorage); } catch {}
     setUser(null);
     safeLocalStorage.removeItem("lb_user");
@@ -18711,6 +18714,8 @@ const isTokenExpired = (token: string): boolean => {
 };
 
 const App: FC = () => {
+  const [supervisedUser,setSupervisedUser]=useState<UserWithPlan|null>(null);
+  const exitSupervision=useCallback(()=>{setSupervisionToken(null);setSupervisedUser(null);},[]);
   const [user, setUser] = useState<UserWithPlan | null>(() => {
     const storedUser = safeLocalStorage.getItem("lb_user");
     if (storedUser) {
@@ -18770,7 +18775,8 @@ const App: FC = () => {
     <BrowserRouter>
       {user?.platformAdmin && <nav className="bg-slate-900 text-white px-4 py-3 flex gap-5 border-b border-slate-600"><Link to="/hub" className="text-green-300 font-semibold">Meus atletas</Link><Link to="/supervisao" className="text-green-300 font-semibold">Supervisão de treinadores</Link></nav>}
       <Routes>
-        <Route path="/supervisao" element={user?.platformAdmin ? <Supervisor user={user} /> : <Navigate to="/hub" replace />} />
+        <Route path="/supervisao/aplicativo" element={user?.platformAdmin && supervisedUser ? <SupervisionFrame name={supervisedUser.supervisedName || 'Treinador'} token={supervisedUser.token!} onExit={exitSupervision}><EliteHubApp key={supervisedUser.token} user={supervisedUser} setUser={exitSupervision} /></SupervisionFrame> : <Navigate to="/supervisao" replace />} />
+        <Route path="/supervisao" element={user?.platformAdmin ? <Supervisor user={user} onView={view=>{setSupervisionToken(view.token || null);setSupervisedUser(view);}} /> : <Navigate to="/hub" replace />} />
         <Route path="/" element={<Home />} />
         <Route path="/venda" element={<Venda />} />
         <Route path="/contas" element={<AccountSetup onAuthenticated={data=>{try{clearAthleteCaches(localStorage);}catch{} safeLocalStorage.setItem("lb_user",JSON.stringify(data));setUser(data);}} />} />

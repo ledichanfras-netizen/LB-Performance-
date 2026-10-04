@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
+import jwt from 'jsonwebtoken';
+import { hasSportsAccess } from './entitlement';
 
 export const supervisorTables:Record<string,string>={wellness:'wellness',workouts:'workouts',sessions:'external_sessions',isometricStrength:'isometric_strength',generalStrength:'general_strength',cmj:'cmj',dropJump:'drop_jump',imtp:'imtp',vo2max:'vo2max',speed:'speed',bioimpedance:'bioimpedance'};
 export async function canSupervise(pool:Pick<Pool,'query'>,userId:string,organizationId:string){
@@ -8,7 +10,18 @@ export async function canSupervise(pool:Pick<Pool,'query'>,userId:string,organiz
  WHERE l.supervisor_id=$1 AND l.organization_id=$2 AND m.active AND m.platform_admin`,[userId,organizationId]);
  return rows.length===1;
 }
-export function supervisorRouter(pool:Pool){
+export async function resolveSupervisedAccount(pool:Pick<Pool,'query'>,claims:any,method:string,path:string){
+ if(claims.supervision!==true)return null;
+ if(method!=='GET' || path!=='/ler')throw Error('SUPERVISION_READ_ONLY');
+ const actor=await pool.query('SELECT * FROM lb_accounts.memberships WHERE user_id=$1 AND active AND platform_admin',[claims.id]);
+ if(!actor.rows[0] || actor.rows[0].session_version!==claims.sessionVersion)throw Error('SUPERVISION_DENIED');
+ const target=await pool.query(`SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id
+ WHERE m.user_id=$1 AND m.organization_id=$2 AND m.active AND u.role='coach' AND NOT m.platform_admin`,[claims.supervisedUserId,claims.organizationId]);
+ const account=target.rows[0];
+ if(!account || account.session_version!==claims.targetSessionVersion || !await canSupervise(pool,claims.id,account.organization_id))throw Error('SUPERVISION_DENIED');
+ return account;
+}
+export function supervisorRouter(pool:Pool,secret:string){
  const router=Router();
  router.use((req:any,res,next)=>{if(!req.account?.platform_admin)return res.status(403).json({error:'Apenas o supervisor administrador.'});next();});
  const run=(fn:any)=>async(req:any,res:any)=>{try{await fn(req,res);}catch(e:any){console.error('[Supervisor]',e.code || 'error');res.status(503).json({error:'Não foi possível carregar a supervisão.'});}};
@@ -16,7 +29,8 @@ export function supervisorRouter(pool:Pool){
  router.get('/organizations',run(async(req:any,res:any)=>{
   res.json((await pool.query(`SELECT o.id,o.name,EXISTS(SELECT 1 FROM lb_accounts.supervisor_links l WHERE l.organization_id=o.id AND l.supervisor_id=$1) AS linked,
   (SELECT count(*)::int FROM lb_accounts.athlete_scopes s WHERE s.organization_id=o.id AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=s.athlete_id)) AS athlete_count,
-  ARRAY(SELECT u.username FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE m.organization_id=o.id AND m.active AND u.role='coach' ORDER BY u.username) AS coaches
+  ARRAY(SELECT u.username FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE m.organization_id=o.id AND m.active AND u.role='coach' ORDER BY u.username) AS coaches,
+  (SELECT coalesce(jsonb_agg(jsonb_build_object('id',u.id,'username',u.username) ORDER BY u.username),'[]'::jsonb) FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE m.organization_id=o.id AND m.active AND u.role='coach' AND NOT m.platform_admin) AS coach_accounts
   FROM lb_accounts.organizations o WHERE o.id<>$2 ORDER BY o.name`,[req.account.user_id,req.account.organization_id])).rows);
  }));
  router.put('/organizations/:organizationId/link',run(async(req:any,res:any)=>{
@@ -34,6 +48,15 @@ export function supervisorRouter(pool:Pool){
  router.use('/organizations/:organizationId',async(req:any,res,next)=>{
   try{if(!uuid(req.params.organizationId) || !await canSupervise(pool,req.account.user_id,req.params.organizationId))return res.status(403).json({error:'Organização sem vínculo de supervisão.'});next();}catch{res.status(503).json({error:'Não foi possível validar a supervisão.'});}
  });
+ router.post('/organizations/:organizationId/view',run(async(req:any,res:any)=>{
+  if(typeof req.body.coachId!=='string')return res.status(400).json({error:'Selecione um treinador.'});
+  const {rows}=await pool.query(`SELECT m.*,u.username,u.role FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id
+  WHERE m.user_id=$1 AND m.organization_id=$2 AND m.active AND u.role='coach' AND NOT m.platform_admin`,[req.body.coachId,req.params.organizationId]);
+  const target=rows[0];if(!target)return res.status(404).json({error:'Treinador indisponível nessa organização.'});
+  const licensed=process.env.BILLING_ENABLED==='true' && await hasSportsAccess(pool,target);
+  const token=jwt.sign({id:req.account.user_id,accountMode:'scoped',supervision:true,sessionVersion:req.account.session_version,supervisedUserId:target.user_id,targetSessionVersion:target.session_version,organizationId:target.organization_id,role:'coach'},secret,{expiresIn:'15m'});
+  res.json({token,id:target.user_id,organizationId:target.organization_id,role:'coach',plan:licensed?'pro':'free',accountMode:'scoped',platformAdmin:false,supervision:true,supervisedName:target.username});
+ }));
  router.get('/organizations/:organizationId/athletes',run(async(req:any,res:any)=>{
   res.json((await pool.query(`SELECT a.id,a.name,a.modality FROM public.athletes a JOIN lb_accounts.athlete_scopes s ON s.athlete_id=a.id
   WHERE s.organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=a.id) ORDER BY a.name,a.id`,[req.params.organizationId])).rows);

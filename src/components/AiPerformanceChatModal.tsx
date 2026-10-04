@@ -1,3 +1,4 @@
+import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import React, { useState, useEffect, useRef } from "react";
 import { Athlete } from "../types";
 import {
@@ -184,11 +185,7 @@ ${ath.workouts && ath.workouts.length > 0 ? ath.workouts.slice(0, 3).map(w => `-
     setIsLoading(true);
 
     try {
-      const tokenStr = localStorage.getItem("lb_user");
-      let token: string | null = null;
-      if (tokenStr) {
-        try { token = JSON.parse(tokenStr)?.token; } catch (e) {}
-      }
+      const token = getEffectiveSessionToken();
 
       const athleteContext = buildAthleteContext(currentAthlete);
 

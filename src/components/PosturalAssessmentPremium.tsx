@@ -1,3 +1,4 @@
+import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import React, { useState, useRef } from 'react';
 import { Athlete, PosturalAssessment, PosturalDeviation, PosturalCorrectiveExercise, PosturalAiDetails, AssessmentType } from '../types';
 import { Sparkles, Activity, Camera, AlertTriangle, CheckCircle2, Plus, Trash2, Eye, FileText, ChevronRight, Calendar, ArrowLeft, UploadCloud, Info, Dumbbell, Shield, Lightbulb, RefreshCw, EyeOff, Printer, Grid, Sliders, Check, RotateCw } from 'lucide-react';
@@ -648,16 +649,7 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
         photoPosterior
       };
 
-      let token = '';
-      try {
-        const storedUser = localStorage.getItem('lb_user');
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          token = parsedUser.token || '';
-        }
-      } catch (e) {
-        console.warn("Erro ao obter token do lb_user:", e);
-      }
+      const token = getEffectiveSessionToken() || '';
 
       const res = await fetch('/api/generate-postural-ai', {
         method: 'POST',

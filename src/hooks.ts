@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { athleteCacheKey } from './utils/accountCache';
+import { athleteCacheKey, isSupervisedToken } from './utils/accountCache';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
 import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId } from './utils';
 import { ENRICHED_LIBRARY } from './data/exercises';
@@ -124,8 +124,10 @@ const ensureImtpAndMigrate = (a: any): Athlete => {
 };
 
 export const useAthletes = (token?: string | null) => {
+  const readOnly = isSupervisedToken(token);
   const cacheKey = athleteCacheKey(token);
   const [rawAthletes, setRawAthletes] = useState<Athlete[]>(() => {
+    if(readOnly)return [];
     // Lazy initialization from cache for instant load
     const cached = safeLocalStorage.getItem(cacheKey);
     if (cached) {
@@ -207,7 +209,7 @@ export const useAthletes = (token?: string | null) => {
 
   // Update cache whenever athletes change
   useEffect(() => {
-    if (athletes.length > 0) {
+    if (!readOnly && athletes.length > 0) {
       safeLocalStorage.setItem(cacheKey, JSON.stringify(athletes));
     }
   }, [athletes, cacheKey]);
@@ -233,7 +235,8 @@ export const useAthletes = (token?: string | null) => {
               throw new Error("O navegador bloqueou os cookies de segurança da visualização (iframe). Por favor, clique em 'Open in a new tab' (Abrir em nova aba) no canto superior direito do AI Studio para acessar o sistema normalmente.");
             }
             if (!res.ok) {
-              if(res.status===401)window.dispatchEvent(new Event('lb:session-invalid'));
+              if(readOnly && (res.status===401 || res.status===403 || res.status===402))window.dispatchEvent(new Event('lb:supervision-invalid'));
+              else if(res.status===401)window.dispatchEvent(new Event('lb:session-invalid'));
               throw new Error(`Erro do servidor (/api/ler): ${res.status} ${resText}`);
             }
             return JSON.parse(resText);
@@ -271,6 +274,7 @@ export const useAthletes = (token?: string | null) => {
       });
     },
     async saveAthletes(athletes: Athlete[]): Promise<void> {
+      if(readOnly)throw Error("Supervisão somente leitura.");
       try {
         if (token) {
           console.log('Sincronizando via API local (/api/salvar)...');
@@ -300,6 +304,7 @@ export const useAthletes = (token?: string | null) => {
       }
     },
     async saveAthlete(athlete: Athlete): Promise<void> {
+      if(readOnly)throw Error("Supervisão somente leitura.");
       try {
         if (token) {
           console.log(`[Hooks] Sincronizando atleta via API local (/api/salvar)...`);
@@ -357,6 +362,7 @@ export const useAthletes = (token?: string | null) => {
       console.log('Buscando atletas do banco de forma resiliente...');
       const data = await api.loadAthletes(isSilent);
       if (data) {
+        if(readOnly){setAthletes(data.filter(a=>!a.id.startsWith('model-') && a.id!=='meta-custom-library-exercises'));setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;}
         // Extract meta custom library if present
         const metaRow = data.find(a => a.id === 'meta-custom-library-exercises');
         if (metaRow && metaRow.injuryHistory) {
@@ -440,6 +446,7 @@ export const useAthletes = (token?: string | null) => {
         console.error('Falha ao sincronizar com Banco de Dados:', err);
       }
       
+      if(readOnly){setAthletes([]);if(!isSilent)toast.error('Não foi possível consultar o treinador. Verifique a conexão ou reabra a supervisão.');return;}
       // Fallback cache recovery if state is fully empty but local storage has cache
       let hasLocalCache = false;
       if (athletes.length === 0) {
@@ -521,6 +528,7 @@ export const useAthletes = (token?: string | null) => {
 
   // Intercept localStorage.setItem to auto-sync custom library exercises to database
   useEffect(() => {
+    if(readOnly)return;
     try {
       const originalSetItem = localStorage.setItem;
       localStorage.setItem = function(key, value) {
@@ -1545,10 +1553,11 @@ export const useAthletes = (token?: string | null) => {
     }
   };
 
+  const guard=<T extends (...args:any[])=>any>(fn:T):T => (readOnly ? ((..._args:any[])=>{toast.error("Supervisão somente leitura: peça ao treinador para alterar o registro.");}) : fn) as T;
   return { 
-    athletes, loading, syncing, lastSyncedAt, setAthletes, save, addAthlete, updateAthlete, deleteAthlete, addWellness, updateWellness, deleteWellness,
-    addWorkout, addWorkouts, updateWorkout, deleteWorkout, addAssessment, updateAssessment, 
-    removeAssessment, analyzePerformance, generateAIWorkouts, addExternalSession, updateExternalSession, deleteExternalSession,
-    importDemoAthlete, syncData, iframeCookieWarning
+    athletes, loading, syncing, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
+    addWorkout: guard(addWorkout), addWorkouts: guard(addWorkouts), updateWorkout: guard(updateWorkout), deleteWorkout: guard(deleteWorkout), addAssessment: guard(addAssessment), updateAssessment: guard(updateAssessment),
+    removeAssessment: guard(removeAssessment), analyzePerformance: guard(analyzePerformance), generateAIWorkouts: guard(generateAIWorkouts), addExternalSession: guard(addExternalSession), updateExternalSession: guard(updateExternalSession), deleteExternalSession: guard(deleteExternalSession),
+    importDemoAthlete: guard(importDemoAthlete), syncData, iframeCookieWarning
   };
 };

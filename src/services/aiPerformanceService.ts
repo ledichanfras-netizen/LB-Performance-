@@ -1,3 +1,4 @@
+import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import { Athlete } from "../types";
 
 export interface PerformanceModeling {
@@ -21,16 +22,7 @@ export interface PerformanceModeling {
   coachStrategy: string;
 }
 
-function getSessionToken(): string | null {
-  try {
-    const userStr = localStorage.getItem("lb_user");
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      return user?.token || null;
-    }
-  } catch (e) {}
-  return null;
-}
+const getSessionToken=getEffectiveSessionToken;
 
 function calculateAge(dobString: string): number {
   if (!dobString) return 20;

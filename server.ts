@@ -1,5 +1,6 @@
 import express from 'express';
 import { billingRouter } from './server/billing';
+import { resolveSupervisedAccount } from './server/supervisor';
 import { accountRouter } from './server/accounts';
 import { saveStudentData } from './server/studentSave';
 import { hasSportsAccess } from './server/entitlement';
@@ -347,6 +348,15 @@ const authMiddleware = async (req: any, res: any, next: any) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    if((decoded as any).supervision===true){
+      try{
+        if(process.env.ACCOUNTS_ENABLED!=='true' || process.env.SCOPED_SPORTS_ENABLED!=='true')return res.status(403).json({error:'Supervisão indisponível.'});
+        const account=await resolveSupervisedAccount(pool,decoded,req.method,req.path);
+        if(process.env.BILLING_ENFORCE==='true' && !await hasSportsAccess(pool,account as any))return res.status(402).json({error:'O treinador está sem acesso ativo.'});
+        req.account=account;req.user={...(decoded as any),id:account!.user_id,role:'coach',athleteId:null,organizationId:account!.organization_id};
+        return next();
+      }catch{return res.status(403).json({error:'Supervisão somente leitura: vínculo ou sessão indisponível.'});}
+    }
     if(process.env.ACCOUNTS_ENABLED === 'true' && (decoded as any).accountMode !== 'scoped') {
       return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
     }
