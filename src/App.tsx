@@ -1393,7 +1393,7 @@ const EliteHubApp: FC<{
     setModalState({ type: "active-session", editingData: w });
   };
 
-  if (loading && athletes.length === 0)
+  if (user && loading && athletes.length === 0)
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#020617] text-[#10b981] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] p-4 text-center relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-[#10b981]/5 rounded-full blur-[140px] animate-pulse"></div>

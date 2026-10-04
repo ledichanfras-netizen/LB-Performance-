@@ -127,7 +127,7 @@ export const useAthletes = (token?: string | null) => {
   const readOnly = isSupervisedToken(token);
   const cacheKey = athleteCacheKey(token);
   const [rawAthletes, setRawAthletes] = useState<Athlete[]>(() => {
-    if(readOnly)return [];
+    if(!token || readOnly)return [];
     // Lazy initialization from cache for instant load
     const cached = safeLocalStorage.getItem(cacheKey);
     if (cached) {
@@ -190,7 +190,7 @@ export const useAthletes = (token?: string | null) => {
       setRawAthletes(v.map(normalizeAthlete));
     }
   };
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(token));
   const [syncing, setSyncing] = useState(false);
   const [iframeCookieWarning, setIframeCookieWarning] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date>(new Date());
@@ -357,6 +357,8 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const syncData = async (isSilent = false) => {
+    // Login must never wait for athlete data or an anonymous database request.
+    if (!token) { setRawAthletes([]); setLoading(false); return; }
     if (syncingRef.current) {
       console.log('[Sync] Sincronização já em andamento. Ignorando requisição concorrente.');
       return;
