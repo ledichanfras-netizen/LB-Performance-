@@ -1285,7 +1285,61 @@ export const calculateWorkoutLoad = (workout: Workout, athleteWeight?: number): 
 };
 
 export const calculateWorkoutInternalLoad = (workout: Workout): number => {
-  return (workout.rpe || 0) * (workout.durationMinutes || 60);
+  if (!workout) return 0;
+  const rpe = Math.min(10, Math.max(0, safeParseFloat(workout.rpe) || 0));
+  const duration = Math.min(1440, Math.max(0, safeParseFloat(workout.durationMinutes) || 60));
+  const load = rpe * duration;
+  return Number.isFinite(load) ? Math.round(load) : 0;
+};
+
+export const sanitizeAthleteData = (a: Athlete): Athlete => {
+  if (!a) return a;
+  
+  const sanitizeNum = (val: any, defaultVal = 0): number => {
+    if (val === undefined || val === null || val === '') return defaultVal;
+    if (typeof val === 'number') {
+      return Number.isFinite(val) ? val : defaultVal;
+    }
+    const parsed = parseFloat(String(val).replace(',', '.').replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : defaultVal;
+  };
+
+  const workouts = (a.workouts || []).map(w => {
+    const rpe = Math.min(10, Math.max(0, sanitizeNum(w.rpe, 0)));
+    const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(w.durationMinutes, 60)));
+    const calculatedLoad = rpe * durationMinutes;
+    const rawTotalLoad = sanitizeNum(w.totalLoad, calculatedLoad);
+    // Cap absurd total loads to max 10000 per session
+    const totalLoad = (rawTotalLoad > 20000 || rawTotalLoad < 0) ? calculatedLoad : rawTotalLoad;
+    
+    return {
+      ...w,
+      rpe,
+      durationMinutes,
+      totalLoad: Number.isFinite(totalLoad) && totalLoad >= 0 ? Math.round(totalLoad) : calculatedLoad
+    };
+  });
+
+  const externalSessions = (a.externalSessions || []).map(s => {
+    const rpe = Math.min(10, Math.max(0, sanitizeNum(s.rpe, 0)));
+    const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(s.durationMinutes, 60)));
+    const calculatedLoad = rpe * durationMinutes;
+    const rawLoad = sanitizeNum(s.load, calculatedLoad);
+    const load = (rawLoad > 20000 || rawLoad < 0) ? calculatedLoad : rawLoad;
+
+    return {
+      ...s,
+      rpe,
+      durationMinutes,
+      load: Number.isFinite(load) && load >= 0 ? Math.round(load) : calculatedLoad
+    };
+  });
+
+  return {
+    ...a,
+    workouts,
+    externalSessions
+  };
 };
 
 export interface FieldCourtMetrics {
@@ -1427,20 +1481,28 @@ export const calculateFieldCourtMetrics = (workout: Workout): FieldCourtMetrics 
   };
 };
 
-export const calculateAdvancedMetrics = (workouts: Workout[], externalSessions: any[] = []) => {
-  const completedWorkouts = workouts.filter(w => w.status === 'completed' && w.rpe);
+export const calculateAdvancedMetrics = (workouts: Workout[] = [], externalSessions: any[] = []) => {
+  const completedWorkouts = (workouts || []).filter(w => w && w.status === 'completed' && w.rpe);
   
   // Combine all sessions (gym + external)
   const allSessions = [
     ...completedWorkouts.map(w => ({ date: w.date, load: calculateWorkoutInternalLoad(w) })),
-    ...externalSessions.map(s => ({ date: s.date, load: s.load || (s.durationMinutes * s.rpe) }))
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    ...(externalSessions || []).map(s => {
+      const dur = Math.min(1440, Math.max(0, safeParseFloat(s?.durationMinutes) || 0));
+      const rpe = Math.min(10, Math.max(0, safeParseFloat(s?.rpe) || 0));
+      const calcLoad = dur * rpe;
+      let rawLoad = safeParseFloat(s?.load);
+      if (isNaN(rawLoad) || rawLoad > 20000 || rawLoad < 0) rawLoad = calcLoad;
+      return { date: s?.date, load: rawLoad };
+    })
+  ].filter(s => s.date && Number.isFinite(s.load))
+   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   const last7Days = allSessions.slice(0, 7);
 
   if (last7Days.length === 0) return { monotony: 0, strain: 0 };
 
-  const internalLoads = last7Days.map(s => s.load);
+  const internalLoads = last7Days.map(s => Number(s.load) || 0);
   const sumLoad = internalLoads.reduce((a, b) => a + b, 0);
   const meanLoad = sumLoad / last7Days.length;
   
@@ -1453,11 +1515,30 @@ export const calculateAdvancedMetrics = (workouts: Workout[], externalSessions: 
   return { monotony, strain };
 };
 
-export const calculateACWR = (workouts: Workout[], externalSessions: any[] = []) => {
-  const allSessions = [
-    ...workouts.filter(w => w.status === 'completed' && w.rpe).map(w => ({ date: w.date, load: calculateWorkoutInternalLoad(w) })),
-    ...externalSessions.map(s => ({ date: s.date, load: s.load || (s.durationMinutes * s.rpe) }))
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export const calculateACWR = (workouts: Workout[] = [], externalSessions: any[] = []) => {
+  const gymSessions = (workouts || [])
+    .filter(w => w && w.status === 'completed')
+    .map(w => ({
+      date: w.date,
+      load: calculateWorkoutInternalLoad(w)
+    }));
+
+  const extSessions = (externalSessions || [])
+    .filter(s => s && s.date)
+    .map(s => {
+      const dur = Math.min(1440, Math.max(0, safeParseFloat(s?.durationMinutes) || 0));
+      const rpe = Math.min(10, Math.max(0, safeParseFloat(s?.rpe) || 0));
+      const calcLoad = dur * rpe;
+      let rawLoad = safeParseFloat(s?.load);
+      if (isNaN(rawLoad) || rawLoad > 20000 || rawLoad < 0) {
+        rawLoad = calcLoad;
+      }
+      return { date: s.date, load: rawLoad };
+    });
+
+  const allSessions = [...gymSessions, ...extSessions]
+    .filter(s => s.date && Number.isFinite(s.load))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   if (allSessions.length === 0) return { ratio: 1.0, acute: 0, chronic: 0, status: 'Estável', color: 'text-emerald-400' };
 
@@ -1471,26 +1552,36 @@ export const calculateACWR = (workouts: Workout[], externalSessions: any[] = [])
   const acuteSessions = allSessions.filter(s => new Date(s.date) >= sevenDaysAgo);
   const chronicSessions = allSessions.filter(s => new Date(s.date) >= twentyEightDaysAgo);
 
-  const acuteLoad = acuteSessions.reduce((acc, s) => acc + s.load, 0) / 7;
-  const chronicLoad = chronicSessions.reduce((acc, s) => acc + s.load, 0) / 28;
+  const acuteLoadSum = acuteSessions.reduce((acc, s) => acc + (Number(s.load) || 0), 0);
+  const chronicLoadSum = chronicSessions.reduce((acc, s) => acc + (Number(s.load) || 0), 0);
 
-  const ratio = chronicLoad > 0 ? parseFloat((acuteLoad / chronicLoad).toFixed(2)) : 1.0;
+  const acuteAvg = acuteLoadSum / 7;
+  const chronicAvg = chronicLoadSum / 28;
+
+  const acute = Math.round(acuteLoadSum);
+  const chronic = Math.round(chronicLoadSum / 4); // 7-day normalized chronic load
+
+  const ratio = (chronicAvg > 0 && Number.isFinite(chronicAvg)) 
+    ? parseFloat((acuteAvg / chronicAvg).toFixed(2)) 
+    : 1.0;
+
+  const safeRatio = Number.isFinite(ratio) ? ratio : 1.0;
 
   let status = 'Ideal';
   let color = 'text-emerald-400';
 
-  if (ratio < 0.8) {
+  if (safeRatio < 0.8) {
     status = 'Sub-treinado';
     color = 'text-yellow-500';
-  } else if (ratio > 1.3 && ratio <= 1.5) {
+  } else if (safeRatio > 1.3 && safeRatio <= 1.5) {
     status = 'Atenção';
     color = 'text-orange-500';
-  } else if (ratio > 1.5) {
+  } else if (safeRatio > 1.5) {
     status = 'Risco Alto';
     color = 'text-red-500';
   }
 
-  return { ratio, acute: Math.round(acuteLoad * 7), chronic: Math.round(chronicLoad * 28), status, color };
+  return { ratio: safeRatio, acute, chronic, status, color };
 };
 
 export const calculatePerformanceScore = (athleteOrAssessments: any) => {

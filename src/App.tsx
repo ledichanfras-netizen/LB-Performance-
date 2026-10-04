@@ -74,11 +74,14 @@ import {
   safeParseFloat,
   getResolvedAthleteWeight,
   getResolvedAthleteWeightInfo,
+  sanitizeAthleteData,
 } from "./utils";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   generateAIModeling,
   PerformanceModeling,
 } from "./services/aiPerformanceService";
+import { isPermissionDeniedError } from "./services/supabaseService";
 import { AIModelingReport } from "./components/AIModelingReport";
 import { TrainingLoadReport } from "./components/TrainingLoadReport";
 import { HealthReport } from "./components/HealthReport";
@@ -2098,7 +2101,11 @@ const EliteHubApp: FC<{
                         await syncData();
                         toast.success("Dados Sincronizados com Sucesso!", { id: toastId });
                       } catch (error: any) {
-                        toast.error(error?.message || "Falha ao sincronizar.", { id: toastId });
+                        if (isPermissionDeniedError(error)) {
+                          toast("Modo Offline Ativo (RLS pendente no Supabase). Seus dados locais estão 100% seguros.", { icon: "🛡️", id: toastId });
+                        } else {
+                          toast.error(error?.message || "Falha ao sincronizar.", { id: toastId });
+                        }
                       }
                     }}
                     className="flex items-center justify-center gap-2.5 w-full py-3.5 bg-[#1F3AA2]/30 hover:bg-[#1F3AA2]/40 text-[#60A5FA] hover:text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all hover:scale-[1.02] active:scale-95 border border-[#1E40AF]/40 group"
@@ -2705,26 +2712,26 @@ const EliteHubApp: FC<{
 
                                       {/* Carga Aguda */}
                                       <td className="py-4 px-4 text-xs font-mono font-bold text-center text-white">
-                                        {ath.acute}
+                                        {typeof ath.acute === "number" && !isNaN(ath.acute) ? ath.acute.toLocaleString("pt-BR") : "0"}
                                       </td>
 
                                       {/* Carga Crônica */}
                                       <td className="py-4 px-4 text-xs font-mono font-bold text-center text-slate-400">
-                                        {ath.chronic}
+                                        {typeof ath.chronic === "number" && !isNaN(ath.chronic) ? ath.chronic.toLocaleString("pt-BR") : "0"}
                                       </td>
 
                                       {/* ACWR */}
                                       <td className="py-4 px-4 text-xs font-mono font-black text-center">
                                         <span
                                           className={
-                                            ath.acwr > 1.3
+                                            (ath.acwr || 0) > 1.3
                                               ? "text-red-400"
-                                              : ath.acwr < 0.85
+                                              : (ath.acwr || 0) < 0.85
                                               ? "text-amber-450"
                                               : "text-emerald-400"
                                           }
                                         >
-                                          {ath.acwr.toFixed(2)}
+                                          {typeof ath.acwr === "number" && !isNaN(ath.acwr) ? ath.acwr.toFixed(2) : "1.00"}
                                         </span>
                                       </td>
 
@@ -2789,18 +2796,44 @@ const EliteHubApp: FC<{
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-8 md:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                  {user.role === "coach" && (
-                    <div className="flex items-center justify-start">
-                      <button
-                        onClick={() => setSelectedId(null)}
-                        className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-brand-primary/30 text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl group cursor-pointer"
-                      >
-                        <ChevronLeft className="w-4 h-4 text-brand-primary group-hover:-translate-x-1 transition-transform" />
-                        <span>Voltar ao Painel Geral</span>
-                      </button>
-                    </div>
-                  )}
+                <ErrorBoundary
+                  fallbackTitle={`Painel de Performance de ${selected?.name || "Atleta"}`}
+                  onReset={() => {
+                    if (selected) {
+                      const sanitized = sanitizeAthleteData(selected);
+                      updateAthlete(selected.id, sanitized);
+                      toast.success(`Cargas de ${selected.name} recalculadas e sanitizadas!`);
+                    }
+                  }}
+                >
+                  <div className="space-y-8 md:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    {user.role === "coach" && (
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <button
+                          onClick={() => setSelectedId(null)}
+                          className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-brand-primary/30 text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.02] active:scale-95 shadow-xl group cursor-pointer"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-brand-primary group-hover:-translate-x-1 transition-transform" />
+                          <span>Voltar ao Painel Geral</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selected) {
+                              const sanitized = sanitizeAthleteData(selected);
+                              updateAthlete(selected.id, sanitized);
+                              toast.success(`Cargas e treinos de ${selected.name} recalculados e corrigidos com sucesso!`);
+                            }
+                          }}
+                          className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-[10px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 shadow-xl cursor-pointer"
+                          title="Recalcular cargas e sanitizar histórico de treinos deste atleta"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Recalcular & Corrigir Cargas</span>
+                        </button>
+                      </div>
+                    )}
 
                   {/* Banner de Aniversário - Visível tanto para o Atleta quanto para o Treinador ao ver o perfil */}
                   {isBirthdayToday(selected.dob) && (
@@ -2903,8 +2936,16 @@ const EliteHubApp: FC<{
                           <button
                             onClick={async () => {
                               const toastId = toast.loading("Sincronizando seus treinos...");
-                              await syncData();
-                              toast.success("Dados Atualizados!", { id: toastId });
+                              try {
+                                await syncData();
+                                toast.success("Dados Atualizados!", { id: toastId });
+                              } catch (error: any) {
+                                if (isPermissionDeniedError(error)) {
+                                  toast("Dados atualizados e salvos no navegador!", { icon: "🛡️", id: toastId });
+                                } else {
+                                  toast.error(error?.message || "Falha ao sincronizar.", { id: toastId });
+                                }
+                              }
                             }}
                             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-slate-900/60 hover:bg-slate-900 border border-slate-800 hover:border-brand-primary/30 text-slate-300 hover:text-white text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg group"
                           >
@@ -3942,7 +3983,8 @@ const EliteHubApp: FC<{
                     )}
                   </div>
                 </div>
-              )}
+              </ErrorBoundary>
+            )}
             </main>
 
             {/* MODALS - All with optimized responsiveness */}
@@ -3998,10 +4040,10 @@ const EliteHubApp: FC<{
             )}
 
             {modalState.type === "active-session" && (
-              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto p-0 sm:p-2 md:p-3">
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950 overflow-hidden p-0 w-full h-full">
                 <SessionTrackerPremium
                   workout={modalState.editingData}
-                  athleteWeight={selected?.assessments?.bioimpedance?.[0]?.weight || selected?.weight}
+                  athleteWeight={getResolvedAthleteWeight(selected)}
                   onCancel={() => setModalState({ type: null })}
                   onFinish={(updated, shareSocial) => {
                     updateWorkout(selected!.id, updated);

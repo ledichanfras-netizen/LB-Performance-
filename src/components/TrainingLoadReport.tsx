@@ -164,7 +164,8 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
                   <line x1="50" y1="120" x2="480" y2="120" stroke="#cbd5e1" strokeWidth="1" />
 
                   {(() => {
-                    const maxLoad = Math.max(...recentSessionsWithLoad.map((d) => d.load), 600);
+                    const validLoads = recentSessionsWithLoad.map((d) => Number(d.load) || 0);
+                    const maxLoad = Math.max(...validLoads, 600);
                     const points: string[] = [];
                     const readinessPoints: string[] = [];
                     const renderedElements: React.ReactNode[] = [];
@@ -172,9 +173,10 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
 
                     recentSessionsWithLoad.forEach((d, idx) => {
                       const x = 50 + idx * (410 / (recentSessionsWithLoad.length - 1 || 1));
+                      const loadVal = Number(d.load) || 0;
                       // Scale load to graph height (from y=20 to y=120, height = 100)
-                      const valPercent = d.load / maxLoad;
-                      const y = 120 - valPercent * 90;
+                      const valPercent = maxLoad > 0 ? loadVal / maxLoad : 0;
+                      const y = Math.max(20, Math.min(120, 120 - valPercent * 90));
 
                       points.push(`${x},${y}`);
 
@@ -185,7 +187,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
                             x={x - 10} 
                             y={y} 
                             width="20" 
-                            height={120 - y} 
+                            height={Math.max(0, 120 - y)} 
                             rx="3" 
                             fill="#10b981" 
                             fillOpacity="0.12" 
@@ -196,7 +198,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
                             {d.date}
                           </text>
                           <text x={x} y={y - 5} className="fill-emerald-700 font-mono text-[8px] font-black" textAnchor="middle">
-                            {d.load}
+                            {Math.round(loadVal)}
                           </text>
                         </g>
                       );

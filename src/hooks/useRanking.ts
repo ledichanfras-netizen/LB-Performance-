@@ -13,33 +13,40 @@ export function useRanking() {
   useEffect(() => {
     async function fetchRanking() {
       setLoading(true);
-      // Try to get from performance table first as requested
-      const { data, error } = await supabase
-        .from("performance")
-        .select("athlete_name, forca")
-        .order("forca", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("performance")
+          .select("athlete_name, forca")
+          .order("forca", { ascending: false });
 
-      if (!error && data) {
-        setRanking(data);
-      } else {
-        // Fallback: Query athletes and their best metrics
-        const { data: athletes } = await supabase
-          .from("athletes")
-          .select(`
-            name,
-            isometric_strength(half_squat_kgf)
-          `);
-        
-        if (athletes) {
-          const derived = athletes
-            .map((a: any) => ({
-              athlete_name: a.name,
-              forca: a.isometric_strength?.[0]?.half_squat_kgf || 0
-            }))
-            .sort((a, b) => b.forca - a.forca);
-          
-          setRanking(derived);
+        if (!error && data && data.length > 0) {
+          setRanking(data);
+        } else {
+          // Fallback: Query athletes and their best metrics safely
+          try {
+            const { data: athletes, error: athError } = await supabase
+              .from("athletes")
+              .select(`
+                name,
+                isometric_strength(half_squat_kgf)
+              `);
+            
+            if (!athError && athletes && athletes.length > 0) {
+              const derived = athletes
+                .map((a: any) => ({
+                  athlete_name: a.name,
+                  forca: a.isometric_strength?.[0]?.half_squat_kgf || 0
+                }))
+                .sort((a: any, b: any) => b.forca - a.forca);
+              
+              setRanking(derived);
+            }
+          } catch (e) {
+            // Ignore permission or connection errors
+          }
         }
+      } catch (err) {
+        // Silently fall through
       }
       setLoading(false);
     }

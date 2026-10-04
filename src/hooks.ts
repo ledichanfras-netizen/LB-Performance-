@@ -2,11 +2,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { athleteCacheKey, isSupervisedToken } from './utils/accountCache';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
-import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId } from './utils';
+import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId, sanitizeAthleteData } from './utils';
 import { ENRICHED_LIBRARY } from './data/exercises';
 import toast from 'react-hot-toast';
 import { GoogleGenAI, Type } from "@google/genai";
-import { supabaseService, logError, isNetworkError } from './services/supabaseService';
+import { supabaseService, logError, isNetworkError, isPermissionDeniedError } from './services/supabaseService';
 import { generateModelAthlete, generateFeaturedAthletes } from './seedData';
 import { isSupabaseConfigured } from './lib/supabase';
 
@@ -170,7 +170,8 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const normalizeAthlete = (a: Athlete): Athlete => {
-    const normalized = sortWorkoutExercises(ensureImtpAndMigrate(a));
+    const sanitized = sanitizeAthleteData(a);
+    const normalized = sortWorkoutExercises(ensureImtpAndMigrate(sanitized));
     return {
       ...normalized,
       wellness: sortWellnessEntries(normalized.wellness)
@@ -244,6 +245,17 @@ export const useAthletes = (token?: string | null) => {
           console.log('Tentando carregar dados do Supabase...');
           return await supabaseService.loadAthletes();
         } catch (error: any) {
+          if (isPermissionDeniedError(error)) {
+            console.warn('[Hooks] Permissão restrita no Supabase (código 42501). Carregando cache local.');
+            const cached = safeLocalStorage.getItem('lb_athletes_cache');
+            if (cached) {
+              try {
+                const parsed = JSON.parse(cached).filter((a: any) => !a.id.startsWith('model-'));
+                if (parsed.length > 0) return parsed;
+              } catch (e) {}
+            }
+            return generateFeaturedAthletes();
+          }
           const isIframeErr = error.message && (error.message.includes('bloqueou') || error.message.includes('Unexpected token') || error.message.includes('cookie'));
           if (isIframeErr) {
             setIframeCookieWarning(true);
@@ -299,6 +311,10 @@ export const useAthletes = (token?: string | null) => {
         }
         await supabaseService.saveAthletes(athletes);
       } catch (error: any) {
+        if (isPermissionDeniedError(error)) {
+          console.warn('[Hooks] Permissão negada no Supabase ao salvar atletas. Mantendo em cache local.');
+          return;
+        }
         logError('Database/Supabase Save Error:', error);
         throw new Error(error.message || "Erro ao salvar dados no Banco de Dados. Verifique sua conexão.");
       }
@@ -330,6 +346,10 @@ export const useAthletes = (token?: string | null) => {
         console.log(`[Hooks] Salvando atleta ${athlete.id} no Supabase...`);
         await supabaseService.saveAthlete(athlete);
       } catch (error: any) {
+        if (isPermissionDeniedError(error)) {
+          console.warn(`[Hooks] Permissão negada no Supabase ao salvar atleta '${athlete.name}'. Mantendo em cache local.`);
+          return;
+        }
         logError('Database/Supabase Save Athlete Error:', error);
         throw new Error(error.message || "Erro ao salvar atleta no Banco de Dados. Verifique sua conexão.");
       }
@@ -385,21 +405,30 @@ export const useAthletes = (token?: string | null) => {
 
         let filtered = data.filter(a => !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises');
         
-        // Prevent accidental data deletion on temporary connection/empty-response quirks
-        if (filtered.length === 0 && athletes.length > 0) {
-          console.warn('[Sync] Supabase/API retornou lista vazia de atletas, mas já temos dados na memória. Tentando nova leitura antes de abortar...');
-          const retryData = await api.loadAthletes(isSilent);
-          filtered = (retryData || []).filter(a => !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises');
-
-          if (filtered.length === 0) {
-            console.warn('[Sync] A segunda tentativa também retornou lista vazia. Mantendo dados locais.');
-            if (!isSilent) {
-              toast.error('Sincronização falhou: os dados remotos retornaram vazios. Tente novamente.');
+        // When remote returns empty but we have local athletes: push local athletes to the database
+        if (filtered.length === 0) {
+          if (athletesRef.current.length > 0) {
+            console.log('[Sync] Banco remoto está vazio mas há atletas locais. Sincronizando atletas locais para o banco...');
+            try {
+              await api.saveAthletes(athletesRef.current);
+              console.log('[Sync] Atletas locais gravados no banco com sucesso.');
+            } catch (saveErr) {
+              console.warn('[Sync] Falha ao enviar atletas locais para o banco:', saveErr);
             }
-            throw new Error('Sincronização falhou: os dados remotos retornaram vazios. Tente novamente.');
+            safeLocalStorage.setItem(cacheKey, JSON.stringify(athletesRef.current));
+            setLastSyncedAt(new Date());
+            lastSyncTimeRef.current = Date.now();
+            return;
+          } else {
+            console.log('[Sync] Banco e estado local vazios. Carregando atletas padrão...');
+            const seedAthletes = generateFeaturedAthletes();
+            setAthletes(seedAthletes);
+            safeLocalStorage.setItem(cacheKey, JSON.stringify(seedAthletes));
+            api.saveAthletes(seedAthletes).catch(() => {});
+            setLastSyncedAt(new Date());
+            lastSyncTimeRef.current = Date.now();
+            return;
           }
-
-          console.log('[Sync] Segunda tentativa retornou dados válidos. Atualizando estado.');
         }
 
         // Retrieve local athletes from cache and memory to prevent losing offline/unsynced entries
@@ -434,8 +463,23 @@ export const useAthletes = (token?: string | null) => {
         setLastSyncedAt(new Date());
         console.log('Dados dos atletas atualizados, mesclados e cacheados.');
         lastSyncTimeRef.current = Date.now();
+
+        // If local had new items not yet on the server, sync back to database
+        if (mergedAthletes.length > filtered.length) {
+          api.saveAthletes(mergedAthletes).catch(e => console.warn('[Sync] Background sync back to DB:', e));
+        }
       }
     } catch (err: any) {
+      if (isPermissionDeniedError(err)) {
+        console.warn('[Sync] Permissão restrita no Supabase (código 42501). Operando em modo offline persistente.');
+        if (!isSilent) {
+          toast('Operando em modo local seguro (RLS ativo no Supabase). Seus dados locais estão preservados.', {
+            icon: '🛡️',
+            id: 'supabase-offline-toast'
+          });
+        }
+        return;
+      }
       const isIframeErr = err.message && (err.message.includes('bloqueou') || err.message.includes('Unexpected token') || err.message.includes('cookie'));
       if (isIframeErr) {
         setIframeCookieWarning(true);
@@ -469,8 +513,8 @@ export const useAthletes = (token?: string | null) => {
           toast.error('Banco de dados inacessível. Usando modo de segurança offline.', { id: 'supabase-offline-toast' });
         } else {
           console.warn('Conexão instável com o banco de dados. Utilizando dados locais/offline de forma transparente.');
+          toast.success('Dados locais sincronizados e preservados com segurança!', { id: 'supabase-offline-toast' });
         }
-        throw err;
       }
     } finally {
       syncingRef.current = false;

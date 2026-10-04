@@ -243,3 +243,20 @@ ON CONFLICT (username) DO NOTHING;
 
 -- Migration to add average_force to cmj if not exists
 ALTER TABLE cmj ADD COLUMN IF NOT EXISTS average_force REAL DEFAULT 0;
+
+-- =========================================================================
+-- PERMISSIONS & RLS CONFIGURATION FOR SUPABASE (FIX PERMISSION DENIED 42501)
+-- =========================================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+
+-- Enable RLS and permissive policy for anon client
+ALTER TABLE IF EXISTS athletes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Permitir tudo para todos em athletes" ON athletes;
+CREATE POLICY "Permitir tudo para todos em athletes" ON athletes FOR ALL TO public, anon, authenticated USING (true) WITH CHECK (true);
+

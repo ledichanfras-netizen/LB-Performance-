@@ -146,13 +146,48 @@ export const isNetworkError = (error: any): boolean => {
   );
 };
 
+export const isPermissionDeniedError = (error: any): boolean => {
+  if (!error) return false;
+  const code = String(error.code || error?.error?.code || '');
+  const msg = String(error.message || error?.error?.message || '').toLowerCase();
+  return (
+    code === '42501' ||
+    msg.includes('permission denied') ||
+    msg.includes('row-level security') ||
+    msg.includes('violates row-level') ||
+    msg.includes('not authorized')
+  );
+};
+
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(key);
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(key, value);
+      }
+    } catch (e) {}
+  }
+};
+
 export const logError = (context: string, error: any) => {
-  if (!isNetworkError(error)) {
+  if (!isNetworkError(error) && !isPermissionDeniedError(error)) {
     console.error(context, error?.message || error);
   }
 };
 
 export const supabaseService = {
+  hasPermissionDenied: false,
+
   async loadAthletes(forceReload = false): Promise<Athlete[]> {
     if (!isSupabaseConfigured) {
       return [];
@@ -197,6 +232,21 @@ export const supabaseService = {
         .order('name', { ascending: true });
 
       if (primaryQuery.error) {
+        if (isPermissionDeniedError(primaryQuery.error)) {
+          this.hasPermissionDenied = true;
+          console.warn('[Supabase] Permissão restrita na tabela athletes (42501 - RLS). Carregando cache local persistente.');
+          const localCache = safeLocalStorage.getItem('lb_athletes_cache');
+          if (localCache) {
+            try {
+              const parsed = JSON.parse(localCache);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                inMemoryCachedAthletes = parsed;
+                return parsed;
+              }
+            } catch (e) {}
+          }
+          return inMemoryCachedAthletes;
+        }
         logError('Supabase Load Error:', primaryQuery.error);
         throw primaryQuery.error;
       }
@@ -536,6 +586,20 @@ export const supabaseService = {
 
       return mappedAthletes;
     } catch (e: any) {
+      if (isPermissionDeniedError(e)) {
+        this.hasPermissionDenied = true;
+        console.warn('[Supabase] Permissão restrita no carregamento (42501). Operando em modo offline resiliente.');
+        const localCache = safeLocalStorage.getItem('lb_athletes_cache');
+        if (localCache) {
+          try {
+            const parsed = JSON.parse(localCache);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed;
+            }
+          } catch (err) {}
+        }
+        return inMemoryCachedAthletes;
+      }
       logError('Supabase load crash:', e);
       throw e;
     }
@@ -622,6 +686,11 @@ export const supabaseService = {
     }
 
     if (athleteError) {
+      if (isPermissionDeniedError(athleteError)) {
+        this.hasPermissionDenied = true;
+        console.warn(`[Supabase] Permissão restrita no banco para salvar '${athlete.name}'. Alterações salvas no navegador.`);
+        return;
+      }
       logError('[Supabase] Erro ao salvar atleta base:', athleteError);
       throw athleteError;
     }

@@ -920,6 +920,33 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     toast.success("Nova série adicionada! Ajuste os valores conforme necessário.");
   };
 
+  // Replicar carga e repetições da Série 1 para todas as séries do exercício
+  const replicateFirstSetToAll = (exId: string) => {
+    setSession((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex) => {
+        if (ex.id !== exId) return ex;
+        const sets = ex.performedSets || [];
+        if (sets.length === 0) return ex;
+        const firstSet = sets[0];
+        const updatedSets = sets.map((s, idx) => {
+          if (idx === 0) return s;
+          return {
+            ...s,
+            weight: firstSet.weight,
+            reps: firstSet.reps,
+            distance: (firstSet as any).distance,
+            timeSeconds: (firstSet as any).timeSeconds,
+            intensity: (firstSet as any).intensity,
+            rpe: firstSet.rpe,
+          };
+        });
+        return { ...ex, performedSets: updatedSets };
+      }),
+    }));
+    toast.success("Carga e repetições da 1ª série replicadas para todas as séries deste exercício! ⚡");
+  };
+
   // Remove set (either specific set or last set)
   const removeSetFromExercise = (exId: string, setId?: string) => {
     setSession((prev) => ({
@@ -1621,7 +1648,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           </div>
 
           {/* CLOCKS & TOGGLES */}
-          <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-between sm:justify-start">
             <button
               onClick={() => {
                 if (manualDurationMinutes === "") {
@@ -1629,12 +1656,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 }
                 setShowFinishModal(true);
               }}
-              className="flex items-center gap-2 bg-[#0c111d] hover:bg-slate-900 px-4 py-2 rounded-xl border border-slate-900 hover:border-slate-800 shadow-md group transition-all cursor-pointer text-left"
+              className="flex items-center gap-2 bg-[#0c111d] hover:bg-slate-900 px-3.5 py-2 rounded-xl border border-slate-900 hover:border-slate-800 shadow-md group transition-all cursor-pointer text-left shrink-0"
               title="Ajustar data/tempo total de execução"
             >
               <Clock className="w-4 h-4 text-amber-400 animate-spin-slow group-hover:text-[#39FF14] transition-colors" />
               <div className="flex flex-col leading-none">
-                <span className="text-[7px] font-black text-[#39FF14] uppercase tracking-wider select-none opacity-80 group-hover:opacity-100 transition-all">Ajustar</span>
+                <span className="text-[7px] font-black text-[#39FF14] uppercase tracking-wider select-none opacity-80 group-hover:opacity-100 transition-all">Tempo</span>
                 <span className="text-xs font-black text-white font-mono mt-0.5">
                   {manualDurationMinutes !== "" ? `${manualDurationMinutes} min` : formatTime(totalElapsedTime)}
                 </span>
@@ -1643,7 +1670,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
             <button
               onClick={toggleVoice}
-              className={`p-2.5 rounded-xl border transition-all ${
+              className={`p-2 sm:p-2.5 rounded-xl border transition-all ${
                 isVoiceEnabled 
                   ? "bg-[#39FF14]/10 text-[#39FF14] border-[#39FF14]/30 shadow-lg shadow-[#39FF14]/5" 
                   : "bg-slate-900 text-slate-500 border-slate-800"
@@ -1654,12 +1681,27 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             </button>
 
             <button
+              type="button"
+              onClick={() => {
+                if (manualDurationMinutes === "") {
+                  setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
+                }
+                setShowFinishModal(true);
+              }}
+              className="px-3.5 sm:px-4 py-2 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#39FF14]/20 flex items-center gap-1.5 cursor-pointer shrink-0"
+              title="Finalizar Treino"
+            >
+              <Check className="w-3.5 h-3.5 stroke-[3]" />
+              <span className="hidden sm:inline">Finalizar</span>
+            </button>
+
+            <button
               onClick={() => {
                 if (window.confirm("Deseja realmente sair e descartar o andamento deste treino?")) {
                   onCancel();
                 }
               }}
-              className="p-2.5 bg-red-950/20 hover:bg-red-900 text-red-400 hover:text-white rounded-xl border border-red-900/30 transition-all cursor-pointer"
+              className="p-2 sm:p-2.5 bg-red-950/20 hover:bg-red-900 text-red-400 hover:text-white rounded-xl border border-red-900/30 transition-all cursor-pointer shrink-0"
               title="Sair do Treino"
             >
               <X className="w-4 h-4" />
@@ -1853,65 +1895,39 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         </div>
       )}
 
-      {/* SELETOR DE MODO DE VISUALIZAÇÃO DO TREINO */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-2.5 bg-[#090e1a] border border-slate-900 rounded-2xl shrink-0">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-900/90 shrink-0">
-          <button
-            type="button"
-            onClick={() => setViewMode("full")}
-            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-              viewMode === "full"
-                ? "bg-[#39FF14] text-slate-950 shadow-md shadow-[#39FF14]/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900"
-            }`}
-          >
-            <ListOrdered className="w-3.5 h-3.5" />
-            <span>Treino Completo ({session.exercises.length} Exercícios na Ordem)</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("guided")}
-            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-              viewMode === "guided"
-                ? "bg-[#39FF14] text-slate-950 shadow-md shadow-[#39FF14]/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900"
-            }`}
-          >
-            <Target className="w-3.5 h-3.5" />
-            <span>Modo Guiado (1 por Vez)</span>
-          </button>
+      {/* BARRA DE ATALHOS RÁPIDOS PARA NAVEGAÇÃO ENTRE EXERCÍCIOS */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-2.5 bg-[#090e1a] border border-slate-900 rounded-2xl shrink-0">
+        <div className="flex items-center gap-2 px-1">
+          <ListOrdered className="w-4 h-4 text-[#39FF14]" />
+          <span className="text-xs font-black uppercase tracking-wider text-white">
+            TREINO COMPLETO ({session.exercises.length} EXERCÍCIOS)
+          </span>
         </div>
 
-        {/* Quick Exercise Jump Pills (Order 1, 2, 3...) */}
+        {/* Quick Exercise Jump Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-1 min-w-0">
-          <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider shrink-0 hidden xl:inline">Ir para:</span>
+          <span className="text-[9px] font-black uppercase text-slate-500 tracking-wider shrink-0 hidden md:inline">Rolar até:</span>
           {session.exercises.map((ex, idx) => {
             const allCompleted = isExCompleted(ex);
-            const isCurrent = idx === currentExerciseIndex;
             return (
               <button
                 key={ex.id || idx}
                 type="button"
                 onClick={() => {
-                  setCurrentExerciseIndex(idx);
-                  if (viewMode === "full") {
-                    const el = document.getElementById(`exercise-card-${ex.id}`);
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
+                  const el = document.getElementById(`exercise-card-${ex.id}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
                   }
                 }}
                 className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border ${
                   allCompleted
                     ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
-                    : isCurrent
-                      ? "bg-[#39FF14]/20 border-[#39FF14]/40 text-[#39FF14]"
-                      : "bg-slate-950 hover:bg-slate-900 border-slate-900 text-slate-400 hover:text-white"
+                    : "bg-slate-950 hover:bg-slate-900 border-slate-900 text-slate-400 hover:text-white"
                 }`}
                 title={`${idx + 1}. ${ex.name}`}
               >
                 <span className="font-mono text-[9px] opacity-70">#{idx + 1}</span>
-                <span className="truncate max-w-[85px] sm:max-w-[110px]">{ex.name}</span>
+                <span className="truncate max-w-[85px] sm:max-w-[120px]">{ex.name}</span>
                 {allCompleted && <Check className="w-2.5 h-2.5 stroke-[3] text-emerald-400 shrink-0" />}
               </button>
             );
@@ -1919,13 +1935,76 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         </div>
       </div>
 
-      {/* DETAILED ACTIVE WORKOUT CARD OR FULL WORKOUT VIEW */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-6 no-scrollbar">
+      {/* FLOATING ACTIVE REST TIMER BANNER */}
+      <AnimatePresence>
+        {isTimerActive && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            className="p-3 bg-gradient-to-r from-slate-950 via-[#0c1626] to-slate-950 border border-amber-500/40 rounded-2xl shadow-xl shadow-amber-500/10 flex flex-wrap items-center justify-between gap-3 shrink-0"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                <Timer className="w-4 h-4 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
+                    {timerLabel || "CRONÔMETRO DE DESCANSO"}
+                  </span>
+                  <span className="text-[8px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded uppercase">
+                    Em andamento
+                  </span>
+                </div>
+                <p className="text-[9px] text-slate-400 font-semibold">
+                  Recupere-se para a próxima série.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-amber-500/30 flex items-center gap-2">
+                <span className="text-xl font-black text-[#39FF14] font-mono leading-none animate-pulse">
+                  {restSecondsRemaining}s
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRestSecondsRemaining((prev) => prev + 30)}
+                className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer"
+                title="Adicionar 30 segundos"
+              >
+                +30s
+              </button>
+              <button
+                type="button"
+                onClick={() => setRestSecondsRemaining((prev) => Math.max(0, prev - 15))}
+                className="px-2 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer"
+                title="Diminuir 15 segundos"
+              >
+                -15s
+              </button>
+              <button
+                type="button"
+                onClick={stopRestTimer}
+                className="px-3 py-1.5 bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/30 rounded-lg text-[9px] font-black uppercase transition-all cursor-pointer"
+                title="Pular descanso"
+              >
+                Pular ⏭️
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* DETAILED WORKOUT VIEW - ALL EXERCISES CONTINUOUSLY ON MAIN SCREEN */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-6 no-scrollbar pb-6">
         {session.exercises.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             Nenhum exercício carregado neste treino.
           </div>
-        ) : viewMode === "full" ? (
+        ) : (
           /* VISÃO COMPLETA: TODOS OS EXERCÍCIOS NA ORDEM SEQUENCIAL */
           <div className="space-y-6 pb-8">
             {session.exercises.map((ex, exIdx) => {
@@ -2115,762 +2194,392 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   ) : (
                     /* Tabela de Séries */
                     <div className="space-y-2 mt-4 relative z-10">
-                    <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-slate-500 px-2">
-                      <span>Repetições Executadas</span>
-                      <span>{ex.trainingMode && ex.trainingMode !== "strength" ? "Distância / Tempo / Intensidade" : "Carga / Reps / PSE / Status"}</span>
-                    </div>
+                      {/* Cabeçalho das Colunas */}
+                      <div className="grid grid-cols-12 gap-2 sm:gap-3 text-[9px] font-black uppercase tracking-wider text-slate-500 px-3 pb-1 select-none">
+                        <div className="col-span-3 sm:col-span-2">SÉRIE</div>
+                        <div className="col-span-3 sm:col-span-3 text-center">CARGA (KG)</div>
+                        <div className="col-span-3 sm:col-span-3 text-center">{isTime ? "TEMPO (SEG)" : "REPETIÇÕES"}</div>
+                        <div className="col-span-2 sm:col-span-3 text-center">PSE (0-10)</div>
+                        <div className="col-span-1 text-right"></div>
+                      </div>
 
-                    {(ex.performedSets || []).map((set: any, sIdx: number) => {
-                      const isSetCompleted = set.isCompleted;
-                      return (
-                        <div
-                          key={set.id || sIdx}
-                          className={`grid grid-cols-12 gap-2 items-center p-2.5 sm:p-3 rounded-xl border transition-all ${
-                            isSetCompleted
-                              ? "bg-[#39FF14]/5 border-[#39FF14]/20"
-                              : "bg-[#080d17] border-slate-900 hover:border-slate-800"
-                          }`}
-                        >
-                          <div className="col-span-2 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => toggleSetCompletion(ex.id, set.id)}
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer ${
-                                isSetCompleted
-                                  ? "bg-[#39FF14] text-slate-950 border-[#39FF14] shadow-md shadow-[#39FF14]/20"
-                                  : "bg-slate-950 border border-slate-800 text-slate-600 hover:border-slate-500"
-                              }`}
-                              title={isSetCompleted ? "Marcar como não concluída" : "Marcar como concluída"}
-                            >
-                              <Check className={`w-3.5 h-3.5 stroke-[3] transition-transform ${isSetCompleted ? "scale-100" : "scale-0"}`} />
-                            </button>
-                            <span className={`text-xs font-black uppercase ${isSetCompleted ? "text-[#39FF14]" : "text-slate-300"}`}>
-                              S{sIdx + 1}
-                            </span>
-                          </div>
+                      {(ex.performedSets || []).map((set: any, sIdx: number) => {
+                        const isSetCompleted = set.isCompleted;
+                        return (
+                          <div
+                            key={set.id || sIdx}
+                            className={`grid grid-cols-12 gap-2 sm:gap-3 items-center p-2.5 sm:p-3 rounded-2xl border transition-all ${
+                              isSetCompleted
+                                ? "bg-emerald-950/20 border-emerald-500/30 text-white"
+                                : "bg-[#080d17] border-slate-900/90 hover:border-slate-800"
+                            }`}
+                          >
+                            {/* Checkbox & Set index */}
+                            <div className="col-span-3 sm:col-span-2 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleSetCompletion(ex.id, set.id)}
+                                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer font-black shrink-0 ${
+                                  isSetCompleted
+                                    ? "bg-[#39FF14] text-slate-950 border-2 border-[#39FF14] shadow-lg shadow-[#39FF14]/30 scale-105"
+                                    : "bg-slate-950 border-2 border-slate-800 text-slate-600 hover:border-[#39FF14]/70 hover:text-[#39FF14]"
+                                }`}
+                                title={isSetCompleted ? "Desmarcar série" : "Concluir série"}
+                              >
+                                <Check className={`w-4 h-4 sm:w-5 sm:h-5 stroke-[3.5] transition-transform ${isSetCompleted ? "scale-100" : "scale-0"}`} />
+                              </button>
+                              <div className="flex flex-col">
+                                <span className={`text-xs sm:text-sm font-black uppercase tracking-wider ${isSetCompleted ? "text-[#39FF14]" : "text-white"}`}>
+                                  S{sIdx + 1}
+                                </span>
+                              </div>
+                            </div>
 
-                          {/* Metrica principal: carga para forca, distancia para performance */}
-                          <div className="col-span-3 flex items-center gap-1">
-                            {ex.trainingMode && ex.trainingMode !== "strength" ? (
-                              <>
+                            {/* Metrica principal: carga para forca, distancia para performance */}
+                            <div className="col-span-3 sm:col-span-3 flex items-center gap-1.5">
+                              {ex.trainingMode && ex.trainingMode !== "strength" ? (
+                                <div className="relative w-full">
+                                  <input
+                                    type="number"
+                                    value={(set as any).distance || ""}
+                                    onChange={(e) => updateSetField(ex.id, set.id, "distance" as any, parseFloat(e.target.value) || 0)}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/50 rounded-xl py-2 sm:py-2.5 px-2 text-center font-extrabold text-sm sm:text-base text-white outline-none transition-all"
+                                    placeholder={String(ex.distanceMeters || 0)}
+                                  />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] sm:text-[9px] font-black text-cyan-400 uppercase select-none pointer-events-none">
+                                    M
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="relative w-full">
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    value={set.weight !== undefined && set.weight !== null ? set.weight : ""}
+                                    onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
+                                    onFocus={(e) => e.target.select()}
+                                    className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] focus:ring-1 focus:ring-[#39FF14]/50 rounded-xl py-2 sm:py-2.5 px-2 text-center font-extrabold text-sm sm:text-base text-white outline-none transition-all"
+                                    placeholder="0"
+                                  />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] sm:text-[9px] font-black text-slate-500 uppercase select-none pointer-events-none">
+                                    KG
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Tempo para performance, repeticoes para forca */}
+                            <div className="col-span-3 sm:col-span-3 flex items-center gap-1.5">
+                              <div className="relative w-full">
                                 <input
                                   type="number"
-                                  value={(set as any).distance || ""}
-                                  onChange={(e) => updateSetField(ex.id, set.id, "distance" as any, parseFloat(e.target.value) || 0)}
+                                  step={isTime ? "1" : "1"}
+                                  value={ex.trainingMode && ex.trainingMode !== "strength" ? ((set as any).timeSeconds || "") : (set.reps !== undefined && set.reps !== null ? set.reps : "")}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    if (ex.trainingMode && ex.trainingMode !== "strength") {
+                                      updateSetField(ex.id, set.id, "timeSeconds" as any, val);
+                                    } else if (isTime) {
+                                      updateSetField(ex.id, set.id, "timeSeconds" as any, val);
+                                      updateSetField(ex.id, set.id, "reps", val);
+                                    } else {
+                                      updateSetField(ex.id, set.id, "reps", val);
+                                    }
+                                  }}
                                   onFocus={(e) => e.target.select()}
-                                  className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-400 rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
-                                  placeholder={String(ex.distanceMeters || 0)}
+                                  className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] focus:ring-1 focus:ring-[#39FF14]/50 rounded-xl py-2 sm:py-2.5 px-2 text-center font-extrabold text-sm sm:text-base text-white outline-none transition-all"
+                                  placeholder={ex.trainingMode && ex.trainingMode !== "strength" ? "tempo" : "0"}
                                 />
-                                <span className="text-[8.5px] font-black text-cyan-400 uppercase">M</span>
-                              </>
-                            ) : (
-                              <>
-                                <input
-                                  type="number"
-                                  value={set.weight || ""}
-                                  onChange={(e) => updateSetField(ex.id, set.id, "weight", parseFloat(e.target.value) || 0)}
-                                  onFocus={(e) => e.target.select()}
-                                  className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
-                                  placeholder="0"
-                                />
-                                <span className="text-[8.5px] font-black text-slate-500 uppercase">KG</span>
-                              </>
-                            )}
-                          </div>
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] sm:text-[9px] font-black text-slate-500 uppercase select-none pointer-events-none">
+                                  {ex.trainingMode && ex.trainingMode !== "strength" ? "S" : (isTime ? "SEG" : "REPS")}
+                                </span>
+                              </div>
+                            </div>
 
-                          {/* Tempo para performance, repeticoes para forca */}
-                          <div className="col-span-3 flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={ex.trainingMode && ex.trainingMode !== "strength" ? ((set as any).timeSeconds || "") : (set.reps || "")}
-                              onChange={(e) => updateSetField(ex.id, set.id, ex.trainingMode && ex.trainingMode !== "strength" ? "timeSeconds" as any : "reps", parseFloat(e.target.value) || 0)}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1.5 text-center font-extrabold text-xs sm:text-sm text-white"
-                              placeholder={ex.trainingMode && ex.trainingMode !== "strength" ? "tempo" : "0"}
-                            />
-                            <span className="text-[8.5px] font-black text-slate-500 uppercase">{ex.trainingMode && ex.trainingMode !== "strength" ? "S" : (isTime ? "SEG" : "REPS")}</span>
-                          </div>
+                            {/* RPE selector */}
+                            <div className="col-span-2 sm:col-span-3 flex items-center gap-1">
+                              <select
+                                value={ex.trainingMode && ex.trainingMode !== "strength" ? ((set as any).intensity || 0) : (set.rpe || 0)}
+                                onChange={(e) => updateSetField(ex.id, set.id, ex.trainingMode && ex.trainingMode !== "strength" ? "intensity" as any : "rpe", parseInt(e.target.value))}
+                                className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] focus:ring-1 focus:ring-[#39FF14]/50 rounded-xl py-2 sm:py-2.5 px-1 text-center font-black text-xs sm:text-sm text-amber-400 outline-none transition-all cursor-pointer"
+                              >
+                                {(ex.trainingMode && ex.trainingMode !== "strength" ? [0, 70, 75, 80, 85, 90, 95, 100] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((v) => (
+                                  <option key={v} value={v}>
+                                    {v === 0 ? "PSE -" : `PSE ${v}`}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
 
-                          {/* RPE selector */}
-                          <div className="col-span-3 flex items-center gap-1">
-                            <span className="text-[8px] font-black text-slate-500 uppercase">{ex.trainingMode && ex.trainingMode !== "strength" ? "%" : "PSE"}</span>
+                            {/* Remove set */}
+                            <div className="col-span-1 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => removeSetFromExercise(ex.id, set.id)}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                title="Excluir série"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-900/60 mt-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => addSetToExercise(ex.id)}
+                            className="py-2 px-3.5 bg-slate-950 hover:bg-[#39FF14]/10 border border-dashed border-slate-800 hover:border-[#39FF14]/40 text-slate-300 hover:text-[#39FF14] font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                            <span>Adicionar Série</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => replicateFirstSetToAll(ex.id)}
+                            className="py-2 px-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 text-amber-400 hover:text-amber-300 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                            title="Replicar carga e repetições da Série 1 para todas as séries"
+                          >
+                            <span>⚡ Replicar S1 p/ todas</span>
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-xl border border-slate-900">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase">Dor:</span>
                             <select
-                              value={ex.trainingMode && ex.trainingMode !== "strength" ? ((set as any).intensity || 0) : (set.rpe || 0)}
-                              onChange={(e) => updateSetField(ex.id, set.id, ex.trainingMode && ex.trainingMode !== "strength" ? "intensity" as any : "rpe", parseInt(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-lg py-1.5 px-1 text-center font-bold text-xs text-white"
+                              value={ex.painLevel || 0}
+                              onChange={(e) => updatePainValue(ex.id, parseInt(e.target.value))}
+                              className="bg-transparent text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
                             >
-                              {(ex.trainingMode && ex.trainingMode !== "strength" ? [0, 70, 75, 80, 85, 90, 95, 100] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map((v) => (
-                                <option key={v} value={v}>{v}</option>
+                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+                                <option key={v} value={v} className="bg-slate-900">Dor {v}</option>
                               ))}
                             </select>
                           </div>
-
-                          {/* Remove set */}
-                          <div className="col-span-1 flex justify-end">
-                            <button
-                              type="button"
-                              onClick={() => removeSetFromExercise(ex.id, set.id)}
-                              className="p-1 text-slate-600 hover:text-red-400 transition-colors cursor-pointer"
-                              title="Excluir série"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => addSetToExercise(ex.id)}
-                        className="py-2 px-3.5 bg-slate-950 hover:bg-[#39FF14]/10 border border-dashed border-slate-800 hover:border-[#39FF14]/40 text-slate-400 hover:text-[#39FF14] font-black text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                        Adicionar Série (+ Replicar Carga/Reps)
-                      </button>
-
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-900">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Dor:</span>
-                          <select
-                            value={ex.painLevel || 0}
-                            onChange={(e) => updatePainValue(ex.id, parseInt(e.target.value))}
-                            className="bg-transparent text-[10px] font-bold text-slate-300 outline-none cursor-pointer"
-                          >
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
-                              <option key={v} value={v} className="bg-slate-900">Dor {v}</option>
-                            ))}
-                          </select>
                         </div>
                       </div>
                     </div>
-                  </div>
                   )}
                 </div>
               </React.Fragment>
               );
             })}
-          </div>
-        ) : activeEx ? (
-          <div className="space-y-6">
-            
-            {/* Exercise Card Header & Info */}
-            <div className="p-6 bg-gradient-to-b from-[#0c111d] to-[#05080e] rounded-[2rem] border border-slate-900 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full blur-[50px] pointer-events-none" />
-              
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-black bg-[#39FF14]/15 border border-[#39FF14]/25 text-[#39FF14] px-3 py-1 rounded-full uppercase tracking-wider">
-                      {activeEx.muscleGroup || "GERAL"}
-                    </span>
-                    {isCurrentExCompleted ? (
-                      <span className="text-[10px] font-black bg-[#39FF14]/15 border border-[#39FF14]/25 text-[#39FF14] px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-                        ✔️ EXERCÍCIO CONCLUÍDO
-                      </span>
-                    ) : (
-                      activeEx.performedSets && (
-                        <span className="text-[10px] font-black bg-amber-500/15 border border-amber-500/25 text-amber-400 px-3 py-1 rounded-full uppercase tracking-wider">
-                          ⚡ Série em execução: {currentSetIndexForActiveEx + 1 > activeEx.performedSets.length ? "Concluída ✨" : `Série ${currentSetIndexForActiveEx + 1} de ${activeEx.performedSets.length}`}
-                        </span>
-                      )
-                    )}
+            {/* PAINEL DE CONCLUSÃO DO TREINO - LOCALIZADO NO FINAL DA TELA */}
+            <div className="p-6 sm:p-8 bg-gradient-to-b from-[#0e1626] to-[#080d17] border border-slate-800/90 rounded-[2.5rem] shadow-2xl space-y-6 mt-10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14] text-xl shrink-0 shadow-lg shadow-[#39FF14]/10">
+                    🏆
                   </div>
-                  <h3 className="text-2xl md:text-3xl font-black uppercase italic text-white tracking-tight mt-2.5 flex flex-wrap items-center gap-3">
-                    <span>{activeEx.name}</span>
-                    {(() => {
-                      let customExs: any[] = [];
-                      try {
-                        const stored = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
-                        if (stored) {
-                          customExs = JSON.parse(stored);
-                        }
-                      } catch (err) {
-                        console.error("Erro ao carregar customLibraryExercises em SessionTrackerPremium:", err);
-                      }
-                      const matchingCustomEx = customExs.find((x: any) => x.name.toLowerCase().trim() === activeEx.name.toLowerCase().trim() || activeEx.name.toLowerCase().includes(x.name.toLowerCase()));
-                      const matchingLibEx = ENRICHED_LIBRARY.find((x: any) => x.name.toLowerCase().trim() === activeEx.name.toLowerCase().trim() || activeEx.name.toLowerCase().includes(x.name.toLowerCase()));
-                      
-                      const resolvedVideoUrl = activeEx.videoUrl || matchingCustomEx?.videoUrl || matchingLibEx?.videoUrl;
-                      const hasDirectVideo = !!resolvedVideoUrl;
-
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVideoModalExercise({
-                              name: activeEx.name,
-                              muscleGroup: activeEx.muscleGroup,
-                              notes: activeEx.notes,
-                              videoUrl: resolvedVideoUrl,
-                              imageUrl: activeEx.imageUrl || (matchingCustomEx as any)?.imageUrl || (matchingLibEx as any)?.imageUrl
-                            });
-                          }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[9.5px] uppercase font-black tracking-wider rounded-xl transition-all cursor-pointer ${
-                            hasDirectVideo 
-                              ? "bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)] animate-pulse" 
-                              : "bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/25 shadow-[0_0_15px_rgba(57,255,20,0.15)]"
-                          }`}
-                          title="Abrir demonstração em vídeo e guia técnico de execução"
-                        >
-                          <Video className="w-3.5 h-3.5 shrink-0" />
-                          <span>{hasDirectVideo ? "Vídeo Técnico 🎬" : "Guia de Execução ⚡"}</span>
-                        </button>
-                      );
-                    })()}
-                  </h3>
-
-                  {/* Special Method Badges & Interactive Guide in Guided View */}
-                  <SpecialMethodInteractiveGuide 
-                    exercise={activeEx} 
-                    onStartTimer={startRestTimer} 
-                    activeSetIndex={currentSetIndexForActiveEx} 
-                  />
-
-                  {activeEx.executionMethod === "complex_contrast" && (() => {
-                    const blockExs = session.exercises.filter(
-                      e => e.blockGroupId && e.blockGroupId === activeEx.blockGroupId
-                    );
-                    return (
-                      <div className="w-full space-y-2.5 mt-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider border flex items-center gap-1.5 shadow-xs ${
-                            (activeEx.blockTag || "").endsWith("A")
-                              ? "bg-cyan-500/15 text-cyan-900 dark:text-cyan-300 border-cyan-400/30"
-                              : (activeEx.blockTag || "").endsWith("B")
-                              ? "bg-indigo-500/15 text-indigo-900 dark:text-indigo-300 border-indigo-400/30"
-                              : (activeEx.blockTag || "").endsWith("C")
-                              ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-400/30"
-                              : "bg-emerald-500/15 text-emerald-900 dark:text-emerald-300 border-emerald-400/30"
-                          }`}>
-                            <span>🇫🇷</span>
-                            <span>COMPLEXO FRANCÊS: {activeEx.blockTag || "1A"}</span>
-                          </span>
-                          {activeEx.blockRole && (
-                            <span className="text-[10px] font-bold text-slate-800 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3 py-1 rounded-xl">
-                              {activeEx.blockRole}
-                            </span>
-                          )}
-                          <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300 bg-amber-500/10 border border-amber-400/30 px-3 py-1 rounded-xl flex items-center gap-1">
-                            <span>⚡ Transição: {activeEx.intraSetRest ?? 20}s</span>
-                            {activeEx.blockRest && <span>• Descanso Pós-Round: {activeEx.blockRest}</span>}
-                          </span>
-                        </div>
-
-                        {/* Trilha Sequencial dos 4 Estágios do Complexo */}
-                        {blockExs.length > 1 && (
-                          <div className="p-3 bg-[#070c18] border border-cyan-500/20 rounded-2xl space-y-1.5">
-                            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-cyan-400">
-                              <span>Trilha do Bloco (1 Série por Estágio):</span>
-                              <span className="text-amber-400 font-bold">Round {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}</span>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                              {blockExs.map((bEx) => {
-                                const isCurrentStage = bEx.id === activeEx.id;
-                                const bIndex = session.exercises.findIndex(e => e.id === bEx.id);
-                                return (
-                                  <button
-                                    key={bEx.id}
-                                    type="button"
-                                    onClick={() => bIndex !== -1 && navigateToExercise(bIndex)}
-                                    className={`p-2 rounded-xl text-left border transition-all cursor-pointer ${
-                                      isCurrentStage
-                                        ? "bg-cyan-500/15 border-cyan-400 text-white ring-1 ring-cyan-400/50 shadow-md shadow-cyan-950/40"
-                                        : "bg-slate-950/60 border-slate-900 text-slate-400 hover:border-slate-700 hover:text-slate-300"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between text-[9px] font-black uppercase">
-                                      <span className={isCurrentStage ? "text-cyan-300" : "text-slate-500"}>
-                                        {bEx.blockTag || "Estágio"}
-                                      </span>
-                                      {isCurrentStage && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                                      )}
-                                    </div>
-                                    <p className="text-[10px] font-bold truncate mt-0.5 text-white">
-                                      {bEx.name}
-                                    </p>
-                                    <span className="text-[8px] text-slate-500 truncate block mt-0.5">
-                                      {bEx.blockRole || "Exercício"}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {activeEx.notes && (
-                    <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-2.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs italic leading-relaxed">
-                      💡 {activeEx.notes}
-                    </p>
-                  )}
+                  <div>
+                    <span className="text-[10px] font-black text-[#39FF14] uppercase tracking-widest block">
+                      FINALIZAÇÃO DA SESSÃO
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black uppercase italic text-white tracking-tight">
+                      CONCLUIR E REGISTRAR TREINO
+                    </h3>
+                  </div>
                 </div>
 
-                <div className="flex flex-col items-end shrink-0">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">PRESCRIÇÃO</span>
-                  <span className="text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-4 py-2 rounded-xl italic">
-                    {activeEx.trainingMode && activeEx.trainingMode !== "strength"
-                      ? `${activeEx.sets} repetições • ${activeEx.distanceMeters ? `${activeEx.distanceMeters} m` : activeEx.reps} • ${activeEx.targetIntensity || "--"}%`
-                      : `${activeEx.sets}x${isTimeExercise(activeEx) ? `${String(activeEx.reps).replace(/s/gi, "")}s` : activeEx.reps} @ ${activeEx.weight}`}
-                  </span>
+                <div className="flex flex-wrap items-center gap-3 bg-slate-950/70 px-4 py-2.5 rounded-2xl border border-slate-900 shrink-0">
+                  <div className="text-left">
+                    <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block">Progresso</span>
+                    <span className="text-xs font-black text-[#39FF14]">
+                      {completedSetsCount}/{totalSetsCount} Séries ({progressPercent}%)
+                    </span>
+                  </div>
+                  <div className="h-6 w-px bg-slate-800 mx-1" />
+                  <div className="text-left">
+                    <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block">Volume</span>
+                    <span className="text-xs font-black text-white font-mono">
+                      {currentTotalLoad.toLocaleString("pt-BR")} kg
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* PAIN & DETAILS CONTROLLER */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-5 border-t border-slate-900 relative z-10">
-                <div className="flex items-center justify-between bg-slate-950/40 p-3 rounded-xl border border-slate-900/60">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">MODO DE PREENCHIMENTO</span>
+              {/* DADOS GERAIS: DATA, DURAÇÃO E PSE */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Data */}
+                <div className="space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                    📅 DATA DE EXECUÇÃO
+                  </label>
+                  <input
+                    type="date"
+                    value={sessionDate}
+                    onChange={(e) => setSessionDate(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-[#39FF14] rounded-xl px-3 py-2 text-xs font-bold text-white outline-none transition-all cursor-pointer"
+                  />
+                </div>
+
+                {/* Duração */}
+                <div className="space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                    ⏱️ DURAÇÃO TOTAL (MINUTOS)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      value={manualDurationMinutes || Math.max(1, Math.round(totalElapsedTime / 60)).toString()}
+                      onChange={(e) => setManualDurationMinutes(e.target.value)}
+                      onFocus={(e) => e.target.select()}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-[#39FF14] rounded-xl pl-3 pr-16 py-2 text-xs font-bold text-white outline-none transition-all cursor-pointer font-mono"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase select-none pointer-events-none">
+                      MIN
+                    </span>
+                  </div>
+                </div>
+
+                {/* Resumo PSE Atual */}
+                <div className="space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900 sm:col-span-2 lg:col-span-1 flex flex-col justify-between">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                    🔥 INTENSIDADE DA SESSÃO
+                  </label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-black text-amber-400 font-mono bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl">
+                      PSE {overallRpe} — {getRpeEmojiAndInfo(overallRpe).emoji}
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      {getRpeEmojiAndInfo(overallRpe).text}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SELETOR INTERATIVO DE PSE (1 A 10) */}
+              <div className="space-y-2.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
+                <label className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
+                  ESCALA DE PERCEPÇÃO SUBJETIVA DO ESFORÇO (BORG CR10)
+                </label>
+                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
+                    const isSelected = overallRpe === v;
+                    let colorClasses = "border-slate-800 hover:border-slate-600 bg-slate-900 text-slate-300";
+                    if (isSelected) {
+                      if (v <= 2) colorClasses = "bg-green-500/25 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.25)] font-black scale-105";
+                      else if (v <= 4) colorClasses = "bg-yellow-500/25 border-yellow-500 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.25)] font-black scale-105";
+                      else if (v <= 6) colorClasses = "bg-orange-500/25 border-orange-500 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.25)] font-black scale-105";
+                      else if (v <= 8) colorClasses = "bg-red-500/25 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.25)] font-black scale-105";
+                      else colorClasses = "bg-purple-500/25 border-purple-500 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.25)] font-black scale-105";
+                    }
+
+                    return (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setOverallRpe(v)}
+                        className={`py-2.5 rounded-xl border text-xs sm:text-sm font-black transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${colorClasses}`}
+                      >
+                        <span>{v}</span>
+                        <span className="text-[8px] opacity-75">{getRpeEmojiAndInfo(v).emoji}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* RECUPERAÇÃO NUTRICIONAL PÓS-TREINO */}
+              {(() => {
+                const durMin = Math.max(15, parseInt(manualDurationMinutes, 10) || Math.round(totalElapsedTime / 60) || 60);
+                const nutri = calculatePostWorkoutQuickTarget(athleteWeight || 75, overallRpe, durMin);
+                return (
+                  <div className="bg-slate-950/60 border border-slate-900 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#39FF14]">
+                        🔋 Recuperação Nutricional Pós-Treino ({nutri.weightKg} kg • PSE {overallRpe})
+                      </span>
+                      <span className="text-[9px] font-mono font-bold text-slate-400">
+                        Janela: 0 a 60 min
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Proteína</span>
+                        <strong className="text-sm font-black text-[#39FF14] font-mono">
+                          {nutri.proteinGrams}g ({nutri.proteinGPerKg}g/kg)
+                        </strong>
+                      </div>
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Carboidrato</span>
+                        <strong className="text-sm font-black text-amber-400 font-mono">
+                          {nutri.carbsGrams}g ({nutri.carbsGPerKg}g/kg)
+                        </strong>
+                      </div>
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Reidratação</span>
+                        <strong className="text-sm font-black text-cyan-400 font-mono">
+                          +{nutri.rehydrationMl} ml
+                        </strong>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-300 leading-relaxed font-medium">
+                      <strong className="text-emerald-400 font-bold">Equivalência:</strong> {nutri.practicalSummary}
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* RELATO / BIOFEEDBACK */}
+              <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
+                <label className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
+                  💬 RELATO DE BIOFEEDBACK E OBSERVAÇÕES (OPCIONAL)
+                </label>
+                <textarea
+                  value={feedbackNotes}
+                  onChange={(e) => setFeedbackNotes(e.target.value)}
+                  className="w-full h-20 bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white outline-none focus:border-[#39FF14] transition-all font-semibold resize-none"
+                  placeholder="Ex: Treino muito produtivo, carga mantida com boa velocidade nas séries finais. Prontidão alta."
+                />
+              </div>
+
+              {/* BOTÕES DE AÇÃO PRINCIPAIS NO FINAL DA TELA */}
+              <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Deseja realmente sair e descartar as alterações deste treino?")) {
+                      onCancel();
+                    }
+                  }}
+                  className="px-5 py-3.5 bg-red-950/20 hover:bg-red-900 text-red-400 hover:text-white rounded-2xl border border-red-900/30 text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center shrink-0 order-2 sm:order-1"
+                >
+                  Descartar Treino
+                </button>
+
+                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1 sm:justify-end order-1 sm:order-2">
+                  {onShareStrava && (
+                    <button
+                      type="button"
+                      onClick={() => triggerFinish(true)}
+                      className="px-6 py-4 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-[#39FF14]/30 hover:border-[#39FF14]/60 font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>Concluir & Postar Strava</span>
+                    </button>
+                  )}
+
                   <button
-                    onClick={() => toggleExInputMode(activeEx.id)}
-                    className="text-[10px] font-black uppercase tracking-wider text-[#39FF14] bg-[#39FF14]/10 hover:bg-[#39FF14]/20 px-3 py-1.5 rounded-lg transition-colors border border-brand-primary/20"
+                    type="button"
+                    onClick={() => triggerFinish(false)}
+                    className="flex-1 sm:flex-none px-8 py-4 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs sm:text-sm uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-[#39FF14]/25 cursor-pointer flex items-center justify-center gap-2"
                   >
-                    {activeEx.isSimpleEntry ? "Modo Detalhado 📊" : "Modo Simplificado ⚡"}
+                    <Check className="w-5 h-5 stroke-[3]" />
+                    <span>FINALIZAR TREINO 🏆</span>
                   </button>
                 </div>
-
-                <div className="flex items-center justify-between bg-slate-950/40 p-3 rounded-xl border border-slate-900/60">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">DOR REATIVA (0-10)</span>
-                  <select
-                    value={activeEx.painLevel || 0}
-                    onChange={(e) => updatePainValue(activeEx.id, parseInt(e.target.value))}
-                    className={`text-xs font-black rounded-lg px-2.5 py-1.5 outline-none border transition-all ${
-                      (activeEx.painLevel || 0) > 4 
-                        ? "bg-red-950/40 border-red-500 text-red-500" 
-                        : "bg-slate-950 border-slate-800 text-white"
-                    }`}
-                  >
-                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
-                      <option key={v} value={v} className="bg-slate-900">{v}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
             </div>
-
-            {/* REST COUNTDOWN HUB */}
-            <div className="p-4 bg-[#0c111d]/60 rounded-2xl border border-slate-900 flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                  <Timer className={`w-5 h-5 ${isTimerActive ? "animate-pulse" : ""}`} />
-                </div>
-                <div>
-                  <h4 className="text-[11px] font-black uppercase text-slate-400 tracking-wider">
-                    {timerLabel}
-                  </h4>
-                  <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                    {isTimerActive ? "Contagem regressiva em andamento" : "Automático ao marcar série"}
-                  </p>
-                </div>
-              </div>
-
-              {/* TIMER CONTROLS */}
-              <div className="flex items-center gap-4">
-                {isTimerActive ? (
-                  <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-900 rounded-xl px-5 py-2">
-                    <span className="text-lg font-black text-[#39FF14] font-mono leading-none animate-pulse">
-                      {restSecondsRemaining}s
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={stopRestTimer} className="p-1 text-red-400 hover:text-red-300">
-                        <Pause className="w-4 h-4" />
-                      </button>
-                      <button onClick={resetRestTimer} className="p-1 text-slate-400 hover:text-white">
-                        <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {[
-                      { sec: 15, label: "+15s", tip: "Micro-pausa Rest-Pause" },
-                      { sec: 20, label: "+20s", tip: "Micro-pausa Cluster / Transição" },
-                      { sec: 60, label: "+60s", tip: "Descanso padrão" },
-                      { sec: 90, label: "+90s", tip: "Descanso hipertrofia" },
-                      { sec: 180, label: "+3m", tip: "Descanso round / força" },
-                    ].map((item) => (
-                      <button
-                        key={item.sec}
-                        onClick={() => startRestTimer(item.sec, `⏱️ Descanso Manual (${item.sec}s)`)}
-                        title={item.tip}
-                        className="text-[10px] font-black uppercase tracking-wider bg-slate-950 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-[#39FF14] px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* SETS EXECUTION MANAGER */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                  {isFieldOrRunningExercise(activeEx) ? "TREINO ESTRUTURADO POR BLOCOS E TIROS" : `MÉTRICAS EXECUTADAS (${(activeEx.performedSets || []).length} SÉRIES)`}
-                </h4>
-              </div>
-              
-              {isFieldOrRunningExercise(activeEx) ? (
-                <RunningBlockTracker
-                  exercise={activeEx}
-                  onUpdateExercise={updateExerciseInSession}
-                  onStartGlobalRestTimer={(sec, lbl) => startRestTimer(sec, lbl || "Recuperação de Campo")}
-                />
-              ) : activeEx.isSimpleEntry ? (
-                // SIMPLE ENTRY FORM FOR EASY COACHING PRE-POPULATION
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-[#0c111d] p-4 rounded-2xl border border-slate-900">
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-900">
-                    <label className="text-[9px] text-slate-500 uppercase font-black block tracking-widest text-center mb-1">SÉRIES ATIVAS</label>
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => removeSetFromExercise(activeEx.id)} className="text-slate-400 hover:text-white text-base font-bold px-2.5 py-1 bg-slate-900 rounded-lg cursor-pointer">-</button>
-                      <input
-                        type="number"
-                        value={activeEx.performedSets?.length || ""}
-                        onChange={(e) => updateSimpleSetsCount(activeEx.id, parseInt(e.target.value) || 1)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-12 bg-transparent text-center font-black text-white text-base outline-none"
-                      />
-                      <button onClick={() => addSetToExercise(activeEx.id)} className="text-slate-400 hover:text-white text-base font-bold px-2.5 py-1 bg-slate-900 rounded-lg cursor-pointer">+</button>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-900">
-                    <label className="text-[9px] text-slate-500 uppercase font-black block tracking-widest text-center mb-1">{isTimeExercise(activeEx) ? "TEMPO (SEG)" : "REPETIÇÕES"}</label>
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => adjustSetField(activeEx.id, activeEx.performedSets?.[0]?.id || "", "reps", -1)} className="text-slate-400 hover:text-white text-base font-bold px-2.5 py-1 bg-slate-900 rounded-lg">-</button>
-                      <input
-                        type="number"
-                        value={activeEx.performedSets?.[0]?.reps === 0 ? "" : activeEx.performedSets?.[0]?.reps || ""}
-                        onChange={(e) => updateSetField(activeEx.id, activeEx.performedSets?.[0]?.id || "", "reps", parseInt(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-14 bg-transparent text-center font-black text-white text-base outline-none"
-                        placeholder="0"
-                      />
-                      <button onClick={() => adjustSetField(activeEx.id, activeEx.performedSets?.[0]?.id || "", "reps", 1)} className="text-slate-400 hover:text-white text-base font-bold px-2.5 py-1 bg-slate-900 rounded-lg">+</button>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-900">
-                    <label className="text-[9px] text-slate-500 uppercase font-black block tracking-widest text-center mb-1">CARGA (KG)</label>
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => adjustSetField(activeEx.id, activeEx.performedSets?.[0]?.id || "", "weight", -1)} className="text-slate-400 hover:text-white text-base font-bold px-2.5 py-1 bg-slate-900 rounded-lg">-</button>
-                      <input
-                        type="number"
-                        value={activeEx.performedSets?.[0]?.weight === 0 ? "" : activeEx.performedSets?.[0]?.weight || ""}
-                        onChange={(e) => updateSetField(activeEx.id, activeEx.performedSets?.[0]?.id || "", "weight", parseFloat(e.target.value) || 0)}
-                        onFocus={(e) => e.target.select()}
-                        className="w-14 bg-transparent text-center font-black text-white text-base outline-none"
-                        placeholder="0"
-                      />
-                      <button onClick={() => adjustSetField(activeEx.id, activeEx.performedSets?.[0]?.id || "", "weight", 1)} className="text-slate-400 hover:text-white text-base font-bold px-2.5 py-1 bg-slate-900 rounded-lg">+</button>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-900 flex flex-col justify-center items-center gap-2">
-                    {isCurrentExCompleted ? (
-                      <>
-                        <button
-                          disabled
-                          className="w-full bg-slate-900 text-slate-500 border border-slate-800/60 font-black text-xs uppercase py-3.5 px-3 rounded-xl tracking-wider select-none cursor-not-allowed opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          CONCLUÍDO ✔️
-                        </button>
-                        <button
-                          onClick={() => {
-                            (activeEx.performedSets || []).forEach(set => {
-                              updateSetField(activeEx.id, set.id, "isCompleted", false);
-                            });
-                            toast.success("Exercício reaberto para edição!");
-                          }}
-                          className="text-[9px] font-black text-slate-400 hover:text-white uppercase tracking-widest transition-colors cursor-pointer"
-                        >
-                          REABRIR 🔄
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          (activeEx.performedSets || []).forEach(set => {
-                            updateSetField(activeEx.id, set.id, "isCompleted", true);
-                          });
-                          toast.success("Todas as séries marcadas como concluídas!");
-                          
-                          const restValue = activeEx?.rest || "90s";
-                          const secondsMatch = restValue.match(/\d+/);
-                          const restSecs = secondsMatch ? parseInt(secondsMatch[0]) : 90;
-                          startRestTimer(restSecs);
-
-                          const nextIndex = currentExerciseIndex + 1;
-                          if (nextIndex < session.exercises.length) {
-                            setTimeout(() => {
-                              navigateToExercise(nextIndex);
-                              toast.success(`Avançando para o próximo exercício: ${session.exercises[nextIndex].name}!`, { icon: "➡️" });
-                            }, 1500);
-                          } else {
-                            setTimeout(() => {
-                              setShowFinishModal(true);
-                              toast.success("Todos os exercícios concluídos! Defina sua percepção de esforço (PSE) para finalizar. 🏆", { duration: 5000 });
-                            }, 1500);
-                          }
-                        }}
-                        className="w-full bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase py-3.5 px-3 rounded-xl tracking-wider transition-colors shadow-lg shadow-[#39FF14]/10 cursor-pointer"
-                      >
-                        CONCLUIR ✅
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                // DETAILED ROW BY ROW SET RECORDING
-                <div className="space-y-4">
-                  {/* SMART ACTIVE SET CONTROLLER FOR QUICK RECORDING & REST TIMER TRIGGERS */}
-                  {currentSetIndexForActiveEx < (activeEx.performedSets || []).length && (() => {
-                    const isComplex = activeEx.executionMethod === "complex_contrast";
-                    const blockExs = isComplex 
-                      ? session.exercises.filter(e => e.blockGroupId && e.blockGroupId === activeEx.blockGroupId) 
-                      : [];
-                    const lastEx = blockExs.length > 0 ? blockExs[blockExs.length - 1] : null;
-                    const isBlockEnd = lastEx 
-                      ? lastEx.id === activeEx.id 
-                      : ((activeEx.blockTag || "").endsWith("D") || (activeEx.blockTag || "").endsWith("4"));
-                    const currentIdxInBlock = blockExs.findIndex(e => e.id === activeEx.id);
-                    const nextExInBlock = currentIdxInBlock !== -1 && currentIdxInBlock < blockExs.length - 1 
-                      ? blockExs[currentIdxInBlock + 1] 
-                      : null;
-
-                    return (
-                      <motion.div 
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`rounded-2xl p-5 border flex flex-col sm:flex-row items-center justify-between gap-4 transition-all ${
-                          isComplex 
-                            ? "bg-slate-950/90 border-cyan-500/40 shadow-[0_15px_30px_rgba(6,182,212,0.08)] ring-1 ring-cyan-500/20" 
-                            : "bg-slate-950/80 border-[#39FF14]/30 shadow-[0_15px_30px_rgba(57,255,20,0.06)]"
-                        }`}
-                      >
-                        <div className="text-center sm:text-left">
-                          <div className="flex items-center gap-2 justify-center sm:justify-start">
-                            <span className={`inline-block w-2 h-2 rounded-full animate-ping ${isComplex ? "bg-cyan-400" : "bg-[#39FF14]"}`} />
-                            <span className={`text-[9px] font-black uppercase tracking-widest ${isComplex ? "text-cyan-400" : "text-[#39FF14]"}`}>
-                              {isComplex ? `Complexo Francês • Estágio ${activeEx.blockTag || "1A"}` : "Série Atual em Execução"}
-                            </span>
-                          </div>
-                          <h3 className="text-base font-black text-white uppercase mt-1 leading-tight flex items-center gap-2">
-                            <span>Série {currentSetIndexForActiveEx + 1} de {(activeEx.performedSets || []).length}</span>
-                            {isComplex && (
-                              <span className="text-[10px] font-black text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg">
-                                Round {currentSetIndexForActiveEx + 1}
-                              </span>
-                            )}
-                          </h3>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 tracking-wider">
-                            Meta: {isTimeExercise(activeEx) ? `${String(activeEx.reps).replace(/s/gi, "")}s (Tempo)` : `${activeEx.reps} Reps`} • Carga: {activeEx.performedSets?.[currentSetIndexForActiveEx]?.weight || activeEx.weight || 0} kg
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            const activeSet = activeEx.performedSets?.[currentSetIndexForActiveEx];
-                            if (activeSet) {
-                              toggleSetCompletion(activeEx.id, activeSet.id);
-                            }
-                          }}
-                          className={`w-full sm:w-auto font-black text-xs uppercase py-3.5 px-6 rounded-xl tracking-wider transition-all flex items-center justify-center gap-2 group cursor-pointer shadow-lg ${
-                            isComplex
-                              ? !isBlockEnd
-                                ? "bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-cyan-500/20"
-                                : "bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-amber-500/20"
-                              : "bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 shadow-[0_10px_20px_rgba(57,255,20,0.15)]"
-                          }`}
-                        >
-                          <Check className="w-4 h-4 stroke-[3] group-hover:scale-115 transition-transform" />
-                          {isComplex ? (
-                            !isBlockEnd ? (
-                              <span>CONCLUIR SÉRIE ➔ TRANSIÇÃO {activeEx.intraSetRest ?? 20}s (IR P/ {nextExInBlock?.blockTag || "PRÓXIMO"}) ⚡</span>
-                            ) : (
-                              <span>CONCLUIR ROUND {currentSetIndexForActiveEx + 1} ➔ PAUSA DE {activeEx.blockRest || "3:30"} (VOLTAR P/ 1A) 🇫🇷</span>
-                            )
-                          ) : (
-                            <span>CONCLUIR SÉRIE {currentSetIndexForActiveEx + 1} & INICIAR DESCANSO ⏱️</span>
-                          )}
-                        </button>
-                      </motion.div>
-                    );
-                  })()}
-
-                  <div className="space-y-2">
-                    {(activeEx.performedSets || []).map((set, index) => {
-                      const isCompleted = (set as any).isCompleted;
-                      const isActive = index === currentSetIndexForActiveEx && !isCompleted;
-                      return (
-                        <div
-                          key={set.id}
-                          className={`grid grid-cols-12 gap-2.5 items-center p-3.5 rounded-xl border transition-all ${
-                            isCompleted 
-                              ? "bg-[#39FF14]/5 border-[#39FF14]/20 shadow-inner" 
-                              : isActive
-                                ? "bg-slate-900 border-[#39FF14]/40 shadow-[0_0_15px_rgba(57,255,20,0.05)] ring-1 ring-[#39FF14]/20"
-                                : "bg-[#080d17] border-slate-900 hover:border-slate-800"
-                          }`}
-                        >
-                          {/* Checkbox button & Set label */}
-                          <div className="col-span-2 flex items-center gap-2.5">
-                            <button
-                              onClick={() => toggleSetCompletion(activeEx.id, set.id)}
-                              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                                isCompleted 
-                                  ? "bg-[#39FF14] text-slate-950 border-[#39FF14] shadow-lg shadow-[#39FF14]/20" 
-                                  : "bg-slate-950 border border-slate-800 text-slate-600 hover:border-slate-500"
-                              }`}
-                            >
-                              <Check className={`w-4 h-4 stroke-[3] transition-transform duration-200 ${isCompleted ? "scale-100" : "scale-0"}`} />
-                            </button>
-                            <span className={`text-xs md:text-sm font-black uppercase tracking-wider ${isCompleted ? "text-[#39FF14]" : isActive ? "text-white font-extrabold" : "text-slate-400"}`}>
-                              S{index + 1}
-                            </span>
-                          </div>
-
-                          {/* Weight input */}
-                          <div className="col-span-3 flex items-center gap-1">
-                            <input
-                              type="number"
-                              value={set.weight || ""}
-                              onChange={(e) => updateSetField(activeEx.id, set.id, "weight", parseFloat(e.target.value) || 0)}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-xl py-2.5 px-2 text-center font-extrabold text-sm md:text-base text-white transition-all"
-                              placeholder="0"
-                            />
-                            <span className="text-[9px] font-black text-slate-500 uppercase">KG</span>
-                          </div>
-
-                          {/* Reps input */}
-                          <div className="col-span-3 flex items-center gap-1">
-                            <input
-                              type="number"
-                              value={set.reps || ""}
-                              onChange={(e) => updateSetField(activeEx.id, set.id, "reps", parseInt(e.target.value) || 0)}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-xl py-2.5 px-2 text-center font-extrabold text-sm md:text-base text-white transition-all"
-                              placeholder="0"
-                            />
-                            <span className="text-[9px] font-black text-slate-500 uppercase">{isTimeExercise(activeEx) ? "SEG" : "REPS"}</span>
-                          </div>
-
-                          {/* RPE input */}
-                          <div className="col-span-3 flex items-center gap-1.5">
-                            <span className="text-[9px] font-black text-slate-500 uppercase shrink-0">PSE</span>
-                            <select
-                              value={set.rpe || 0}
-                              onChange={(e) => updateSetField(activeEx.id, set.id, "rpe", parseInt(e.target.value))}
-                              className="w-full bg-slate-950 border border-slate-800 focus:border-[#39FF14] rounded-xl py-2.5 px-1 text-center font-extrabold text-xs md:text-sm text-white transition-all"
-                            >
-                              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
-                                <option key={v} value={v}>{v}</option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Remove set button */}
-                          <div className="col-span-1 flex justify-end">
-                            <button
-                              onClick={() => removeSetFromExercise(activeEx.id, set.id)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-                              title="Excluir esta série"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    <button
-                      onClick={() => addSetToExercise(activeEx.id)}
-                      className="w-full py-3 px-4 bg-slate-950 hover:bg-[#39FF14]/10 border border-dashed border-slate-800 hover:border-[#39FF14]/50 text-slate-400 hover:text-[#39FF14] font-black text-xs uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer group shadow-sm mt-3"
-                    >
-                      <Plus className="w-4 h-4 stroke-[3] text-[#39FF14] group-hover:scale-125 transition-transform" />
-                      ACRESCENTAR SÉRIE AO EXERCÍCIO (+ REPLICAR REPS E CARGA)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-          </div>
-        ) : (
-          <div className="py-12 text-center text-slate-500">
-            Nenhum exercício carregado neste treino.
           </div>
         )}
-      </div>
-
-      {/* FOOTER NAVIGATION & COMPLETION HUB */}
-      <div className="sticky bottom-0 z-20 bg-slate-950/95 backdrop-blur-md border-t border-slate-900 pt-3 pb-1 flex flex-col md:flex-row items-center justify-between gap-3 shrink-0">
-        
-        {/* EXERCISES NAVIGATOR */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-start">
-          <button
-            onClick={() => navigateToExercise(currentExerciseIndex - 1)}
-            disabled={currentExerciseIndex === 0}
-            className="flex items-center gap-1 px-4 py-3 bg-[#0c111d] disabled:opacity-30 border border-slate-900 rounded-xl hover:text-white text-xs font-black uppercase tracking-wider transition-all disabled:pointer-events-none cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" /> Anterior
-          </button>
-
-          <span className="text-xs font-black text-slate-400 uppercase tracking-widest font-mono">
-            {currentExerciseIndex + 1} / {session.exercises.length}
-          </span>
-
-          <button
-            onClick={() => navigateToExercise(currentExerciseIndex + 1)}
-            disabled={currentExerciseIndex === session.exercises.length - 1}
-            className="flex items-center gap-1 px-4 py-3 bg-[#0c111d] disabled:opacity-30 border border-slate-900 rounded-xl hover:text-white text-xs font-black uppercase tracking-wider transition-all disabled:pointer-events-none cursor-pointer"
-          >
-            Próximo <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* FEEDBACK & OVERALL RPE INPUT EXPANSION PANEL */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
-          
-          {isEditingCompleted ? (
-            <button
-              onClick={triggerFinish}
-              className="w-full sm:w-auto px-8 py-4.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-[#39FF14]/20 flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              SALVAR ALTERAÇÕES ✔️
-            </button>
-          ) : currentExerciseIndex === session.exercises.length - 1 ? (
-            <button
-              onClick={() => setShowFinishModal(true)}
-              className="w-full sm:w-auto px-8 py-4.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs uppercase tracking-[0.2em] rounded-xl transition-all shadow-xl shadow-[#39FF14]/20 flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              FINALIZAR TREINO 🏆
-            </button>
-          ) : (
-            <button
-              onClick={() => setShowFinishModal(true)}
-              className="w-full sm:w-auto px-5 py-3.5 bg-slate-900/40 hover:bg-slate-900 border border-slate-900 hover:border-slate-800 text-slate-400 hover:text-white font-black text-[9px] uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
-              title="Finalizar treino antes de concluir os exercícios restantes"
-            >
-              CONCLUIR ANTECIPADAMENTE ⏱️
-            </button>
-          )}
-
-          <button
-            onClick={onCancel}
-            className="text-[10px] font-black text-slate-500 hover:text-slate-300 uppercase tracking-wider px-3.5 py-2 cursor-pointer"
-          >
-            DESCARTAR
-          </button>
-        </div>
-
       </div>
 
       {/* FINISH/RPE VERIFICATION MODAL OVERLAY */}
