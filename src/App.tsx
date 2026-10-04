@@ -405,10 +405,10 @@ const Login: FC<{
   };
 
   return (
-    <div className="min-h-screen bg-brand-dark flex items-center justify-center p-4 relative overflow-hidden selection:bg-brand-primary/30">
+    <div className="admin-page min-h-screen bg-brand-dark flex items-center justify-center p-4 relative overflow-hidden selection:bg-brand-primary/30">
       {/* Dynamic Background */}
-      <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] bg-brand-primary/10 rounded-full blur-[150px] animate-pulse"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-secondary/5 rounded-full blur-[120px]"></div>
+      <div aria-hidden="true" className="pointer-events-none absolute top-[-20%] right-[-10%] w-[70%] h-[70%] bg-brand-primary/10 rounded-full blur-[150px] animate-pulse"></div>
+      <div aria-hidden="true" className="pointer-events-none absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-brand-secondary/5 rounded-full blur-[120px]"></div>
 
       <motion.div
         initial={{ opacity: 0, y: 40 }}
@@ -444,35 +444,45 @@ const Login: FC<{
 
         <form onSubmit={handleLogin} className="space-y-8">
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
-              Identificação / Nome
+            <label htmlFor="login-username" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-3 px-1">
+              Usuário de acesso
             </label>
             <input
+              id="login-username"
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-5 text-white outline-none focus:border-brand-primary transition-all shadow-inner font-bold"
-              placeholder="Digite seu nome"
+              className="admin-field w-full font-bold relative z-10"
+              placeholder="Usuário informado no convite"
               required
             />
           </div>
           <div>
-            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-1">
-              Chave de Acesso / Data
+            <label htmlFor="login-password" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-3 px-1">
+              Senha
             </label>
             <div className="relative">
               <input
+                id="login-password"
+                name="password"
+                autoComplete="current-password"
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-5 pr-14 text-white outline-none focus:border-brand-primary transition-all shadow-inner font-bold"
-                placeholder="DDMMAAAA"
+                className="admin-field w-full font-bold relative z-10 !pr-16"
+                placeholder="Digite sua senha"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-5 top-1/2 -translate-y-1/2 p-2 text-slate-600 hover:text-brand-primary transition-colors"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                className="z-20 absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-600 hover:text-brand-primary transition-colors"
               >
                 {showPassword ? (
                   <EyeOff className="w-6 h-6" />
@@ -493,7 +503,7 @@ const Login: FC<{
             type="submit"
             className="w-full py-5 shadow-[0_0_30px_rgba(57,255,20,0.2)]"
           >
-            Entrar no Lab
+            Entrar no aplicativo
           </Button>
         </form>
 
