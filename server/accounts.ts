@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { supervisorRouter } from './supervisor';
 import { setupAdministrator } from './adminSetup';
 import { hasSportsAccess } from './entitlement';
 import { allowAccountAttempt } from './accountRate';
@@ -49,6 +50,7 @@ export function accountRouter(pool: Pool, secret: string) {
   }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
  }));
  router.use(auth);
+ router.use('/supervisor',supervisorRouter(pool));
  router.get('/me',(req:any,res)=>res.json(req.account));
  router.get('/athletes',run(async(req:any,res:any)=>res.json(await scopedAthletes(pool,req.account))));
  router.patch('/athletes/:id/profile',run(async(req:any,res:any)=>res.json(await scopedAthleteProfile(pool,req.account,req.params.id,req.body))));

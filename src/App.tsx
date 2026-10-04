@@ -161,6 +161,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   useNavigate,
   BrowserRouter,
+  Link,
   Routes,
   Route,
   Navigate,
@@ -168,6 +169,7 @@ import {
 import Home from "./pages/Home";
 import Venda from "./pages/Venda";
 import Billing from "./pages/Billing";
+import Supervisor from "./pages/Supervisor";
 import AccountSetup from "./pages/AccountSetup";
 import { clearAthleteCaches } from "./utils/accountCache";
 import Dashboard from "./pages/Dashboard";
@@ -18766,7 +18768,9 @@ const App: FC = () => {
 
   return (
     <BrowserRouter>
+      {user?.platformAdmin && <nav className="bg-slate-900 text-white px-4 py-3 flex gap-5 border-b border-slate-600"><Link to="/hub" className="text-green-300 font-semibold">Meus atletas</Link><Link to="/supervisao" className="text-green-300 font-semibold">Supervisão de treinadores</Link></nav>}
       <Routes>
+        <Route path="/supervisao" element={user?.platformAdmin ? <Supervisor user={user} /> : <Navigate to="/hub" replace />} />
         <Route path="/" element={<Home />} />
         <Route path="/venda" element={<Venda />} />
         <Route path="/contas" element={<AccountSetup onAuthenticated={data=>{try{clearAthleteCaches(localStorage);}catch{} safeLocalStorage.setItem("lb_user",JSON.stringify(data));setUser(data);}} />} />

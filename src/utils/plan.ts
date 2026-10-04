@@ -1,5 +1,6 @@
 
 export interface UserWithPlan {
+  platformAdmin?: boolean;
   role: 'coach' | 'athlete';
   athleteId?: string;
   token?: string;

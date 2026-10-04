@@ -208,3 +208,49 @@ test('first administrator can be created without replacing the regression coach'
  assert.equal((await db.query("SELECT u.username FROM users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE m.platform_admin")).rows[0].username,'Leandro');
  }finally{for(const key of ['ADMIN_SETUP_TOKEN_HASH','ADMIN_SETUP_ALLOW_CREATE','ADMIN_SETUP_USERNAME'])delete process.env[key];await db.close();}
 });
+
+test('supervisor HTTP reads require a live explicit link and never grant coach access or writes',async()=>{
+ const express=(await import('express')).default;const jwt=(await import('jsonwebtoken')).default;
+ const {accountRouter}=await import('./accounts');const {supervisorTables}=await import('./supervisor');
+ const db=new PGlite();
+ await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
+ CREATE TABLE users(id text PRIMARY KEY,username text,password text,role text,athlete_id text,plan text);
+ CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
+ INSERT INTO users VALUES('admin','Owner','','coach',NULL,'pro'),('coach','Trainer','','coach',NULL,'pro');
+ INSERT INTO athletes VALUES('own','Own','Run'),('other','Other','Tennis');`);
+ for(const f of ['accounts-schema.sql','supervisor-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
+ for(const table of Object.values(supervisorTables))await db.exec(`CREATE TABLE ${table}(id text PRIMARY KEY,athlete_id text,date text);INSERT INTO ${table} VALUES('${table}-own','own','2026-10-01'),('${table}-other','other','2026-10-02');`);
+ await db.exec(`CREATE TABLE prescribed_exercises(id text,workout_id text,name text);CREATE TABLE performed_sets(id text,exercise_id text,load real);
+ INSERT INTO prescribed_exercises VALUES('exercise','workouts-other','Squat');INSERT INTO performed_sets VALUES('set','exercise',50);`);
+ const o1='11111111-1111-4111-8111-111111111111',o2='22222222-2222-4222-8222-222222222222';
+ await db.query('INSERT INTO lb_accounts.organizations(id,name) VALUES($1,$2),($3,$4)',[o1,'Owner',o2,'Trainer']);
+ await db.query('INSERT INTO lb_accounts.memberships(user_id,organization_id,platform_admin) VALUES($1,$2,true),($3,$4,false)',['admin',o1,'coach',o2]);
+ await db.query('INSERT INTO lb_accounts.athlete_scopes VALUES($1,$2),($3,$4)',['own',o1,'other',o2]);
+ const adapter={query:(q:string,p?:any[])=>db.query(q,p),connect:async()=>({query:(q:string,p?:any[])=>db.query(q,p),release:()=>{}})} as any;
+ process.env.ACCOUNTS_ENABLED='true';process.env.JWT_SECRET='test-secret';
+ const app=express();app.use(express.json());app.use('/accounts',accountRouter(adapter,'test-secret'));
+ const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));
+ const base=`http://127.0.0.1:${(server.address() as any).port}/accounts/supervisor`;
+ const request=(path:string,user='admin',method='GET',body?:any)=>fetch(base+path,{method,headers:{Authorization:`Bearer ${jwt.sign({id:user,accountMode:'scoped',sessionVersion:1},'test-secret')}`,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+ try{
+ const path=`/organizations/${o2}`;
+ assert.equal((await request('/organizations','coach')).status,403);
+ assert.equal((await request(path+'/athletes')).status,403);
+ assert.equal((await request(path+'/link','coach','PUT',{enabled:true})).status,403);
+ assert.equal((await request(path+'/link','admin','PUT',{enabled:true})).status,200);
+ const list=await request(path+'/athletes');assert.equal(list.status,200);assert.deepEqual((await list.json()).map((a:any)=>a.id),['other']);
+ assert.equal((await request(path+'/athletes/own')).status,404);
+ for(const kind of Object.keys(supervisorTables)){
+  const r=await request(path+`/athletes/other?kind=${kind}`);assert.equal(r.status,200,kind);const data=await r.json();assert.equal(data.records.length,1);assert.equal(data.records[0].athlete_id,'other');
+  if(kind==='workouts')assert.equal(data.records[0].exercises[0].performed_sets[0].load,50);
+ }
+ assert.equal((await request(path+'/athletes/other?kind=users')).status,400);
+ assert.equal((await request(path+'/athletes/other?page=-1')).status,400);
+ assert.equal((await request(path+'/athletes/other','admin','PATCH',{name:'Changed'})).status,404);
+ assert.equal((await request(path+'/link','admin','PUT',{enabled:false})).status,200);
+ assert.equal((await request(path+'/athletes/other')).status,403);
+ assert.equal((await db.query('SELECT * FROM lb_accounts.supervisor_audit')).rows.length,2);
+ assert.equal((await db.query("SELECT name FROM athletes WHERE id='other'")).rows[0].name,'Other');
+ await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_accounts.supervisor_links'));await db.exec('RESET ROLE');
+ }finally{await new Promise<void>(r=>server.close(()=>r()));await db.close();}
+});
