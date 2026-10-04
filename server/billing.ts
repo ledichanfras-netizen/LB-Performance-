@@ -40,7 +40,7 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
       WHERE ($1::boolean OR s.user_id=$2) ORDER BY u.username`, [req.billingAdmin, req.user.id]);
     const plans = await pool.query('SELECT * FROM lb_billing.plans ORDER BY name');
     const users = req.billingAdmin ? (await pool.query('SELECT id, username, role FROM users ORDER BY username')).rows : [];
-    res.json({ admin: req.billingAdmin, subscriptions: subscriptions.rows, plans: plans.rows, users });
+    res.json({ admin: req.billingAdmin, enforcementEnabled: process.env.BILLING_ENFORCE==='true', subscriptions: subscriptions.rows, plans: plans.rows, users });
   }));
   router.get('/entries', run(async (req:any,res:any)=>{
     const {rows}=await pool.query(`SELECT e.*,u.username FROM lb_billing.entries e JOIN lb_billing.subscriptions s ON s.id=e.subscription_id JOIN users u ON u.id=s.user_id WHERE ($1::boolean OR s.user_id=$2) ORDER BY e.created_at DESC LIMIT 200`,[req.billingAdmin,req.user.id]);res.json(rows);
@@ -67,6 +67,23 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
       ON CONFLICT(user_id) DO NOTHING RETURNING *`, [randomUUID(), userId, planId]);
     if (!result.rows[0]) throw Error('INVALID');
     res.status(201).json(result.rows[0]);
+  }));
+  router.post('/subscriptions/:id/plan', admin, run(async (req:any,res:any)=>{
+    const {planId,reason}=req.body;
+    if(typeof planId!=='string' || !/^[a-f0-9-]{36}$/i.test(planId) || typeof reason!=='string' || !reason.trim() || reason.length>500)throw Error('INVALID');
+    const c=await pool.connect();try{await c.query('BEGIN');
+      const current=await c.query('SELECT s.*,u.role FROM lb_billing.subscriptions s JOIN public.users u ON u.id=s.user_id WHERE s.id=$1 FOR UPDATE OF s',[req.params.id]);
+      const plan=await c.query('SELECT * FROM lb_billing.plans WHERE id=$1',[planId]);
+      if(!current.rows[0] || !plan.rows[0] || current.rows[0].role!==plan.rows[0].audience)throw Error('INVALID');
+      await c.query('SELECT pg_advisory_xact_lock(hashtext(organization_id::text)) FROM lb_accounts.memberships WHERE user_id=$1',[current.rows[0].user_id]);
+      if(plan.rows[0].athlete_limit!==null && current.rows[0].role==='coach'){
+        const count=await c.query('SELECT count(*)::integer AS total FROM lb_accounts.athlete_scopes a JOIN lb_accounts.memberships m ON m.organization_id=a.organization_id WHERE m.user_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=a.athlete_id)',[current.rows[0].user_id]);
+        if(count.rows[0].total>plan.rows[0].athlete_limit)throw Error('INVALID');
+      }
+      await c.query('UPDATE lb_billing.subscriptions SET plan_id=$1 WHERE id=$2',[planId,req.params.id]);
+      await c.query('INSERT INTO lb_billing.audit_events(id,subscription_id,action,reason,actor_id) VALUES($1,$2,$3,$4,$5)',[randomUUID(),req.params.id,'change-plan',`${reason.trim()} | ${current.rows[0].plan_id} -> ${planId}`,req.user.id]);
+      await c.query('COMMIT');res.json({updated:true});
+    }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
   }));
   router.post('/subscriptions/:id/renew', admin, run(async (req: any, res: any) => {
     const { requestId, amountCents, method, reason } = req.body;

@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { UserWithPlan } from '../types';
 
-type Plan = { id: string; name: string; price_cents: number; duration_days: number };
+type Plan = { id: string; name: string; price_cents: number; duration_days: number; audience: string; athlete_limit: number | null };
 type Subscription = { id: string; username: string; plan_name: string; status: string; valid_until: string | null };
 const labels: Record<string,string> = { active:'Ativo', grace:'Em tolerância', expired:'Vencido', pending:'Aguardando liberação', suspended:'Suspenso' };
 export default function Billing({ user }: { user: UserWithPlan }) {
-  const [data, setData] = useState<{admin:boolean;plans:Plan[];subscriptions:Subscription[];users:{id:string;username:string}[]} | null>(null);
+  const [data, setData] = useState<{admin:boolean;enforcementEnabled:boolean;plans:Plan[];subscriptions:Subscription[];users:{id:string;username:string}[]} | null>(null);
+  const location=useLocation();
+  useEffect(()=>{if(data && location.hash)document.getElementById(location.hash.slice(1))?.scrollIntoView({block:"start"});},[data,location.hash]);
   const requests=useRef(new Map<string,string>());
   const [history,setHistory]=useState<any[]>([]);
   const [filter,setFilter]=useState('all');
@@ -23,22 +25,26 @@ export default function Billing({ user }: { user: UserWithPlan }) {
       if(path.endsWith('/renew')){const key=path+JSON.stringify(body);dedupeKey=key;let id=requests.current.get(key);if(!id){id=crypto.randomUUID();requests.current.set(key,id);}body.requestId=id;}
       await request(path,body);if(dedupeKey)requests.current.delete(dedupeKey);await load();form.reset();}catch(e){setError((e as Error).message);}finally{setBusy(false);}
   };
-  return <main className="min-h-screen billing-page bg-slate-950 text-slate-100 p-4 sm:p-6 space-y-6"><Link to="/hub" className="text-green-400">← Voltar ao aplicativo</Link>
+  return <main className="min-h-screen billing-page bg-slate-950 text-slate-100 p-4 sm:p-6 space-y-6"><Link to="/configuracoes" className="text-green-400">← Configurações</Link>
     <h1 className="text-3xl font-bold">{data?.admin?'Gestão de planos e assinaturas':'Minha assinatura'}</h1>
     <p>Pagamentos confirmados manualmente. Cortesias e testes não são registrados como receita.</p>
+    {data?.admin && !data.enforcementEnabled && <p className="bg-amber-100 text-amber-950 p-4 rounded-xl">Fase de implantação: o bloqueio automático por vencimento e limite de atletas está desativado. As assinaturas registram as condições comerciais, sem interromper os acessos atuais.</p>}
     {error && <p role="alert" className="text-red-300">{error}</p>}
     {!data && !error && <p>Carregando…</p>}
     {data?.admin && <section className="grid md:grid-cols-2 gap-6">
       <form className="bg-slate-800 border border-slate-600 rounded-xl p-5 space-y-4" onSubmit={e=>submit(e,'plans',f=>({name:f.get('name'),audience:f.get('audience'),priceCents:Math.round(Number(f.get('price'))*100),durationDays:Number(f.get('days')),graceDays:Number(f.get('grace')),athleteLimit:f.get('limit')?Number(f.get('limit')):null}))}>
-        <h2 className="font-bold">Criar plano</h2><label className="block font-medium text-slate-100 space-y-2">Nome <input required name="name" maxLength={100} className="billing-field w-full" /></label>
+        <h2 id="planos" className="font-bold scroll-mt-4">Criar plano</h2><label className="block font-medium text-slate-100 space-y-2">Nome <input required name="name" maxLength={100} className="billing-field w-full" /></label>
         <label className="block font-medium text-slate-100 space-y-2">Público <select name="audience" className="billing-field w-full"><option value="athlete">Aluno</option><option value="coach">Treinador</option></select></label>
         <label className="block font-medium text-slate-100 space-y-2">Valor em R$ <input required name="price" type="number" min="0" step="0.01" className="billing-field w-full" /></label>
         <label className="block font-medium text-slate-100 space-y-2">Duração em dias <input required name="days" type="number" min="1" max="366" defaultValue="30" className="billing-field w-full" /></label><label className="block font-medium text-slate-100 space-y-2">Tolerância em dias <input name="grace" type="number" min="0" max="30" defaultValue="3" className="billing-field w-full" /></label><label className="block font-medium text-slate-100 space-y-2">Limite de atletas (vazio: sem limite) <input name="limit" type="number" min="1" className="billing-field w-full" /></label><button disabled={busy} className="bg-green-600 text-white font-semibold rounded-lg px-5 py-3 min-h-12 disabled:opacity-50">Salvar plano</button>
       </form>
       <form className="bg-slate-800 border border-slate-600 rounded-xl p-5 space-y-4" onSubmit={e=>submit(e,'subscriptions',f=>({userId:f.get('userId'),planId:f.get('planId')}))}>
-        <h2 className="font-bold">Vincular assinatura</h2><label className="block font-medium text-slate-100 space-y-2">Conta <select required name="userId" className="billing-field w-full"><option value="">Selecione</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.username}</option>)}</select></label>
+        <h2 id="liberacoes" className="font-bold scroll-mt-4">Vincular e liberar assinatura</h2><label className="block font-medium text-slate-100 space-y-2">Conta <select required name="userId" className="billing-field w-full"><option value="">Selecione</option>{data.users.map(u=><option key={u.id} value={u.id}>{u.username}</option>)}</select></label>
         <label className="block font-medium text-slate-100 space-y-2">Plano <select required name="planId" className="billing-field w-full"><option value="">Selecione</option>{data.plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><button disabled={busy} className="bg-green-600 text-white font-semibold rounded-lg px-5 py-3 min-h-12 disabled:opacity-50">Vincular</button>
       </form></section>}
+    {data?.admin && <section className="bg-slate-800 p-5 rounded-xl space-y-3"><h2 className="text-xl font-bold">Pacotes cadastrados</h2>{data.plans.map(p=><p key={p.id}><strong>{p.name}</strong> · {p.audience==='coach'?'Treinador':'Aluno'} · {(p.price_cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {p.duration_days} dias · {p.athlete_limit ? `${p.athlete_limit} atletas` : 'Sem limite de atletas'}</p>)}{!data.plans.length && <p>Crie o primeiro pacote acima. Para a mentoria, use um nome como “Mentoria + Aplicativo”.</p>}</section>}
+    <h2 id="cobrancas" className="text-xl font-bold scroll-mt-4">Cobranças e vencimentos</h2>
+    <p>Consulte os vencimentos e confirme o recebimento antes de registrar a renovação.</p>
     {data?.subscriptions.length===0 && <p>Nenhuma assinatura cadastrada.</p>}
     <label>Filtrar <select value={filter} onChange={e=>setFilter(e.target.value)} className="billing-field w-full"><option value="all">Todos</option>{Object.entries(labels).map(([key,value])=><option key={key} value={key}>{value}</option>)}</select></label>
     {data?.subscriptions.filter(s=>filter==='all'||s.status===filter).map(s=><section key={s.id} className="bg-slate-800 p-4 rounded space-y-3"><h2 className="font-bold">{s.username} — {s.plan_name}</h2><p>{labels[s.status] || s.status} · Até: {s.valid_until?new Date(s.valid_until).toLocaleString('pt-BR'):'Não liberado'}</p>
@@ -47,8 +53,9 @@ export default function Billing({ user }: { user: UserWithPlan }) {
         <label>Forma <select name="method" className="billing-field w-full"><option value="pix">Pix</option><option value="cash">Dinheiro</option><option value="transfer">Transferência</option><option value="payment_link">Link de pagamento</option><option value="courtesy">Cortesia (R$ 0)</option><option value="trial">Teste (R$ 0)</option></select></label>
         <label>Referência ou motivo <input required name="reason" maxLength={500} className="billing-field w-full" /></label><button disabled={busy} className="bg-green-600 text-white font-semibold rounded-lg px-5 py-3 min-h-12 disabled:opacity-50">Registrar e renovar</button>
       </form>}
+      {data.admin && <form className="space-y-3" onSubmit={e=>submit(e,`subscriptions/${s.id}/plan`,f=>({planId:f.get('planId'),reason:f.get('reason')}))}><h3 className="font-bold">Trocar pacote</h3><select required name="planId" className="billing-field w-full"><option value="">Selecione o novo plano</option>{data.plans.map(p=><option key={p.id} value={p.id}>{p.name} — {p.audience==='coach'?'Treinador':'Aluno'}</option>)}</select><input required name="reason" maxLength={500} placeholder="Motivo da troca" className="billing-field w-full"/><p className="text-sm">A troca mantém o vencimento atual. Registre uma renovação abaixo para estender o acesso. O plano deve corresponder ao perfil da conta e comportar seus atletas.</p><button disabled={busy} className="bg-green-600 text-white px-5 py-3 rounded-lg font-semibold">Alterar pacote</button></form>}
       {data.admin && <form className="flex flex-wrap items-end gap-3" onSubmit={e=>submit(e,`subscriptions/${s.id}/action`,f=>({action:f.get('action'),reason:f.get('reason')}))}><select name="action" className="billing-field w-full"><option value="suspend">Suspender</option><option value="resume">Reativar</option><option value="cancel-renewal">Cancelar renovação</option></select><input required name="reason" placeholder="Motivo" className="billing-field w-full"/><button disabled={busy} className="bg-green-600 text-white font-semibold rounded-lg px-5 py-3 min-h-12 disabled:opacity-50">Aplicar</button></form>}
     </section>)}
-    <section><h2 className="font-bold">Histórico de recebimentos e liberações</h2>{history.map(e=><p key={e.id}>{e.username} · {e.kind==='grant'?'Cortesia / teste':'Pagamento'} · {(e.amount_cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {new Date(e.created_at).toLocaleDateString('pt-BR')}</p>)}</section>
+    <section id="pagamentos" className="scroll-mt-4"><h2 className="font-bold">Histórico de recebimentos e liberações</h2>{history.map(e=><p key={e.id}>{e.username} · {e.kind==='grant'?'Cortesia / teste':'Pagamento'} · {(e.amount_cents/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} · {new Date(e.created_at).toLocaleDateString('pt-BR')}</p>)}</section>
   </main>;
 }

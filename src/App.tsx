@@ -1,3 +1,4 @@
+import SettingsPage from "./pages/Settings";
 import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   LineChart,
@@ -2014,7 +2015,7 @@ const EliteHubApp: FC<{
                   <span>Guia</span>
                 </button>
 
-                {!user?.supervision && user?.role==='coach' && <Link to="/acessos" className="flex gap-3 px-4 py-3.5 text-green-400 font-semibold"><Settings className="w-4 h-4"/>Acessos e convites</Link>}
+                {!user?.supervision && user?.role==='coach' && <Link to="/configuracoes" className="flex gap-3 px-4 py-3.5 text-green-400 font-semibold"><Settings className="w-4 h-4"/>Configurações</Link>}
                 {/* Configurações Tab */}
                 {user?.role !== "athlete" && (
                   <button
@@ -18827,10 +18828,11 @@ const App: FC = () => {
 
   return (
     <BrowserRouter>
-      {user?.role==="coach" && !supervisedUser && <nav className="bg-slate-900 text-white px-4 py-3 border-b border-slate-600"><Link to="/acessos" className="text-green-300 font-semibold">Configurações — Acessos e convites</Link></nav>}
+      {user?.role==="coach" && !supervisedUser && <nav className="bg-slate-900 text-white px-4 py-3 border-b border-slate-600"><Link to="/configuracoes" className="text-green-300 font-semibold">Configurações</Link></nav>}
       {user?.platformAdmin && <nav className="bg-slate-900 text-white px-4 py-3 flex gap-5 border-b border-slate-600"><Link to="/hub" onClick={exitSupervision} className="text-green-300 font-semibold">Meus atletas</Link><Link to="/supervisao" onClick={exitSupervision} className="text-green-300 font-semibold">Supervisão de treinadores</Link></nav>}
       <Routes>
         <Route path="/convite" element={<AcceptInvite />} />
+        <Route path="/configuracoes" element={user?.role==="coach" ? <SettingsPage user={user} /> : <Navigate to="/hub" replace />} />
         <Route path="/acessos" element={user?.role==="coach" ? <AccessSettings user={user} /> : <Navigate to="/hub" replace />} />
         <Route path="/supervisao/aplicativo" element={user?.platformAdmin && supervisedUser ? <SupervisionFrame name={supervisedUser.supervisedName || 'Treinador'} token={supervisedUser.token!} onExit={exitSupervision}><AiAccessProvider user={supervisedUser}><EliteHubApp key={supervisedUser.token} user={supervisedUser} setUser={exitSupervision} /></AiAccessProvider></SupervisionFrame> : <Navigate to="/supervisao" replace />} />
         <Route path="/supervisao" element={user?.platformAdmin ? <Supervisor user={user} onView={view=>{setSupervisionToken(view.token || null);setSupervisedUser(view);}} /> : <Navigate to="/hub" replace />} />
