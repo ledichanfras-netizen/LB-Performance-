@@ -1,3 +1,4 @@
+import { billingManagement } from "./billingManagement";
 import { Router, RequestHandler } from 'express';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -32,6 +33,7 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
       res.status(e.message === 'INVALID' ? 400 : 503).json({ error: e.message === 'INVALID' ? 'Dados inválidos.' : 'Não foi possível concluir. Verifique a configuração comercial.' });
     }
   };
+  router.use('/manage',billingManagement(pool,admin));
   router.get('/overview', run(async (req: any, res: any) => {
     const subscriptions = await pool.query(`SELECT s.*, p.name AS plan_name, u.username,
       CASE WHEN s.suspended THEN 'suspended' WHEN s.valid_until IS NULL THEN 'pending'
@@ -55,15 +57,16 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
     }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
   }));
   router.post('/plans', admin, run(async (req: any, res: any) => {
-    const { name, audience, priceCents, durationDays, graceDays = 3, athleteLimit = null } = req.body;
+    const { name, audience, priceCents, durationDays, graceDays = 3, athleteLimit = null, deliveries = '', resources = '' } = req.body;
     if (typeof name !== 'string' || !name.trim() || name.length > 100 || !['coach','athlete'].includes(audience) || !Number.isSafeInteger(priceCents) || priceCents < 0 || !Number.isInteger(durationDays) || durationDays < 1 || durationDays > 366 || !Number.isInteger(graceDays) || graceDays < 0 || graceDays > 30 || (athleteLimit !== null && (!Number.isInteger(athleteLimit) || athleteLimit < 1))) throw Error('INVALID');
-    const result = await pool.query('INSERT INTO lb_billing.plans(id,name,audience,price_cents,duration_days,grace_days,athlete_limit) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *', [randomUUID(), name.trim(), audience, priceCents, durationDays, graceDays, athleteLimit]);
+    if(typeof deliveries!=='string'||deliveries.length>5000||typeof resources!=='string'||resources.length>5000)throw Error('INVALID');
+    const result = await pool.query('INSERT INTO lb_billing.plans(id,name,audience,price_cents,duration_days,grace_days,athlete_limit,deliveries,resources) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *', [randomUUID(), name.trim(), audience, priceCents, durationDays, graceDays, athleteLimit, deliveries.trim(), resources.trim()]);
     res.status(201).json(result.rows[0]);
   }));
   router.post('/subscriptions', admin, run(async (req: any, res: any) => {
     const { userId, planId } = req.body;
     const result = await pool.query(`INSERT INTO lb_billing.subscriptions(id,user_id,plan_id)
-      SELECT $1,u.id,p.id FROM users u JOIN lb_billing.plans p ON p.id=$3 AND p.audience=u.role WHERE u.id=$2
+      SELECT $1,u.id,p.id FROM users u JOIN lb_billing.plans p ON p.id=$3 AND p.audience=u.role AND NOT p.archived WHERE u.id=$2
       ON CONFLICT(user_id) DO NOTHING RETURNING *`, [randomUUID(), userId, planId]);
     if (!result.rows[0]) throw Error('INVALID');
     res.status(201).json(result.rows[0]);
@@ -74,7 +77,7 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
     const c=await pool.connect();try{await c.query('BEGIN');
       const current=await c.query('SELECT s.*,u.role FROM lb_billing.subscriptions s JOIN public.users u ON u.id=s.user_id WHERE s.id=$1 FOR UPDATE OF s',[req.params.id]);
       const plan=await c.query('SELECT * FROM lb_billing.plans WHERE id=$1',[planId]);
-      if(!current.rows[0] || !plan.rows[0] || current.rows[0].role!==plan.rows[0].audience)throw Error('INVALID');
+      if(!current.rows[0] || !plan.rows[0] || current.rows[0].role!==plan.rows[0].audience || plan.rows[0].archived)throw Error('INVALID');
       await c.query('SELECT pg_advisory_xact_lock(hashtext(organization_id::text)) FROM lb_accounts.memberships WHERE user_id=$1',[current.rows[0].user_id]);
       if(plan.rows[0].athlete_limit!==null && current.rows[0].role==='coach'){
         const count=await c.query('SELECT count(*)::integer AS total FROM lb_accounts.athlete_scopes a JOIN lb_accounts.memberships m ON m.organization_id=a.organization_id WHERE m.user_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=a.athlete_id)',[current.rows[0].user_id]);

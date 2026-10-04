@@ -52,3 +52,10 @@ test('plan changes enforce audience and capacity and audit without renewing or r
   }finally{await new Promise<void>(r=>server.close(()=>r()));}
  }
 });
+
+test('trainer cannot edit or remove commercial records',async()=>{
+ process.env.BILLING_ENABLED='true';
+ await fixture({id:'coach-new',accountMode:'scoped'},async(q:string)=>({rows:q.includes('platform_admin')?[{platform_admin:false}]:[{id:'coach-new',role:'coach'}]}),async url=>{
+  for(const entity of ['plans','subscriptions','entries'])assert.equal((await fetch(`${url}/manage/${entity}/11111111-1111-4111-8111-111111111111/remove`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:'Teste'})})).status,403);
+ });
+});

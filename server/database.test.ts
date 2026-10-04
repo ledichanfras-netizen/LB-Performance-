@@ -81,7 +81,7 @@ test('invitation and manual renewal end to end with PostgreSQL',async()=>{
  CREATE TABLE users(id text PRIMARY KEY,username text UNIQUE,password text,role text,athlete_id text,plan text);
  CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
  INSERT INTO users VALUES('admin','Leandro','unused','coach',NULL,'pro');`);
- for(const f of ['accounts-schema.sql','billing-schema.sql','account-rate-schema.sql','commercial-controls-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
+ for(const f of ['accounts-schema.sql','billing-schema.sql','account-rate-schema.sql','commercial-controls-schema.sql','billing-management-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
  const org='11111111-1111-4111-8111-111111111111';
  await db.query('INSERT INTO lb_accounts.organizations(id,name) VALUES($1,$2)',[org,'LB']);
  const invite='a'.repeat(64),expired='b'.repeat(64);
@@ -318,4 +318,32 @@ test('student invites are organization-scoped, revocable, and usable with an 8-c
  await db.query('INSERT INTO lb_accounts.athlete_archives(athlete_id,organization_id,archived_by) VALUES($1,$2,$3)',['a',org,'coach']);
  assert.equal((await request('/invites','coach','POST',invite('archived'))).status,400);
  }finally{await new Promise<void>(r=>server.close(()=>r()));await db.close();}
+});
+
+test('commercial editing archives plans and voids payments with persisted audit',async()=>{
+ const {default:express}=await import('express');const {billingManagement}=await import('./billingManagement');
+ const db=new PGlite();let server:any;
+ try{
+  await db.exec("CREATE ROLE anon;CREATE ROLE authenticated;CREATE TABLE users(id text PRIMARY KEY);INSERT INTO users VALUES('admin');");
+  for(const f of ['billing-schema.sql','billing-management-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
+  const p='11111111-1111-4111-8111-111111111111',s='22222222-2222-4222-8222-222222222222',e='33333333-3333-4333-8333-333333333333';
+  await db.query("INSERT INTO lb_billing.plans(id,name,audience,price_cents,duration_days) VALUES($1,'Plano','coach',10000,30)",[p]);
+  await db.query("INSERT INTO lb_billing.subscriptions(id,user_id,plan_id,valid_until) VALUES($1,'admin',$2,'2027-01-01')",[s,p]);
+  await db.query("INSERT INTO lb_billing.entries(id,request_id,subscription_id,kind,amount_cents,method,reason,recorded_by,valid_until) VALUES($1,'request',$2,'payment',10000,'pix','original','admin','2027-01-01')",[e,s]);
+  const adapter={connect:async()=>({query:(q:string,v:any[])=>db.query(q,v),release(){}})} as any;
+  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.user={id:'admin'};next();});app.use('/manage',billingManagement(adapter,(req,_res,next)=>next()));
+  server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));
+  const post=(path:string,body:any)=>fetch(`http://127.0.0.1:${server.address().port}/manage/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  assert.equal((await post(`plans/${p}/edit`,{name:'Mentoria',audience:'coach',priceCents:15000,durationDays:30,graceDays:3,athleteLimit:null,deliveries:'Acompanhamento',resources:'Relatórios',reason:'Atualização'})).status,200);
+  assert.equal((await post(`plans/${p}/edit`,{name:'Mentoria',audience:'athlete',priceCents:15000,durationDays:30,graceDays:3,athleteLimit:null,deliveries:'',resources:'',reason:'Incompatível'})).status,400);
+  assert.equal((await post(`entries/${e}/edit`,{amountCents:12000,method:'pix',reason:'Correção'})).status,200);
+  assert.equal((await post(`entries/${e}/remove`,{reason:'Duplicado'})).status,200);
+  assert.equal((await post(`entries/${e}/edit`,{amountCents:1,method:'pix',reason:'Teste'})).status,400);
+  assert.equal((await post(`plans/${p}/remove`,{reason:'Encerrado'})).status,200);
+  assert.equal((await db.query('SELECT * FROM lb_billing.entries')).rows.length,1);
+  assert.equal((await db.query('SELECT archived,resources FROM lb_billing.plans')).rows[0].archived,true);
+  assert.equal((await db.query('SELECT valid_until FROM lb_billing.subscriptions')).rows[0].valid_until.toISOString().slice(0,10),'2027-01-01');
+  assert.equal((await db.query('SELECT * FROM lb_billing.management_audit')).rows.length,4);
+  await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_billing.management_audit'));
+ }finally{if(server)await new Promise<void>(r=>server.close(()=>r()));await db.close();}
 });
