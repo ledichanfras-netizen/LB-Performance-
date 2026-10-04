@@ -2813,13 +2813,7 @@ const EliteHubApp: FC<{
               ) : (
                 <ErrorBoundary
                   fallbackTitle={`Painel de Performance de ${selected?.name || "Atleta"}`}
-                  onReset={() => {
-                    if (selected) {
-                      const sanitized = sanitizeAthleteData(selected);
-                      updateAthlete(selected.id, sanitized);
-                      toast.success(`Cargas de ${selected.name} recalculadas e sanitizadas!`);
-                    }
-                  }}
+                  onReset={() => { void syncData(); }}
                 >
                   <div className="space-y-8 md:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                     {user.role === "coach" && (

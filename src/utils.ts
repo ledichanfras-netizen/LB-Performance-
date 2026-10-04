@@ -1,3 +1,4 @@
+import { normalizeAssessmentNumbers } from "./utils/assessmentNumbers";
 
 import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete, PrescribedExercise, AdvancedExecutionMethod } from './types';
 
@@ -1338,7 +1339,8 @@ export const sanitizeAthleteData = (a: Athlete): Athlete => {
   return {
     ...a,
     workouts,
-    externalSessions
+    externalSessions,
+    assessments: a.assessments ? Object.fromEntries(Object.entries(a.assessments).map(([key, rows]) => [key, Array.isArray(rows) ? rows.map(row => normalizeAssessmentNumbers(row)) : rows])) as unknown as Athlete["assessments"] : a.assessments
   };
 };
 

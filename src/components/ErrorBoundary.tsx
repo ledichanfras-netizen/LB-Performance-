@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
               {this.props.fallbackTitle || "Ajuste Necessário nos Dados do Atleta"}
             </h3>
             <p className="text-xs text-slate-400 font-medium leading-relaxed">
-              Foram identificados valores atípicos ou corrompidos nos registros deste atleta. O sistema protegeu a tela e permite recalcular ou sanitizar o histórico com um clique.
+              Não foi possível exibir este painel. Seus registros foram preservados. Tente carregar os dados novamente.
             </p>
           </div>
 
@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
               className="px-6 py-3 rounded-2xl bg-brand-primary text-brand-dark font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Recalcular & Corrigir Cargas</span>
+              <span>Tentar novamente</span>
             </button>
             <button
               type="button"
