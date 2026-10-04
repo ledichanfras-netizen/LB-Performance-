@@ -1937,7 +1937,8 @@ body.light-theme .lb-sticky-bar {
 
 
 /* Billing forms must remain legible in both global themes and native menus. */
-.billing-page .billing-field {
+.billing-page .billing-field,
+.admin-page .admin-field {
   display: block;
   min-height: 48px;
   margin-top: 6px;
@@ -1951,6 +1952,22 @@ body.light-theme .lb-sticky-bar {
   font-size: 16px;
   line-height: 1.5;
 }
-.billing-page .billing-field::placeholder { color: #475569 !important; opacity: 1; }
-.billing-page .billing-field option { background-color: #ffffff !important; color: #0f172a !important; }
-.billing-page .billing-field:focus-visible { outline: 3px solid #22c55e; outline-offset: 2px; }
+.billing-page .billing-field::placeholder,
+.admin-page .admin-field::placeholder { color: #475569 !important; opacity: 1; }
+.billing-page .billing-field option,
+.admin-page .admin-field option { background-color: #ffffff !important; color: #0f172a !important; }
+.billing-page .billing-field:focus-visible,
+.admin-page .admin-field:focus-visible { outline: 3px solid #22c55e; outline-offset: 2px; }
+
+/* Readable fallback for form controls without an explicit background utility. */
+input:not([class*="bg-"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+select:not([class*="bg-"]),
+textarea:not([class*="bg-"]) {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a;
+  color-scheme: light;
+}
+select:not([class*="bg-"]) option { background-color: #ffffff !important; color: #0f172a !important; }
+input:not([class*="bg-"])::placeholder,
+textarea:not([class*="bg-"])::placeholder { color: #475569 !important; opacity: 1; }
