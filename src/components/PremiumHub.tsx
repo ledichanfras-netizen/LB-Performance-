@@ -1,3 +1,4 @@
+import { useAiAccess } from './AiAccess';
 import React from 'react';
 import { motion } from 'motion/react';
 import { 
@@ -15,18 +16,19 @@ import {
 import { toast } from 'react-hot-toast';
 
 export const PremiumHub: React.FC = () => {
+  const aiAllowed=useAiAccess();
   const handleSubscribe = (plan: string) => {
     toast.success(`Redirecionando para checkout do plano ${plan}...`);
     // Aqui integraria com Stripe ou outro gateway
   };
 
   const features = [
-    { icon: Sparkles, text: "IA Ilimitada: Treinos gerados por Gemini Ultra" },
+    { icon: Sparkles, text: "Treinos assistidos por IA quando liberados" },
     { icon: TrendingUp, text: "Relatórios de Modelagem de Performance de Elite" },
     { icon: ShieldCheck, text: "Prevenção de Lesões via Machine Learning" },
     { icon: Users, text: "Acesso total para até 5 atletas (Equipe)" },
     { icon: Zap, text: "Sincronização em tempo real e Modo Offline" },
-  ];
+  ].filter(item=>aiAllowed || ![Sparkles,ShieldCheck].includes(item.icon));
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
@@ -46,7 +48,7 @@ export const PremiumHub: React.FC = () => {
           </h1>
           
           <p className="text-lg md:text-xl text-slate-300 leading-relaxed italic font-medium mb-10 max-w-2xl">
-            Acesso exclusivo às ferramentas de elite utilizadas por atletas de alto rendimento. Inteligência Artificial, modelagem preditiva e gestão total da carga.
+            {aiAllowed ? "Ferramentas de avaliação, gestão de carga e apoio de IA quando liberado." : "Avaliações, prescrição manual, relatórios e gestão da carga para acompanhar seus atletas."}
           </p>
 
           <button 

@@ -1,6 +1,8 @@
 import express from 'express';
 import { billingRouter } from './server/billing';
 import { resolveSupervisedAccount } from './server/supervisor';
+import { requireAIAccess } from './server/aiPolicy';
+import { liveMembership } from './server/liveMembership';
 import { accountRouter } from './server/accounts';
 import { saveStudentData } from './server/studentSave';
 import { hasSportsAccess } from './server/entitlement';
@@ -91,6 +93,7 @@ const __dirname = path.dirname(__filename);
 const CACHE_FILE = path.join(__dirname, 'local_athletes_cache.json');
 
 async function getCachedAthletes(): Promise<any[]> {
+  if(process.env.ACCOUNTS_ENABLED==='true')return [];
   try {
     const raw = await fs.readFile(CACHE_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
@@ -100,6 +103,7 @@ async function getCachedAthletes(): Promise<any[]> {
 }
 
 async function setCachedAthletes(incoming: any[]): Promise<void> {
+  if(process.env.ACCOUNTS_ENABLED==='true')return;
   try {
     if (!Array.isArray(incoming) || incoming.length === 0) return;
     const existing = await getCachedAthletes();
@@ -499,32 +503,12 @@ const authMiddleware = async (req: any, res: any, next: any) => {
       }catch{return res.status(403).json({error:'Supervisão somente leitura: vínculo ou sessão indisponível.'});}
     }
     const claims = decoded as any;
-    if (claims.accountMode === 'scoped' || process.env.ACCOUNTS_ENABLED === 'true') {
-      if (isDbConnected) {
-        try {
-          const membership = await pool.query('SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active',[claims.id]);
-          const account = membership.rows[0];
-          if (account) {
-            if (claims.sessionVersion && account.session_version !== claims.sessionVersion) return res.status(401).json({error:'Sessão inválida.'});
-            if (process.env.BILLING_ENFORCE === 'true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account)) return res.status(402).json({error:'Assinatura vencida ou não liberada. Renove seu acesso.'});
-            req.account = account;
-            claims.role = account.role; claims.athleteId = account.athlete_id; claims.organizationId = account.organization_id;
-          }
-        } catch (dbErr: any) {
-          console.warn("[AuthMiddleware] Erro temporário ao consultar membership no banco:", dbErr?.message);
-        }
-      }
-      if (!req.account) {
-        req.account = {
-          user_id: claims.id,
-          role: claims.role || 'coach',
-          athlete_id: claims.athleteId || null,
-          organization_id: claims.organizationId || '11111111-1111-4111-8111-111111111111',
-          platform_admin: !!claims.platformAdmin,
-          session_version: claims.sessionVersion || 1,
-          active: true
-        };
-      }
+    if(process.env.ACCOUNTS_ENABLED==='true' && claims.accountMode!=='scoped')return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
+    if(claims.accountMode==='scoped'){
+      if(process.env.SCOPED_SPORTS_ENABLED!=='true' && !req.originalUrl.startsWith('/api/billing/'))return res.status(403).json({error:'Acesso por organização ainda não ativado.'});
+      const account=await liveMembership(pool,claims);
+      if(process.env.BILLING_ENFORCE==='true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account))return res.status(402).json({error:'Assinatura vencida ou não liberada.'});
+      req.account=account;claims.role=account.role;claims.athleteId=account.athlete_id;claims.organizationId=account.organization_id;
     }
     req.user = decoded;
     next();
@@ -535,6 +519,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
 
 const scopedAccountRouter = accountRouter(pool, JWT_SECRET);
 apiRouter.use('/accounts', scopedAccountRouter);
+apiRouter.use('/auth',(req,res,next)=>{if(req.path==='/login' && process.env.ACCOUNTS_ENABLED==='true')return scopedAccountRouter(req,res,next);next();});
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
 
 // Health check
@@ -803,7 +788,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
   try {
     const loadFromSupabase = async () => {
-        if ((req as any).account && isDbConnected) throw new Error('Banco indisponível para leitura protegida.');
+        if ((req as any).account) throw new Error('Banco indisponível para leitura protegida.');
         console.log(`[SERVIÇO] Carregando dados via Supabase Fallback... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
 
         const fetchTableSafely = async (tableName: string) => {
@@ -2136,7 +2121,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 // Deletion endpoints
 apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  if ((req as any).account && isDbConnected) {
+  if ((req as any).account) {
     const scope=(req as any).account;
     try{
       if(scope.role==='coach' && await mayAccessAthlete(pool,scope,id)) {
@@ -2177,7 +2162,7 @@ apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
 apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   console.log(`[API] Solicitando exclusão do treino: ${id}`);
-  if ((req as any).account && isDbConnected) {
+  if ((req as any).account) {
     try {
       const resData = await scopedDelete(pool, (req as any).account, 'workouts', id);
       await removeWorkoutFromCache(id);
@@ -2203,7 +2188,7 @@ apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
 
 apiRouter.delete('/wellness/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  if ((req as any).account && isDbConnected) {
+  if ((req as any).account) {
     try {
       const resData = await scopedDelete(pool, (req as any).account, 'wellness', id);
       await removeWellnessFromCache(id);
@@ -2223,7 +2208,7 @@ apiRouter.delete('/wellness/:id', authMiddleware, async (req, res) => {
 
 apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  if ((req as any).account && isDbConnected) {
+  if ((req as any).account) {
     try {
       const resData = await scopedDelete(pool, (req as any).account, 'sessions', id);
       await removeSessionFromCache(id);
@@ -2257,7 +2242,7 @@ apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
   const tableName = tableMap[type];
   if (!tableName) return res.status(400).json({ error: 'Tipo de avaliação inválido.' });
 
-  if ((req as any).account && isDbConnected) {
+  if ((req as any).account) {
     try {
       const resData = await scopedDelete(pool, (req as any).account, type, id);
       await removeAssessmentFromCache(type, id);
@@ -2287,7 +2272,7 @@ const aiScopeGuard = async (req:any,res:any,next:any) => {
 };
 
 // AI endpoints under apiRouter
-apiRouter.post('/generate-workouts', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -2338,7 +2323,7 @@ apiRouter.post('/generate-workouts', authMiddleware, aiScopeGuard, async (req, r
   }
 });
 
-apiRouter.post('/generate-imtp-ai', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/generate-imtp-ai', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -2405,7 +2390,7 @@ apiRouter.post('/generate-imtp-ai', authMiddleware, aiScopeGuard, async (req, re
   }
 });
 
-apiRouter.post('/generate-postural-ai', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/generate-postural-ai', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { painZones, presetType, notes, photoAnterior, photoLateral, photoPosterior } = req.body;
 
   if (!process.env.GEMINI_API_KEY) {
@@ -2539,7 +2524,7 @@ Assegure que os termos clínicos e nomes de exercícios sejam em português bras
   }
 });
 
-apiRouter.post('/generate-ai-modeling', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/generate-ai-modeling', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {
@@ -2608,7 +2593,7 @@ apiRouter.post('/generate-ai-modeling', authMiddleware, aiScopeGuard, async (req
   }
 });
 
-apiRouter.post('/analyze-performance', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/analyze-performance', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   if (!process.env.GEMINI_API_KEY) {
     console.error("[AI Analysis] GEMINI_API_KEY not configured on the server.");
@@ -2658,7 +2643,7 @@ apiRouter.post('/analyze-performance', authMiddleware, aiScopeGuard, async (req,
   }
 });
 
-apiRouter.post('/ai-search-exercises', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/ai-search-exercises', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { query } = req.body;
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: "Chave de API do Gemini não configurada no servidor." });
@@ -2727,7 +2712,7 @@ Regras de Seleção:
   }
 });
 
-apiRouter.post('/ai-prescribe-workout', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/ai-prescribe-workout', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { athleteData, objective, restrictions, timeAvailable, equipment, periodizationPhase, library } = req.body;
   if (!process.env.GEMINI_API_KEY) {
     return res.status(500).json({ error: "Chave de API do Gemini não configurada no servidor." });
@@ -2824,7 +2809,7 @@ Retorne o plano de treino estritamente em formato JSON estruturado com uma anál
   }
 });
 
-apiRouter.post('/ai-chat', authMiddleware, aiScopeGuard, async (req, res) => {
+apiRouter.post('/ai-chat', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { messages, athleteContext } = req.body;
   
   if (!process.env.GEMINI_API_KEY) {

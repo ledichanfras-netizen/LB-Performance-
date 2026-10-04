@@ -380,13 +380,13 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
               title="Carga Individual e ACWR"
               color="bg-amber-500 shadow-amber-500/20"
               description="Cálculo matemático individualizado do índice de Carga Aguda vs. Crônica (ACWR). Analisa fadiga acumulada e qualidade ideal de repouso diário."
-              importance="A IA calcula sua zona de risco. Se o seu índice passar de 1.5 (zona de perigo), o sistema sinaliza risco para programar o controle de sua intensidade."
+              importance="Os indicadores de carga ajudam a acompanhar sua resposta ao treino. Se o seu índice passar de 1.5 (zona de perigo), o sistema sinaliza risco para programar o controle de sua intensidade."
             />
             <GuideCard 
               icon={Brain}
               title="Modelagem de Performance"
               color="bg-brand-secondary shadow-brand-secondary/20"
-              description="Algoritmos de inteligência artificial calculam picos de esforço ideais, estimando o seu nível reativo e capacidades neuromusculares."
+              description="Os indicadores de esforço e capacidade neuromuscular apoiam a análise do treinador."
               importance="Prepara o atleta para atingir picos de potência nos momentos mais críticos da competição da temporada."
             />
           </div>

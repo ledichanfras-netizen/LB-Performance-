@@ -3,6 +3,8 @@ import { Pool } from 'pg';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { liveMembership } from './liveMembership';
+import { hasAIAccess } from './aiPolicy';
 import { supervisorRouter } from './supervisor';
 import { setupAdministrator } from './adminSetup';
 import { hasSportsAccess } from './entitlement';
@@ -20,19 +22,18 @@ export function accountRouter(pool: Pool, secret: string) {
    const claims=jwt.verify(token,secret) as any;
    if(claims.supervision===true)return res.status(403).json({error:'Supervisão permite somente consulta no aplicativo.'});
    if(claims.accountMode!=='scoped') return res.status(401).json({error:'Entre pelo login seguro.'});
-   const {rows}=await pool.query('SELECT m.*,u.role,u.athlete_id FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id WHERE m.user_id=$1 AND m.active', [claims.id]);
-   if(!rows[0] || rows[0].session_version!==claims.sessionVersion) return res.status(401).json({error:'Sessão inválida.'});req.account=rows[0];next();
+   req.account=await liveMembership(pool,claims);next();
   }catch{res.status(401).json({error:'Sessão inválida.'});}
  };
  router.post('/setup-admin',run(async(req:any,res:any)=>res.json(await setupAdministrator(pool,req.body.token,req.body.password))));
  router.post('/login',run(async(req:any,res:any)=>{
   const {username,password}=req.body;if(typeof username!=='string' || typeof password!=='string' || Buffer.byteLength(password)>72) throw Error('INVALID');
   if(!await allowAccountAttempt(pool,'login',username.trim().toLowerCase())) return res.status(429).json({error:'Muitas tentativas. Aguarde até 15 minutos.'});
-  const {rows}=await pool.query('SELECT u.*,m.organization_id,m.platform_admin,m.session_version FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE lower(u.username)=lower($1) AND m.active',[username.trim()]);
+  const {rows}=await pool.query('SELECT u.*,m.organization_id,m.platform_admin,m.session_version,m.ai_enabled FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE lower(u.username)=lower($1) AND m.active',[username.trim()]);
   const u=rows[0];if(!u || !/^\$2[aby]\$/.test(u.password || '') || !await bcrypt.compare(password,u.password)) return res.status(401).json({error:'Credenciais inválidas.'});
   const token=jwt.sign({id:u.id,role:u.role,athleteId:u.athlete_id,organizationId:u.organization_id,accountMode:'scoped',sessionVersion:u.session_version},secret,{expiresIn:'2h'});
   const licensed=process.env.BILLING_ENABLED==='true' && await hasSportsAccess(pool,{user_id:u.id,organization_id:u.organization_id,role:u.role,athlete_id:u.athlete_id,platform_admin:u.platform_admin} as any);
-  res.json({token,plan:u.platform_admin || licensed ? 'pro' : 'free',id:u.id,role:u.role,athleteId:u.athlete_id,organizationId:u.organization_id,platformAdmin:u.platform_admin,accountMode:'scoped'});
+  res.json({token,aiEnabled:hasAIAccess({...u,active:true}),plan:u.platform_admin || licensed ? 'pro' : 'free',id:u.id,role:u.role,athleteId:u.athlete_id,organizationId:u.organization_id,platformAdmin:u.platform_admin,accountMode:'scoped'});
  }));
  router.post('/accept',run(async(req:any,res:any)=>{
   const {token,password}=req.body;if(typeof token!=='string' || !/^[a-f0-9]{64}$/.test(token) || !validPassword(password)) throw Error('INVALID');

@@ -1,6 +1,7 @@
 
 export interface UserWithPlan {
   platformAdmin?: boolean;
+  aiEnabled?: boolean;
   supervision?: boolean;
   supervisedName?: string;
   organizationId?: string;

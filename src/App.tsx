@@ -172,6 +172,7 @@ import {
 import Home from "./pages/Home";
 import Venda from "./pages/Venda";
 import Billing from "./pages/Billing";
+import { AiAccessProvider, AiOnly } from "./components/AiAccess";
 import SupervisionFrame from "./components/SupervisionFrame";
 import { setSupervisionToken } from "./utils/supervisionSession";
 import Supervisor from "./pages/Supervisor";
@@ -1632,7 +1633,7 @@ const EliteHubApp: FC<{
               </button>
 
               {/* 7. MODELAGEM item */}
-              <button
+              <AiOnly><button
                 onClick={() => {
                   setIsAiChatOpen(false);
                   setActiveTab("ai-modeling");
@@ -1645,11 +1646,11 @@ const EliteHubApp: FC<{
               >
                 <Sparkles className="w-4 h-4 shrink-0" />
                 <span>MODELAGEM</span>
-              </button>
+              </button></AiOnly>
 
               {/* CHAT IA item */}
               {user?.role !== "athlete" && (
-                <button
+                <AiOnly><button
                   onClick={() => setIsAiChatOpen((prev) => !prev)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black cursor-pointer ${
                     isAiChatOpen
@@ -1659,7 +1660,7 @@ const EliteHubApp: FC<{
                 >
                   <Brain className="w-4 h-4 shrink-0" />
                   <span>CHAT IA</span>
-                </button>
+                </button></AiOnly>
               )}
 
               {/* 8. GUIA item */}
@@ -1952,7 +1953,7 @@ const EliteHubApp: FC<{
                 </button>
 
                 {/* 7. Modelagem Tab */}
-                <button
+                <AiOnly><button
                   onClick={() => {
                     setIsAiChatOpen(false);
                     setActiveTab("ai-modeling");
@@ -1965,11 +1966,11 @@ const EliteHubApp: FC<{
                 >
                   <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === "ai-modeling" || aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
                   <span>Modelagem</span>
-                </button>
+                </button></AiOnly>
 
                 {/* Chat IA Tab */}
                 {user?.role !== "athlete" && (
-                  <button
+                  <AiOnly><button
                     onClick={() => setIsAiChatOpen((prev) => !prev)}
                     className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
                       isAiChatOpen
@@ -1981,7 +1982,7 @@ const EliteHubApp: FC<{
                       <Brain className={`w-4 h-4 shrink-0 ${isAiChatOpen ? "text-brand-primary" : "text-slate-500"}`} />
                       <span>Chat IA</span>
                     </div>
-                  </button>
+                  </button></AiOnly>
                 )}
 
                 {/* 8. Guia Tab */}
@@ -3331,7 +3332,7 @@ const EliteHubApp: FC<{
 
                     {activeTab === "premium" && <PremiumHub />}
 
-                    {activeTab === "ai-modeling" && selected && (
+                    {(user.platformAdmin || user.aiEnabled) && activeTab === "ai-modeling" && selected && (
                       <div className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-700">
                         {aiModelingResult ? (
                           <div className="space-y-6">
@@ -3345,7 +3346,7 @@ const EliteHubApp: FC<{
                                 </h2>
                               </div>
                               <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                                <Button
+                                <AiOnly><Button
                                   onClick={handleAiAnalysis}
                                   disabled={aiLoading}
                                   variant="primary"
@@ -3353,7 +3354,7 @@ const EliteHubApp: FC<{
                                 >
                                   <Sparkles className="w-3.5 h-3.5" />
                                   {aiLoading ? "PROCESSANDO..." : "GERAR RELATÓRIO PREDITIVO"}
-                                </Button>
+                                </Button></AiOnly>
                                 <Button
                                   onClick={() => setAiModelingResult(null)}
                                   variant="secondary"
@@ -3363,12 +3364,12 @@ const EliteHubApp: FC<{
                                 </Button>
                               </div>
                             </div>
-                            <AIModelingReport
+                            <AiOnly><AIModelingReport
                               athlete={selected}
                               modeling={aiModelingResult}
                               onBack={() => setAiModelingResult(null)}
                               role={user.role}
-                            />
+                            /></AiOnly>
                           </div>
                         ) : (
                           <div className="space-y-8">
@@ -3397,13 +3398,13 @@ const EliteHubApp: FC<{
                                     </p>
                                   </div>
                                 </div>
-                                <Button
+                                <AiOnly><Button
                                   onClick={() => handleGenerateAIModeling(false)}
                                   disabled={aiModelingLoading}
                                   className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 border border-purple-500/20 text-white font-black uppercase tracking-wider rounded-xl shadow-lg shadow-purple-950/40 hover:brightness-110 active:scale-95 transition-all text-[10px] relative z-10"
                                 >
                                   {aiModelingLoading ? "PROCESSANDO MODELAGEM..." : "CONFIRMAR E GERAR AGORA"}
-                                </Button>
+                                </Button></AiOnly>
                               </div>
 
                               {/* FERRAMENTA 2: RELATÓRIO PREDITIVO COMPLETO */}
@@ -3421,14 +3422,14 @@ const EliteHubApp: FC<{
                                     </p>
                                   </div>
                                 </div>
-                                <Button
+                                <AiOnly><Button
                                   onClick={handleAiAnalysis}
                                   disabled={aiLoading}
                                   variant="primary"
                                   className="w-full py-4 text-[10px] font-black tracking-widest uppercase rounded-xl relative z-10"
                                 >
                                   {aiLoading ? "PROCESSANDO RELATÓRIO..." : "CONFIRMAR E GERAR RELATÓRIO"}
-                                </Button>
+                                </Button></AiOnly>
                               </div>
                             </div>
                           </div>
@@ -4750,13 +4751,13 @@ const EliteHubApp: FC<{
 
             {/* AI Performance Chat Modal (Accessed via Tab) */}
             {user?.role !== "athlete" && (
-              <AiPerformanceChatModal
+              <AiOnly><AiPerformanceChatModal
                 isOpen={isAiChatOpen}
                 onClose={() => setIsAiChatOpen(false)}
                 athletes={athletes}
                 selectedAthleteId={selectedId}
                 onSelectAthlete={(id) => setSelectedId(id)}
-              />
+              /></AiOnly>
             )}
 
             {/* Strava-like Workout Share Modal */}
@@ -18817,7 +18818,7 @@ const App: FC = () => {
     <BrowserRouter>
       {user?.platformAdmin && <nav className="bg-slate-900 text-white px-4 py-3 flex gap-5 border-b border-slate-600"><Link to="/hub" className="text-green-300 font-semibold">Meus atletas</Link><Link to="/supervisao" className="text-green-300 font-semibold">Supervisão de treinadores</Link></nav>}
       <Routes>
-        <Route path="/supervisao/aplicativo" element={user?.platformAdmin && supervisedUser ? <SupervisionFrame name={supervisedUser.supervisedName || 'Treinador'} token={supervisedUser.token!} onExit={exitSupervision}><EliteHubApp key={supervisedUser.token} user={supervisedUser} setUser={exitSupervision} /></SupervisionFrame> : <Navigate to="/supervisao" replace />} />
+        <Route path="/supervisao/aplicativo" element={user?.platformAdmin && supervisedUser ? <SupervisionFrame name={supervisedUser.supervisedName || 'Treinador'} token={supervisedUser.token!} onExit={exitSupervision}><AiAccessProvider user={supervisedUser}><EliteHubApp key={supervisedUser.token} user={supervisedUser} setUser={exitSupervision} /></AiAccessProvider></SupervisionFrame> : <Navigate to="/supervisao" replace />} />
         <Route path="/supervisao" element={user?.platformAdmin ? <Supervisor user={user} onView={view=>{setSupervisionToken(view.token || null);setSupervisedUser(view);}} /> : <Navigate to="/hub" replace />} />
         <Route path="/" element={<Home />} />
         <Route path="/venda" element={<Venda />} />
@@ -18845,7 +18846,7 @@ const App: FC = () => {
         />
         <Route
           path="/hub/*"
-          element={<EliteHubApp key={user?.token || "guest"} user={user} setUser={setUser} />}
+          element={<AiAccessProvider user={user}><EliteHubApp key={user?.token || "guest"} user={user} setUser={setUser} /></AiAccessProvider>}
         />
         {/* Fallback for existing links if any */}
         <Route path="*" element={<Home />} />

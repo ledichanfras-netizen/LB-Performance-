@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Pool } from 'pg';
+import { hasAIAccess } from './aiPolicy';
 import jwt from 'jsonwebtoken';
 import { hasSportsAccess } from './entitlement';
 
@@ -55,7 +56,7 @@ export function supervisorRouter(pool:Pool,secret:string){
   const target=rows[0];if(!target)return res.status(404).json({error:'Treinador indisponível nessa organização.'});
   const licensed=process.env.BILLING_ENABLED==='true' && await hasSportsAccess(pool,target);
   const token=jwt.sign({id:req.account.user_id,accountMode:'scoped',supervision:true,sessionVersion:req.account.session_version,supervisedUserId:target.user_id,targetSessionVersion:target.session_version,organizationId:target.organization_id,role:'coach'},secret,{expiresIn:'15m'});
-  res.json({token,id:target.user_id,organizationId:target.organization_id,role:'coach',plan:licensed?'pro':'free',accountMode:'scoped',platformAdmin:false,supervision:true,supervisedName:target.username});
+  res.json({token,aiEnabled:hasAIAccess(target),id:target.user_id,organizationId:target.organization_id,role:'coach',plan:licensed?'pro':'free',accountMode:'scoped',platformAdmin:false,supervision:true,supervisedName:target.username});
  }));
  router.get('/organizations/:organizationId/athletes',run(async(req:any,res:any)=>{
   res.json((await pool.query(`SELECT a.id,a.name,a.modality FROM public.athletes a JOIN lb_accounts.athlete_scopes s ON s.athlete_id=a.id

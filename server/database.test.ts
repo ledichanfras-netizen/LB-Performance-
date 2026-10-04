@@ -106,7 +106,7 @@ test('invitation and manual renewal end to end with PostgreSQL',async()=>{
  assert.equal((await post('/accounts/accept',{token:invite,password:'a-new-safe-password'})).status,201);
  assert.equal((await post('/accounts/accept',{token:invite,password:'a-new-safe-password'})).status,400);
  const login=await post('/accounts/login',{username:'coach-new',password:'a-new-safe-password'});assert.equal(login.status,200);
- const user=await login.json();assert.equal(user.platformAdmin,false);
+ const user=await login.json();assert.equal(user.platformAdmin,false);assert.equal(user.aiEnabled,false);
  assert.equal((await fetch(base+'/accounts/me',{headers:{Authorization:`Bearer ${user.token}`}})).status,200);
  assert.equal((await post('/billing/plans',{name:'Mensal',audience:'coach',priceCents:10000,durationDays:30})).status,201);
  const overview=await (await fetch(base+'/billing/overview')).json();const plan=overview.plans[0];

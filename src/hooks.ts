@@ -133,13 +133,13 @@ export const useAthletes = (token?: string | null) => {
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        const list = Array.isArray(parsed) ? parsed.filter(a => !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises') : [];
-        return list.length > 0 ? list : generateFeaturedAthletes();
+        const list = Array.isArray(parsed) ? parsed.filter(a => !a.id.startsWith('model-') && !a.id.startsWith('featured-') && a.id !== 'meta-custom-library-exercises') : [];
+        return list.length > 0 ? list : token ? [] : generateFeaturedAthletes();
       } catch (e) {
-        return generateFeaturedAthletes();
+        return token ? [] : generateFeaturedAthletes();
       }
     }
-    return generateFeaturedAthletes();
+    return token ? [] : generateFeaturedAthletes();
   });
 
   const sortWorkoutExercises = (a: Athlete): Athlete => {
@@ -245,7 +245,7 @@ export const useAthletes = (token?: string | null) => {
           console.log('Tentando carregar dados do Supabase...');
           return await supabaseService.loadAthletes();
         } catch (error: any) {
-          if (isPermissionDeniedError(error)) {
+          if (!token && isPermissionDeniedError(error)) {
             console.warn('[Hooks] Permissão restrita no Supabase (código 42501). Carregando cache local.');
             const cached = safeLocalStorage.getItem('lb_athletes_cache');
             if (cached) {
@@ -311,7 +311,7 @@ export const useAthletes = (token?: string | null) => {
         }
         await supabaseService.saveAthletes(athletes);
       } catch (error: any) {
-        if (isPermissionDeniedError(error)) {
+        if (!token && isPermissionDeniedError(error)) {
           console.warn('[Hooks] Permissão negada no Supabase ao salvar atletas. Mantendo em cache local.');
           return;
         }
@@ -346,7 +346,7 @@ export const useAthletes = (token?: string | null) => {
         console.log(`[Hooks] Salvando atleta ${athlete.id} no Supabase...`);
         await supabaseService.saveAthlete(athlete);
       } catch (error: any) {
-        if (isPermissionDeniedError(error)) {
+        if (!token && isPermissionDeniedError(error)) {
           console.warn(`[Hooks] Permissão negada no Supabase ao salvar atleta '${athlete.name}'. Mantendo em cache local.`);
           return;
         }
@@ -382,7 +382,7 @@ export const useAthletes = (token?: string | null) => {
       console.log('Buscando atletas do banco de forma resiliente...');
       const data = await api.loadAthletes(isSilent);
       if (data) {
-        if(readOnly){setAthletes(data.filter(a=>!a.id.startsWith('model-') && a.id!=='meta-custom-library-exercises'));setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;}
+        if(readOnly || (token && data.filter(a=>a.id!=='meta-custom-library-exercises').length===0 && athletesRef.current.filter(a=>!a.id.startsWith('featured-') && !a.id.startsWith('model-')).length===0)){setAthletes(data.filter(a=>!a.id.startsWith('model-') && a.id!=='meta-custom-library-exercises'));setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;}
         // Extract meta custom library if present
         const metaRow = data.find(a => a.id === 'meta-custom-library-exercises');
         if (metaRow && metaRow.injuryHistory) {
@@ -405,30 +405,10 @@ export const useAthletes = (token?: string | null) => {
 
         let filtered = data.filter(a => !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises');
         
-        // When remote returns empty but we have local athletes: push local athletes to the database
-        if (filtered.length === 0) {
-          if (athletesRef.current.length > 0) {
-            console.log('[Sync] Banco remoto está vazio mas há atletas locais. Sincronizando atletas locais para o banco...');
-            try {
-              await api.saveAthletes(athletesRef.current);
-              console.log('[Sync] Atletas locais gravados no banco com sucesso.');
-            } catch (saveErr) {
-              console.warn('[Sync] Falha ao enviar atletas locais para o banco:', saveErr);
-            }
-            safeLocalStorage.setItem(cacheKey, JSON.stringify(athletesRef.current));
-            setLastSyncedAt(new Date());
-            lastSyncTimeRef.current = Date.now();
-            return;
-          } else {
-            console.log('[Sync] Banco e estado local vazios. Carregando atletas padrão...');
-            const seedAthletes = generateFeaturedAthletes();
-            setAthletes(seedAthletes);
-            safeLocalStorage.setItem(cacheKey, JSON.stringify(seedAthletes));
-            api.saveAthletes(seedAthletes).catch(() => {});
-            setLastSyncedAt(new Date());
-            lastSyncTimeRef.current = Date.now();
-            return;
-          }
+        if(filtered.length===0){
+          setAthletes([]);
+          if(!readOnly)safeLocalStorage.setItem(cacheKey,'[]');
+          setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;
         }
 
         // Retrieve local athletes from cache and memory to prevent losing offline/unsynced entries
@@ -437,7 +417,7 @@ export const useAthletes = (token?: string | null) => {
             const cached = safeLocalStorage.getItem(cacheKey);
             if (cached) {
               const parsed = JSON.parse(cached);
-              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+              if (Array.isArray(parsed) && parsed.length > 0) return token ? parsed.filter((a:any)=>!a.id.startsWith('featured-')) : parsed;
             }
           } catch (e) {}
           return athletesRef.current;
@@ -470,7 +450,7 @@ export const useAthletes = (token?: string | null) => {
         }
       }
     } catch (err: any) {
-      if (isPermissionDeniedError(err)) {
+      if (!token && isPermissionDeniedError(err)) {
         console.warn('[Sync] Permissão restrita no Supabase (código 42501). Operando em modo offline persistente.');
         if (!isSilent) {
           toast('Operando em modo local seguro (RLS ativo no Supabase). Seus dados locais estão preservados.', {
@@ -497,7 +477,7 @@ export const useAthletes = (token?: string | null) => {
         const cached = safeLocalStorage.getItem(cacheKey);
         if (cached) {
           try {
-            const parsed = JSON.parse(cached).filter((a: any) => !a.id.startsWith('model-'));
+            const parsed = JSON.parse(cached).filter((a: any) => !a.id.startsWith('model-') && (!token || !a.id.startsWith('featured-')));
             if (parsed.length > 0) {
               setAthletes(parsed);
               hasLocalCache = true;

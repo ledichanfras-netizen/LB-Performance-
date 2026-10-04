@@ -4,6 +4,7 @@ export interface UserWithPlan {
   organizationId?: string;
   accountMode?: 'scoped';
   platformAdmin?: boolean;
+  aiEnabled?: boolean;
   role: 'coach' | 'athlete';
   athleteId?: string;
   token?: string;

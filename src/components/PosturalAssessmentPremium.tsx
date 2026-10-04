@@ -1,3 +1,4 @@
+import { AiOnly, useAiAccess } from './AiAccess';
 import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import React, { useState, useRef } from 'react';
 import { Athlete, PosturalAssessment, PosturalDeviation, PosturalCorrectiveExercise, PosturalAiDetails, AssessmentType } from '../types';
@@ -543,6 +544,7 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
 }) => {
   const [selectedAssessment, setSelectedAssessment] = useState<PosturalAssessment | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const aiAllowed=useAiAccess();
   const [showCaptureGuide, setShowCaptureGuide] = useState(true);
   
   // Wizard State
@@ -1044,7 +1046,7 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
         })()}
 
         {/* VIEW 3: WIZARD / CREATE NEW ASSESSMENT */}
-        {!aiLoading && !selectedAssessment && isCreating && (
+        {!aiLoading && !selectedAssessment && aiAllowed && isCreating && (
           <motion.div
             key="assessment-create"
             initial={{ opacity: 0, y: 15 }}
@@ -1108,7 +1110,7 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
                 <p className="text-slate-500 text-xs pl-8">Deseja simular um padrão de desvio postural ou carregar fotos reais do atleta para análise biomecânica com IA?</p>
                 
                 <div className="pl-8 flex gap-3">
-                  <button
+                  <AiOnly><button
                     type="button"
                     onClick={() => {
                       setCaptureMethod('simulation');
@@ -1122,9 +1124,9 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
                   >
                     <span className="block font-bold text-sm text-slate-800 mb-1">Simulador de Padrões Posturais (IA)</span>
                     <span className="block text-[11px] text-slate-500">Selecione desvios biomecânicos catalogados para treinamento corretivo instantâneo.</span>
-                  </button>
+                  </button></AiOnly>
 
-                  <button
+                  <AiOnly><button
                     type="button"
                     onClick={() => {
                       setCaptureMethod('upload');
@@ -1138,7 +1140,7 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
                   >
                     <span className="block font-bold text-sm text-slate-800 mb-1">Fotos Reais do Atleta (IA Visão)</span>
                     <span className="block text-[11px] text-slate-500">Capture ou carregue fotos do atleta para analisar o alinhamento corporal de forma personalizada.</span>
-                  </button>
+                  </button></AiOnly>
                 </div>
 
                 {/* Sub-options for Simulation */}
@@ -1393,13 +1395,13 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
                 >
                   Cancelar
                 </button>
-                <button
+                <AiOnly><button
                   type="button"
                   onClick={triggerPosturalAnalysis}
                   className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all"
                 >
                   <Sparkles className="w-4 h-4 animate-pulse" /> Gerar Avaliação Avançada por IA
-                </button>
+                </button></AiOnly>
               </div>
 
             </div>
@@ -1419,21 +1421,21 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
             <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200">
               <div className="space-y-1">
                 <span className="text-xs font-mono font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-1">
-                  <Sparkles className="w-3.5 h-3.5" /> Premium AI Module
+                  <Sparkles className="w-3.5 h-3.5" /> {aiAllowed ? "Premium AI Module" : "Histórico de avaliações posturais"}
                 </span>
-                <h3 className="font-bold text-slate-900 text-lg">Avaliação Postural Inteligente</h3>
+                <h3 className="font-bold text-slate-900 text-lg">Avaliação Postural</h3>
                 <p className="text-xs text-slate-500 max-w-2xl font-sans">
-                  Detecte desvios biomecânicos e desequilíbrios cinéticos integrando queixas álgicas com visão computacional multimodal do Google Gemini.
+                  {aiAllowed ? "Analise desvios biomecânicos com apoio de IA." : "Consulte os registros existentes. A análise automatizada não está disponível nesta conta."}
                 </p>
               </div>
 
-              <button
+              <AiOnly><button
                 type="button"
                 onClick={() => setIsCreating(true)}
                 className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
               >
                 <Plus className="w-4 h-4" /> Nova Avaliação Postural
-              </button>
+              </button></AiOnly>
             </div>
 
             {/* History List */}
@@ -1453,13 +1455,13 @@ export const PosturalAssessmentPremium: React.FC<PosturalAssessmentPremiumProps>
                       Registre a primeira avaliação postural para obter laudos automatizados, mapeamento de desequilíbrios articulares e protocolos de correlação neuromuscular.
                     </p>
                   </div>
-                  <button
+                  <AiOnly><button
                     type="button"
                     onClick={() => setIsCreating(true)}
                     className="text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl transition-all"
                   >
                     Iniciar Avaliação Agora
-                  </button>
+                  </button></AiOnly>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-3">

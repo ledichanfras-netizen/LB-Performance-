@@ -1,3 +1,4 @@
+import { AiOnly, useAiAccess } from './AiAccess';
 import React, { FC, useState, useMemo, useEffect } from "react";
 import { 
   Dumbbell, Search, Sparkles, Plus, Trash2, Copy, 
@@ -301,6 +302,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   };
+  const aiAllowed=useAiAccess();
   const todayLocalStr = getTodayLocalDateStr();
 
   const [edited, setEdited] = useState<Workout>(() => {
@@ -2179,7 +2181,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           >
             📚 Biblioteca
           </button>
-          <button
+          <AiOnly><button
             onClick={() => {
               setSidebarTab("ai");
               setIsFilterDrawerOpen(false);
@@ -2191,8 +2193,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             }`}
           >
             🧠 IA Co-Pilot
-          </button>
-          <button
+          </button></AiOnly>
+          <AiOnly><button
             onClick={() => {
               setSidebarTab("deficit");
               setIsFilterDrawerOpen(false);
@@ -2205,7 +2207,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             title="Sugerir treinos focados nos déficits das avaliações físicas"
           >
             🎯 Déficits IA
-          </button>
+          </button></AiOnly>
         </div>
 
         {/* TAB CONTENT: BIBLIOTECA ELITE */}
@@ -2713,7 +2715,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         )}
 
         {/* TAB CONTENT: IA PRESCRITOR (CO-PILOT) */}
-        {sidebarTab === "ai" && (
+        {aiAllowed && sidebarTab === "ai" && (
           <div className="flex-1 flex flex-col min-h-0 space-y-4">
             
             {/* IA CO-PILOT - PERIODIZATION & TRAINING DAYS */}
@@ -2888,7 +2890,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   />
                 </div>
 
-                <button
+                <AiOnly><button
                   type="button"
                   onClick={handlePeriodizeWithAi}
                   disabled={iaWorkoutsLoading}
@@ -2905,7 +2907,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                       GERAR PERIODIZAÇÃO COM IA CO-PILOT
                     </>
                   )}
-                </button>
+                </button></AiOnly>
               </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center py-10 text-center text-slate-500 select-none bg-slate-950 p-6 rounded-xl border border-slate-900">
@@ -2921,7 +2923,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         )}
 
         {/* TAB CONTENT: ASSESSMENT DEFICITS CLINIC */}
-        {sidebarTab === "deficit" && (
+        {aiAllowed && sidebarTab === "deficit" && (
           <div className="flex-1 flex flex-col min-h-0 space-y-4 overflow-y-auto no-scrollbar pb-6 px-1">
             
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 space-y-2 shrink-0">
@@ -3171,7 +3173,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             {/* Optional AI Periodization & Advanced Drawer Toggle */}
             {athlete && updateAthlete && (
-              <button
+              <AiOnly><button
                 type="button"
                 onClick={() => setIsHeaderExpanded(!isHeaderExpanded)}
                 className={`text-[10px] font-black uppercase tracking-wider px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -3184,7 +3186,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 <Brain className="w-3.5 h-3.5 text-[#39FF14]" />
                 <span className="hidden md:inline">IA & Periodização</span>
                 {isHeaderExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#39FF14]" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
+              </button></AiOnly>
             )}
 
             {/* Fast Save Button directly in Header */}
@@ -3224,7 +3226,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         </div>
 
         {/* OPTIONAL EXPANDABLE IA CO-PILOT & PERIODIZATION DRAWER (OPEN ONLY WHEN REQUESTED) */}
-        {isHeaderExpanded && athlete && updateAthlete && (
+        {aiAllowed && isHeaderExpanded && athlete && updateAthlete && (
           <div className="p-4 sm:p-6 border-b border-slate-900 bg-[#0c111d] flex flex-col gap-4 relative shrink-0 animate-in slide-in-from-top-3 duration-250">
             <div className="flex items-center justify-between pb-2 border-b border-slate-850">
               <div className="flex items-center gap-2">
@@ -3405,7 +3407,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             </div>
 
             {/* Periodize Action Button */}
-            <button
+            <AiOnly><button
               type="button"
               onClick={handlePeriodizeWithAi}
               disabled={iaWorkoutsLoading}
@@ -3422,7 +3424,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   GERAR PERIODIZAÇÃO COM IA CO-PILOT
                 </>
               )}
-            </button>
+            </button></AiOnly>
           </div>
         )}
 
@@ -5245,12 +5247,13 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
             {(!edited.exercises || edited.exercises.length === 0) && (
               <div className="py-24 text-center text-slate-500 font-black uppercase text-xs tracking-widest border-2 border-dashed border-slate-900 rounded-[2rem]">
-                Planilha Vazia. Selecione exercícios da biblioteca ou gere por IA para prescrever.
+                Selecione os exercícios da biblioteca e configure a prescrição.
               </div>
             )}
           </div>
         </div>
 
+        {!aiAllowed && <section className="px-4 py-3 bg-white text-slate-900 border-t border-slate-300 shrink-0"><label className="block font-semibold text-sm" htmlFor="mentor-rationale">Raciocínio do treinador</label><p className="text-xs mb-2">Registre o achado da avaliação, o objetivo, a escolha dos exercícios e como acompanhará a resposta do atleta.</p><textarea id="mentor-rationale" value={edited.trainerNotes || ''} onChange={e=>setEdited(prev=>({...prev,trainerNotes:e.target.value}))} rows={2} className="admin-field w-full" placeholder="Achado → objetivo → prescrição → critério de reavaliação" /></section>}
         {/* WORKOUT FOOTER WORKSPACE - COMPACT TO MAXIMIZE WORKOUT VIEWPORT */}
         <div className="py-2.5 px-4 sm:px-6 bg-[#0c111d] border-t border-slate-900 flex flex-row gap-2.5 items-center justify-between shrink-0">
           <button
