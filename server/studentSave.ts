@@ -5,7 +5,7 @@ const wellnessFields:Record<string,string>={date:'date',fatigue:'fatigue',sleep:
 const sessionFields:Record<string,string>={date:'date',type:'type',duration_minutes:'durationMinutes',rpe:'rpe',notes:'notes',load:'load'};
 export async function saveStudentData(pool:Pool,account:AccountScope,payload:any[]){
  if(account.role!=='athlete' || !account.athlete_id || !Array.isArray(payload) || payload.length!==1 || payload[0]?.id!==account.athlete_id)throw new ScopeDenied();
- const athlete=payload[0];const c=await pool.connect();
+ const athlete=payload[0];const c=await pool.connect();let discardClient=false;
  try{await c.query('BEGIN');
  const scope=await c.query('SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE athlete_id=$1 AND organization_id=$2 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id) FOR UPDATE',[account.athlete_id,account.organization_id]);if(!scope.rows.length)throw new ScopeDenied();
  const upsert=async(table:'wellness'|'external_sessions',item:any,fields:Record<string,string>)=>{
@@ -52,5 +52,5 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
   }
  }
  await c.query('COMMIT');return {message:'Prontidão, sessões e execução sincronizadas. Prescrição preservada.'};
- }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
+ }catch(e){discardClient=true;try{await c.query('ROLLBACK');}catch{}throw e;}finally{c.release(discardClient);}
 }

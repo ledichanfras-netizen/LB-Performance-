@@ -16,3 +16,10 @@ async function fixture(fn:(url:string)=>Promise<void>){
 test('disabled account module denies requests',async()=>{process.env.ACCOUNTS_ENABLED='false';await fixture(async url=>assert.equal((await fetch(url+'/me')).status,503));});
 test('legacy tokens cannot access account administration',async()=>{process.env.ACCOUNTS_ENABLED='true';process.env.JWT_SECRET='test-secret';const token=jwt.sign({id:'coach',role:'coach'},'test-secret');await fixture(async url=>assert.equal((await fetch(url+'/me',{headers:{Authorization:`Bearer ${token}`}})).status,401));});
 test('weak passwords rejected before invite lookup',async()=>{await fixture(async url=>assert.equal((await fetch(url+'/accept',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:'a'.repeat(64),password:'short'})})).status,400));});
+
+test('student save discards a connection when the transaction and rollback fail',async()=>{
+ const {saveStudentData}=await import('./studentSave');let discarded=false;
+ const db={connect:async()=>({query:async()=>{throw Error('Query read timeout');},release:(destroy:boolean)=>{discarded=destroy;}})} as any;
+ await assert.rejects(()=>saveStudentData(db,{user_id:'student',role:'athlete',athlete_id:'a',organization_id:'org'},[{id:'a'}]),/Query read timeout/);
+ assert.equal(discarded,true);
+});

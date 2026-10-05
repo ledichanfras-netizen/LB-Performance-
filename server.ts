@@ -245,10 +245,11 @@ app.use((req, res, next) => {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false,
-  connectionTimeoutMillis: 3000, // Falhar em 3s para liberar para Supabase
+  connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 10000,
-  statement_timeout: 4000,
-  query_timeout: 4000,
+  statement_timeout: 30000,
+  query_timeout: 35000,
+  idle_in_transaction_session_timeout: 15000,
   max: 10,
 });
 
@@ -1339,7 +1340,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   }
   if ((req as any).account?.role === 'athlete') {
     try {return res.json(await saveStudentData(pool,(req as any).account,athletes));}
-    catch {return res.status(403).json({error:'Não foi possível salvar os registros próprios do aluno.'});}
+    catch (error:any) {console.error('[StudentSave]',error.code || error.name);return res.status(error instanceof ScopeDenied?403:503).json({error:error instanceof ScopeDenied?'Este registro não pertence ao aluno.':'Não foi possível salvar agora. Seus registros permanecem no dispositivo; tente sincronizar novamente.'});}
   }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
@@ -1836,6 +1837,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   };
 
   if (!process.env.DATABASE_URL || !isDbConnected) {
+    if((req as any).account)return res.status(503).json({error:"Banco indisponível. O registro ainda não foi salvo."});
     try {
       return await doSupabaseProxyFallback();
     } catch (err: any) {
@@ -1845,7 +1847,9 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   }
   
   console.log(`Recebida solicitação de salvamento para ${athletes.length} atletas.`);
-  const client = await pool.connect();
+  const client = await pool.connect().catch(()=>null);
+  if(!client)return res.status(503).json({error:"Banco indisponível. Tente salvar novamente."});
+  let discardClient = false;
   try {
     console.log(`Iniciando transação para salvar ${athletes.length} atletas...`);
     await client.query('BEGIN');
@@ -2094,6 +2098,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
     console.log('Dados salvos com sucesso!');
     res.json({ message: 'Dados sincronizados com sucesso!' });
   } catch (error: any) {
+    discardClient = true;
+    console.error("[ScopedSave]",error.code || error.message);
     if (client) {
       try {
         await client.query('ROLLBACK');
@@ -2114,7 +2120,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       });
     }
   } finally {
-    client.release();
+    client.release(discardClient);
   }
 });
 

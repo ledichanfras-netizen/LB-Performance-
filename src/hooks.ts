@@ -635,11 +635,13 @@ export const useAthletes = (token?: string | null) => {
         }
       } catch (e) {}
       console.log("Sincronização concluída com sucesso.");
+      return true;
     } catch (e: any) {
       logError("Erro na sincronização:", e);
       const detail = e?.detail || e?.response?.data?.detail || '';
       const message = e?.message || String(e);
-      toast.error(`Erro ao sincronizar: ${message} ${detail ? `(${detail})` : ''}`, { id: 'sync-error' });
+      toast.error(`Registro ainda não salvo: ${message} ${detail ? `(${detail})` : ''}`, { id: 'sync-error' });
+      return false;
     } finally {
       setSyncing(false);
     }
@@ -648,7 +650,7 @@ export const useAthletes = (token?: string | null) => {
   const updateAthlete = async (athleteId: string, data: Partial<Athlete>) => {
     const updated = athletes.map(a => a.id === athleteId ? { ...a, ...data } : a);
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Atleta atualizado!");
   };
 
@@ -667,7 +669,7 @@ export const useAthletes = (token?: string | null) => {
     });
 
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Prontidão registrada!");
   };
 
@@ -689,7 +691,7 @@ export const useAthletes = (token?: string | null) => {
     });
 
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Prontidão atualizada!");
   };
 
@@ -745,7 +747,7 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Treino adicionado!");
   };
 
@@ -763,7 +765,7 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
   };
 
   const deleteWorkout = async (athleteId: string, workoutId: string) => {
@@ -829,7 +831,7 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Treino atualizado!");
   };
 
@@ -844,7 +846,7 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success(`Avaliação salva!`);
   };
 
@@ -862,7 +864,7 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success(`Avaliação atualizada!`);
   };
 
@@ -1481,7 +1483,7 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Treino de quadra registrado!");
   };
 
@@ -1508,7 +1510,7 @@ export const useAthletes = (token?: string | null) => {
     });
 
     setAthletes(updated);
-    await save(updated, athleteId);
+    if(!await save(updated, athleteId)) return;
     toast.success("Treino de quadra atualizado!");
   };
 
@@ -1541,7 +1543,7 @@ export const useAthletes = (token?: string | null) => {
       }
       
       safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
-      await save(updated, athleteId);
+      if(!await save(updated, athleteId)) return;
       toast.success("Sessão removida!");
     } catch (e) {
       logError("Erro ao deletar sessão:", e);
