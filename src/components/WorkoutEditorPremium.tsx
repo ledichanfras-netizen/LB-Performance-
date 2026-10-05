@@ -1,3 +1,4 @@
+import ConditioningProtocolEditor from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
 import { AiOnly, useAiAccess } from './AiAccess';
 import React, { FC, useState, useMemo, useEffect } from "react";
@@ -1039,6 +1040,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: (prev.exercises || []).map((ex, i) => {
         if (ex.id === id) {
           const updated = { ...ex, ...updates, order_index: i };
+          if (updates.executionMethod && updates.executionMethod !== ex.executionMethod) delete updated.conditioningProtocol;
           if (updates.repsType === "time") {
             updated.repsType = "time";
           }
@@ -1055,6 +1057,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: (prev.exercises || []).map((ex, i) => {
         if (ex.id === id) {
           const updated = { ...ex, [field]: value, order_index: i };
+          if (field === "executionMethod" && value !== ex.executionMethod) delete updated.conditioningProtocol;
           if (field === "repsType" && value === "time") {
             updated.repsType = "time";
           }
@@ -4678,8 +4681,9 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                   </div>
                                 )}
 
+                                {['sprint_rsa','pyramid_field','fartlek','shuttle_run'].includes(ex.executionMethod || '') && <ConditioningProtocolEditor exercise={ex} onChange={values=>updateExFields(ex.id,values)} />}
                                 {/* Métodos de Campo, Quadra, Esteira e Bike: Tiros / RSA & Antiglicolítico */}
-                                {ex.executionMethod === "sprint_rsa" && (() => {
+                                {!ex.conditioningProtocol && ex.executionMethod === "sprint_rsa" && (() => {
                                   const exNameLower = (ex.name || "").toLowerCase();
                                   const exNotesLower = (ex.notes || "").toLowerCase();
                                   const exRepsLower = String(ex.reps || "").toLowerCase();
@@ -4954,7 +4958,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 })()}
 
                                 {/* Métodos de Campo e Quadra: Pirâmide de Campo */}
-                                {ex.executionMethod === "pyramid_field" && (
+                                {!ex.conditioningProtocol && ex.executionMethod === "pyramid_field" && (
                                   <div className="space-y-3 p-3.5 bg-amber-950/20 border border-amber-500/25 rounded-2xl shadow-inner">
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                                       <div className="sm:col-span-6">
@@ -5029,7 +5033,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 )}
 
                                 {/* Métodos de Campo e Quadra: Fartlek */}
-                                {ex.executionMethod === "fartlek" && (
+                                {!ex.conditioningProtocol && ex.executionMethod === "fartlek" && (
                                   <div className="space-y-3 p-3.5 bg-cyan-950/20 border border-cyan-500/25 rounded-2xl shadow-inner">
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                                       <div className="sm:col-span-6">
@@ -5104,7 +5108,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 )}
 
                                 {/* Métodos de Campo e Quadra: Shuttle Run */}
-                                {ex.executionMethod === "shuttle_run" && (
+                                {!ex.conditioningProtocol && ex.executionMethod === "shuttle_run" && (
                                   <div className="space-y-3 p-3.5 bg-rose-950/20 border border-rose-500/25 rounded-2xl shadow-inner">
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                                       <div className="sm:col-span-6">

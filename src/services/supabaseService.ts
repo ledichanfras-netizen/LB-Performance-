@@ -1,3 +1,4 @@
+import { exerciseMetadata } from "../../server/exerciseMetadata";
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Athlete, Workout, WellnessEntry, AssessmentType, ExternalSession } from '../types';
@@ -420,7 +421,7 @@ export const supabaseService = {
             updatedAt: wk.updated_at || wk.updatedAt,
             createdAt: wk.created_at || wk.createdAt,
             exercises: (wk.prescribed_exercises || []).map((ex: any, idx: number) => ({ 
-              ...ex, 
+              ...(ex.prescription_meta || {}), ...ex,
               muscleGroup: ex.muscle_group,
               painLevel: ex.pain_level,
               repsType: ex.reps_type || 'reps',
@@ -437,7 +438,7 @@ export const supabaseService = {
               const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
               const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
               return xIdx - yIdx;
-            }).map((ex: any, idx: number) => ({ ...ex, order_index: idx }))
+            }).map((ex: any, idx: number) => ({ ...(ex.prescription_meta || {}), ...ex, order_index: idx }))
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           assessments: {
             bioimpedance: athleteBio.map((b: any) => ({
@@ -821,6 +822,7 @@ export const supabaseService = {
               notes: ex.notes,
               pain_level: ex.painLevel,
               reps_type: ex.repsType || 'reps',
+              prescription_meta: JSON.parse(exerciseMetadata(ex)),
               order_index: idx,
               training_mode: ex.trainingMode || 'strength',
               metric_type: ex.metricType || 'load',

@@ -1,3 +1,4 @@
+import { exerciseMetadata } from "./server/exerciseMetadata";
 import express from 'express';
 import { billingRouter } from './server/billing';
 import { resolveSupervisedAccount } from './server/supervisor';
@@ -927,7 +928,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
               updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : wk.updatedAt,
               createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : wk.createdAt,
               exercises: (wk.prescribed_exercises || []).map((ex: any) => ({ 
-                ...ex, 
+                ...(ex.prescription_meta || {}), ...ex,
                 muscleGroup: ex.muscle_group,
                 painLevel: ex.pain_level,
                 repsType: ex.reps_type || 'reps',
@@ -1181,7 +1182,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : wk.updatedAt,
         createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : wk.createdAt,
         exercises: (exByWorkout[wk.id] || []).map((ex: any) => ({ 
-          ...ex, 
+          ...(ex.prescription_meta || {}), ...ex,
           muscleGroup: ex.muscle_group,
           painLevel: ex.pain_level,
           rest: ex.rest,
@@ -1603,6 +1604,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
                    notes: ex.notes ?? null,
                    pain_level: ex.painLevel ? Math.round(Number(ex.painLevel)) : null,
                    reps_type: ex.repsType ?? 'reps',
+                   prescription_meta: JSON.parse(exerciseMetadata(ex)),
                    order_index: exOrderIndex,
                    video_url: ex.videoUrl ?? null,
                    image_url: ex.imageUrl ?? null
@@ -1978,8 +1980,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
           if (!ex.id) ex.id = `ex-${Date.now()}-${Math.random()}`;
           const exOrderIndex = idx;
           await client.query(
-            'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, pain_level, reps_type, order_index, video_url, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (id) DO UPDATE SET name = $3, muscle_group = $4, sets = $5, reps = $6, weight = $7, rest = $8, notes = $9, pain_level = $10, reps_type = $11, order_index = $12, video_url = $13, image_url = $14',
-            [ex.id, wk.id, ex.name ?? null, ex.muscleGroup ?? null, ex.sets ?? null, ex.reps ?? null, ex.weight ?? null, ex.rest ?? null, ex.notes ?? null, ex.painLevel ?? null, ex.repsType ?? 'reps', exOrderIndex, ex.videoUrl ?? null, ex.imageUrl ?? null]
+            'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, pain_level, reps_type, order_index, video_url, image_url, prescription_meta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) ON CONFLICT (id) DO UPDATE SET name = $3, muscle_group = $4, sets = $5, reps = $6, weight = $7, rest = $8, notes = $9, pain_level = $10, reps_type = $11, order_index = $12, video_url = $13, image_url = $14, prescription_meta = $15',
+            [ex.id, wk.id, ex.name ?? null, ex.muscleGroup ?? null, ex.sets ?? null, ex.reps ?? null, ex.weight ?? null, ex.rest ?? null, ex.notes ?? null, ex.painLevel ?? null, ex.repsType ?? 'reps', exOrderIndex, ex.videoUrl ?? null, ex.imageUrl ?? null, exerciseMetadata(ex)]
           );
 
           // Sync performed sets
@@ -3255,6 +3257,7 @@ async function runSetup(retries = 1) {
         video_url TEXT,
         image_url TEXT
     );`);
+    await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS prescription_meta JSONB NOT NULL DEFAULT '{}'::jsonb;`);
     await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS rest VARCHAR(50);`);
     await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS notes TEXT;`);
     await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS pain_level INTEGER;`);

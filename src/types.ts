@@ -250,6 +250,7 @@ export interface PrescribedExercise {
   totalDistanceMeters?: number;
 
   // Métodos Avançados de Força & Potência (Cluster, Contraste Francês, Complex PAP, Rest-Pause)
+  conditioningProtocol?: ConditioningProtocol;
   executionMethod?: AdvancedExecutionMethod;
   clusterReps?: string; // ex: "2+2+2", "3+3"
   intraSetRest?: number; // micro-pausa em segundos (ex: 15, 20, 30)
@@ -686,3 +687,5 @@ export interface DecisionMatrixRow {
 
 
 
+
+export interface ConditioningProtocol { environment: "field" | "treadmill" | "bike"; blocks: { phase?:"warmup"|"work"|"cooldown"; repetitions:number; stages:number[]; unit:"meters"|"seconds"; pauseSeconds:number; blockPauseSeconds:number }[]; }

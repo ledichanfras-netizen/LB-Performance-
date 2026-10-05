@@ -1,3 +1,4 @@
+import { protocolSummary } from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
 import React, { FC, useState, useEffect, useMemo, useRef } from "react";
 import { 
@@ -423,10 +424,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           }))
         : Array.from({ length: ex.sets || 3 }).map((_, i) => ({
             id: `s-${Date.now()}-${idx}-${i}-${Math.random().toString(36).substr(2, 4)}`,
-            reps: targetReps,
+            reps: ex.conditioningProtocol?.blocks[i]?.repetitions || targetReps,
             weight: targetWeight,
-            distance: targetDistance,
-            timeSeconds: targetTime,
+            distance: ex.conditioningProtocol?.blocks[i]?.unit==='meters' ? ex.conditioningProtocol.blocks[i].stages.reduce((a,b)=>a+b,0)*ex.conditioningProtocol.blocks[i].repetitions : ex.conditioningProtocol ? 0 : targetDistance,
+            timeSeconds: ex.conditioningProtocol?.blocks[i]?.unit==='seconds' ? ex.conditioningProtocol.blocks[i].stages.reduce((a,b)=>a+b,0)*ex.conditioningProtocol.blocks[i].repetitions : ex.conditioningProtocol ? 0 : targetTime,
             intensity: ex.targetIntensity || 0,
             rpe: 0,
             isCompleted: isEditingCompleted ? true : false
@@ -436,7 +437,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       return {
         ...ex,
         order_index: idx,
-        executionMethod: special.method,
+        executionMethod: ex.conditioningProtocol ? ex.executionMethod : special.method,
         clusterReps: ex.clusterReps || special.clusterReps,
         intraSetRest: ex.intraSetRest ?? special.intraSetRest,
         blockTag: ex.blockTag || special.blockTag,
@@ -896,8 +897,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           id: `s-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           reps: lastSet ? (lastSet.reps || targetReps) : targetReps,
           weight: lastSet ? (lastSet.weight || targetWeight) : targetWeight,
-          distance: lastSet ? ((lastSet as any).distance || targetDistance) : targetDistance,
-          timeSeconds: lastSet ? ((lastSet as any).timeSeconds || targetTime) : targetTime,
+          distance: lastSet ? ((lastSet as any).distance || targetDistance) : ex.conditioningProtocol ? 0 : targetDistance,
+          timeSeconds: lastSet ? ((lastSet as any).timeSeconds || targetTime) : ex.conditioningProtocol ? 0 : targetTime,
           intensity: lastSet ? ((lastSet as any).intensity || ex.targetIntensity || 0) : (ex.targetIntensity || 0),
           rpe: lastSet ? (lastSet.rpe || 0) : 0,
           isCompleted: isEditingCompleted ? true : false,
@@ -2116,6 +2117,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                         </div>
                       )}
 
+                  {ex.conditioningProtocol && <div className="bg-slate-800 p-4 rounded-xl text-white whitespace-pre-wrap text-sm">{protocolSummary(ex.conditioningProtocol)}</div>}
                       {ex.notes && (
                         <p className="text-xs text-slate-700 dark:text-slate-300 font-medium mt-2.5 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs italic leading-relaxed">
                           💡 {ex.notes}

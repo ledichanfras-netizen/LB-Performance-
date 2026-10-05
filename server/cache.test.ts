@@ -47,3 +47,29 @@ test('older completed cache cannot replace a newer trainer prescription order',a
  assert.deepEqual(mergeArrayById([cached],[remote])[0].exercises.map(e=>e.id),['b','a']);
  assert.deepEqual(mergeArrayById([{...cached,updatedAt:'2026-10-03T12:00:00Z'}],[remote])[0].exercises.map(e=>e.id),['a','b']);
 });
+
+import {exerciseMetadata} from './exerciseMetadata';
+import {PGlite} from '@electric-sql/pglite';
+import {readFile} from 'node:fs/promises';
+test('special protocols retain ordered warmup, work and cooldown after database edits',async()=>{
+ const db=new PGlite();
+ try{
+ await db.exec('CREATE TABLE prescribed_exercises(id text primary key);');
+ await db.exec(await readFile(new URL('./exercise-metadata-schema.sql',import.meta.url),'utf8'));
+ const p={environment:'bike',blocks:[{phase:'warmup',repetitions:1,stages:[600],unit:'seconds',pauseSeconds:0,blockPauseSeconds:0},{phase:'work',repetitions:6,stages:[30,60],unit:'seconds',pauseSeconds:45,blockPauseSeconds:120},{phase:'cooldown',repetitions:1,stages:[300],unit:'seconds',pauseSeconds:0,blockPauseSeconds:0}]};
+ await db.query('INSERT INTO prescribed_exercises(id,prescription_meta) VALUES ($1,$2)', ['protocol',exerciseMetadata({conditioningProtocol:p,executionMethod:'fartlek'})]);
+ p.blocks[1].repetitions=8;p.blocks[1].pauseSeconds=90;
+ await db.query('UPDATE prescribed_exercises SET prescription_meta=$1 WHERE id=$2',[exerciseMetadata({conditioningProtocol:p,executionMethod:'fartlek'}),'protocol']);
+ const rows=await db.query<{prescription_meta:any}>('SELECT prescription_meta FROM prescribed_exercises');
+ assert.deepEqual(rows.rows[0].prescription_meta.conditioningProtocol,p);
+ assert.equal(rows.rows[0].prescription_meta.executionMethod,'fartlek');
+ }finally{await db.close();}
+});
+test('protocol validation accepts distance pyramids and rejects invalid prescriptions',()=>{
+ const b={phase:'work',repetitions:3,stages:[20,40,60,40,20],unit:'meters',pauseSeconds:30,blockPauseSeconds:180};
+ const p={environment:'field',blocks:[b]};
+ assert.deepEqual(JSON.parse(exerciseMetadata({conditioningProtocol:p})).conditioningProtocol,p);
+ for(const patch of [{repetitions:0},{stages:[NaN]},{pauseSeconds:-1},{phase:'unknown'},{unit:'hours'}])assert.throws(()=>exerciseMetadata({conditioningProtocol:{...p,blocks:[{...b,...patch}]}}));
+ assert.throws(()=>exerciseMetadata({conditioningProtocol:{...p,blocks:[null]}}));
+ assert.throws(()=>exerciseMetadata({conditioningProtocol:{...p,blocks:[]}}));
+});
