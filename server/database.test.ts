@@ -325,7 +325,7 @@ test('commercial editing archives plans and voids payments with persisted audit'
  const db=new PGlite();let server:any;
  try{
   await db.exec("CREATE ROLE anon;CREATE ROLE authenticated;CREATE TABLE users(id text PRIMARY KEY);INSERT INTO users VALUES('admin');");
-  for(const f of ['billing-schema.sql','billing-management-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
+  for(const f of ['billing-schema.sql','billing-management-schema.sql','billing-dates-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
   const p='11111111-1111-4111-8111-111111111111',s='22222222-2222-4222-8222-222222222222',e='33333333-3333-4333-8333-333333333333';
   await db.query("INSERT INTO lb_billing.plans(id,name,audience,price_cents,duration_days) VALUES($1,'Plano','coach',10000,30)",[p]);
   await db.query("INSERT INTO lb_billing.subscriptions(id,user_id,plan_id,valid_until) VALUES($1,'admin',$2,'2027-01-01')",[s,p]);
@@ -337,13 +337,18 @@ test('commercial editing archives plans and voids payments with persisted audit'
   assert.equal((await post(`plans/${p}/edit`,{name:'Mentoria',audience:'coach',priceCents:15000,durationDays:30,graceDays:3,athleteLimit:null,deliveries:'Acompanhamento',resources:'Relatórios',reason:'Atualização'})).status,200);
   assert.equal((await post(`plans/${p}/edit`,{name:'Mentoria',audience:'athlete',priceCents:15000,durationDays:30,graceDays:3,athleteLimit:null,deliveries:'',resources:'',reason:'Incompatível'})).status,400);
   assert.equal((await post(`entries/${e}/edit`,{amountCents:12000,method:'pix',reason:'Correção'})).status,200);
+  assert.equal((await post(`entries/${e}/date`,{date:'2026-09-25',reason:'Pagamento anterior ao lançamento'})).status,200);
+  assert.equal((await post(`subscriptions/${s}/date`,{date:'2026-09-20',reason:'Cadastro anterior'})).status,200);
+  assert.equal((await post(`entries/${e}/date`,{date:'2026-02-31',reason:'Data impossível'})).status,400);
+  assert.equal((await db.query('SELECT effective_on::text FROM lb_billing.entries')).rows[0].effective_on,'2026-09-25');
+  assert.equal((await db.query('SELECT registered_on::text FROM lb_billing.subscriptions')).rows[0].registered_on,'2026-09-20');
   assert.equal((await post(`entries/${e}/remove`,{reason:'Duplicado'})).status,200);
   assert.equal((await post(`entries/${e}/edit`,{amountCents:1,method:'pix',reason:'Teste'})).status,400);
   assert.equal((await post(`plans/${p}/remove`,{reason:'Encerrado'})).status,200);
   assert.equal((await db.query('SELECT * FROM lb_billing.entries')).rows.length,1);
   assert.equal((await db.query('SELECT archived,resources FROM lb_billing.plans')).rows[0].archived,true);
   assert.equal((await db.query('SELECT valid_until FROM lb_billing.subscriptions')).rows[0].valid_until.toISOString().slice(0,10),'2027-01-01');
-  assert.equal((await db.query('SELECT * FROM lb_billing.management_audit')).rows.length,4);
+  assert.equal((await db.query('SELECT * FROM lb_billing.management_audit')).rows.length,6);
   await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_billing.management_audit'));
  }finally{if(server)await new Promise<void>(r=>server.close(()=>r()));await db.close();}
 });

@@ -6,11 +6,16 @@ export function billingManagement(pool:Pool,admin:RequestHandler){
  router.post('/:entity/:id/:action',async(req:any,res)=>{
   const {entity,id,action}=req.params;const b=req.body;
   const table=({plans:'plans',entries:'entries',subscriptions:'subscriptions'} as Record<string,string>)[entity];
-  if(!table || !['edit','remove'].includes(action) || !/^[a-f0-9-]{36}$/i.test(id) || typeof b.reason!=='string' || !b.reason.trim() || b.reason.length>500)return res.status(400).json({error:'Informe o motivo da alteração.'});
+  if(!table || !['edit','remove','date'].includes(action) || !/^[a-f0-9-]{36}$/i.test(id) || typeof b.reason!=='string' || !b.reason.trim() || b.reason.length>500)return res.status(400).json({error:'Informe o motivo da alteração.'});
   const c=await pool.connect();try{await c.query('BEGIN');
    const old=(await c.query(`SELECT * FROM lb_billing.${table} WHERE id=$1 FOR UPDATE`,[id])).rows[0];if(!old)throw Error('Registro não encontrado.');
    let after;
-   if(entity==='plans'){
+   if(action==='date'){
+    if(!['entries','subscriptions'].includes(entity)||typeof b.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(b.date)||new Date(b.date+'T12:00:00Z').toISOString().slice(0,10)!==b.date)throw Error('Data inválida.');
+    if(entity==='entries'&&(old.voided_at||old.source!=='manual'))throw Error('Lançamentos do provedor ou cancelados não podem ter a data alterada.');
+    const column=entity==='entries'?'effective_on':'registered_on';
+    after=(await c.query(`UPDATE lb_billing.${table} SET ${column}=$2::date WHERE id=$1 RETURNING *`,[id,b.date])).rows[0];
+   }else if(entity==='plans'){
     if(action==='remove'){
      // Archive rather than delete: existing contracts retain their plan reference.
      after=(await c.query('UPDATE lb_billing.plans SET archived=true WHERE id=$1 RETURNING *',[id])).rows[0];
