@@ -352,3 +352,24 @@ test('commercial editing archives plans and voids payments with persisted audit'
   await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_billing.management_audit'));
  }finally{if(server)await new Promise<void>(r=>server.close(()=>r()));await db.close();}
 });
+
+test('renewal alerts scope individual and organization contracts and stage expiration in Brazil',async()=>{
+ const {renewalAlerts,renewalRouter}=await import('./renewalAlerts');const {default:express}=await import('express');const db=new PGlite();let server:any;
+ try{
+  await db.exec("CREATE ROLE anon;CREATE ROLE authenticated;CREATE TABLE users(id text PRIMARY KEY,username text,role text);CREATE TABLE athletes(id text PRIMARY KEY);INSERT INTO users VALUES('coach','Treinador','coach'),('student','Aluno','athlete'),('foreign','Outro','coach');");
+  for(const f of ['accounts-schema.sql','billing-schema.sql','commercial-controls-schema.sql','renewal-alerts-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
+  const org='11111111-1111-4111-8111-111111111111',plan='22222222-2222-4222-8222-222222222222',own='33333333-3333-4333-8333-333333333333',other='44444444-4444-4444-8444-444444444444';
+  await db.query("INSERT INTO lb_accounts.organizations(id,name) VALUES($1,'LB')",[org]);await db.query('INSERT INTO lb_accounts.memberships(user_id,organization_id) VALUES($1,$3),($2,$3)',['coach','student',org]);
+  await db.query("INSERT INTO lb_billing.plans(id,name,audience,price_cents,duration_days) VALUES($1,'Mensal','coach',10000,30)",[plan]);
+  await db.query("INSERT INTO lb_billing.subscriptions(id,user_id,plan_id,valid_until) VALUES($1,'coach',$3,now()+interval '3 days'),($2,'foreign',$3,now()-interval '1 day')",[own,other,plan]);
+  const adapter={query:(q:string,p:any[])=>db.query(q,p)} as any;
+  assert.equal((await renewalAlerts(adapter,'coach',false)).length,1);
+  const student=await renewalAlerts(adapter,'student',false);assert.equal(student.length,1);assert.equal(student[0].id,own);assert.equal(student[0].stage,'three-days');
+  assert.equal((await renewalAlerts(adapter,'coach',true)).length,2);
+  const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.user={id:'student'};req.billingAdmin=false;next();});app.use('/renewals',renewalRouter(adapter,(req,res)=>res.status(403).end()));server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));
+  const post=(id:string)=>fetch(`http://127.0.0.1:${server.address().port}/renewals/request`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscriptionId:id,message:'Quero renovar'})});
+  assert.equal((await post(other)).status,403);assert.equal((await post(own)).status,201);assert.equal((await post(own)).status,201);assert.equal((await db.query('SELECT * FROM lb_billing.renewal_requests')).rows.length,1);
+  await db.query("INSERT INTO lb_billing.subscriptions(id,user_id,plan_id,valid_until) VALUES('55555555-5555-4555-8555-555555555555','student',$1,now()+interval '20 days')",[plan]);assert.equal((await renewalAlerts(adapter,'student',false)).length,0);
+  await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_billing.renewal_requests'));
+ }finally{if(server)await new Promise<void>(r=>server.close(()=>r()));await db.close();}
+});

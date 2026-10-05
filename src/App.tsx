@@ -1,3 +1,4 @@
+import RenewalNotices from "./components/RenewalNotices";
 import { orderedExercises } from "./utils/exerciseOrder";
 import SettingsPage from "./pages/Settings";
 import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -18811,6 +18812,7 @@ const App: FC = () => {
 
   return (
     <BrowserRouter>
+      {user?.token && !supervisedUser && <RenewalNotices user={user} />}
       {user?.role==="coach" && !supervisedUser && <nav className="bg-slate-900 text-white px-4 py-3 border-b border-slate-600"><Link to="/configuracoes" className="text-green-300 font-semibold">Configurações</Link></nav>}
       {user?.platformAdmin && <nav className="bg-slate-900 text-white px-4 py-3 flex gap-5 border-b border-slate-600"><Link to="/hub" onClick={exitSupervision} className="text-green-300 font-semibold">Meus atletas</Link><Link to="/supervisao" onClick={exitSupervision} className="text-green-300 font-semibold">Supervisão de treinadores</Link></nav>}
       <Routes>

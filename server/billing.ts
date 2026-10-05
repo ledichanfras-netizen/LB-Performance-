@@ -1,3 +1,4 @@
+import { renewalRouter } from "./renewalAlerts";
 import { billingManagement } from "./billingManagement";
 import { Router, RequestHandler } from 'express';
 import { Pool } from 'pg';
@@ -33,6 +34,7 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
       res.status(e.message === 'INVALID' ? 400 : 503).json({ error: e.message === 'INVALID' ? 'Dados inválidos.' : 'Não foi possível concluir. Verifique a configuração comercial.' });
     }
   };
+  router.use('/renewals',renewalRouter(pool,admin));
   router.use('/manage',billingManagement(pool,admin));
   router.get('/overview', run(async (req: any, res: any) => {
     const subscriptions = await pool.query(`SELECT s.*, p.name AS plan_name, u.username,
