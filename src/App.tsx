@@ -1,3 +1,4 @@
+import { orderedExercises } from "./utils/exerciseOrder";
 import SettingsPage from "./pages/Settings";
 import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
@@ -2827,21 +2828,7 @@ const EliteHubApp: FC<{
                           <span>Voltar ao Painel Geral</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selected) {
-                              const sanitized = sanitizeAthleteData(selected);
-                              updateAthlete(selected.id, sanitized);
-                              toast.success(`Cargas e treinos de ${selected.name} recalculados e corrigidos com sucesso!`);
-                            }
-                          }}
-                          className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:text-emerald-300 text-[10px] font-black uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 shadow-xl cursor-pointer"
-                          title="Recalcular cargas e sanitizar histórico de treinos deste atleta"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          <span>Recalcular & Corrigir Cargas</span>
-                        </button>
+
                       </div>
                     )}
 
@@ -3721,11 +3708,7 @@ const EliteHubApp: FC<{
                                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 no-scrollbar">
                                     {(() => {
                                       const exsList = Array.isArray(w.exercises) ? [...w.exercises] : [];
-                                      const sorted = [...exsList].sort((a: any, b: any) => {
-                                        const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
-                                        const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
-                                        return aIdx - bIdx;
-                                      });
+                                      const sorted = orderedExercises(exsList);
                                       return sorted.map((ex, idx) => (
                                         <div
                                           key={ex.id || idx}

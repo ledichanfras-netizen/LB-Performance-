@@ -1,3 +1,4 @@
+import { orderedExercises } from "./utils/exerciseOrder";
 import { normalizeAssessmentNumbers } from "./utils/assessmentNumbers";
 
 import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete, PrescribedExercise, AdvancedExecutionMethod } from './types';
@@ -2212,7 +2213,7 @@ export function mergeArrayById<T extends { id: string; date?: string; updatedAt?
         const localTime = (item.updatedAt || (item as any).updated_at) ? getSafeDateTime(item.updatedAt || (item as any).updated_at) : 0;
         const remoteTime = (existing.updatedAt || (existing as any).updated_at) ? getSafeDateTime(existing.updatedAt || (existing as any).updated_at) : 0;
 
-        if (localTime > remoteTime || (item.status === 'completed' && existing.status !== 'completed')) {
+        if (localTime > remoteTime || (!localTime && !remoteTime && item.status === 'completed' && existing.status !== 'completed')) {
           // Local item is newer (e.g. edited offline or pending immediate sync)
           mergedMap.set(item.id, { ...existing, ...item });
         } else {
@@ -2256,15 +2257,7 @@ export function mergeAthletesWithLocalCache(
       const mergedWorkouts = mergeArrayById(lAth.workouts || [], rAth.workouts || [], deletedIds)
         .map(w => {
           const exs = Array.isArray(w.exercises) ? [...w.exercises] : [];
-          const sortedExs = [...exs].sort((x: any, y: any) => {
-            const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
-            const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
-            return xVal - yVal;
-          });
-          return {
-            ...w,
-            exercises: sortedExs.map((ex, idx) => ({ ...ex, order_index: idx }))
-          };
+          return { ...w, exercises: orderedExercises(exs) };
         })
         .sort((a, b) => getSafeDateTime(b.date || (b as any).updatedAt) - getSafeDateTime(a.date || (a as any).updatedAt));
 

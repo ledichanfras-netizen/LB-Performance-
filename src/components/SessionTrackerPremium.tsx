@@ -1,3 +1,4 @@
+import { orderedExercises } from "../utils/exerciseOrder";
 import React, { FC, useState, useEffect, useMemo, useRef } from "react";
 import { 
   Play, Pause, RotateCcw, Volume2, VolumeX, Trophy, Zap, 
@@ -400,13 +401,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
   const [session, setSession] = useState<Workout>(() => {
     const rawExercisesList = Array.isArray(workout.exercises) ? [...workout.exercises] : [];
-    const sortedExercises = [...rawExercisesList].sort((a: any, b: any) => {
-      const aIdx = typeof a.order_index === 'number' ? a.order_index : (typeof (a as any).orderIndex === 'number' ? (a as any).orderIndex : 9999);
-      const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof (b as any).orderIndex === 'number' ? (b as any).orderIndex : 9999);
-      return aIdx - bIdx;
-    });
-
-    const rawExercises = sortedExercises.map((ex, idx) => ({ ...ex, order_index: idx }));
+    const rawExercises = orderedExercises(rawExercisesList);
 
     const normalizedExercises = rawExercises.map((ex, idx) => {
       const special = detectSpecialMethod(ex);

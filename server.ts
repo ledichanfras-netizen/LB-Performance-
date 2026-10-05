@@ -1589,7 +1589,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
                for (let idx = 0; idx < exercisesList.length; idx++) {
                  const ex = exercisesList[idx];
                  if (!ex.id) ex.id = `ex-${Date.now()}-${Math.random()}`;
-                 const exOrderIndex = typeof ex.order_index === 'number' ? ex.order_index : (typeof ex.orderIndex === 'number' ? ex.orderIndex : idx);
+                 const exOrderIndex = idx;
                  const { error: exUpErr } = await safeUpsert('prescribed_exercises', {
                    id: ex.id,
                    workout_id: wk.id,
@@ -1972,7 +1972,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         for (let idx = 0; idx < exercisesList.length; idx++) {
           const ex = exercisesList[idx];
           if (!ex.id) ex.id = `ex-${Date.now()}-${Math.random()}`;
-          const exOrderIndex = typeof ex.order_index === 'number' ? ex.order_index : (typeof ex.orderIndex === 'number' ? ex.orderIndex : idx);
+          const exOrderIndex = idx;
           await client.query(
             'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, pain_level, reps_type, order_index, video_url, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (id) DO UPDATE SET name = $3, muscle_group = $4, sets = $5, reps = $6, weight = $7, rest = $8, notes = $9, pain_level = $10, reps_type = $11, order_index = $12, video_url = $13, image_url = $14',
             [ex.id, wk.id, ex.name ?? null, ex.muscleGroup ?? null, ex.sets ?? null, ex.reps ?? null, ex.weight ?? null, ex.rest ?? null, ex.notes ?? null, ex.painLevel ?? null, ex.repsType ?? 'reps', exOrderIndex, ex.videoUrl ?? null, ex.imageUrl ?? null]

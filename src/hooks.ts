@@ -1,3 +1,4 @@
+import { orderedExercises } from "./utils/exerciseOrder";
 
 import { useState, useEffect, useRef } from 'react';
 import { athleteCacheKey, isSupervisedToken } from './utils/accountCache';
@@ -147,19 +148,7 @@ export const useAthletes = (token?: string | null) => {
       ...a,
       workouts: (a.workouts || []).map(w => {
         const exs = Array.isArray(w.exercises) ? [...w.exercises] : [];
-        const sortedExs = [...exs].sort((x: any, y: any) => {
-          const xVal = typeof x.order_index === 'number' ? x.order_index : (typeof x.orderIndex === 'number' ? x.orderIndex : 9999);
-          const yVal = typeof y.order_index === 'number' ? y.order_index : (typeof y.orderIndex === 'number' ? y.orderIndex : 9999);
-          return xVal - yVal;
-        });
-
-        return {
-          ...w,
-          exercises: sortedExs.map((ex, idx) => ({
-            ...ex,
-            order_index: idx
-          }))
-        };
+        return { ...w, exercises: orderedExercises(exs) };
       })
     };
   };
@@ -200,6 +189,7 @@ export const useAthletes = (token?: string | null) => {
   const syncingRef = useRef(false);
   const lastSyncTimeRef = useRef<number>(Date.now());
   const athletesRef = useRef<Athlete[]>(athletes);
+  const saveRevisionRef = useRef(0);
 
   // Keep references updated on every render
   useEffect(() => {
@@ -382,7 +372,10 @@ export const useAthletes = (token?: string | null) => {
       }
 
       console.log('Buscando atletas do banco de forma resiliente...');
+      const readRevision = saveRevisionRef.current;
       const data = await api.loadAthletes(isSilent);
+      // A response started before an edit must not replace the newly ordered workout.
+      if (readRevision !== saveRevisionRef.current) return;
       if (data) {
         if(readOnly || (token && data.filter(a=>a.id!=='meta-custom-library-exercises').length===0 && athletesRef.current.filter(a=>!a.id.startsWith('featured-') && !a.id.startsWith('model-')).length===0)){setAthletes(data.filter(a=>!a.id.startsWith('model-') && a.id!=='meta-custom-library-exercises'));setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;}
         // Extract meta custom library if present
@@ -616,6 +609,7 @@ export const useAthletes = (token?: string | null) => {
   }, [token]);
 
   const save = async (newAthletes: Athlete[], specificAthleteId?: string) => {
+    saveRevisionRef.current += 1;
     // Immediate local state and cache update for maximum responsiveness
     safeLocalStorage.setItem(cacheKey, JSON.stringify(newAthletes));
     console.log("Iniciando sincronização em segundo plano...");
