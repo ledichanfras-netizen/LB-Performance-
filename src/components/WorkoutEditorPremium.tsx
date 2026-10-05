@@ -4683,7 +4683,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
                                 {['sprint_rsa','pyramid_field','fartlek','shuttle_run'].includes(ex.executionMethod || '') && <ConditioningProtocolEditor exercise={ex} onChange={values=>updateExFields(ex.id,values)} />}
                                 {/* Métodos de Campo, Quadra, Esteira e Bike: Tiros / RSA & Antiglicolítico */}
-                                {!ex.conditioningProtocol && ex.executionMethod === "sprint_rsa" && (() => {
+                                {false && ex.executionMethod === "sprint_rsa" && (() => {
                                   const exNameLower = (ex.name || "").toLowerCase();
                                   const exNotesLower = (ex.notes || "").toLowerCase();
                                   const exRepsLower = String(ex.reps || "").toLowerCase();
@@ -4958,7 +4958,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 })()}
 
                                 {/* Métodos de Campo e Quadra: Pirâmide de Campo */}
-                                {!ex.conditioningProtocol && ex.executionMethod === "pyramid_field" && (
+                                {false && ex.executionMethod === "pyramid_field" && (
                                   <div className="space-y-3 p-3.5 bg-amber-950/20 border border-amber-500/25 rounded-2xl shadow-inner">
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                                       <div className="sm:col-span-6">
@@ -5033,7 +5033,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 )}
 
                                 {/* Métodos de Campo e Quadra: Fartlek */}
-                                {!ex.conditioningProtocol && ex.executionMethod === "fartlek" && (
+                                {false && ex.executionMethod === "fartlek" && (
                                   <div className="space-y-3 p-3.5 bg-cyan-950/20 border border-cyan-500/25 rounded-2xl shadow-inner">
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                                       <div className="sm:col-span-6">
@@ -5108,7 +5108,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 )}
 
                                 {/* Métodos de Campo e Quadra: Shuttle Run */}
-                                {!ex.conditioningProtocol && ex.executionMethod === "shuttle_run" && (
+                                {false && ex.executionMethod === "shuttle_run" && (
                                   <div className="space-y-3 p-3.5 bg-rose-950/20 border border-rose-500/25 rounded-2xl shadow-inner">
                                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
                                       <div className="sm:col-span-6">

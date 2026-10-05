@@ -73,3 +73,17 @@ test('protocol validation accepts distance pyramids and rejects invalid prescrip
  assert.throws(()=>exerciseMetadata({conditioningProtocol:{...p,blocks:[null]}}));
  assert.throws(()=>exerciseMetadata({conditioningProtocol:{...p,blocks:[]}}));
 });
+
+import {protocolSummary} from '../src/components/ConditioningProtocolEditor';
+test('student instructions distinguish individual shots, pyramid rounds and optional stages',()=>{
+ const p:any={environment:'field',blocks:[{phase:'warmup',repetitions:1,stages:[300],unit:'seconds',pauseSeconds:0,blockPauseSeconds:0},{phase:'work',repetitions:5,stages:[200],unit:'meters',pauseSeconds:60,blockPauseSeconds:120},{phase:'work',repetitions:2,stages:[20,40,20],unit:'seconds',pauseSeconds:30,blockPauseSeconds:0},{phase:'cooldown',repetitions:1,stages:[180],unit:'seconds',pauseSeconds:0,blockPauseSeconds:0}]};
+ const summary=protocolSummary(p);
+ assert.match(summary,/Aquecimento: 5 min/);
+ assert.match(summary,/Bloco 1: 5 tiros de 200 m/);
+ assert.match(summary,/Descanse 1 min entre os tiros/);
+ assert.match(summary,/Bloco 2: 2 voltas na sequência de 20 s → 40 s → 20 s/);
+ assert.match(summary,/Desaquecimento: 3 min/);
+ assert.ok(summary.indexOf('Aquecimento')<summary.indexOf('Bloco 1'));
+ assert.ok(summary.indexOf('Bloco 2')<summary.indexOf('Desaquecimento'));
+ assert.doesNotMatch(summary,/Bloco 3/);
+});
