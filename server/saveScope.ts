@@ -29,19 +29,28 @@ export async function validateScopedSave(client:Pick<PoolClient,'query'>,scope:A
   const workouts=athlete.workouts || [];
   if(!Array.isArray(workouts))throw new ScopeDenied();
   for(const w of workouts){collections.push(['prescribed_exercises',w.exercises || [],'workout_id']);for(const e of w.exercises || [])collections.push(['performed_sets',e.performedSets || [],'exercise_id']);}
+  const grouped=new Map<string,{parentColumn:string,expected:Map<string,string>}>();
   for(const [table,items,parentColumn] of collections){
    if(!Array.isArray(items) || items.length>5000)throw new ScopeDenied();
-   for(const item of items){if(!item.id)continue;if(typeof item.id!=='string' || item.id.length>200)throw new ScopeDenied();
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`${table}:${item.id}`]);
-    const row=await client.query(`SELECT ${parentColumn} AS parent FROM public.${table} WHERE id=$1`,[item.id]);
+   const group=grouped.get(table) || {parentColumn,expected:new Map<string,string>()};
+   grouped.set(table,group);
+   for(const item of items){
+    if(!item.id)continue;
+    if(typeof item.id!=='string' || item.id.length>200)throw new ScopeDenied();
     let expected=athlete.id;
     if(table==='prescribed_exercises')expected=workouts.find((w:any)=>w.exercises?.includes(item))?.id;
     if(table==='performed_sets')expected=workouts.flatMap((w:any)=>w.exercises || []).find((e:any)=>e.performedSets?.includes(item))?.id;
     const itemKey=`${table}:${item.id}`;
     if(seen.has(itemKey) && seen.get(itemKey)!==expected)throw new ScopeDenied();
-    seen.set(itemKey,expected);
-    if(row.rows.length && row.rows[0].parent!==expected)throw new ScopeDenied();
+    seen.set(itemKey,expected);group.expected.set(item.id,expected);
    }
+  }
+  for(const [table,group] of grouped){
+   const itemIds=[...group.expected.keys()].sort();
+   if(!itemIds.length)continue;
+   await client.query('SELECT pg_advisory_xact_lock(hashtext(lock_id)) FROM unnest($1::text[]) AS locks(lock_id) ORDER BY lock_id',[itemIds.map(id=>`${table}:${id}`)]);
+   const rows=await client.query(`SELECT id, ${group.parentColumn} AS parent FROM public.${table} WHERE id=ANY($1::text[])`,[itemIds]);
+   for(const row of rows.rows)if(row.parent!==group.expected.get(row.id))throw new ScopeDenied();
   }
  }
 }
