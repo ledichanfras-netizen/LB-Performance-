@@ -1,7 +1,7 @@
 import { orderedExercises } from "./utils/exerciseOrder";
 import { normalizeAssessmentNumbers } from "./utils/assessmentNumbers";
 
-import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete, PrescribedExercise, AdvancedExecutionMethod } from './types';
+import { IQRatioStatus, AsymmetryStatus, WellnessEntry, Workout, Athlete, PrescribedExercise, AdvancedExecutionMethod, ExerciseSet } from './types';
 
 // Enhanced Repetitions Parser: supports cluster "2+2+2", rest-pause "8+3+2", ranges "8-10", "4x4", etc.
 export const parseRepetitions = (repsStr: string | number | undefined | null): number => {
@@ -38,18 +38,121 @@ export const parseRepetitions = (repsStr: string | number | undefined | null): n
   return 10;
 };
 
-// Enhanced Weight Value Parser: supports numbers, commas, "85% 1RM", "BW", "100kg"
+// Enhanced Weight Value Parser: supports numbers, commas, "85% 1RM", "BW", "100kg", "4x10 @ 80kg", "4 x 80", "20 cada lado", "BW+10kg", etc.
 export const parseWeightValue = (weightStr: string | number | undefined | null): number => {
   if (weightStr === undefined || weightStr === null) return 0;
   if (typeof weightStr === "number") return isNaN(weightStr) ? 0 : weightStr;
-  const cleaned = String(weightStr).trim().replace(",", ".");
-  if (!cleaned || cleaned.toLowerCase() === "bw" || cleaned.toLowerCase() === "pc") return 0;
-  const match = cleaned.match(/\d+(\.\d+)?/);
+  let str = String(weightStr).trim().replace(",", ".");
+  if (!str) return 0;
+
+  const lower = str.toLowerCase();
+  if (
+    lower === "bw" ||
+    lower === "pc" ||
+    lower === "peso corporal" ||
+    lower === "corpo" ||
+    lower === "livre" ||
+    lower === "barra livre" ||
+    lower === "peso próprio" ||
+    lower === "peso proprio" ||
+    lower === "sem carga"
+  ) {
+    return 0;
+  }
+
+  // Handle explicit plus for added weight on bodyweight (e.g. "BW + 10kg", "BW + 15", "PC + 10")
+  const bwPlusMatch = str.match(/(?:bw|pc|corpo)\s*\+\s*(\d+(?:\.\d+)?)/i);
+  if (bwPlusMatch) return parseFloat(bwPlusMatch[1]) || 0;
+
+  // 1. Explicit kg/lbs/kgf unit (e.g. '80kg', '80 kg', '4x10 @ 80kg', '80kg cada lado')
+  const kgMatch = str.match(/(\d+(?:\.\d+)?)\s*(?:kg|kilos|kgf|lbs)\b/i);
+  if (kgMatch) return parseFloat(kgMatch[1]) || 0;
+
+  // 2. Markers like @, com, carga, peso, de, pino, placa, placas (e.g. 'Carga: 80', '@ 80', 'com 80kg', 'Placas: 8')
+  const markerMatch = str.match(/(?:@|com|carga|peso|de|pino|placa|placas)\s*:?\s*(\d+(?:\.\d+)?)/i);
+  if (markerMatch) return parseFloat(markerMatch[1]) || 0;
+
+  // 3. '4x10 - 80' or '4x10 @ 80' (sets x reps - load)
+  const setsRepsLoad = str.match(/\d+\s*x\s*\d+\s*(?:-|@|\/|com|x)\s*(\d+(?:\.\d+)?)/i);
+  if (setsRepsLoad) return parseFloat(setsRepsLoad[1]) || 0;
+
+  // 4. '4 x 80' or '4x80' (sets x load)
+  const setsLoad = str.match(/^\s*\d+\s*x\s*(\d+(?:\.\d+)?)/i);
+  if (setsLoad) return parseFloat(setsLoad[1]) || 0;
+
+  // 5. Slash/dash progression, e.g. '20/30/40' -> return first number
+  const slashMatch = str.match(/^(\d+(?:\.\d+)?)\s*[\/\-]/);
+  if (slashMatch) return parseFloat(slashMatch[1]) || 0;
+
+  // 6. Generic first number (e.g. "80", "12.5", "20 cada lado", "85% 1RM")
+  const match = str.match(/\d+(\.\d+)?/);
   if (match) {
     const val = parseFloat(match[0]);
     return isNaN(val) ? 0 : val;
   }
   return 0;
+};
+
+// Extracts an array of weights for multi-set prescriptions (e.g. "60/70/80" or "60 - 70 - 80" or single "80kg")
+export const parsePerSetWeights = (weightStr: string | number | undefined | null, count: number = 3): number[] => {
+  const defaultCount = Math.max(1, count || 3);
+  if (weightStr === undefined || weightStr === null) return Array(defaultCount).fill(0);
+  if (typeof weightStr === "number") return Array(defaultCount).fill(isNaN(weightStr) ? 0 : weightStr);
+  const str = String(weightStr).trim().replace(",", ".");
+  if (!str) return Array(defaultCount).fill(0);
+
+  // Check if string contains slash/dash/comma separated progression like '20/30/40' or '20 - 30 - 40'
+  if (str.includes("/") || str.includes(" - ") || (str.includes(",") && !str.match(/\d+\.\d+/))) {
+    const parts = str.split(/[\/\-,]/).map((p) => {
+      const m = p.match(/\d+(?:\.\d+)?/);
+      return m ? parseFloat(m[0]) : null;
+    }).filter((v): v is number => v !== null && !isNaN(v));
+
+    if (parts.length > 1) {
+      return Array.from({ length: defaultCount }).map((_, i) => {
+        if (i < parts.length) return parts[i];
+        return parts[parts.length - 1]; // replicate last prescribed weight
+      });
+    }
+  }
+
+  const single = parseWeightValue(str);
+  return Array(defaultCount).fill(single);
+};
+
+// Synchronizes and populates performedSets array ensuring every set has valid prescribed load and reps
+export const syncExerciseSets = (
+  existingSets: ExerciseSet[] | undefined,
+  setsCount: number,
+  repsStr: string | number | undefined | null,
+  weightStr: string | number | undefined | null,
+  repsType?: string
+): ExerciseSet[] => {
+  const count = Math.max(1, Number(setsCount) || 3);
+  const targetReps = parseRepetitions(repsStr);
+  const perSetWeights = parsePerSetWeights(weightStr, count);
+  const current = Array.isArray(existingSets) ? [...existingSets] : [];
+
+  return Array.from({ length: count }).map((_, i) => {
+    const existing = current[i];
+    const weightVal = (existing && typeof existing.weight === 'number' && existing.weight > 0)
+      ? existing.weight
+      : (perSetWeights[i] || 0);
+    const repsVal = (existing && typeof existing.reps === 'number' && existing.reps > 0)
+      ? existing.reps
+      : targetReps;
+
+    return {
+      id: existing?.id || `s-set-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
+      reps: repsVal,
+      weight: weightVal,
+      rpe: existing?.rpe || 0,
+      isCompleted: existing?.isCompleted ?? false,
+      distance: existing?.distance,
+      timeSeconds: existing?.timeSeconds,
+      intensity: existing?.intensity
+    };
+  });
 };
 
 // Automatic Detection and Normalization of Special Training Methods
@@ -652,13 +755,15 @@ export const structureExerciseForMethod = (
     const targetRole = currentEx.blockRole || suggestedRole;
     const targetRest = targetTag.endsWith("D") ? (currentEx.blockRest || "3m30s") : "20s";
     const setsCount = Math.max(3, currentSets);
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : suggestedWeight;
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
 
     return {
       ...currentEx,
       executionMethod: "complex_contrast",
       sets: setsCount,
       reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : suggestedReps,
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : suggestedWeight,
+      weight: finalWeightStr,
       rest: targetRest,
       intraSetRest: currentEx.intraSetRest ?? 20,
       blockTag: targetTag,
@@ -668,7 +773,7 @@ export const structureExerciseForMethod = (
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: Number(suggestedReps) || 4,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -677,20 +782,22 @@ export const structureExerciseForMethod = (
   if (method === 'cluster') {
     const cReps = currentEx.clusterReps || (currentEx.reps && currentEx.reps.includes("+") ? currentEx.reps : "2+2+2");
     const setsCount = Math.max(3, currentSets);
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "85-90% 1RM";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "cluster",
       sets: setsCount,
       clusterReps: cReps,
       reps: cReps,
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "85-90% 1RM",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 20,
       rest: currentEx.rest && currentEx.rest !== "20s" ? currentEx.rest : "2m30s",
       notes: "[CLUSTER SET 🎯] 3-4 séries de 2+2+2 reps com 20s de micro-pausa na barra e 2m30s entre séries.",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 6,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -698,19 +805,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'rest_pause') {
     const setsCount = 3;
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "80-85% 1RM (RPE 9)";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "rest_pause",
       sets: setsCount,
       reps: "8+3+2",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "80-85% 1RM (RPE 9)",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 15,
       rest: currentEx.rest && currentEx.rest !== "20s" ? currentEx.rest : "2min",
       notes: "[REST-PAUSE 🔥] Série principal de 8 reps @ RPE 9 -> micro-pausa de 15s -> 3 reps -> micro-pausa de 15s -> 2 reps até a falha técnica.",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 13,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -718,19 +827,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'drop_set') {
     const setsCount = 3;
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "75-80% 1RM (-20% por queda)";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "drop_set",
       sets: setsCount,
       reps: "8+8+8",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "75-80% 1RM (-20% por queda)",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 5,
       rest: "2min",
       notes: "[DROP-SET 📉] 8 reps @ 75% 1RM -> reduzir 20-30% de carga sem descanso (6-8 reps) -> reduzir 20% sem descanso (até a falha técnica).",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 24,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -738,19 +849,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'bi_set') {
     const setsCount = Math.max(3, currentSets);
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70-75% 1RM";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "bi_set",
       sets: setsCount,
       reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : "10-12",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70-75% 1RM",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 10,
       rest: "90s",
       notes: "[BI-SET ⚡] Execução de 2 exercícios conjugados sem pausa intermediária. Descanso de 90s a 2min ao final de cada par.",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 10,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -758,19 +871,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'tri_set') {
     const setsCount = 3;
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "65-70% 1RM";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "tri_set",
       sets: setsCount,
       reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : "10-12",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "65-70% 1RM",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 10,
       rest: "2min",
       notes: "[TRI-SET 🔱] 3 exercícios sequenciais contínuos sem descanso entre eles. Descanso completo de 2min após o trio.",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 10,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -778,19 +893,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'super_set') {
     const setsCount = Math.max(3, currentSets);
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70-75% 1RM";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "super_set",
       sets: setsCount,
       reps: currentEx.reps && currentEx.reps !== "10" ? currentEx.reps : "10-12",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70-75% 1RM",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 10,
       rest: "90s",
       notes: "[SUPER-SET ⚔️] Par Agonista + Antagonista conjugados. Transição rápida (10s) e 90s de recuperação entre pares.",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 10,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -798,19 +915,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'gvt') {
     const setsCount = 10;
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "60% 1RM";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "gvt",
       sets: setsCount,
       reps: "10",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "60% 1RM",
+      weight: finalWeightStr,
       intraSetRest: 60,
       rest: "60s",
       notes: "[GERMAN VOLUME TRAINING 🇩🇪] 10 séries estritas de 10 reps a 60% 1RM com descanso fixo e rígido de 60s. Cadência controlada (4-0-2).",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 10,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -818,19 +937,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'myo_reps') {
     const setsCount = 4;
+    const finalWeightStr = currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70% 1RM (12RM)";
+    const resolvedWeightNum = parseWeightValue(finalWeightStr);
     return {
       ...currentEx,
       executionMethod: "myo_reps",
       sets: setsCount,
       reps: "12 + 4x3",
-      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : "70% 1RM (12RM)",
+      weight: finalWeightStr,
       intraSetRest: currentEx.intraSetRest ?? 15,
       rest: "2min",
       notes: "[MYO-REPS 🧬] Série de ativação (12-15 reps @ RPE 9) + 4 mini-sets de 3-5 reps com pausas de 10-15s (5 respirações profundas).",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: 12,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };
@@ -838,19 +959,21 @@ export const structureExerciseForMethod = (
 
   if (method === 'wave_loading') {
     const setsCount = 6;
+    const finalWeightStr = "Onda 1: 75-80-85% | Onda 2: 77.5-82.5-87.5%";
+    const resolvedWeightNum = parseWeightValue(currentEx.weight) || 75;
     return {
       ...currentEx,
       executionMethod: "wave_loading",
       sets: setsCount,
       reps: "7-5-3 / 7-5-3",
-      weight: "Onda 1: 75-80-85% | Onda 2: 77.5-82.5-87.5%",
+      weight: currentEx.weight && currentEx.weight !== "BW" ? currentEx.weight : finalWeightStr,
       intraSetRest: 120,
       rest: "2m30s",
       notes: "[WAVE LOADING 🌊] Onda 1: 7 reps (75%), 5 reps (80%), 3 reps (85%) -> Pausa 2m30s -> Onda 2: 7 reps (77.5%), 5 reps (82.5%), 3 reps (87.5%).",
       performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
         id: currentEx.performedSets?.[sIdx]?.id || `s-${Date.now()}-${sIdx}-${Math.random().toString(36).substr(2, 4)}`,
         reps: [7, 5, 3, 7, 5, 3][sIdx] || 5,
-        weight: typeof currentEx.performedSets?.[sIdx]?.weight === 'number' ? currentEx.performedSets[sIdx].weight : 0,
+        weight: (currentEx.performedSets?.[sIdx]?.weight && Number(currentEx.performedSets[sIdx].weight) > 0) ? Number(currentEx.performedSets[sIdx].weight) : resolvedWeightNum,
         rpe: currentEx.performedSets?.[sIdx]?.rpe || 0
       }))
     };

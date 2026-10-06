@@ -78,6 +78,10 @@ import {
   getResolvedAthleteWeight,
   getResolvedAthleteWeightInfo,
   sanitizeAthleteData,
+  parseWeightValue,
+  parseRepetitions,
+  parsePerSetWeights,
+  syncExerciseSets,
 } from "./utils";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
@@ -1199,18 +1203,44 @@ const EliteHubApp: FC<{
               const bIdx = typeof b.order_index === 'number' ? b.order_index : (typeof b.orderIndex === 'number' ? b.orderIndex : 9999);
               return aIdx - bIdx;
             });
-            return sorted.map((ex, exIdx) => ({
-              ...ex,
-              id: `ex-clone-${Date.now()}-${Math.random()}`,
-              order_index: exIdx,
-              performedSets: (ex.performedSets || []).map((s) => ({
-                ...s,
-                id: `s-clone-${Date.now()}-${Math.random()}`,
-                reps: 0,
-                weight: 0,
-                rpe: 0,
-              })),
-            }));
+            return sorted.map((ex, exIdx) => {
+              const setsCount = Math.max(1, Number(ex.sets) || (ex.performedSets?.length || 3));
+              const perSetWeights = parsePerSetWeights(ex.weight, setsCount);
+              const targetWeight = parseWeightValue(ex.weight);
+              const targetReps = parseRepetitions(ex.reps);
+
+              const clonedSets = (ex.performedSets && ex.performedSets.length > 0)
+                ? ex.performedSets.map((s, sIdx) => {
+                    const setWeight = (s.weight !== undefined && s.weight !== null && Number(s.weight) > 0)
+                      ? Number(s.weight)
+                      : (perSetWeights[sIdx] || targetWeight || 0);
+                    const setReps = (s.reps !== undefined && s.reps !== null && Number(s.reps) > 0)
+                      ? Number(s.reps)
+                      : targetReps;
+                    return {
+                      ...s,
+                      id: `s-clone-${Date.now()}-${sIdx}-${Math.random().toString(36).substring(2, 6)}`,
+                      reps: setReps,
+                      weight: setWeight,
+                      rpe: 0,
+                      isCompleted: false,
+                    };
+                  })
+                : Array.from({ length: setsCount }).map((_, sIdx) => ({
+                    id: `s-clone-${Date.now()}-${sIdx}-${Math.random().toString(36).substring(2, 6)}`,
+                    reps: targetReps,
+                    weight: perSetWeights[sIdx] || targetWeight || 0,
+                    rpe: 0,
+                    isCompleted: false,
+                  }));
+
+              return {
+                ...ex,
+                id: `ex-clone-${Date.now()}-${exIdx}-${Math.random().toString(36).substring(2, 6)}`,
+                order_index: exIdx,
+                performedSets: clonedSets,
+              };
+            });
           })(),
         };
         newWorkoutsBatch.push(newWorkout);
@@ -7318,16 +7348,7 @@ const parseTrackerReps = (repsStr: string | number | undefined | null): number =
 };
 
 const parseTrackerWeight = (weightStr: string | number | undefined | null): number => {
-  if (weightStr === undefined || weightStr === null) return 0;
-  if (typeof weightStr === "number") return weightStr;
-  const cleaned = weightStr.trim();
-  const withDot = cleaned.replace(",", ".");
-  const match = withDot.match(/\d+(\.\d+)?/);
-  if (match) {
-    const val = parseFloat(match[0]);
-    return isNaN(val) ? 0 : val;
-  }
-  return 0;
+  return parseWeightValue(weightStr);
 };
 
 // --- SESSION TRACKER COMPONENT ---
@@ -7344,17 +7365,19 @@ const SessionTracker: FC<{
     exercises: (Array.isArray(workout.exercises) ? workout.exercises : []).map(
       (ex) => {
         const targetReps = parseTrackerReps(ex.reps);
+        const setsCount = Math.max(1, Number(ex.sets) || (ex.performedSets?.length || 3));
+        const perSetWeights = parsePerSetWeights(ex.weight, setsCount);
         const targetWeight = parseTrackerWeight(ex.weight);
         const initialSets = ex.performedSets && ex.performedSets.length > 0
-          ? ex.performedSets.map((s) => ({
+          ? ex.performedSets.map((s, sIdx) => ({
               ...s,
               reps: (s.reps === 0 || !s.reps) ? targetReps : s.reps,
-              weight: (s.weight === 0 || !s.weight) ? targetWeight : s.weight,
+              weight: (s.weight === 0 || !s.weight) ? (perSetWeights[sIdx] || targetWeight || 0) : s.weight,
             }))
-          : Array.from({ length: ex.sets || 3 }).map((_, i) => ({
+          : Array.from({ length: setsCount }).map((_, i) => ({
               id: `s-${Date.now()}-${i}`,
               reps: targetReps,
-              weight: targetWeight,
+              weight: perSetWeights[i] || targetWeight || 0,
               rpe: 0,
             }));
 

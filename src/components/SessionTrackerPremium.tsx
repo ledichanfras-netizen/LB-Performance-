@@ -20,6 +20,7 @@ import {
   getEmbedVideoInfo,
   parseRepetitions,
   parseWeightValue,
+  parsePerSetWeights,
   detectSpecialMethod,
   getSpecialMethodMeta
 } from "../utils";
@@ -407,25 +408,40 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     const normalizedExercises = rawExercises.map((ex, idx) => {
       const special = detectSpecialMethod(ex);
       const targetReps = parseRepetitions(special.clusterReps || ex.reps);
+      const setsCount = Math.max(1, Number(ex.sets) || (ex.performedSets?.length || 3));
+      const perSetWeights = parsePerSetWeights(ex.weight, setsCount);
       const targetWeight = parseWeightValue(ex.weight);
       const isPerformanceExercise = ex.trainingMode && ex.trainingMode !== "strength";
       const targetDistance = ex.distanceMeters || (isPerformanceExercise ? targetReps : 0);
       const targetTime = ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
 
       const initialSets = ex.performedSets && ex.performedSets.length > 0
-        ? ex.performedSets.map((s) => ({
-            ...s,
-            reps: (s.reps === 0 || !s.reps) ? targetReps : s.reps,
-            weight: (s.weight === 0 || !s.weight) ? targetWeight : s.weight,
-            distance: (s as any).distance || targetDistance,
-            timeSeconds: (s as any).timeSeconds || targetTime,
-            intensity: (s as any).intensity || ex.targetIntensity || 0,
-            isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
-          }))
-        : Array.from({ length: ex.sets || 3 }).map((_, i) => ({
+        ? ex.performedSets.map((s, sIdx) => {
+            const prescribedWeightForSet = (perSetWeights[sIdx] !== undefined && perSetWeights[sIdx] > 0)
+              ? perSetWeights[sIdx]
+              : targetWeight;
+            const hasValidSetWeight = s.weight !== undefined && s.weight !== null && Number(s.weight) > 0;
+            const finalSetWeight = hasValidSetWeight
+              ? Number(s.weight)
+              : (isEditingCompleted ? (s.weight ?? 0) : prescribedWeightForSet);
+
+            const hasValidSetReps = s.reps !== undefined && s.reps !== null && Number(s.reps) > 0;
+            const finalSetReps = hasValidSetReps ? Number(s.reps) : targetReps;
+
+            return {
+              ...s,
+              reps: finalSetReps,
+              weight: finalSetWeight,
+              distance: (s as any).distance || targetDistance,
+              timeSeconds: (s as any).timeSeconds || targetTime,
+              intensity: (s as any).intensity || ex.targetIntensity || 0,
+              isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
+            };
+          })
+        : Array.from({ length: setsCount }).map((_, i) => ({
             id: `s-${Date.now()}-${idx}-${i}-${Math.random().toString(36).substr(2, 4)}`,
             reps: ex.conditioningProtocol?.blocks[i]?.repetitions || targetReps,
-            weight: targetWeight,
+            weight: (perSetWeights[i] !== undefined && perSetWeights[i] > 0) ? perSetWeights[i] : targetWeight,
             distance: ex.conditioningProtocol?.blocks[i]?.unit==='meters' ? ex.conditioningProtocol.blocks[i].stages.reduce((a,b)=>a+b,0)*ex.conditioningProtocol.blocks[i].repetitions : ex.conditioningProtocol ? 0 : targetDistance,
             timeSeconds: ex.conditioningProtocol?.blocks[i]?.unit==='seconds' ? ex.conditioningProtocol.blocks[i].stages.reduce((a,b)=>a+b,0)*ex.conditioningProtocol.blocks[i].repetitions : ex.conditioningProtocol ? 0 : targetTime,
             intensity: ex.targetIntensity || 0,
@@ -889,14 +905,18 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         const lastSet = currentSets[currentSets.length - 1];
         const isPerformance = ex.trainingMode && ex.trainingMode !== "strength";
         const targetReps = parseReps(ex.reps);
-        const targetWeight = parseWeight(ex.weight);
+        const nextSetIdx = currentSets.length;
+        const perSetWeights = parsePerSetWeights(ex.weight, nextSetIdx + 1);
+        const targetWeight = (perSetWeights[nextSetIdx] !== undefined && perSetWeights[nextSetIdx] > 0)
+          ? perSetWeights[nextSetIdx]
+          : parseWeight(ex.weight);
         const targetDistance = ex.distanceMeters || (isPerformance ? targetReps : 0);
         const targetTime = ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
 
         const newSet: any = {
           id: `s-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
           reps: lastSet ? (lastSet.reps || targetReps) : targetReps,
-          weight: lastSet ? (lastSet.weight || targetWeight) : targetWeight,
+          weight: (lastSet && typeof lastSet.weight === 'number' && lastSet.weight > 0) ? lastSet.weight : targetWeight,
           distance: lastSet ? ((lastSet as any).distance || targetDistance) : ex.conditioningProtocol ? 0 : targetDistance,
           timeSeconds: lastSet ? ((lastSet as any).timeSeconds || targetTime) : ex.conditioningProtocol ? 0 : targetTime,
           intensity: lastSet ? ((lastSet as any).intensity || ex.targetIntensity || 0) : (ex.targetIntensity || 0),
@@ -985,16 +1005,22 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         if (targetCount > currentSets.length) {
           const lastSet = currentSets[currentSets.length - 1];
           const targetReps = parseReps(ex.reps);
-          const targetWeight = parseWeight(ex.weight);
+          const perSetWeights = parsePerSetWeights(ex.weight, targetCount);
           const baseReps = lastSet ? (lastSet.reps || targetReps) : targetReps;
-          const baseWeight = lastSet ? (lastSet.weight || targetWeight) : targetWeight;
           const baseRpe = lastSet ? (lastSet.rpe || 0) : 0;
 
           for (let i = currentSets.length; i < targetCount; i++) {
+            const setPrescribedWeight = (perSetWeights[i] !== undefined && perSetWeights[i] > 0)
+              ? perSetWeights[i]
+              : parseWeight(ex.weight);
+            const setWeight = (lastSet && typeof lastSet.weight === 'number' && lastSet.weight > 0)
+              ? lastSet.weight
+              : setPrescribedWeight;
+
             updatedSets.push({
               id: `s-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 6)}`,
               reps: baseReps,
-              weight: baseWeight,
+              weight: setWeight,
               rpe: baseRpe,
               isCompleted: false,
             });

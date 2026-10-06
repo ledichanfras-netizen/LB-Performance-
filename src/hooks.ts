@@ -3,7 +3,7 @@ import { orderedExercises } from "./utils/exerciseOrder";
 import { useState, useEffect, useRef } from 'react';
 import { athleteCacheKey, isSupervisedToken } from './utils/accountCache';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
-import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId, sanitizeAthleteData } from './utils';
+import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId, sanitizeAthleteData, parseWeightValue, parseRepetitions, parsePerSetWeights } from './utils';
 import { ENRICHED_LIBRARY } from './data/exercises';
 import toast from 'react-hot-toast';
 import { GoogleGenAI, Type } from "@google/genai";
@@ -1405,24 +1405,31 @@ export const useAthletes = (token?: string | null) => {
             name: w.name || `Treino Periodizado (${matchedMeta.dayName || 'Sessão'})`,
             phase: w.phase || 'Preparação Geral',
             status: 'planned' as const,
-            exercises: (Array.isArray(w.exercises) ? w.exercises : []).map((ex: any, exIdx: number) => ({
-              id: `ex-ai-${Date.now()}-${idx}-${exIdx}-${Math.random().toString(36).substring(2, 7)}`,
-              name: ex.name,
-              muscleGroup: ex.muscleGroup || 'Geral',
-              sets: Number(ex.sets) || 3,
-              reps: String(ex.reps || '10'),
-              repsType: String(ex.reps).toLowerCase().includes("s") ? ("time" as const) : ("reps" as const),
-              weight: String(ex.weight || 'Carga Moderada'),
-              rest: '60-90s',
-              notes: '',
-              order_index: exIdx,
-              performedSets: Array.from({ length: Number(ex.sets) || 3 }).map(() => ({
-                id: `set-${Math.random().toString(36).substring(2, 7)}`,
-                reps: 0,
-                weight: 0,
-                rpe: 0
-              }))
-            })),
+            exercises: (Array.isArray(w.exercises) ? w.exercises : []).map((ex: any, exIdx: number) => {
+              const setsCount = Number(ex.sets) || 3;
+              const targetReps = parseRepetitions(ex.reps) || 10;
+              const perSetWeights = parsePerSetWeights(ex.weight, setsCount);
+              const targetWeight = parseWeightValue(ex.weight);
+
+              return {
+                id: `ex-ai-${Date.now()}-${idx}-${exIdx}-${Math.random().toString(36).substring(2, 7)}`,
+                name: ex.name,
+                muscleGroup: ex.muscleGroup || 'Geral',
+                sets: setsCount,
+                reps: String(ex.reps || '10'),
+                repsType: String(ex.reps).toLowerCase().includes("s") ? ("time" as const) : ("reps" as const),
+                weight: String(ex.weight || 'Carga Moderada'),
+                rest: '60-90s',
+                notes: '',
+                order_index: exIdx,
+                performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
+                  id: `set-${Math.random().toString(36).substring(2, 7)}`,
+                  reps: targetReps,
+                  weight: perSetWeights[sIdx] || targetWeight || 0,
+                  rpe: 0
+                }))
+              };
+            }),
             rpe: 0,
             totalLoad: 0,
             durationMinutes: 0
