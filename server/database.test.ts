@@ -142,6 +142,10 @@ test('batch save refuses foreign nested IDs and ownership reassignment',async()=
  await assert.rejects(()=>validateScopedSave(adapter,coach,[{id:'a',wellness:[{id:'foreign'}]}]));
  await assert.rejects(()=>validateScopedSave(adapter,coach,[{id:'new1',wellness:[{id:'same'}]},{id:'new2',wellness:[{id:'same'}]}]));
  await validateScopedSave(adapter,coach,[{id:'a',wellness:[{id:'new'}]}]);
+ let queries=0;
+ const counted={query:(q:string,p:any[])=>{queries++;return adapter.query(q,p);}};
+ await validateScopedSave(counted as any,coach,[{id:'a',wellness:Array.from({length:1000},(_,i)=>({id:`new-${i}`}))}]);
+ assert.ok(queries<10,`Ownership validation used ${queries} queries for 1000 records`);
  await assert.rejects(()=>validateScopedSave(adapter,{...coach,role:'athlete'},[{id:'a'}]));
  }finally{await db.close();}
 });

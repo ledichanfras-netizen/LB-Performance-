@@ -33,11 +33,18 @@ const safeLocalStorage = {
 };
 
 // Resilient fetch helper that automatically retries when network errors occur (such as during backend restarts)
-async function resilientFetch(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
   let attempt = 1;
   while (attempt <= retries) {
     try {
       const response = await fetch(url, { cache: 'no-store', ...options });
+      if (url === '/api/salvar' && [502, 503, 504].includes(response.status) && attempt < retries) {
+        await response.text();
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        delayMs *= 2;
+        attempt++;
+        continue;
+      }
       return response;
     } catch (error: any) {
       const isNetErr = error && (
@@ -59,6 +66,15 @@ async function resilientFetch(url: string, options: RequestInit = {}, retries = 
     }
   }
   throw new Error("Falha ao conectar com o servidor. Por favor, verifique sua conexão.");
+}
+
+// Keep saves in order: retries of an older snapshot must finish before a newer edit.
+let saveRequestTail: Promise<unknown> = Promise.resolve();
+function resilientFetch(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
+  if (url !== '/api/salvar') return fetchWithRetry(url, options, retries, delayMs);
+  const request = saveRequestTail.then(() => fetchWithRetry(url, options, retries, delayMs));
+  saveRequestTail = request.catch(() => undefined);
+  return request;
 }
 
 const ensureImtpAndMigrate = (a: any): Athlete => {
@@ -190,6 +206,7 @@ export const useAthletes = (token?: string | null) => {
   const lastSyncTimeRef = useRef<number>(Date.now());
   const athletesRef = useRef<Athlete[]>(athletes);
   const saveRevisionRef = useRef(0);
+  const pendingSavesRef = useRef(0);
 
   // Keep references updated on every render
   useEffect(() => {
@@ -347,6 +364,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const syncData = async (isSilent = false) => {
+    if (pendingSavesRef.current > 0) return;
     // Login must never wait for athlete data or an anonymous database request.
     if (!token) { setRawAthletes([]); setLoading(false); return; }
     if (syncingRef.current) {
@@ -610,6 +628,7 @@ export const useAthletes = (token?: string | null) => {
 
   const save = async (newAthletes: Athlete[], specificAthleteId?: string) => {
     saveRevisionRef.current += 1;
+    pendingSavesRef.current += 1;
     // Immediate local state and cache update for maximum responsiveness
     safeLocalStorage.setItem(cacheKey, JSON.stringify(newAthletes));
     console.log("Iniciando sincronização em segundo plano...");
@@ -643,7 +662,8 @@ export const useAthletes = (token?: string | null) => {
       toast.error(`Registro ainda não salvo: ${message} ${detail ? `(${detail})` : ''}`, { id: 'sync-error' });
       return false;
     } finally {
-      setSyncing(false);
+      pendingSavesRef.current -= 1;
+      setSyncing(pendingSavesRef.current > 0);
     }
   };
 

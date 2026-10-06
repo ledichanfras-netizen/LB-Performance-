@@ -1,3 +1,4 @@
+import { createSaveBatch } from './server/saveBatch';
 import { exerciseMetadata } from "./server/exerciseMetadata";
 import express from 'express';
 import { billingRouter } from './server/billing';
@@ -1885,10 +1886,12 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   try {
     console.log(`Iniciando transação para salvar ${athletes.length} atletas...`);
     await client.query('BEGIN');
+    await client.query("SET LOCAL statement_timeout = '30s'; SET LOCAL lock_timeout = '10s'; SET LOCAL idle_in_transaction_session_timeout = '15s'");
     if ((req as any).account) await validateScopedSave(client,(req as any).account,athletes);
+    const writes = createSaveBatch(client);
     for (const athlete of athletes) {
       console.log(`Salvando atleta: ${athlete.name} (${athlete.id})`);
-      await client.query(
+      await writes.query(
         'INSERT INTO athletes (id, name, photo_url, dob, gender, modality, competitive_level, position, injury_history, goal, weekly_frequency, is_tournament_mode, periodization_start, periodization_end, training_days, injuries) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) ON CONFLICT (id) DO UPDATE SET name = $2, photo_url = $3, dob = $4, gender = $5, modality = $6, competitive_level = $7, position = $8, injury_history = $9, goal = $10, weekly_frequency = $11, is_tournament_mode = $12, periodization_start = $13, periodization_end = $14, training_days = $15, injuries = $16, updated_at = CURRENT_TIMESTAMP',
         [
           athlete.id,
@@ -1914,13 +1917,13 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       const incomingWlIds = (athlete.wellness || []).map((w: any) => w.id).filter((id: any) => id);
       if (incomingWlIds.length > 0) {
         const wlPlaceholders = incomingWlIds.map((_, idx) => `$${idx + 2}`).join(', ');
-        await client.query(`DELETE FROM wellness WHERE athlete_id = $1 AND id NOT IN (${wlPlaceholders})`, [athlete.id, ...incomingWlIds]);
+        await writes.query(`DELETE FROM wellness WHERE athlete_id = $1 AND id NOT IN (${wlPlaceholders})`, [athlete.id, ...incomingWlIds]);
       } else {
-        await client.query('DELETE FROM wellness WHERE athlete_id = $1', [athlete.id]);
+        await writes.query('DELETE FROM wellness WHERE athlete_id = $1', [athlete.id]);
       }
       for (const w of (athlete.wellness || [])) {
         if (!w.id) w.id = `wl-${Date.now()}-${Math.random()}`;
-        await client.query(
+        await writes.query(
           'INSERT INTO wellness (id, athlete_id, date, fatigue, sleep, stress, soreness, mood, cognitive_load, readiness_score, travel_fatigue, sleep_quality, menstrual_phase, menstrual_symptoms, hrv, sleep_hours_formatted, sleep_start_time, wake_up_time, calculated_sleep_hours, is_match_day, emotional_readiness, psychological_readiness, psychology_notes) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) ON CONFLICT (id) DO UPDATE SET date = $3, fatigue = $4, sleep = $5, stress = $6, soreness = $7, mood = $8, cognitive_load = $9, readiness_score = $10, travel_fatigue = $11, sleep_quality = $12, menstrual_phase = $13, menstrual_symptoms = $14, hrv = $15, sleep_hours_formatted = $16, sleep_start_time = $17, wake_up_time = $18, calculated_sleep_hours = $19, is_match_day = $20, emotional_readiness = $21, psychological_readiness = $22, psychology_notes = $23',
           [
             w.id,
@@ -1954,16 +1957,16 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       const incomingSesIds = (athlete.externalSessions || []).map((es: any) => es.id).filter((id: any) => id);
       if (incomingSesIds.length > 0) {
         const sesPlaceholders = incomingSesIds.map((_, idx) => `$${idx + 2}`).join(', ');
-        await client.query(`DELETE FROM external_sessions WHERE athlete_id = $1 AND id NOT IN (${sesPlaceholders})`, [athlete.id, ...incomingSesIds]);
+        await writes.query(`DELETE FROM external_sessions WHERE athlete_id = $1 AND id NOT IN (${sesPlaceholders})`, [athlete.id, ...incomingSesIds]);
       } else {
-        await client.query('DELETE FROM external_sessions WHERE athlete_id = $1', [athlete.id]);
+        await writes.query('DELETE FROM external_sessions WHERE athlete_id = $1', [athlete.id]);
       }
       for (const es of (athlete.externalSessions || [])) {
         if (!es.id) es.id = `es-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         const dur = es.durationMinutes ?? es.duration_minutes ?? 0;
         const rpeVal = es.rpe ?? 0;
         const calculatedLoad = es.load ?? (dur * rpeVal);
-        await client.query(
+        await writes.query(
           'INSERT INTO external_sessions (id, athlete_id, date, type, duration_minutes, rpe, notes, load) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET date = $3, type = $4, duration_minutes = $5, rpe = $6, notes = $7, load = $8',
           [es.id, athlete.id, es.date, es.type || 'tecnico', dur, rpeVal, es.notes || '', calculatedLoad]
         );
@@ -1976,20 +1979,20 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       if (incomingWorkoutIds.length > 0) {
         // Delete prescribed_exercises and performed_sets first (though CASCADE should handle it, we do it for safety)
         const wkPlaceholders = incomingWorkoutIds.map((_, idx) => `$${idx + 2}`).join(', ');
-        await client.query(`DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders})))`, [athlete.id, ...incomingWorkoutIds]);
-        await client.query(`DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders}))`, [athlete.id, ...incomingWorkoutIds]);
-        await client.query(`DELETE FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders})`, [athlete.id, ...incomingWorkoutIds]);
+        await writes.query(`DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders})))`, [athlete.id, ...incomingWorkoutIds]);
+        await writes.query(`DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders}))`, [athlete.id, ...incomingWorkoutIds]);
+        await writes.query(`DELETE FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders})`, [athlete.id, ...incomingWorkoutIds]);
       } else {
         // If athlete now has ZERO workouts, delete all existing ones
-        await client.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))', [athlete.id]);
-        await client.query('DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)', [athlete.id]);
-        await client.query('DELETE FROM workouts WHERE athlete_id = $1', [athlete.id]);
+        await writes.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))', [athlete.id]);
+        await writes.query('DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)', [athlete.id]);
+        await writes.query('DELETE FROM workouts WHERE athlete_id = $1', [athlete.id]);
       }
 
       for (const wk of (athlete.workouts || [])) {
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
         const cleanDate = wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
-        await client.query(
+        await writes.query(
           'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, updated_at = CURRENT_TIMESTAMP',
           [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, wk.rpe ?? null, wk.totalLoad ?? null, wk.durationMinutes ?? null, wk.monotony ?? null, wk.strain ?? null, wk.feedback ?? null, wk.trainerNotes ?? null]
         );
@@ -1998,18 +2001,18 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         const currentExIds = (wk.exercises || []).map((e: any) => e.id).filter((id: any) => id);
         if (currentExIds.length > 0) {
           const exPlaceholders = currentExIds.map((_, idx) => `$${idx + 2}`).join(', ');
-          await client.query(`DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id = $1 AND id NOT IN (${exPlaceholders}))`, [wk.id, ...currentExIds]);
-          await client.query(`DELETE FROM prescribed_exercises WHERE workout_id = $1 AND id NOT IN (${exPlaceholders})`, [wk.id, ...currentExIds]);
+          await writes.query(`DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id = $1 AND id NOT IN (${exPlaceholders}))`, [wk.id, ...currentExIds]);
+          await writes.query(`DELETE FROM prescribed_exercises WHERE workout_id = $1 AND id NOT IN (${exPlaceholders})`, [wk.id, ...currentExIds]);
         } else {
-          await client.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id = $1)', [wk.id]);
-          await client.query('DELETE FROM prescribed_exercises WHERE workout_id = $1', [wk.id]);
+          await writes.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id = $1)', [wk.id]);
+          await writes.query('DELETE FROM prescribed_exercises WHERE workout_id = $1', [wk.id]);
         }
         const exercisesList = (wk.exercises || []);
         for (let idx = 0; idx < exercisesList.length; idx++) {
           const ex = exercisesList[idx];
           if (!ex.id) ex.id = `ex-${Date.now()}-${Math.random()}`;
           const exOrderIndex = idx;
-          await client.query(
+          await writes.query(
             'INSERT INTO prescribed_exercises (id, workout_id, name, muscle_group, sets, reps, weight, rest, notes, pain_level, reps_type, order_index, video_url, image_url, prescription_meta) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) ON CONFLICT (id) DO UPDATE SET name = $3, muscle_group = $4, sets = $5, reps = $6, weight = $7, rest = $8, notes = $9, pain_level = $10, reps_type = $11, order_index = $12, video_url = $13, image_url = $14, prescription_meta = $15',
             [ex.id, wk.id, ex.name ?? null, ex.muscleGroup ?? null, ex.sets ?? null, ex.reps ?? null, ex.weight ?? null, ex.rest ?? null, ex.notes ?? null, ex.painLevel ?? null, ex.repsType ?? 'reps', exOrderIndex, ex.videoUrl ?? null, ex.imageUrl ?? null, exerciseMetadata(ex)]
           );
@@ -2018,13 +2021,13 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
           const currentSetIds = (ex.performedSets || []).map((s: any) => s.id).filter((id: any) => id);
           if (currentSetIds.length > 0) {
             const setPlaceholders = currentSetIds.map((_, idx) => `$${idx + 2}`).join(', ');
-            await client.query(`DELETE FROM performed_sets WHERE exercise_id = $1 AND id NOT IN (${setPlaceholders})`, [ex.id, ...currentSetIds]);
+            await writes.query(`DELETE FROM performed_sets WHERE exercise_id = $1 AND id NOT IN (${setPlaceholders})`, [ex.id, ...currentSetIds]);
           } else {
-            await client.query('DELETE FROM performed_sets WHERE exercise_id = $1', [ex.id]);
+            await writes.query('DELETE FROM performed_sets WHERE exercise_id = $1', [ex.id]);
           }
           for (const s of (ex.performedSets || [])) {
               if (!s.id) s.id = `s-${Date.now()}-${Math.random()}`;
-              await client.query(
+              await writes.query(
                 'INSERT INTO performed_sets (id, exercise_id, reps, weight, rpe, is_completed) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO UPDATE SET reps = $3, weight = $4, rpe = $5, is_completed = $6',
                 [s.id, ex.id, s.reps ?? null, s.weight ?? null, s.rpe ?? null, s.isCompleted ?? false]
               );
@@ -2038,7 +2041,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${strength.length} testes de força.`);
         for (const asm of strength) {
           if (!asm.id) asm.id = `str-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO isometric_strength (id, athlete_id, date, half_squat_kgf, quadriceps_r, quadriceps_l, hamstrings_r, hamstrings_l, iq_ratio_r, iq_ratio_l, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO UPDATE SET date = $3, half_squat_kgf = $4, quadriceps_r = $5, quadriceps_l = $6, hamstrings_r = $7, hamstrings_l = $8, iq_ratio_r = $9, iq_ratio_l = $10, observations = $11', 
             [asm.id, athlete.id, asm.date, asm.halfSquatKgf ?? 0, asm.quadricepsR ?? 0, asm.quadricepsL ?? 0, asm.hamstringsR ?? 0, asm.hamstringsL ?? 0, asm.iqRatioR ?? 0, asm.iqRatioL ?? 0, asm.observations || '']
           );
@@ -2048,7 +2051,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${cmj.length} saltos CMJ.`);
         for (const asm of cmj) {
           if (!asm.id) asm.id = `cmj-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO cmj (id, athlete_id, date, height, power, depth, rsi, flight_time, weight, average_force, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO UPDATE SET date = $3, height = $4, power = $5, depth = $6, rsi = $7, flight_time = $8, weight = $9, average_force = $10, observations = $11', 
             [asm.id, athlete.id, asm.date, asm.height ?? 0, asm.power ?? 0, asm.depth ?? 0, asm.rsi ?? 0, asm.flightTime ?? 0, asm.weight ?? 0, asm.averageForce ?? 0, asm.observations || '']
           );
@@ -2058,7 +2061,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${vo2.length} testes de VO2max.`);
         for (const asm of vo2) {
           if (!asm.id) asm.id = `vo2-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO vo2max (id, athlete_id, date, vo2max, max_heart_rate, threshold_heart_rate, max_speed, threshold_speed, vam, rec_10s, rec_30s, rec_60s, max_ventilation, score, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) ON CONFLICT (id) DO UPDATE SET date = $3, vo2max = $4, max_heart_rate = $5, threshold_heart_rate = $6, max_speed = $7, threshold_speed = $8, vam = $9, rec_10s = $10, rec_30s = $11, rec_60s = $12, max_ventilation = $13, score = $14, observations = $15', 
             [asm.id, athlete.id, asm.date, asm.vo2max ?? 0, asm.maxHeartRate ?? 0, asm.thresholdHeartRate ?? 0, asm.maxSpeed ?? 0, asm.thresholdSpeed ?? 0, asm.vam ?? 0, asm.rec10s ?? 0, asm.rec30s ?? 0, asm.rec60s ?? 0, asm.maxVentilation ?? 0, asm.score ?? 0, asm.observations || '']
           );
@@ -2068,7 +2071,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${bio.length} bioimpedâncias.`);
         for (const asm of bio) {
           if (!asm.id) asm.id = `bio-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO bioimpedance (id, athlete_id, date, weight, fat_percentage, muscle_mass, visceral_fat, hydration, basal_metabolism, metabolic_age, bone_mass, physique_rating, fat_arm_r, fat_arm_l, fat_leg_r, fat_leg_l, fat_trunk, muscle_arm_r, muscle_arm_l, muscle_leg_r, muscle_leg_l, muscle_trunk, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) ON CONFLICT (id) DO UPDATE SET date = $3, weight = $4, fat_percentage = $5, muscle_mass = $6, visceral_fat = $7, hydration = $8, basal_metabolism = $9, metabolic_age = $10, bone_mass = $11, physique_rating = $12, fat_arm_r = $13, fat_arm_l = $14, fat_leg_r = $15, fat_leg_l = $16, fat_trunk = $17, muscle_arm_r = $18, muscle_arm_l = $19, muscle_leg_r = $20, muscle_leg_l = $21, muscle_trunk = $22, observations = $23',
             [asm.id, athlete.id, asm.date, asm.weight ?? 0, asm.fatPercentage ?? 0, asm.muscleMass ?? 0, asm.visceralFat ?? 0, asm.hydration ?? 0, asm.basalMetabolism ?? 0, asm.metabolicAge ?? 0, asm.boneMass ?? 0, asm.physiqueRating ?? 0, asm.fatArmR ?? 0, asm.fatArmL ?? 0, asm.fatLegR ?? 0, asm.fatLegL ?? 0, asm.fatTrunk ?? 0, asm.muscleArmR ?? 0, asm.muscleArmL ?? 0, asm.muscleLegR ?? 0, asm.muscleLegL ?? 0, asm.muscleTrunk ?? 0, asm.observations || '']
           );
@@ -2078,7 +2081,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${speed.length} testes de velocidade.`);
         for (const asm of speed) {
           if (!asm.id) asm.id = `spd-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO speed (id, athlete_id, date, time_5m, time_10m, time_20m, time_30m, speed_5m, speed_10m, speed_20m, speed_30m, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (id) DO UPDATE SET date = $3, time_5m = $4, time_10m = $5, time_20m = $6, time_30m = $7, speed_5m = $8, speed_10m = $9, speed_20m = $10, speed_30m = $11, observations = $12', 
             [asm.id, athlete.id, asm.date, asm.time5m ?? 0, asm.time10m ?? 0, asm.time20m ?? 0, asm.time30m ?? 0, asm.speed5m ?? 0, asm.speed10m ?? 0, asm.speed20m ?? 0, asm.speed30m ?? 0, asm.observations || '']
           );
@@ -2088,7 +2091,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${dropJump.length} saltos Drop Jump.`);
         for (const asm of dropJump) {
           if (!asm.id) asm.id = `dj-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO drop_jump (id, athlete_id, date, weight, drop_height, jump_height, flight_time, contact_time, mean_force, mean_power, stiffness, rsi, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT (id) DO UPDATE SET date = $3, weight = $4, drop_height = $5, jump_height = $6, flight_time = $7, contact_time = $8, mean_force = $9, mean_power = $10, stiffness = $11, rsi = $12, observations = $13', 
             [asm.id, athlete.id, asm.date, asm.weight ?? 0, asm.dropHeight ?? 30, asm.jumpHeight ?? 0, asm.flightTime ?? 0, asm.contactTime ?? 0, asm.meanForce ?? 0, asm.meanPower ?? 0, asm.stiffness ?? 0, asm.rsi ?? 0, asm.observations || '']
           );
@@ -2098,7 +2101,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.log(`[API] ${imtp.length} testes IMTP.`);
         for (const asm of imtp) {
           if (!asm.id) asm.id = `im-${Date.now()}-${Math.random()}`;
-          await client.query(
+          await writes.query(
             'INSERT INTO imtp (id, athlete_id, date, weight, peak_force, relative_peak_force, time_to_peak_force, mean_force, rfd_peak, rfd_100, rfd_200, rfd_300, impulse_peak, impulse_100, impulse_200, impulse_300, ai_details, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) ON CONFLICT (id) DO UPDATE SET date = $3, weight = $4, peak_force = $5, relative_peak_force = $6, time_to_peak_force = $7, mean_force = $8, rfd_peak = $9, rfd_100 = $10, rfd_200 = $11, rfd_300 = $12, impulse_peak = $13, impulse_100 = $14, impulse_200 = $15, impulse_300 = $16, ai_details = $17, observations = $18', 
             [
               asm.id, 
@@ -2125,6 +2128,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       }
     }
 
+    await writes.flush();
     if ((req as any).account) await attachSavedAthletes(client,(req as any).account,athletes);
     await client.query('COMMIT');
     console.log('Dados salvos com sucesso!');
@@ -2132,7 +2136,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   } catch (error: any) {
     discardClient = true;
     console.error("[ScopedSave]",error.code || error.message);
-    if (client) {
+    if (client && error.message !== 'Query read timeout') {
       try {
         await client.query('ROLLBACK');
       } catch (rollError: any) {
