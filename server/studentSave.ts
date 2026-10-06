@@ -15,7 +15,8 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
    let value=item[key];if(value!==null && !['string','number','boolean'].includes(typeof value) && !(column==='menstrual_symptoms' && Array.isArray(value)))throw new ScopeDenied();
    if(typeof value==='number' && !Number.isFinite(value))throw new ScopeDenied();
    if(column==='menstrual_symptoms')value=JSON.stringify(value);
-   if(['sleep','readiness_score'].includes(column) && typeof value==='number')value=Math.round(value);
+   if(column==='readiness_score' && typeof value==='number')value=Math.round(value);
+   if(column==='sleep' && typeof value==='number')value=Number(value.toFixed(2));
    columns.push(column);values.push(value);
   }
   // Required wellness metrics default to zero only for new incomplete records.

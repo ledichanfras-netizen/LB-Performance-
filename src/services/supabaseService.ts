@@ -712,7 +712,7 @@ export const supabaseService = {
           athlete_id: athlete.id,
           date: w.date,
           fatigue: Number(w.fatigue || 0),
-          sleep: Math.round(safeParseFloat(w.sleep) || 0),
+          sleep: typeof w.sleep === 'number' ? w.sleep : safeParseFloat(w.sleep) || 0,
           stress: Number(w.stress || 0),
           soreness: Number(w.soreness || 0),
           mood: Number(w.mood || 0),
@@ -720,6 +720,16 @@ export const supabaseService = {
           readiness_score: w.readinessScore !== undefined ? Number(w.readinessScore) : (w as any).readiness_score !== undefined ? Number((w as any).readiness_score) : 0,
           travel_fatigue: w.travelFatigue !== undefined ? Number(w.travelFatigue) : (w as any).travel_fatigue !== undefined ? Number((w as any).travel_fatigue) : 0,
           sleep_quality: w.sleepQuality !== undefined ? Number(w.sleepQuality) : (w as any).sleep_quality !== undefined ? Number((w as any).sleep_quality) : 8,
+          sleep_start_time: w.sleepStartTime || (w as any).sleep_start_time || null,
+          wake_up_time: w.wakeUpTime || (w as any).wake_up_time || null,
+          sleep_hours_formatted: w.sleepHoursFormatted || (w as any).sleep_hours_formatted || null,
+          calculated_sleep_hours: w.calculatedSleepHours !== undefined && w.calculatedSleepHours !== null ? Number(w.calculatedSleepHours) : typeof w.sleep === 'number' ? w.sleep : safeParseFloat(w.sleep) || 0,
+          is_match_day: w.isMatchDay ?? (w as any).is_match_day ?? false,
+          emotional_readiness: w.emotionalReadiness ?? (w as any).emotional_readiness ?? null,
+          psychological_readiness: w.psychologicalReadiness ?? (w as any).psychological_readiness ?? null,
+          psychology_notes: w.psychologyNotes || (w as any).psychology_notes || null,
+          menstrual_phase: w.menstrualPhase || (w as any).menstrual_phase || "Nenhuma",
+          menstrual_symptoms: w.menstrualSymptoms || (w as any).menstrual_symptoms || [],
         })));
         if (wError) {
           logError('[Supabase] Erro ao salvar wellness:', wError);

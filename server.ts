@@ -94,7 +94,7 @@ const __dirname = path.dirname(__filename);
 const CACHE_FILE = path.join(__dirname, 'local_athletes_cache.json');
 
 async function getCachedAthletes(): Promise<any[]> {
-  if(process.env.ACCOUNTS_ENABLED==='true')return [];
+  if(process.env.ACCOUNTS_ENABLED==='true' && isDbConnected)return [];
   try {
     const raw = await fs.readFile(CACHE_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
@@ -104,7 +104,7 @@ async function getCachedAthletes(): Promise<any[]> {
 }
 
 async function setCachedAthletes(incoming: any[]): Promise<void> {
-  if(process.env.ACCOUNTS_ENABLED==='true')return;
+  if(process.env.ACCOUNTS_ENABLED==='true' && isDbConnected)return;
   try {
     if (!Array.isArray(incoming) || incoming.length === 0) return;
     const existing = await getCachedAthletes();
@@ -233,8 +233,37 @@ async function removeAthleteFromCache(athleteId: string): Promise<boolean> {
   }
 }
 
+process.on('uncaughtException', (err: any) => {
+  console.error('[UNCAUGHT EXCEPTION]', err?.message || err);
+});
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
+
+function getPort(): number {
+  const portArgIndex = process.argv.indexOf('--port');
+  if (portArgIndex !== -1 && process.argv[portArgIndex + 1]) {
+    const p = parseInt(process.argv[portArgIndex + 1], 10);
+    if (!isNaN(p)) return p;
+  }
+  if (process.env.PORT) {
+    const p = parseInt(process.env.PORT, 10);
+    if (!isNaN(p)) return p;
+  }
+  return 3000;
+}
+
+function getHost(): string {
+  const hostArgIndex = process.argv.indexOf('--host');
+  if (hostArgIndex !== -1 && process.argv[hostArgIndex + 1]) {
+    return process.argv[hostArgIndex + 1];
+  }
+  return process.env.HOST || '0.0.0.0';
+}
+
 const app = express();
-const port = 3000;
+const port = getPort();
+const host = getHost();
 
 app.use(compression());
 
@@ -506,7 +535,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
     }
     const claims = decoded as any;
     if(process.env.ACCOUNTS_ENABLED==='true' && claims.accountMode!=='scoped')return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
-    if(claims.accountMode==='scoped'){
+    if(claims.accountMode==='scoped' && isDbConnected){
       if(process.env.SCOPED_SPORTS_ENABLED!=='true' && !req.originalUrl.startsWith('/api/billing/'))return res.status(403).json({error:'Acesso por organização ainda não ativado.'});
       const account=await liveMembership(pool,claims);
       if(process.env.BILLING_ENFORCE==='true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account))return res.status(402).json({error:'Assinatura vencida ou não liberada.'});
@@ -521,7 +550,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
 
 const scopedAccountRouter = accountRouter(pool, JWT_SECRET);
 apiRouter.use('/accounts', scopedAccountRouter);
-apiRouter.use('/auth',(req,res,next)=>{if(req.path==='/login' && process.env.ACCOUNTS_ENABLED==='true')return scopedAccountRouter(req,res,next);next();});
+apiRouter.use('/auth',(req,res,next)=>{if(req.path==='/login' && process.env.ACCOUNTS_ENABLED==='true' && isDbConnected)return scopedAccountRouter(req,res,next);next();});
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
 
 // Health check
@@ -1149,6 +1178,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         matches: parsedFields.matches || [],
       wellness: (wellnessByAth[a.id] || []).map((w: any) => ({
         ...w,
+        sleep: w.calculated_sleep_hours !== undefined && w.calculated_sleep_hours !== null ? Number(w.calculated_sleep_hours) : (typeof w.sleep === 'number' ? w.sleep : parseFloat(w.sleep) || 0),
         cognitiveLoad: w.cognitive_load,
         readinessScore: w.readiness_score,
         travelFatigue: w.travel_fatigue,
@@ -1480,7 +1510,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
                athlete_id: athlete.id,
                date: w.date,
                fatigue: safeNum(w.fatigue, 0),
-               sleep: Math.round(safeNum(w.sleep, 0)),
+               sleep: safeNum(w.sleep, 0),
                stress: safeNum(w.stress, 0),
                soreness: w.soreness ?? 0,
                mood: w.mood ?? 0,
@@ -1897,7 +1927,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
             athlete.id,
             w.date,
             w.fatigue ?? 0,
-            Math.round(safeNum(w.sleep, 0)),
+            safeNum(w.sleep, 0),
             w.stress ?? 0,
             w.soreness ?? 0,
             w.mood ?? 0,
@@ -3341,22 +3371,8 @@ async function startServer() {
   console.log(`Diretório atual (__dirname): ${__dirname}`);
   console.log(`Caminho esperado do index.html: ${indexPath}`);
   
-  // Tentar detectar se estamos em produção baseado no NODE_ENV ou na existência da pasta dist
-  let isProd = process.env.NODE_ENV === 'production';
-  
-  // Se não estiver explicitamente em produção, mas a pasta dist existir, assumimos produção
-  try {
-    await fs.access(indexPath);
-    if (!isProd) {
-      console.log("Pasta 'dist' detectada. Forçando modo PRODUÇÃO.");
-      isProd = true;
-    }
-  } catch (e) {
-    if (isProd) {
-      console.warn("Aviso: NODE_ENV é 'production' mas a pasta 'dist' não foi encontrada.");
-    }
-  }
-
+  // Respeita estritamente o NODE_ENV para permitir o funcionamento correto do Vite em desenvolvimento
+  const isProd = process.env.NODE_ENV === 'production';
   console.log(`Modo de execução: ${isProd ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
   console.log(`NODE_ENV: ${process.env.NODE_ENV || 'não definido'}`);
   
@@ -3453,9 +3469,9 @@ async function startServer() {
     });
   }
 
-  app.listen(port, '0.0.0.0', () => {
+  app.listen(port, host, () => {
     console.log(`[SERVIÇO] Servidor Iniciado`);
-    console.log(`[SERVIÇO] Porta: ${port}`);
+    console.log(`[SERVIÇO] Host: ${host} | Porta: ${port}`);
     console.log(`[SERVIÇO] Modo: ${isProd ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
   });
 }
