@@ -1,3 +1,4 @@
+import { normalizeBirthDate } from './src/utils/birthDate';
 import { createSaveBatch } from './server/saveBatch';
 import { exerciseMetadata } from "./server/exerciseMetadata";
 import express from 'express';
@@ -1161,7 +1162,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         id: a.id,
         name: a.name,
         photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
-        dob: a.dob,
+        dob: normalizeBirthDate(a.dob),
         gender: a.gender || 'M',
         modality: a.modality,
         competitiveLevel: a.competitive_level,

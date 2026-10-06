@@ -1,3 +1,4 @@
+import { normalizeBirthDate } from "./utils/birthDate";
 import RenewalNotices from "./components/RenewalNotices";
 import { orderedExercises } from "./utils/exerciseOrder";
 import SettingsPage from "./pages/Settings";
@@ -16860,7 +16861,7 @@ const AthleteForm: FC<{
   initialData?: Athlete;
 }> = ({ onSave, onCancel, initialData }) => {
   const [formData, setFormData] = useState<Partial<Athlete>>(
-    initialData || {
+    initialData ? { ...initialData, dob: normalizeBirthDate(initialData.dob) } : {
       name: "",
       dob: "",
       gender: "M",
@@ -16984,7 +16985,7 @@ const AthleteForm: FC<{
               <Field
                 label="Nascimento"
                 type="date"
-                value={formData.dob || ""}
+                value={normalizeBirthDate(formData.dob)}
                 onChange={(v) => update({ dob: v })}
               />
               <div>

@@ -1,3 +1,4 @@
+import { normalizeBirthDate } from "../utils/birthDate";
 import React, { useState, FC, useEffect, useRef } from "react";
 import {
   X,
@@ -65,7 +66,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
   const [formData, setFormData] = useState<Partial<AnamnesisRecord>>({
     date: new Date().toISOString().split("T")[0],
     athleteName: athlete.name || "",
-    dob: athlete.dob || "",
+    dob: normalizeBirthDate(athlete.dob),
     athleteAge: calculateAge(athlete.dob),
     athleteGender: athlete.gender || "M",
     phone: "",
@@ -136,7 +137,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
       setFormData((prev) => ({
         ...prev,
         athleteName: athlete.name || "",
-        dob: athlete.dob || "",
+        dob: normalizeBirthDate(athlete.dob),
         athleteAge: calculateAge(athlete.dob),
         athleteGender: athlete.gender || "M",
         modality: athlete.modality || "",
@@ -509,7 +510,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                     <label className="text-[10px] font-black text-slate-400 uppercase">Data de Nascimento</label>
                     <input
                       type="date"
-                      value={formData.dob || ""}
+                      value={normalizeBirthDate(formData.dob)}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
