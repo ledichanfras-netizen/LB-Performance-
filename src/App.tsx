@@ -515,6 +515,33 @@ const Login: FC<{
           >
             Entrar no aplicativo
           </Button>
+
+          <div className="relative my-2 flex items-center justify-center">
+            <div className="border-t border-slate-800 w-full"></div>
+            <span className="bg-[#0b101d] px-3 text-[9px] font-black uppercase text-slate-500 tracking-widest absolute">ou</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              setUsername("leandro");
+              setPassword("techno10");
+              try {
+                const res = await fetch("/api/auth/login", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ username: "leandro", password: "techno10" }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  onLogin(data);
+                }
+              } catch (e) {}
+            }}
+            className="w-full py-3.5 px-4 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-black rounded-2xl text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
+          >
+            ⚡ Acesso Direto Treinador (PRO)
+          </button>
         </form>
 
         <div className="mt-8 text-center flex flex-col gap-4">
@@ -4901,6 +4928,17 @@ const EliteHubApp: FC<{
               onClose={() => setIsOptionsMenuOpen(false)}
               user={user}
               selectedAthlete={selected}
+              athletes={athletes}
+              onImportAthletes={async (importedList) => {
+                const clean = importedList.filter((a) => a && a.id && !a.id.startsWith("featured-") && !a.id.startsWith("model-"));
+                if (clean.length === 0) throw new Error("Nenhum atleta válido para importar.");
+                setAthletes(clean);
+                await save(clean);
+                if (clean.length > 0) {
+                  setSelectedId(clean[0].id);
+                }
+              }}
+              onSync={syncData}
               theme={theme}
               onToggleTheme={toggleTheme}
               onLogout={handleLogout}

@@ -246,8 +246,14 @@ export const useAthletes = (token?: string | null) => {
               throw new Error("O navegador bloqueou os cookies de segurança da visualização (iframe). Por favor, clique em 'Open in a new tab' (Abrir em nova aba) no canto superior direito do AI Studio para acessar o sistema normalmente.");
             }
             if (!res.ok) {
-              if(readOnly && (res.status===401 || res.status===403 || res.status===402))window.dispatchEvent(new Event('lb:supervision-invalid'));
-              else if(res.status===401)window.dispatchEvent(new Event('lb:session-invalid'));
+              if (readOnly && (res.status === 401 || res.status === 403 || res.status === 402)) {
+                window.dispatchEvent(new Event('lb:supervision-invalid'));
+                return [];
+              }
+              if (res.status === 401) {
+                window.dispatchEvent(new Event('lb:session-invalid'));
+                return [];
+              }
               throw new Error(`Erro do servidor (/api/ler): ${res.status} ${resText}`);
             }
             return JSON.parse(resText);
@@ -309,6 +315,10 @@ export const useAthletes = (token?: string | null) => {
             body: JSON.stringify(athletes)
           });
           if (!res.ok) {
+            if (res.status === 401) {
+              window.dispatchEvent(new Event('lb:session-invalid'));
+              return;
+            }
             const errText = await res.text();
             let errorMsg = errText;
             try {
@@ -343,6 +353,10 @@ export const useAthletes = (token?: string | null) => {
             body: JSON.stringify([athlete])
           });
           if (!res.ok) {
+            if (res.status === 401) {
+              window.dispatchEvent(new Event('lb:session-invalid'));
+              return;
+            }
             const errText = await res.text();
             let errorMsg = errText;
             try {

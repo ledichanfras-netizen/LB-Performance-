@@ -22,6 +22,13 @@ import {
   LayoutDashboard,
   Sparkles,
   RefreshCw,
+  Database,
+  Download,
+  Upload,
+  Copy,
+  Check,
+  FileText,
+  HardDrive,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { UserWithPlan, Athlete } from "../types";
@@ -32,6 +39,9 @@ interface OptionsMenuModalProps {
   onClose: () => void;
   user: UserWithPlan | null;
   selectedAthlete?: Athlete | null;
+  athletes?: Athlete[];
+  onImportAthletes?: (imported: Athlete[]) => Promise<void>;
+  onSync?: () => Promise<void>;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
   onLogout?: () => void;
@@ -51,6 +61,9 @@ export default function OptionsMenuModal({
   onClose,
   user,
   selectedAthlete,
+  athletes = [],
+  onImportAthletes,
+  onSync,
   theme,
   onToggleTheme,
   onLogout,
@@ -59,8 +72,143 @@ export default function OptionsMenuModal({
 }: OptionsMenuModalProps) {
   const navigate = useNavigate();
   const [activeSubTab, setActiveSubTab] = useState<
-    "overview" | "plans" | "supervision" | "invites" | "settings"
+    "overview" | "database" | "plans" | "supervision" | "invites" | "settings"
   >("overview");
+
+  // Database & Backup State
+  const [dbHealth, setDbHealth] = useState<any>(null);
+  const [isCheckingDb, setIsCheckingDb] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+  const [showPasteArea, setShowPasteArea] = useState(false);
+  const [pastedJson, setPastedJson] = useState("");
+
+  const checkDbHealth = async () => {
+    setIsCheckingDb(true);
+    try {
+      const res = await fetch("/api/health");
+      if (res.ok) {
+        const data = await res.json();
+        setDbHealth(data);
+      }
+    } catch (e) {
+      // offline or network error
+    } finally {
+      setIsCheckingDb(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activeSubTab === "database") {
+      checkDbHealth();
+    }
+  }, [isOpen, activeSubTab]);
+
+  const handleExportBackup = () => {
+    try {
+      const cleanAthletes = (athletes || []).filter(
+        (a) => a && a.id && !a.id.startsWith("featured-") && !a.id.startsWith("model-")
+      );
+      if (cleanAthletes.length === 0) {
+        toast.error("Nenhum atleta na memória para exportar.");
+        return;
+      }
+      const backupData = {
+        exportedAt: new Date().toISOString(),
+        version: "1.0",
+        coach: user?.id || "coach",
+        athletesCount: cleanAthletes.length,
+        athletes: cleanAthletes,
+      };
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `backup-alunos-lbperformance-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`${cleanAthletes.length} atletas exportados com sucesso!`);
+    } catch (err: any) {
+      toast.error("Erro ao gerar backup: " + err.message);
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportBusy(true);
+    const toastId = toast.loading("Lendo e importando arquivo de backup...");
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const athleteList = Array.isArray(parsed) ? parsed : parsed?.athletes || [];
+      if (!Array.isArray(athleteList) || athleteList.length === 0) {
+        throw new Error("Arquivo não contém uma lista válida de atletas.");
+      }
+      if (onImportAthletes) {
+        await onImportAthletes(athleteList);
+      } else {
+        // Fallback post direct to server
+        const res = await fetch("/api/backup/import", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.token || ""}`,
+          },
+          body: JSON.stringify(athleteList),
+        });
+        if (!res.ok) {
+          const rJson = await res.json().catch(() => ({}));
+          throw new Error(rJson.error || "Falha no servidor ao importar.");
+        }
+      }
+      toast.success(`${athleteList.length} atletas importados com sucesso!`, { id: toastId });
+      e.target.value = "";
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao processar arquivo.", { id: toastId });
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const handleImportPastedJson = async () => {
+    if (!pastedJson.trim()) return;
+    setImportBusy(true);
+    const toastId = toast.loading("Importando dados colados...");
+    try {
+      const parsed = JSON.parse(pastedJson.trim());
+      const athleteList = Array.isArray(parsed) ? parsed : parsed?.athletes || [];
+      if (!Array.isArray(athleteList) || athleteList.length === 0) {
+        throw new Error("O texto colado não contém uma lista válida de atletas.");
+      }
+      if (onImportAthletes) {
+        await onImportAthletes(athleteList);
+      } else {
+        const res = await fetch("/api/backup/import", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${user?.token || ""}`,
+          },
+          body: JSON.stringify(athleteList),
+        });
+        if (!res.ok) {
+          const rJson = await res.json().catch(() => ({}));
+          throw new Error(rJson.error || "Falha no servidor.");
+        }
+      }
+      toast.success(`${athleteList.length} atletas importados com sucesso!`, { id: toastId });
+      setPastedJson("");
+      setShowPasteArea(false);
+    } catch (err: any) {
+      toast.error(err.message || "JSON inválido ou corrompido.", { id: toastId });
+    } finally {
+      setImportBusy(false);
+    }
+  };
 
   // Plan Renewal Alerts State
   const [renewalData, setRenewalData] = useState<any>(null);
@@ -203,6 +351,21 @@ export default function OptionsMenuModal({
               {alertCount > 0 && (
                 <span className={`w-2 h-2 rounded-full ${activeSubTab === "plans" ? "bg-slate-950" : "bg-amber-400 animate-pulse"}`} />
               )}
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab("database")}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shrink-0 ${
+                activeSubTab === "database"
+                  ? "bg-brand-primary text-slate-950 shadow-md shadow-brand-primary/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+              }`}
+            >
+              <Database className="w-3.5 h-3.5" />
+              <span>Banco & Backup</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                {athletes.length}
+              </span>
             </button>
 
             <button
@@ -435,6 +598,217 @@ export default function OptionsMenuModal({
                         <ChevronRight className="w-4 h-4 text-slate-500" />
                       </button>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DATABASE & BACKUP */}
+            {activeSubTab === "database" && (
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black uppercase text-white flex items-center gap-2">
+                      <Database className="w-5 h-5 text-emerald-400" />
+                      <span>Banco de Dados & Backup de Alunos</span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Diagnóstico de sincronização, exportação e importação de alunos para o servidor.
+                    </p>
+                  </div>
+                  <button
+                    onClick={checkDbHealth}
+                    disabled={isCheckingDb}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all flex items-center gap-2 text-xs font-bold"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isCheckingDb ? "animate-spin" : ""}`} />
+                    <span>Verificar Conexão</span>
+                  </button>
+                </div>
+
+                {/* Status Card */}
+                <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+                      Status da Conexão
+                    </span>
+                    <span
+                      className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
+                        dbHealth?.db_connected
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${dbHealth?.db_connected ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+                      {dbHealth?.db_connected ? "PostgreSQL Conectado" : "Cache Seguro do Servidor Ativo"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Alunos Carregados</span>
+                      <strong className="text-base text-white font-black mt-1 block">
+                        {athletes.length} {athletes.length === 1 ? "aluno" : "alunos"}
+                      </strong>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Servidor Supabase REST</span>
+                      <strong className="text-xs text-slate-300 font-bold mt-1 block truncate">
+                        {dbHealth?.supabase_configured ? "Configurado (Nuvem)" : "Offline"}
+                      </strong>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block">Ambiente</span>
+                      <strong className="text-xs text-brand-primary font-bold mt-1 block">
+                        Google AI Studio Web
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Backup & Restore Action Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Export Card */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0e1629] border border-slate-800 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400">
+                          <Download className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-white uppercase tracking-wider">
+                            Exportar Backup Completo
+                          </h4>
+                          <span className="text-[10px] text-slate-400">Download em formato JSON</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                        Baixe um arquivo seguro contendo <strong>todos os seus alunos</strong>, treinos prescritos, check-ins de sono/prontidão e avaliações físicas.
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={handleExportBackup}
+                      disabled={athletes.length === 0}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Baixar Arquivo de Alunos ({athletes.length})</span>
+                    </button>
+                  </div>
+
+                  {/* Import Card */}
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-[#0c1f19] border border-slate-800 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sm text-white uppercase tracking-wider">
+                            Importar Alunos para o Servidor
+                          </h4>
+                          <span className="text-[10px] text-slate-400">Restauração imediata</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                        Envie o arquivo de backup para gravar os alunos <strong>diretamente no servidor</strong>. Eles aparecerão imediatamente aqui no AI Studio.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer text-center">
+                        <Upload className="w-4 h-4" />
+                        <span>{importBusy ? "Importando..." : "Selecionar Arquivo .JSON"}</span>
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          onChange={handleImportFile}
+                          disabled={importBusy}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <button
+                        onClick={() => setShowPasteArea(!showPasteArea)}
+                        className="text-[11px] font-bold text-slate-400 hover:text-white py-1 transition-colors"
+                      >
+                        {showPasteArea ? "Ocultar área de texto" : "Ou colar código JSON manualmente"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Paste Area Modal */}
+                {showPasteArea && (
+                  <div className="p-5 rounded-2xl bg-slate-900 border border-slate-700 space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-black text-white uppercase tracking-wider">
+                        Colar Conteúdo JSON do Backup
+                      </h5>
+                      <button
+                        onClick={() => setShowPasteArea(false)}
+                        className="text-slate-400 hover:text-white text-xs"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                    <textarea
+                      rows={6}
+                      value={pastedJson}
+                      onChange={(e) => setPastedJson(e.target.value)}
+                      placeholder='Cole aqui o JSON gerado (ex: [{"id": "...", "name": "..."}])'
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-mono text-emerald-400 focus:outline-none focus:border-brand-primary"
+                    />
+                    <button
+                      onClick={handleImportPastedJson}
+                      disabled={importBusy || !pastedJson.trim()}
+                      className="w-full py-2.5 bg-brand-primary hover:bg-brand-primary/90 disabled:opacity-40 text-slate-950 font-black text-xs uppercase rounded-xl transition-all"
+                    >
+                      {importBusy ? "Importando..." : "Confirmar Importação de Alunos"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Educational / Explanatory Guide Box */}
+                <div className="p-5 rounded-2xl bg-[#090f1e] border border-blue-500/30 space-y-3">
+                  <div className="flex items-center gap-2.5 text-blue-400">
+                    <Shield className="w-4 h-4 shrink-0" />
+                    <h5 className="text-xs font-black uppercase tracking-wider">
+                      Por que os alunos não apareceram automaticamente aqui no AI Studio?
+                    </h5>
+                  </div>
+                  <div className="text-xs text-slate-300 space-y-2 leading-relaxed">
+                    <p>
+                      <strong>1. Isolamento de Segurança do Google AI Studio (Iframe):</strong> O painel de testes do AI Studio é executado dentro de uma janela protegida (iframe). Os navegadores bloqueiam o compartilhamento de cookies e armazenamento local (localStorage) entre a sua aba pessoal externa e o iframe.
+                    </p>
+                    <p>
+                      <strong>2. Conexão do Banco de Dados Remoto:</strong> Seus alunos cadastrados estavam salvos no cache do seu navegador anterior. Para que apareçam em qualquer aba ou dispositivo sem depender de cache local, basta usar o botão <strong>"Baixar Arquivo de Alunos"</strong> na aba onde eles aparecem e clicar em <strong>"Selecionar Arquivo .JSON"</strong> aqui dentro do AI Studio!
+                    </p>
+                  </div>
+
+                  {/* Supabase Script Accordion */}
+                  <div className="pt-2 border-t border-slate-800">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-400">
+                        Liberar permissões no SQL Editor do Supabase:
+                      </span>
+                      <button
+                        onClick={() => {
+                          const sqlCode = `-- Executar no SQL Editor do Supabase para liberar acesso direto:\nALTER TABLE IF EXISTS athletes DISABLE ROW LEVEL SECURITY;\nALTER TABLE IF EXISTS wellness DISABLE ROW LEVEL SECURITY;\nALTER TABLE IF EXISTS workouts DISABLE ROW LEVEL SECURITY;\nALTER TABLE IF EXISTS prescribed_exercises DISABLE ROW LEVEL SECURITY;\nALTER TABLE IF EXISTS performed_sets DISABLE ROW LEVEL SECURITY;\nGRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;`;
+                          navigator.clipboard.writeText(sqlCode);
+                          setCopiedSql(true);
+                          toast.success("Comando SQL copiado!");
+                          setTimeout(() => setCopiedSql(false), 3000);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition-colors"
+                      >
+                        {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedSql ? "Copiado!" : "Copiar SQL"}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
