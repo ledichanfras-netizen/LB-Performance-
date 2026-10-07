@@ -26,7 +26,7 @@ export function purgeFictitiousAthletes(storage: Storage){
          try {
            const parsed = JSON.parse(val);
            if (Array.isArray(parsed)) {
-             const cleaned = parsed.filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-'));
+             const cleaned = parsed.filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-') && !a.id.startsWith('demo-') && a.id !== 'meta-custom-library-exercises');
              storage.setItem(key, JSON.stringify(cleaned));
            }
          } catch {}

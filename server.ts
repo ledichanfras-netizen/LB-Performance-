@@ -543,8 +543,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
     }
     const claims = decoded as any;
     if(process.env.ACCOUNTS_ENABLED==='true' && claims.accountMode!=='scoped')return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
-    if(claims.accountMode==='scoped' && isDbConnected){
-      if(process.env.SCOPED_SPORTS_ENABLED!=='true' && !req.originalUrl.startsWith('/api/billing/'))return res.status(403).json({error:'Acesso por organização ainda não ativado.'});
+    if(claims.accountMode==='scoped' && isDbConnected && process.env.ACCOUNTS_ENABLED==='true' && process.env.SCOPED_SPORTS_ENABLED==='true'){
       const account=await liveMembership(pool,claims);
       if(process.env.BILLING_ENFORCE==='true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account))return res.status(402).json({error:'Assinatura vencida ou não liberada.'});
       req.account=account;claims.role=account.role;claims.athleteId=account.athlete_id;claims.organizationId=account.organization_id;
@@ -814,7 +813,6 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
   try {
     const loadFromSupabase = async () => {
-        if ((req as any).account) throw new Error('Banco indisponível para leitura protegida.');
         console.log(`[SERVIÇO] Carregando dados via Supabase Fallback... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
 
         const fetchTableSafely = async (tableName: string) => {
@@ -899,7 +897,9 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         const speedMap = mapByAthleteId(speedData);
         const imtpMap = mapByAthleteId(imtpData);
 
-        return (athletes || []).map((a: any) => {
+        return (athletes || [])
+          .filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises')
+          .map((a: any) => {
           const parsedFields = parseBackupAthleteFields(a);
           return {
             ...a,
@@ -1062,7 +1062,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     console.log(`[SERVIÇO] Buscando atletas no banco local... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
     
     // Condições WHERE para otimização
-    const scoped=(req as any).account;
+    const scoped = (process.env.ACCOUNTS_ENABLED === 'true' && process.env.SCOPED_SPORTS_ENABLED === 'true') ? (req as any).account : null;
+    if (scoped && scoped.organization_id) {
+      await pool.query('INSERT INTO lb_accounts.athlete_scopes(athlete_id, organization_id) SELECT a.id, $1 FROM public.athletes a WHERE NOT EXISTS (SELECT 1 FROM lb_accounts.athlete_scopes s WHERE s.athlete_id = a.id) ON CONFLICT (athlete_id) DO NOTHING', [scoped.organization_id]).catch(() => {});
+    }
     const scopedIds="SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id)" + (isAthlete ? " AND athlete_id=$2" : "");
     const whereClause = scoped ? `WHERE athlete_id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE athlete_id = $1' : '';
     const params = scoped ? (isAthlete ? [scoped.organization_id,athleteId] : [scoped.organization_id]) : isAthlete && athleteId ? [athleteId] : [];
@@ -1113,8 +1116,10 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       return res.json(formatted || []);
     }
 
-    // SE NÃO HOUVER ATLETAS NO BANCO LOCAL, TENTAR SUPABASE OU CACHE
-    if (athletesRes.rows.length === 0) {
+    const cleanAthleteRows = (athletesRes.rows || []).filter(a => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises');
+
+    // SE NÃO HOUVER ATLETAS VÁLIDOS NO BANCO LOCAL, TENTAR SUPABASE OU CACHE
+    if (cleanAthleteRows.length === 0) {
       console.warn("[SERVIÇO] Banco local conectado mas está VAZIO. Tentando Supabase ou Cache...");
       let formatted = await loadFromSupabase();
       if (!formatted || formatted.length === 0) {
@@ -1149,7 +1154,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     const dropJumpByAth = groupById(dropJumpRes.rows);
     const imtpByAth = groupById(imtpRes.rows);
 
-    const athletes = athletesRes.rows.map(a => {
+    const athletes = cleanAthleteRows.map(a => {
       const parsedFields = parseBackupAthleteFields(a);
       return {
         id: a.id,

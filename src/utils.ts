@@ -2357,16 +2357,16 @@ export function mergeAthletesWithLocalCache(
   const deletedIds = getDeletedItemIds();
   const mergedMap = new Map<string, Athlete>();
 
-  // Add remote athletes if not deleted
+  // Add remote athletes if not deleted and not fictitious
   for (const rAth of remoteAthletes) {
-    if (rAth && rAth.id && !deletedIds.has(rAth.id)) {
+    if (rAth && rAth.id && !deletedIds.has(rAth.id) && !rAth.id.startsWith('featured-') && !rAth.id.startsWith('model-') && rAth.id !== 'meta-custom-library-exercises') {
       mergedMap.set(rAth.id, rAth);
     }
   }
 
   // Merge local athletes
   for (const lAth of localAthletes) {
-    if (!lAth || !lAth.id || deletedIds.has(lAth.id)) continue;
+    if (!lAth || !lAth.id || deletedIds.has(lAth.id) || lAth.id.startsWith('featured-') || lAth.id.startsWith('model-') || lAth.id === 'meta-custom-library-exercises') continue;
     const rAth = mergedMap.get(lAth.id);
 
     if (!rAth) {

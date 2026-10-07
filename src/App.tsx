@@ -1312,7 +1312,17 @@ const EliteHubApp: FC<{
   const selected = useMemo(() => {
     if (user?.role === "athlete")
       return athletes.find((a) => a.id === user.athleteId);
-    return athletes.find((a) => a.id === selectedId);
+    if (selectedId) {
+      const found = athletes.find((a) => a.id === selectedId);
+      if (found) return found;
+    }
+    return athletes.length > 0 ? athletes[0] : undefined;
+  }, [athletes, selectedId, user]);
+
+  useEffect(() => {
+    if (athletes.length > 0 && !selectedId && user?.role === "coach") {
+      setSelectedId(athletes[0].id);
+    }
   }, [athletes, selectedId, user]);
 
   const handleGenerateAIModeling = async (skipConfirm = false) => {
@@ -5826,12 +5836,16 @@ const DashboardView: FC<{
   const averageSleepCalculated = useMemo(() => {
     const wellness = athlete.wellness || [];
     if (wellness.length === 0) return "N/A";
-    const validSleeps = wellness.filter(w => w.sleep && w.sleep > 0);
+    const validSleeps = wellness.map(w => safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0).filter(s => s > 0);
     if (validSleeps.length === 0) return "N/A";
-    const totalSleep = validSleeps.reduce((acc, curr) => acc + curr.sleep, 0);
+    const totalSleep = validSleeps.reduce((acc, curr) => acc + curr, 0);
     const avg = totalSleep / validSleeps.length;
-    const hours = Math.floor(avg);
-    const minutes = Math.round((avg - hours) * 60);
+    let hours = Math.floor(avg);
+    let minutes = Math.round((avg - hours) * 60);
+    if (minutes >= 60) {
+      hours += 1;
+      minutes = 0;
+    }
     return `${hours}h ${minutes}m`;
   }, [athlete.wellness]);
 
@@ -6953,16 +6967,24 @@ const DashboardView: FC<{
         const activeReadiness = hasRealWellnessData ? latestWellness.readinessScore || 0 : 0;
         
         const avgSleepHours = hasRealWellnessData 
-          ? parseFloat((wellnessHistory.reduce((acc, w) => acc + (safeParseFloat(w.sleep) || 8), 0) / wellnessHistory.length).toFixed(1))
+          ? (() => {
+              const validSleeps = wellnessHistory.map(w => safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0).filter(s => s > 0);
+              if (validSleeps.length === 0) return 0;
+              return parseFloat((validSleeps.reduce((acc, curr) => acc + curr, 0) / validSleeps.length).toFixed(1));
+            })()
           : 0;
-        const avgHoursInt = Math.floor(avgSleepHours);
-        const avgMins = Math.round((avgSleepHours - avgHoursInt) * 60);
+        let avgHoursInt = Math.floor(avgSleepHours);
+        let avgMins = Math.round((avgSleepHours - avgHoursInt) * 60);
+        if (avgMins >= 60) {
+          avgHoursInt += 1;
+          avgMins = 0;
+        }
 
         const currentSleepScore = hasRealWellnessData && latestWellness
           ? Math.min(100, Math.max(0, latestWellness.sleepQuality 
               ? (latestWellness.sleepQuality > 10 ? latestWellness.sleepQuality : latestWellness.sleepQuality * 10)
-              : (latestWellness.sleep 
-                  ? Math.min(100, Math.round(((safeParseFloat(latestWellness.sleep) || 0) / 8) * 100)) 
+              : ((safeParseFloat(latestWellness.calculatedSleepHours) || safeParseFloat(latestWellness.sleep) || 0) > 0
+                  ? Math.min(100, Math.round(((safeParseFloat(latestWellness.calculatedSleepHours) || safeParseFloat(latestWellness.sleep) || 0) / 8) * 100)) 
                   : 0)))
           : 0;
 
@@ -6975,7 +6997,7 @@ const DashboardView: FC<{
               .map(w => ({
                 day: w.date ? w.date.slice(0, 10).split("-").slice(1).reverse().join("/") : "",
                 fullDate: w.date ? formatDate(w.date) : "Sem data",
-                hours: safeParseFloat(w.sleep) || 0
+                hours: safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0
               }))
           : [];
 

@@ -29,7 +29,7 @@ export const HealthReport: React.FC<HealthReportProps> = ({ athlete, onClose }) 
 
   const averageWellness = athlete.wellness && athlete.wellness.length > 0
     ? {
-        sleep: parseFloat((athlete.wellness.reduce((sum, w) => sum + (safeParseFloat(w.sleep) || 0), 0) / athlete.wellness.length).toFixed(1)),
+        sleep: parseFloat((athlete.wellness.reduce((sum, w) => sum + (safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0), 0) / (athlete.wellness.filter(w => (safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0) > 0).length || 1)).toFixed(1)),
         soreness: parseFloat((athlete.wellness.reduce((sum, w) => sum + (w.soreness || 0), 0) / athlete.wellness.length).toFixed(1)),
         fatigue: parseFloat((athlete.wellness.reduce((sum, w) => sum + (w.fatigue || 0), 0) / athlete.wellness.length).toFixed(1)),
         readiness: parseFloat((athlete.wellness.reduce((sum, w) => sum + (w.readinessScore || 0), 0) / athlete.wellness.length).toFixed(1)),
