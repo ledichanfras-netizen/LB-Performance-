@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 
@@ -38,7 +39,9 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary fallbackTitle="Erro na Inicialização do LB Performance Hub">
+      <App />
+    </ErrorBoundary>
     <Toaster 
       position="top-center"
       reverseOrder={false}

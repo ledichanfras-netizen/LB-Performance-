@@ -16,6 +16,26 @@ export function clearAthleteCaches(storage:Pick<Storage,'length'|'key'|'removeIt
  keys.forEach(key=>storage.removeItem(key));
 }
 
+export function purgeFictitiousAthletes(storage: Storage){
+ try {
+   for (let i = 0; i < storage.length; i++) {
+     const key = storage.key(i);
+     if (key && (key.startsWith('lb_athletes_cache') || key === 'lb_athletes_cache')) {
+       const val = storage.getItem(key);
+       if (val) {
+         try {
+           const parsed = JSON.parse(val);
+           if (Array.isArray(parsed)) {
+             const cleaned = parsed.filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-'));
+             storage.setItem(key, JSON.stringify(cleaned));
+           }
+         } catch {}
+       }
+     }
+   }
+ } catch {}
+}
+
 /** UI behavior only; the server validates every supervised request. */
 export function isSupervisedToken(token?:string|null):boolean {
  try{return JSON.parse(atob((token || '').split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).supervision===true;}catch{return false;}

@@ -38,8 +38,9 @@ interface WorkoutEditorPremiumProps {
       academyDays?: number[];
       courtDays?: number[];
       progressionMethod?: "auto" | "linear" | "undulating" | "accumulation" | "deload" | "tapering" | "block_atr";
+      replacePendingWorkouts?: boolean;
     }
-  ) => Promise<void>;
+  ) => Promise<Workout[]>;
 }
 
 export function getYouTubeEmbedUrl(url?: string): string | null {
@@ -401,20 +402,48 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [iaInstructions, setIaInstructions] = useState("");
   const [isPeriodizationExpanded, setIsPeriodizationExpanded] = useState(false);
   const [iaWorkoutsLoading, setIaWorkoutsLoading] = useState(false);
-  const [localPeriodizationStart, setLocalPeriodizationStart] = useState<string>(athlete?.periodizationStart || "");
-  const [localPeriodizationEnd, setLocalPeriodizationEnd] = useState<string>(athlete?.periodizationEnd || "");
-  const [localAcademyDays, setLocalAcademyDays] = useState<number[]>(Array.isArray(athlete?.academyDays) ? athlete.academyDays : [1, 3, 5]);
-  const [localCourtDays, setLocalCourtDays] = useState<number[]>(Array.isArray(athlete?.courtDays) ? athlete.courtDays : [2, 4]);
+  const [generatedSchedule, setGeneratedSchedule] = useState<Workout[] | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  
+  const [localPeriodizationStart, setLocalPeriodizationStart] = useState<string>(() => {
+    if (athlete?.periodizationStart && athlete.periodizationStart >= todayLocalStr) {
+      return athlete.periodizationStart;
+    }
+    return todayLocalStr;
+  });
+
+  const [localPeriodizationEnd, setLocalPeriodizationEnd] = useState<string>(() => {
+    const baseStart = (athlete?.periodizationStart && athlete.periodizationStart >= todayLocalStr)
+      ? athlete.periodizationStart
+      : todayLocalStr;
+    if (athlete?.periodizationEnd && athlete.periodizationEnd > baseStart) {
+      return athlete.periodizationEnd;
+    }
+    const [y, m, d] = baseStart.split("-").map(Number);
+    const endD = new Date(y, m - 1, d + 14, 12, 0, 0);
+    return `${endD.getFullYear()}-${String(endD.getMonth() + 1).padStart(2, "0")}-${String(endD.getDate()).padStart(2, "0")}`;
+  });
+
+  const [localAcademyDays, setLocalAcademyDays] = useState<number[]>(Array.isArray(athlete?.academyDays) && athlete.academyDays.length > 0 ? athlete.academyDays : [1, 3, 5]);
+  const [localCourtDays, setLocalCourtDays] = useState<number[]>(Array.isArray(athlete?.courtDays) && athlete.courtDays.length > 0 ? athlete.courtDays : [2, 4]);
   const [aiProgressionMethod, setAiProgressionMethod] = useState<"auto" | "linear" | "undulating" | "accumulation" | "deload" | "tapering" | "block_atr">("auto");
 
   useEffect(() => {
-    if (athlete) {
-      if (athlete.periodizationStart !== undefined) setLocalPeriodizationStart(athlete.periodizationStart || "");
-      if (athlete.periodizationEnd !== undefined) setLocalPeriodizationEnd(athlete.periodizationEnd || "");
-      if (Array.isArray(athlete.academyDays)) setLocalAcademyDays(athlete.academyDays);
-      if (Array.isArray(athlete.courtDays)) setLocalCourtDays(athlete.courtDays);
+    if (athlete?.id) {
+      if (athlete.periodizationStart && athlete.periodizationStart >= todayLocalStr) {
+        setLocalPeriodizationStart(athlete.periodizationStart);
+      }
+      if (athlete.periodizationEnd && athlete.periodizationEnd > todayLocalStr) {
+        setLocalPeriodizationEnd(athlete.periodizationEnd);
+      }
+      if (Array.isArray(athlete.academyDays) && athlete.academyDays.length > 0) {
+        setLocalAcademyDays(athlete.academyDays);
+      }
+      if (Array.isArray(athlete.courtDays) && athlete.courtDays.length > 0) {
+        setLocalCourtDays(athlete.courtDays);
+      }
     }
-  }, [athlete?.id, athlete?.periodizationStart, athlete?.periodizationEnd, athlete?.academyDays, athlete?.courtDays]);
+  }, [athlete?.id]);
 
   // Custom Exercises saved from AI or user customization to the library
   const [customLibraryExercises, setCustomLibraryExercises] = useState<EnrichedExercise[]>(() => {
@@ -1920,13 +1949,25 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           trainingDays: unionTrainingDays
         });
       }
-      await generateAIWorkouts(athlete, iaInstructions, {
+      const generatedWorkouts = await generateAIWorkouts(athlete, iaInstructions, {
         periodizationStart: localPeriodizationStart,
         periodizationEnd: localPeriodizationEnd,
         academyDays: localAcademyDays,
         courtDays: localCourtDays,
-        progressionMethod: aiProgressionMethod
+        progressionMethod: aiProgressionMethod,
+        replacePendingWorkouts: true
       });
+
+      if (Array.isArray(generatedWorkouts) && generatedWorkouts.length > 0) {
+        const firstWorkout = generatedWorkouts[0];
+        setEdited({
+          ...firstWorkout,
+          exercises: orderedExercises(firstWorkout.exercises || [])
+        });
+        setGeneratedSchedule(generatedWorkouts);
+        setShowScheduleModal(true);
+        setIsHeaderExpanded(false);
+      }
       setIaInstructions(""); // Clear after successful generation
     } catch (error) {
       console.error("Erro ao gerar periodização completa:", error);
@@ -2742,13 +2783,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     <input
                       type="date"
                       value={localPeriodizationStart}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setLocalPeriodizationStart(val);
-                        if (updateAthlete && athlete) {
-                          updateAthlete(athlete.id, { periodizationStart: val });
-                        }
-                      }}
+                      onChange={(e) => setLocalPeriodizationStart(e.target.value)}
                       className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                     />
                   </div>
@@ -2757,13 +2792,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     <input
                       type="date"
                       value={localPeriodizationEnd}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setLocalPeriodizationEnd(val);
-                        if (updateAthlete && athlete) {
-                          updateAthlete(athlete.id, { periodizationEnd: val });
-                        }
-                      }}
+                      onChange={(e) => setLocalPeriodizationEnd(e.target.value)}
                       className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                     />
                   </div>
@@ -2795,10 +2824,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 ? localAcademyDays.filter((d: number) => d !== day.id)
                                 : [...localAcademyDays, day.id].sort();
                               setLocalAcademyDays(newAcademy);
-                              const unionDays = Array.from(new Set([...newAcademy, ...localCourtDays])).sort();
-                              if (updateAthlete && athlete) {
-                                updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
-                              }
                             }}
                             className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                               isSelected
@@ -2837,10 +2862,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 ? localCourtDays.filter((d: number) => d !== day.id)
                                 : [...localCourtDays, day.id].sort();
                               setLocalCourtDays(newCourt);
-                              const unionDays = Array.from(new Set([...localAcademyDays, ...newCourt])).sort();
-                              if (updateAthlete && athlete) {
-                                updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
-                              }
                             }}
                             className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                               isSelected
@@ -3170,6 +3191,19 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* View Generated Periodization Schedule Button */}
+            {generatedSchedule && generatedSchedule.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowScheduleModal(true)}
+                className="text-[10px] font-black uppercase tracking-wider px-2.5 sm:px-3 py-1.5 rounded-xl border border-[#39FF14]/40 bg-[#39FF14]/10 text-[#39FF14] hover:bg-[#39FF14]/20 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Ver Cronograma Completo da Periodização"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Cronograma IA ({generatedSchedule.length})</span>
+              </button>
+            )}
+
             {/* Optional AI Periodization & Advanced Drawer Toggle */}
             {athlete && updateAthlete && (
               <AiOnly><button
@@ -3257,13 +3291,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 <input
                   type="date"
                   value={localPeriodizationStart}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setLocalPeriodizationStart(val);
-                    if (updateAthlete && athlete) {
-                      updateAthlete(athlete.id, { periodizationStart: val });
-                    }
-                  }}
+                  onChange={(e) => setLocalPeriodizationStart(e.target.value)}
                   className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                 />
               </div>
@@ -3272,13 +3300,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 <input
                   type="date"
                   value={localPeriodizationEnd}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setLocalPeriodizationEnd(val);
-                    if (updateAthlete && athlete) {
-                      updateAthlete(athlete.id, { periodizationEnd: val });
-                    }
-                  }}
+                  onChange={(e) => setLocalPeriodizationEnd(e.target.value)}
                   className="w-full bg-[#161b26] text-[9px] font-black uppercase text-slate-200 border border-slate-850 p-2 rounded-lg focus:border-[#39FF14]"
                 />
               </div>
@@ -3310,10 +3332,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             ? localAcademyDays.filter((d: number) => d !== day.id)
                             : [...localAcademyDays, day.id].sort();
                           setLocalAcademyDays(newAcademy);
-                          const unionDays = Array.from(new Set([...newAcademy, ...localCourtDays])).sort();
-                          if (updateAthlete && athlete) {
-                            updateAthlete(athlete.id, { academyDays: newAcademy, trainingDays: unionDays });
-                          }
                         }}
                         className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                           isSelected
@@ -3352,10 +3370,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             ? localCourtDays.filter((d: number) => d !== day.id)
                             : [...localCourtDays, day.id].sort();
                           setLocalCourtDays(newCourt);
-                          const unionDays = Array.from(new Set([...localAcademyDays, ...newCourt])).sort();
-                          if (updateAthlete && athlete) {
-                            updateAthlete(athlete.id, { courtDays: newCourt, trainingDays: unionDays });
-                          }
                         }}
                         className={`w-6 h-6 rounded-md text-[8px] font-black flex items-center justify-center border transition-all cursor-pointer ${
                           isSelected
@@ -6175,6 +6189,133 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         }}
         onSave={handleSaveExercise}
       />
+
+      {/* MODAL CRONOGRAMA DA PERIODIZAÇÃO GERADA */}
+      <AnimatePresence>
+        {showScheduleModal && generatedSchedule && generatedSchedule.length > 0 && (
+          <div className="fixed inset-0 z-[1450] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-6 animate-fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-[#0c111d] border border-slate-800 p-5 sm:p-7 rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl space-y-4 text-slate-100"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-850">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14]">
+                    <Sparkles className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                      <span>Periodização IA Co-Pilot Concluída</span>
+                      <span className="text-[8px] px-2 py-0.5 rounded-full bg-[#39FF14]/20 text-[#39FF14] font-black">
+                        {generatedSchedule.length} Treinos
+                      </span>
+                    </h3>
+                    <p className="text-[9.5px] text-slate-400 font-bold">
+                      Ciclo de {localPeriodizationStart.split('-').reverse().join('/')} até {localPeriodizationEnd.split('-').reverse().join('/')} estruturado com base nas suas diretrizes.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-all cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>A Sessão 1 ({generatedSchedule[0].name}) foi carregada no editor!</span>
+                </div>
+                <span className="text-[8px] font-bold text-slate-400">
+                  {generatedSchedule[0].date ? generatedSchedule[0].date.split('-').reverse().join('/') : ''}
+                </span>
+              </div>
+
+              {/* Lista dos Treinos Gerados */}
+              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[45vh] no-scrollbar">
+                {generatedSchedule.map((w, idx) => (
+                  <div
+                    key={w.id || idx}
+                    onClick={() => {
+                      setEdited({
+                        ...w,
+                        exercises: orderedExercises(w.exercises || [])
+                      });
+                      setShowScheduleModal(false);
+                      toast.success(`Carregado ${w.name} no editor!`);
+                    }}
+                    className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                      edited.id === w.id || idx === 0
+                        ? "bg-[#39FF14]/5 border-[#39FF14]/30 hover:border-[#39FF14]/60"
+                        : "bg-slate-900/60 border-slate-850 hover:border-slate-750 hover:bg-slate-900"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[8px] font-black px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                          Sessão {idx + 1}
+                        </span>
+                        <span className="text-[9px] font-black text-[#39FF14]">
+                          📅 {w.date ? w.date.split('-').reverse().join('/') : ''}
+                        </span>
+                        <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-950 text-slate-400">
+                          {w.phase}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-black text-white tracking-wide">
+                        {w.name}
+                      </h4>
+                      <p className="text-[9px] text-slate-400 font-medium">
+                        {(w.exercises || []).map(e => e.name).slice(0, 4).join(" • ")}
+                        {(w.exercises || []).length > 4 ? ` e mais ${(w.exercises || []).length - 4}...` : ""}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <span className="text-[8.5px] font-bold text-slate-400 bg-slate-950 px-2.5 py-1 rounded-xl border border-slate-800">
+                        {w.exercises?.length || 0} exercícios
+                      </span>
+                      <button
+                        type="button"
+                        className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-[#39FF14] hover:text-slate-950 text-slate-300 transition-all cursor-pointer"
+                      >
+                        Carregar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-3 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-white font-black text-[9.5px] uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                >
+                  Continuar no Editor (Sessão 1)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScheduleModal(false);
+                    onCancel(); // Closes editor and returns to athlete profile
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[9.5px] uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-[#39FF14]/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Ver Todos os Treinos na Planilha</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

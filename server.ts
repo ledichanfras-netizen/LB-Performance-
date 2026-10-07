@@ -100,7 +100,9 @@ async function getCachedAthletes(): Promise<any[]> {
   try {
     const raw = await fs.readFile(CACHE_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-'));
+    }
   } catch (e) {}
   return [];
 }
@@ -109,12 +111,14 @@ async function setCachedAthletes(incoming: any[]): Promise<void> {
   if(process.env.ACCOUNTS_ENABLED==='true' && isDbConnected)return;
   try {
     if (!Array.isArray(incoming) || incoming.length === 0) return;
+    const cleanIncoming = incoming.filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-'));
+    if (cleanIncoming.length === 0) return;
     const existing = await getCachedAthletes();
     const map = new Map<string, any>();
     for (const a of existing) {
-      if (a && a.id) map.set(a.id, a);
+      if (a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-')) map.set(a.id, a);
     }
-    for (const a of incoming) {
+    for (const a of cleanIncoming) {
       if (a && a.id) {
         const old = map.get(a.id);
         if (old) {
@@ -134,7 +138,7 @@ async function setCachedAthletes(incoming: any[]): Promise<void> {
         }
       }
     }
-    const merged = Array.from(map.values());
+    const merged = Array.from(map.values()).filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-'));
     await fs.writeFile(CACHE_FILE, JSON.stringify(merged, null, 2), 'utf-8');
   } catch (e) {
     console.warn('[Cache] Falha ao gravar cache local de atletas:', e);
@@ -270,7 +274,9 @@ const host = getHost();
 app.use(compression());
 
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  if (req.url.startsWith('/api')) {
+    console.log(`[API] ${req.method} ${req.url}`);
+  }
   next();
 });
 
@@ -784,19 +790,6 @@ apiRouter.post('/auth/login', async (req, res) => {
           platformAdmin: true,
           accountMode: 'scoped'
         });
-      }
-    }
-
-    // 5. Featured/demo athlete DOB check
-    if (trimmedUsername.toLowerCase().includes('lucas')) {
-      const cleanPass = trimmedPassword.replace(/\D/g, '');
-      if (cleanPass === '15051998' || cleanPass === '1234') {
-        const token = jwt.sign(
-          { id: 'user-featured-lucas-silva', username: 'Lucas Silva', role: 'athlete', athleteId: 'featured-lucas-silva', plan: 'free', accountMode: 'scoped', sessionVersion: 1 },
-          JWT_SECRET,
-          { expiresIn: '24h' }
-        );
-        return res.json({ role: 'athlete', athleteId: 'featured-lucas-silva', token, plan: 'free', accountMode: 'scoped' });
       }
     }
 
@@ -2327,6 +2320,7 @@ apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGua
     const response = await generateContentWithRetry({ 
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { 
+        systemInstruction: "Você é o IA Co-Pilot de Periodização Esportiva de Alto Rendimento da LB Sports. Sua tarefa é criar um programa de periodização estritamente alinhado com o cronograma de datas e as diretrizes do treinador fornecidas. REGRAS CRÍTICAS: 1) O campo 'date' de cada sessão DEVE ser EXATAMENTE uma das datas (YYYY-MM-DD) listadas no cronograma fornecido. NUNCA gere datas antigas, do passado ou fora do cronograma. 2) Incorpore integralmente e com prioridade máxima a DESCRIÇÃO DO TREINADOR na escolha dos exercícios, métodos e nomes das sessões. 3) Responda com linguagem profissional de Head Coach de performance esportiva, sem menção a IA ou algoritmos.",
         responseMimeType: "application/json",
         maxOutputTokens: 8192,
         responseSchema: {

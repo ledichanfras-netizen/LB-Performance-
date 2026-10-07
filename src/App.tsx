@@ -1,5 +1,5 @@
 import { normalizeBirthDate } from "./utils/birthDate";
-import RenewalNotices from "./components/RenewalNotices";
+import OptionsMenuModal from "./components/OptionsMenuModal";
 import { orderedExercises } from "./utils/exerciseOrder";
 import SettingsPage from "./pages/Settings";
 import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -111,6 +111,7 @@ import { LBPerformanceDecisionMatrix } from "./components/LBPerformanceDecisionM
 import { NutritionGuidancePanel, SmartWorkoutNutritionCard } from "./components/NutritionGuidancePanel";
 import { WorkoutStravaShareModal } from "./components/WorkoutStravaShareModal";
 import { CommunityFeedModal } from "./components/CommunityFeedModal";
+import { PeriodizeAthleteModal } from "./components/PeriodizeAthleteModal";
 import toast from "react-hot-toast";
 import { toJpeg } from "html-to-image";
 import ReactMarkdown from "react-markdown";
@@ -160,6 +161,7 @@ import {
   Sun,
   Moon,
   Settings,
+  SlidersHorizontal,
   RefreshCw,
   BookOpen,
   Search,
@@ -839,6 +841,7 @@ const EliteHubApp: FC<{
     "dash" | "training" | "assessment" | "ai-modeling" | "premium" | "info" | "injuries" | "competitions"
   >("dash");
   const [dashboardSubTab, setDashboardSubTab] = useState<"pro" | "classic" | "elite-monitoring" | "decision-matrix" | "nutrition">("pro");
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
   const [aiInsight, setAiInsight] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [isAiChatOpen, setIsAiChatOpen] = useState(false);
@@ -1143,6 +1146,7 @@ const EliteHubApp: FC<{
       | "confirm-delete"
       | "confirm-delete-workout"
       | "clone-workout"
+      | "periodize-athlete"
       | null;
     editingData?: any;
     assessmentType?: AssessmentType;
@@ -1726,6 +1730,19 @@ const EliteHubApp: FC<{
                 <span>GUIA</span>
               </button>
 
+              {/* OPÇÕES item (Avisos de Planos, Supervisão, Convites, Configurações) */}
+              <button
+                onClick={() => setIsOptionsMenuOpen(true)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full transition-all shrink-0 uppercase tracking-widest text-[10px] font-black cursor-pointer ${
+                  isOptionsMenuOpen
+                    ? "bg-brand-primary text-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.4)]"
+                    : "bg-slate-900/90 text-emerald-400 border border-emerald-500/40 hover:text-white"
+                }`}
+              >
+                <SlidersHorizontal className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span>OPÇÕES</span>
+              </button>
+
               {/* 9. TEMA item */}
               <button
                 onClick={toggleTheme}
@@ -2048,7 +2065,23 @@ const EliteHubApp: FC<{
                   <span>Guia</span>
                 </button>
 
-                {!user?.supervision && user?.role==='coach' && <Link to="/configuracoes" className="flex gap-3 px-4 py-3.5 text-green-400 font-semibold"><Settings className="w-4 h-4"/>Configurações</Link>}
+                {/* Central de Opções (Avisos de Planos, Supervisão, Convites, Configurações) */}
+                <button
+                  onClick={() => setIsOptionsMenuOpen(true)}
+                  className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
+                    isOptionsMenuOpen
+                      ? "border border-brand-primary/40 bg-brand-primary/10 text-brand-primary shadow-[0_0_15px_rgba(16,185,129,0.1)]"
+                      : "text-slate-300 hover:text-white hover:bg-slate-900/60 border border-slate-800/80 bg-slate-900/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <SlidersHorizontal className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Opções</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                    HUB
+                  </span>
+                </button>
                 {/* Configurações Tab */}
                 {user?.role !== "athlete" && (
                   <button
@@ -2225,7 +2258,6 @@ const EliteHubApp: FC<{
                             ? "Portal do Treinador"
                             : "Perfil do Atleta"}
                         </span>
-                        {selected && user.role==='coach' && !user.supervision && <Link to={`/acessos?athlete=${encodeURIComponent(selected.id)}`} className="text-green-600 font-semibold text-sm">Convidar aluno — {selected.name}</Link>}
                         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black italic uppercase tracking-tighter text-white leading-tight break-words">
                           {activeTab === "dash" && "Performance Lab"}
                           {activeTab === "training" && "Training Zone"}
@@ -2365,6 +2397,24 @@ const EliteHubApp: FC<{
                             {notifications.length}
                           </span>
                         )}
+                      </button>
+                    </div>
+
+                    {/* Central de Opções (Avisos de Planos, Supervisão, Convites) */}
+                    <div className="relative shrink-0">
+                      <button
+                        onClick={() => setIsOptionsMenuOpen(true)}
+                        className={`flex items-center gap-2 px-3.5 sm:px-4 py-3 sm:py-3.5 rounded-2xl transition-all cursor-pointer shadow-lg group ${
+                          isOptionsMenuOpen
+                            ? "bg-brand-primary text-slate-950 shadow-[0_0_25px_rgba(57,255,20,0.3)]"
+                            : "bg-slate-950/80 border border-slate-800 hover:border-emerald-500/50 text-slate-200 hover:text-white"
+                        }`}
+                        title="Central de Opções (Avisos de Planos, Supervisão, Convites, Configurações)"
+                      >
+                        <SlidersHorizontal className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 group-hover:rotate-45 transition-transform" />
+                        <span className="hidden lg:inline text-[10px] sm:text-[11px] font-black uppercase tracking-wider">
+                          Opções
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -3561,13 +3611,23 @@ const EliteHubApp: FC<{
                                   </button>
                                 </div>
                                 {user.role === "coach" && (
-                                  <Button
-                                    variant="secondary"
-                                    onClick={() => setModalState({ type: "workout" })}
-                                    className="w-full sm:w-auto font-black tracking-widest text-[10px]"
-                                  >
-                                    + NOVA PLANILHA
-                                  </Button>
+                                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => setModalState({ type: "periodize-athlete", editingData: selected })}
+                                      className="w-full sm:w-auto px-3.5 py-2 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#39FF14]/15 flex items-center justify-center gap-1.5 cursor-pointer"
+                                    >
+                                      <Sparkles className="w-3.5 h-3.5 stroke-[3]" />
+                                      <span>IA Periodização</span>
+                                    </button>
+                                    <Button
+                                      variant="secondary"
+                                      onClick={() => setModalState({ type: "workout" })}
+                                      className="w-full sm:w-auto font-black tracking-widest text-[10px]"
+                                    >
+                                      + NOVA PLANILHA
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -4150,6 +4210,15 @@ const EliteHubApp: FC<{
                   }}
                 />
               </div>
+            )}
+
+            {modalState.type === "periodize-athlete" && selected && (
+              <PeriodizeAthleteModal
+                athlete={selected}
+                onClose={() => setModalState({ type: null })}
+                generateAIWorkouts={generateAIWorkouts}
+                updateAthlete={updateAthlete}
+              />
             )}
 
             {modalState.type === "ai" && (
@@ -4815,6 +4884,19 @@ const EliteHubApp: FC<{
                 }}
               />
             )}
+
+            {/* Central de Opções Modal */}
+            <OptionsMenuModal
+              isOpen={isOptionsMenuOpen}
+              onClose={() => setIsOptionsMenuOpen(false)}
+              user={user}
+              selectedAthlete={selected}
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              onLogout={handleLogout}
+              exitSupervision={user?.supervision ? handleLogout : undefined}
+              supervisedUser={user?.supervision ? user : null}
+            />
 
             <PwaInstallBanner
               deferredPrompt={deferredPrompt}
@@ -18836,9 +18918,6 @@ const App: FC = () => {
 
   return (
     <BrowserRouter>
-      {user?.token && !supervisedUser && <RenewalNotices user={user} />}
-      {user?.role==="coach" && !supervisedUser && <nav className="bg-slate-900 text-white px-4 py-3 border-b border-slate-600"><Link to="/configuracoes" className="text-green-300 font-semibold">Configurações</Link></nav>}
-      {user?.platformAdmin && <nav className="bg-slate-900 text-white px-4 py-3 flex gap-5 border-b border-slate-600"><Link to="/hub" onClick={exitSupervision} className="text-green-300 font-semibold">Meus atletas</Link><Link to="/supervisao" onClick={exitSupervision} className="text-green-300 font-semibold">Supervisão de treinadores</Link></nav>}
       <Routes>
         <Route path="/convite" element={<AcceptInvite />} />
         <Route path="/configuracoes" element={user?.role==="coach" ? <SettingsPage user={user} /> : <Navigate to="/hub" replace />} />

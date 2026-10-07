@@ -1,14 +1,14 @@
 import { orderedExercises } from "./utils/exerciseOrder";
 
 import { useState, useEffect, useRef } from 'react';
-import { athleteCacheKey, isSupervisedToken } from './utils/accountCache';
+import { athleteCacheKey, isSupervisedToken, purgeFictitiousAthletes } from './utils/accountCache';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
 import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId, sanitizeAthleteData, parseWeightValue, parseRepetitions, parsePerSetWeights } from './utils';
 import { ENRICHED_LIBRARY } from './data/exercises';
 import toast from 'react-hot-toast';
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabaseService, logError, isNetworkError, isPermissionDeniedError } from './services/supabaseService';
-import { generateModelAthlete, generateFeaturedAthletes } from './seedData';
+import { generateModelAthlete } from './seedData';
 import { isSupabaseConfigured } from './lib/supabase';
 
 // Safely wrapped localStorage to prevent crashes on restricted engines/mobile frames/iframes
@@ -144,19 +144,22 @@ export const useAthletes = (token?: string | null) => {
   const readOnly = isSupervisedToken(token);
   const cacheKey = athleteCacheKey(token);
   const [rawAthletes, setRawAthletes] = useState<Athlete[]>(() => {
-    if(!token || readOnly)return [];
+    try {
+      if (typeof localStorage !== 'undefined') purgeFictitiousAthletes(localStorage);
+    } catch {}
+    if(!token || readOnly) return [];
     // Lazy initialization from cache for instant load
     const cached = safeLocalStorage.getItem(cacheKey);
     if (cached) {
       try {
         const parsed = JSON.parse(cached);
-        const list = Array.isArray(parsed) ? parsed.filter(a => !a.id.startsWith('model-') && !a.id.startsWith('featured-') && a.id !== 'meta-custom-library-exercises') : [];
-        return list.length > 0 ? list : token ? [] : generateFeaturedAthletes();
+        const list = Array.isArray(parsed) ? parsed.filter(a => a && a.id && !a.id.startsWith('model-') && !a.id.startsWith('featured-') && a.id !== 'meta-custom-library-exercises') : [];
+        return list;
       } catch (e) {
-        return token ? [] : generateFeaturedAthletes();
+        return [];
       }
     }
-    return token ? [] : generateFeaturedAthletes();
+    return [];
   });
 
   const sortWorkoutExercises = (a: Athlete): Athlete => {
@@ -257,11 +260,11 @@ export const useAthletes = (token?: string | null) => {
             const cached = safeLocalStorage.getItem('lb_athletes_cache');
             if (cached) {
               try {
-                const parsed = JSON.parse(cached).filter((a: any) => !a.id.startsWith('model-'));
+                const parsed = JSON.parse(cached).filter((a: any) => a && a.id && !a.id.startsWith('model-') && !a.id.startsWith('featured-'));
                 if (parsed.length > 0) return parsed;
               } catch (e) {}
             }
-            return generateFeaturedAthletes();
+            return [];
           }
           const isIframeErr = error.message && (error.message.includes('bloqueou') || error.message.includes('Unexpected token') || error.message.includes('cookie'));
           if (isIframeErr) {
@@ -1153,18 +1156,58 @@ export const useAthletes = (token?: string | null) => {
       academyDays?: number[];
       courtDays?: number[];
       progressionMethod?: "auto" | "linear" | "undulating" | "accumulation" | "deload" | "tapering" | "block_atr";
+      replacePendingWorkouts?: boolean;
     }
-  ): Promise<void> => {
+  ): Promise<Workout[]> => {
     const toastId = toast.loading("IA Co-Pilot elaborando periodização...");
     console.log("Iniciando geração de treinos IA Co-Pilot para:", athlete.name, "com opções:", options);
     
     try {
       const dayNamesPt = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+      const todayStr = getLocalDateString();
       
       // Calculate exact calendar dates based on options or athlete training config
-      let startStr = options?.periodizationStart || athlete.periodizationStart || getLocalDateString();
-      let endStr = options?.periodizationEnd || athlete.periodizationEnd;
-      
+      let startStr = options?.periodizationStart?.trim() || "";
+      if (!startStr) {
+        if (athlete.periodizationStart && athlete.periodizationStart >= todayStr) {
+          startStr = athlete.periodizationStart;
+        } else {
+          startStr = todayStr;
+        }
+      }
+
+      let endStr = options?.periodizationEnd?.trim() || "";
+      if (!endStr) {
+        if (athlete.periodizationEnd && athlete.periodizationEnd > startStr) {
+          endStr = athlete.periodizationEnd;
+        } else {
+          // Standard robust 2-week cycle block (14 days)
+          const [sy, sm, sd] = startStr.split('-').map(Number);
+          const startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
+          const endDateVal = new Date(startDateVal.getTime() + (14 * 24 * 60 * 60 * 1000));
+          const ey = endDateVal.getFullYear();
+          const em = String(endDateVal.getMonth() + 1).padStart(2, '0');
+          const ed = String(endDateVal.getDate()).padStart(2, '0');
+          endStr = `${ey}-${em}-${ed}`;
+        }
+      }
+
+      // Check date ordering - ensure endStr is strictly >= startStr without moving start backwards
+      let [sy, sm, sd] = startStr.split('-').map(Number);
+      let [ey, em, ed] = endStr.split('-').map(Number);
+      let startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
+      let endDateVal = new Date(ey, em - 1, ed, 12, 0, 0);
+
+      if (endDateVal < startDateVal) {
+        // If end date is before start date, adjust end date forward 14 days rather than swapping start backwards into past!
+        const correctedEnd = new Date(startDateVal.getTime() + (14 * 24 * 60 * 60 * 1000));
+        const cEy = correctedEnd.getFullYear();
+        const cEm = String(correctedEnd.getMonth() + 1).padStart(2, '0');
+        const cEd = String(correctedEnd.getDate()).padStart(2, '0');
+        endStr = `${cEy}-${cEm}-${cEd}`;
+        endDateVal = correctedEnd;
+      }
+
       const effectiveAcademyDays = options?.academyDays ?? (Array.isArray(athlete.academyDays) ? athlete.academyDays : []);
       const effectiveCourtDays = options?.courtDays ?? (Array.isArray(athlete.courtDays) ? athlete.courtDays : []);
       
@@ -1174,34 +1217,6 @@ export const useAthletes = (token?: string | null) => {
       }
       if (targetDays.length === 0) {
         targetDays = [1, 3, 5]; // Default to Mon, Wed, Fri (Seg, Qua, Sex)
-      }
-
-      if (!endStr) {
-        // Generate a standard robust 2-week cycle block
-        const [sy, sm, sd] = startStr.split('-').map(Number);
-        const startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
-        const endDateVal = new Date(startDateVal.getTime() + (14 * 24 * 60 * 60 * 1000));
-        const ey = endDateVal.getFullYear();
-        const em = String(endDateVal.getMonth() + 1).padStart(2, '0');
-        const ed = String(endDateVal.getDate()).padStart(2, '0');
-        endStr = `${ey}-${em}-${ed}`;
-      }
-
-      // Check date ordering
-      let [sy, sm, sd] = startStr.split('-').map(Number);
-      let [ey, em, ed] = endStr.split('-').map(Number);
-      let startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
-      let endDateVal = new Date(ey, em - 1, ed, 12, 0, 0);
-
-      if (startDateVal > endDateVal) {
-        // Swap if reversed
-        const temp = startStr;
-        startStr = endStr;
-        endStr = temp;
-        [sy, sm, sd] = startStr.split('-').map(Number);
-        [ey, em, ed] = endStr.split('-').map(Number);
-        startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
-        endDateVal = new Date(ey, em - 1, ed, 12, 0, 0);
       }
 
       // Find all matching dates between start and end str with their training type meta
@@ -1367,8 +1382,8 @@ export const useAthletes = (token?: string | null) => {
         MODELO DE PROGRESSÃO DE CARGA & VOLUME INTEGRADO:
         ${progressionInstruction}
         
-        DIRETRIZES ESTRATÉGICAS / DESCRIÇÃO DO TREINADOR:
-        "${coachInstructions || 'Desenvolver a melhor forma física e atlética do atleta, respeitando os dias e focos de treinamento.'}"
+        🎯 DIRETRIZES ESTRATÉGICAS PRIORITÁRIAS / DESCRIÇÃO DO TREINADOR:
+        "${coachInstructions && coachInstructions.trim() ? coachInstructions.trim() : 'Desenvolver a melhor forma física e atlética do atleta, respeitando os dias e focos de treinamento.'}"
         
         CRONOGRAMA EXATO DE SESSÕES A SEREM GERADAS (Total: ${trainingDatesMeta.length} treinos):
         ${trainingDatesMeta.map(d => `- Data: ${d.date} (${d.dayName}) | Foco: ${d.type === 'academia' ? '🏋️‍♂️ ACADEMIA (Musculação / Força / Potência / RFD)' : d.type === 'quadra' ? '⚽ CAMPO/QUADRA (Agilidade / Técnico / Tático / Velocidade)' : '⚡ MISTO / INTEGRADO'}`).join('\n')}
@@ -1384,9 +1399,9 @@ export const useAthletes = (token?: string | null) => {
         - Capacidade Cardiorrespiratória (VO2): ${JSON.stringify(context.lastAssessments.vo2max)}
 
         REGRAS RIGOROSAS DA PERIODIZAÇÃO (IA CO-PILOT):
-        1. Para cada item do cronograma acima, gere um objeto de treino com a 'date' correspondente exata (formato YYYY-MM-DD).
-        2. Aplique com rigor o MODELO DE PROGRESSÃO configurado, fazendo com que séries, repetições, intensidades (RPE/PSE) e cargas evoluam de forma coesa da primeira à última sessão.
-        3. Incorpore integralmente a DESCRIÇÃO DO TREINADOR nas escolhas metodológicas e seleção de exercícios.
+        1. Para cada item do cronograma acima, gere um objeto de treino com a 'date' correspondente exata (formato YYYY-MM-DD). NUNCA gere datas antigas, do passado ou fora do cronograma fornecido.
+        2. PRIORIDADE MÁXIMA DA DESCRIÇÃO DO TREINADOR: Se o treinador especificou objetivos, métodos, exercícios ou grupos prioritários (ex: salto vertical, velocidade, posterior de coxa, fortalecimento de joelho, agilidade), TODAS as sessões geradas DEVEM refletir rigorosamente esses pedidos.
+        3. Aplique com rigor o MODELO DE PROGRESSÃO configurado, fazendo com que séries, repetições, intensidades (RPE/PSE) e cargas evoluam de forma coesa da primeira à última sessão.
         4. Diferencie as fases: Inicie com Preparação Geral (base estrutural), evolua para Preparação Específica (potência e gesto esportivo de ${context.modality}) e finalize com Polimento / Tapering (alta prontidão).
         5. Em dias de ACADEMIA, foque em musculação, fortalecimento, RFD e força. Em dias de CAMPO/QUADRA, foque em velocidade, mudança de direção, agilidade e fundamentos do esporte.
 
@@ -1456,13 +1471,26 @@ export const useAthletes = (token?: string | null) => {
           };
         });
 
+        const replacePendingWorkouts = options?.replacePendingWorkouts !== false;
+
         const updated = athletes.map(a => {
           if (a.id === athlete.id) {
             const currentWorkouts = Array.isArray(a.workouts) ? a.workouts : [];
-            // Merge and sort by date (Ascending for periodization flow)
-            const merged = [...formattedWorkouts, ...currentWorkouts].sort((x, y) => 
+            
+            // Preserve completed workouts 100% intact (history and loads)
+            const completedWorkouts = currentWorkouts.filter(w => w.status === 'completed');
+            
+            // When replacePendingWorkouts is true (default), replace old uncompleted planned workouts
+            // so stale workouts from "a algum tempo atrás" do not clutter or supersede the new periodization cycle!
+            const preservedWorkouts = replacePendingWorkouts
+              ? completedWorkouts
+              : currentWorkouts;
+
+            // Merge and sort by date ascending for chronological periodization flow
+            const merged = [...formattedWorkouts, ...preservedWorkouts].sort((x, y) => 
                new Date(x.date).getTime() - new Date(y.date).getTime()
             );
+
             return {
               ...a,
               periodizationStart: startStr,
@@ -1479,12 +1507,14 @@ export const useAthletes = (token?: string | null) => {
         setAthletes(updated);
         await save(updated, athlete.id);
         toast.success(`IA Co-Pilot: Periodização com ${formattedWorkouts.length} treinos gerada com sucesso!`, { id: toastId });
+        return formattedWorkouts;
       } else {
         throw new Error("Formato de resposta inválido.");
       }
     } catch (e: any) {
       console.error("[IA Co-Pilot] Erro na periodização:", e);
       toast.error(`Falha no IA Co-Pilot: ${e.message || "Erro desconhecido"}`, { id: toastId });
+      return [];
     }
   };
 

@@ -5,6 +5,8 @@ export interface UserWithPlan {
   accountMode?: 'scoped';
   platformAdmin?: boolean;
   aiEnabled?: boolean;
+  supervision?: boolean;
+  supervisedName?: string;
   role: 'coach' | 'athlete';
   athleteId?: string;
   token?: string;
