@@ -448,6 +448,9 @@ export interface ImtpAiDetails {
 }
 
 export interface Imtp extends Assessment {
+  force100?: number;
+  force200?: number;
+  force300?: number;
   weight?: number;              // Peso do Atleta (kg)
   peakForce: number;            // Força Máxima (KG/KGF)
   relativePeakForce?: number;   // Força Máxima Relativa

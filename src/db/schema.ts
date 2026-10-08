@@ -229,6 +229,9 @@ export const dropJump = pgTable('drop_jump', {
 });
 
 export const imtp = pgTable('imtp', {
+  force100: real('force_100'),
+  force200: real('force_200'),
+  force300: real('force_300'),
   id: text('id').primaryKey(),
   athleteId: text('athlete_id').references(() => athletes.id, { onDelete: 'cascade' }),
   date: text('date').notNull(),

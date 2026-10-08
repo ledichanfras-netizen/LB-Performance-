@@ -12,7 +12,7 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "lint": "tsc --noEmit",
-    "test:accounts": "node --import tsx --test --test-concurrency=1 server/accounts.test.ts server/billing.test.ts server/cache.test.ts server/aiPolicy.test.ts server/database.test.ts server/saveBatch.test.ts server/birthDate.test.ts"
+    "test:accounts": "node --import tsx --test --test-concurrency=1 server/accounts.test.ts server/billing.test.ts server/cache.test.ts server/aiPolicy.test.ts server/database.test.ts server/saveBatch.test.ts server/birthDate.test.ts server/imtp.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",
@@ -57,6 +57,7 @@
     "@types/node": "^22.5.4",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
-    "@types/recharts": "^1.8.29"
+    "@types/recharts": "^1.8.29",
+    "@types/pg": "8.23.1"
   }
 }

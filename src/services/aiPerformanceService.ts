@@ -1,3 +1,4 @@
+import { formatImtpValue } from "../utils/imtpAnalysis";
 import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import { Athlete } from "../types";
 
@@ -129,8 +130,8 @@ export async function generateImtpAiAnalysis(
   const age = calculateAge(athlete.dob);
 
   // Format history for context
-  const historySummary = history
-    .map(h => `- Data: ${h.date} | Pico: ${h.peakForce} kgf | Relativa: ${h.relativePeakForce || 0} kgf/kg | Tempo: ${h.timeToPeakForce || 0} ms`)
+  const historySummary = history.filter(h => h.id !== imtpData.id && new Date(h.date).getTime() < new Date(imtpData.date).getTime())
+    .map(h => `- Data: ${h.date} | Pico: ${formatImtpValue(h.peakForce)} kgf | Relativa: ${formatImtpValue(h.relativePeakForce)} kgf/kg | Tempo: ${formatImtpValue(h.timeToPeakForce)} ms`)
     .join("\n");
 
   const prompt = `
@@ -145,41 +146,36 @@ export async function generateImtpAiAnalysis(
 
     DADOS DO TESTE IMTP ATUAL:
     - Data do teste: ${imtpData.date}
-    - Pico de força absoluta: ${imtpData.peakForce || 0} kgf
-    - Força relativa (kgf/kg): ${imtpData.relativePeakForce || 0} kgf/kg
-    - Tempo até o pico (ms): ${imtpData.timeToPeakForce || 0} ms
-    - Força média do teste: ${imtpData.meanForce || 0} kgf
-    - Pico RFD: ${imtpData.rfdPeak || 0} N/s
-    - RFD a 100ms: ${imtpData.rfd100 || 0} N/s
-    - RFD a 200ms: ${imtpData.rfd200 || 0} N/s
-    - RFD a 300ms: ${imtpData.rfd300 || 0} N/s
-    - Impulso de Pico: ${imtpData.impulsePeak || 0} N·s
-    - Impulso @ 100ms: ${imtpData.impulse100 || 0} N·s
-    - Impulso @ 200ms: ${imtpData.impulse200 || 0} N·s
-    - Impulso @ 300ms: ${imtpData.impulse300 || 0} N·s
+    - Pico de força absoluta: ${formatImtpValue(imtpData.peakForce)} kgf
+    - Força relativa (kgf/kg): ${formatImtpValue(imtpData.relativePeakForce)} kgf/kg
+    - Tempo até o pico (ms): ${formatImtpValue(imtpData.timeToPeakForce)} ms
+    - Força média do teste: ${formatImtpValue(imtpData.meanForce)} kgf
+    - Força em 100 ms: ${formatImtpValue(imtpData.force100)} kgf
+    - Força em 200 ms: ${formatImtpValue(imtpData.force200)} kgf
+    - Força em 300 ms: ${formatImtpValue(imtpData.force300)} kgf
+    - Pico RFD: ${formatImtpValue(imtpData.rfdPeak)} N/s
+    - RFD a 100ms: ${formatImtpValue(imtpData.rfd100)} N/s
+    - RFD a 200ms: ${formatImtpValue(imtpData.rfd200)} N/s
+    - RFD a 300ms: ${formatImtpValue(imtpData.rfd300)} N/s
+    - Impulso de Pico: ${formatImtpValue(imtpData.impulsePeak)} N·s
+    - Impulso @ 100ms: ${formatImtpValue(imtpData.impulse100)} N·s
+    - Impulso @ 200ms: ${formatImtpValue(imtpData.impulse200)} N·s
+    - Impulso @ 300ms: ${formatImtpValue(imtpData.impulse300)} N·s
 
     HISTÓRICO DE TESTES ANTERIORES DO ATLETA (se houver):
     ${historySummary || "Nenhum teste anterior registrado."}
 
-    OBJETIVOS E TAREFAS:
-    Você deve preencher a resposta JSON de acordo com o esquema definido, nos seguintes blocos:
-    1. BENCHMARKS INDIVIDUALIZADOS (campo benchmarks): Defina metas de referência baseadas na modalidade de esporte do atleta, gênero e competitividade. Cite as referências normativas da ciência do esporte (ex: Haff et al., Stone et al., James et al., valores IOC, NSCA guidelines).
-    2. CLASSIFICAÇÃO DE PERFORMANCE ATUAL (campo classification): Classifique cada métrica abaixo em uma escala de 5 níveis: "Iniciante", "Em Desenvolvimento", "Competitivo", "Avançado", "Elite da Modalidade".
-       - pico de força absoluta (peakForceClass)
-       - força relativa (relativeForceClass)
-       - rfd (rfdClass)
-       - eficiência de força / razão média/pico (efficiencyClass)
-    3. DIAGNÓSTICO NEUROMUSCULAR (campo diagnostico): Identifique o perfil neuromuscular dominante, as implicações no esporte do atleta e as limitações.
-    4. PRESCRIÇÃO DA INTERVENÇÃO (campo priorities): 3 prioridades de treino urgentes com título, método, parâmetros de carga (intensidade, volume, reps), exercícios altamente específicos e indicador KPI de reavaliação.
-    5. LINGUAGEM PARA O RELATÓRIO:
-       - versionTechnical: Texto técnico objetivo para o preparador físico.
-       - versionAthlete: Texto acessível, motivacional e claro exclusivamente para o atleta (retirar qualquer menção ou explicações para os pais).
-    6. PROGRESÃO DE REAVALIAÇÕES (campo projections):
-       - shortTerm (meta em 8 semanas)
-       - mediumTerm (meta em 6 meses)
-       - longTerm (meta de longo prazo nível elite na modalidade)
-
-    Sua resposta deve ser estritamente em português brasileiro (pt-BR). NÃO use palavras de IA, geradores automáticos ou bots. Trate isso como um laudo assinado por um cientista do esporte da LB Sports.
+    REGRAS DE INTERPRETAÇÃO:
+    Baseie as decisões na evolução individual dos testes anteriores, sem limiares universais por sexo ou modalidade.
+    "Não Informado" representa ausência de medida, nunca zero ou deficiência. Não estime valores faltantes.
+    Sem histórico comparável, estabeleça referência inicial e declare que não há conclusão longitudinal.
+    Diferenças percentuais são descritivas. Sem erro típico do teste ou variabilidade individual, não afirme mudança relevante.
+    Confirme protocolo, equipamento e processamento antes de comparar força, RFD e impulso.
+    Não deduza taxa de disparo neural, sincronização de unidades motoras, risco de lesão ou transferência esportiva diretamente do IMTP.
+    Use o esquema JSON existente: benchmarks deve explicar a referência individual; classification deve descrever evolução ou dados insuficientes em cada indicador, sem classificar em níveis de elite.
+    diagnostico deve resumir achados e limitações; priorities deve apresentar decisões condicionais, cruzadas com prontidão, CMJ, velocidade e desempenho esportivo, sem prescrição automática baseada em número isolado.
+    versionTechnical e versionAthlete devem comunicar as mesmas limitações com linguagem adequada. projections deve sugerir critérios de reavaliação, sem inventar metas percentuais ou prometer resultados.
+    Responda em português brasileiro. Não apresente a análise como diagnóstico clínico ou assinatura profissional.
   `;
 
   try {

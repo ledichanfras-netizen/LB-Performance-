@@ -993,7 +993,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
                   timeToPeakForce: im.time_to_peak_force,
                   meanForce: im.mean_force,
                   rfdPeak: im.rfd_peak,
-                  rfd100: im.rfd_100,
+                  force100: im.force_100, force200: im.force_200, force300: im.force_300,
+                rfd100: im.rfd_100,
                   rfd200: im.rfd_200,
                   rfd300: im.rfd_300,
                   impulsePeak: im.impulse_peak,
@@ -1307,7 +1308,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
             timeToPeakForce: im.time_to_peak_force,
             meanForce: im.mean_force,
             rfdPeak: im.rfd_peak,
-            rfd100: im.rfd_100,
+            force100: im.force_100, force200: im.force_200, force300: im.force_300,
+                rfd100: im.rfd_100,
             rfd200: im.rfd_200,
             rfd300: im.rfd_300,
             impulsePeak: im.impulse_peak,
@@ -1829,18 +1831,19 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
                 id: im.id || `im-${Date.now()}-${Math.random()}`,
                 date: im.date,
                 weight: im.weight,
-                peak_force: im.peakForce ?? 0,
-                relative_peak_force: im.relativePeakForce ?? 0,
-                time_to_peak_force: im.timeToPeakForce ?? 0,
-                mean_force: im.meanForce ?? 0,
-                rfd_peak: im.rfdPeak ?? 0,
-                rfd_100: im.rfd100 ?? 0,
-                rfd_200: im.rfd200 ?? 0,
-                rfd_300: im.rfd300 ?? 0,
-                impulse_peak: im.impulsePeak ?? 0,
-                impulse_100: im.impulse100 ?? 0,
-                impulse_200: im.impulse200 ?? 0,
-                impulse_300: im.impulse300 ?? 0,
+                peak_force: im.peakForce ?? null,
+                relative_peak_force: im.relativePeakForce ?? null,
+                time_to_peak_force: im.timeToPeakForce ?? null,
+                mean_force: im.meanForce ?? null,
+                rfd_peak: im.rfdPeak ?? null,
+                force_100: im.force100 ?? null, force_200: im.force200 ?? null, force_300: im.force300 ?? null,
+              rfd_100: im.rfd100 ?? null,
+                rfd_200: im.rfd200 ?? null,
+                rfd_300: im.rfd300 ?? null,
+                impulse_peak: im.impulsePeak ?? null,
+                impulse_100: im.impulse100 ?? null,
+                impulse_200: im.impulse200 ?? null,
+                impulse_300: im.impulse300 ?? null,
                 ai_details: im.aiDetails ? JSON.stringify(im.aiDetails) : null,
                 observations: im.observations || '',
                 athlete_id: athlete.id
@@ -2092,26 +2095,27 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         for (const asm of imtp) {
           if (!asm.id) asm.id = `im-${Date.now()}-${Math.random()}`;
           await writes.query(
-            'INSERT INTO imtp (id, athlete_id, date, weight, peak_force, relative_peak_force, time_to_peak_force, mean_force, rfd_peak, rfd_100, rfd_200, rfd_300, impulse_peak, impulse_100, impulse_200, impulse_300, ai_details, observations) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) ON CONFLICT (id) DO UPDATE SET date = $3, weight = $4, peak_force = $5, relative_peak_force = $6, time_to_peak_force = $7, mean_force = $8, rfd_peak = $9, rfd_100 = $10, rfd_200 = $11, rfd_300 = $12, impulse_peak = $13, impulse_100 = $14, impulse_200 = $15, impulse_300 = $16, ai_details = $17, observations = $18', 
+            'INSERT INTO imtp (id, athlete_id, date, weight, peak_force, relative_peak_force, time_to_peak_force, mean_force, rfd_peak, rfd_100, rfd_200, rfd_300, impulse_peak, impulse_100, impulse_200, impulse_300, ai_details, observations, force_100, force_200, force_300) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) ON CONFLICT (id) DO UPDATE SET date = $3, weight = $4, peak_force = $5, relative_peak_force = $6, time_to_peak_force = $7, mean_force = $8, rfd_peak = $9, rfd_100 = $10, rfd_200 = $11, rfd_300 = $12, impulse_peak = $13, impulse_100 = $14, impulse_200 = $15, impulse_300 = $16, ai_details = $17, observations = $18, force_100 = $19, force_200 = $20, force_300 = $21', 
             [
               asm.id, 
               athlete.id, 
               asm.date, 
               asm.weight ?? null,
-              asm.peakForce ?? 0, 
-              asm.relativePeakForce ?? 0, 
-              asm.timeToPeakForce ?? 0, 
-              asm.meanForce ?? 0, 
-              asm.rfdPeak ?? 0, 
-              asm.rfd100 ?? 0, 
-              asm.rfd200 ?? 0, 
-              asm.rfd300 ?? 0, 
-              asm.impulsePeak ?? 0, 
-              asm.impulse100 ?? 0, 
-              asm.impulse200 ?? 0, 
-              asm.impulse300 ?? 0, 
+              asm.peakForce ?? null, 
+              asm.relativePeakForce ?? null, 
+              asm.timeToPeakForce ?? null, 
+              asm.meanForce ?? null, 
+              asm.rfdPeak ?? null, 
+              asm.rfd100 ?? null, 
+              asm.rfd200 ?? null, 
+              asm.rfd300 ?? null, 
+              asm.impulsePeak ?? null, 
+              asm.impulse100 ?? null, 
+              asm.impulse200 ?? null, 
+              asm.impulse300 ?? null, 
               asm.aiDetails ? JSON.stringify(asm.aiDetails) : null, 
-              asm.observations || ''
+              asm.observations || '',
+              asm.force100 ?? null, asm.force200 ?? null, asm.force300 ?? null
             ]
           );
         }
@@ -3199,7 +3203,7 @@ async function runSetup(retries = 1) {
     const imtpCols = [
       'weight', 'peak_force', 'relative_peak_force', 'time_to_peak_force', 'mean_force',
       'rfd_peak', 'rfd_100', 'rfd_200', 'rfd_300',
-      'impulse_peak', 'impulse_100', 'impulse_200', 'impulse_300'
+      'impulse_peak', 'impulse_100', 'impulse_200', 'impulse_300', 'force_100', 'force_200', 'force_300'
     ];
     for (const col of imtpCols) {
       await client.query(`ALTER TABLE imtp ADD COLUMN IF NOT EXISTS ${col} REAL;`).catch(() => {});
