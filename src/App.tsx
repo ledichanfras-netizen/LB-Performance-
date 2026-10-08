@@ -622,7 +622,7 @@ const ReportHeader: FC<{
   <div className="bg-emerald-600 -mx-[20mm] -mt-[20mm] p-8 mb-8 flex justify-between items-end relative overflow-hidden shrink-0 text-left">
     <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
     <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-emerald-700/30 to-transparent pointer-events-none"></div>
-    
+
     <div className="relative z-10 w-full">
       <div className="flex items-center gap-4 mb-4">
         <div className="w-13 h-13 rounded-2xl bg-slate-900 flex items-center justify-center shadow-md border border-emerald-400/30 shrink-0 overflow-hidden">
@@ -793,11 +793,11 @@ const EliteHubApp: FC<{
       const workouts = ath.workouts || [];
       const external = ath.externalSessions || [];
       const computedAcwr = calculateACWR(workouts, external);
-      
+
       const acute = Math.round(computedAcwr.acute);
       const chronic = Math.round(computedAcwr.chronic);
       const acwr = computedAcwr.ratio;
-      
+
       let status = "ZONA IDEAL";
       let statusColor = "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/30";
       if (acwr < 0.85) {
@@ -1805,7 +1805,7 @@ const EliteHubApp: FC<{
           {/* Sidebar / Bottom Nav */}
           <aside className="hidden md:flex md:flex-col md:relative md:bottom-auto left-0 md:w-72 lg:w-80 md:h-screen bg-[#0B0F19]/95 border-r border-slate-800/60 p-4 lg:p-6 z-[1000] justify-between items-stretch">
             <div className="flex flex-col items-stretch justify-start w-full gap-4 px-0">
-              
+
               {/* Premium Performance Pro Logo Bracket & Theme Toggle */}
               <div className="hidden md:flex items-center justify-between mb-10 mt-2 px-2">
                 <div className="flex items-center gap-3.5">
@@ -2495,7 +2495,7 @@ const EliteHubApp: FC<{
                                 </span>
                               </div>
                               <h3 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tight">
-                                {birthdayAthletesToday.length === 1 
+                                {birthdayAthletesToday.length === 1
                                   ? `Aniversário de ${(birthdayAthletesToday[0].name || "Atleta").split(" ")[0]}!`
                                   : "Aniversariantes do Dia na Equipe!"}
                               </h3>
@@ -3080,7 +3080,7 @@ const EliteHubApp: FC<{
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                         {/* 1. Today's Active Session Card */}
                         {(() => {
@@ -3090,10 +3090,10 @@ const EliteHubApp: FC<{
                           );
                           const activeWorkoutToday = workoutsToday.find((w: any) => w.status !== "completed");
                           const completedWorkoutToday = workoutsToday.find((w: any) => w.status === "completed");
-                          
+
                           if (activeWorkoutToday) {
                             return (
-                              <div 
+                              <div
                                 onClick={() => {
                                   setActiveTab("training");
                                   startWorkoutFlow(activeWorkoutToday);
@@ -3116,7 +3116,7 @@ const EliteHubApp: FC<{
                             );
                           } else if (completedWorkoutToday) {
                             return (
-                              <div 
+                              <div
                                 onClick={() => {
                                   setActiveTab("training");
                                   setWorkoutStatusFilter("completed");
@@ -3169,7 +3169,7 @@ const EliteHubApp: FC<{
                           const theme = getReadinessCardTheme(todayReadiness, !hasWellnessToday);
 
                           return (
-                            <div 
+                            <div
                               onClick={() => setModalState({ type: "wellness" })}
                               className={`flex flex-col justify-between p-6 rounded-[2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.01] ${theme.cardClasses}`}
                             >
@@ -3930,8 +3930,8 @@ const EliteHubApp: FC<{
                                       if (maxPain > 0) {
                                         return (
                                           <div className={`flex items-center gap-2 p-2 rounded-xl border text-[9px] font-bold uppercase tracking-wider ${
-                                            maxPain <= 3 
-                                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20" 
+                                            maxPain <= 3
+                                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                                               : "bg-rose-500/10 text-rose-400 border-rose-500/20"
                                           }`}>
                                             <span className="flex h-1.5 w-1.5 relative">
@@ -5594,9 +5594,9 @@ const DashboardView: FC<{
     }
     // 3. Fallback to calculated from muscle groups (Quadriceps + Hamstrings sum)
     if (latestIsometric && (latestIsometric.quadricepsR || latestIsometric.quadricepsL)) {
-      const totalIsometric = (latestIsometric.quadricepsR || 0) + 
-                             (latestIsometric.quadricepsL || 0) + 
-                             (latestIsometric.hamstringsR || 0) + 
+      const totalIsometric = (latestIsometric.quadricepsR || 0) +
+                             (latestIsometric.quadricepsL || 0) +
+                             (latestIsometric.hamstringsR || 0) +
                              (latestIsometric.hamstringsL || 0);
       if (totalIsometric > 0) {
         const weight = latestWeight || 80;
@@ -5614,9 +5614,9 @@ const DashboardView: FC<{
       return latestIsometric.halfSquatKgf;
     }
     if (latestIsometric && (latestIsometric.quadricepsR || latestIsometric.quadricepsL)) {
-      return (latestIsometric.quadricepsR || 0) + 
-             (latestIsometric.quadricepsL || 0) + 
-             (latestIsometric.hamstringsR || 0) + 
+      return (latestIsometric.quadricepsR || 0) +
+             (latestIsometric.quadricepsL || 0) +
+             (latestIsometric.hamstringsR || 0) +
              (latestIsometric.hamstringsL || 0);
     }
     return null;
@@ -5725,7 +5725,7 @@ const DashboardView: FC<{
   const rsiAverages = useMemo(() => {
     const djList = athlete.assessments?.dropJump || [];
     const cmjList = athlete.assessments?.cmj || [];
-    
+
     const rsiList: number[] = [];
     djList.forEach(x => { if (x.rsi) rsiList.push(x.rsi); });
     cmjList.forEach(x => { if (x.rsi) rsiList.push(x.rsi); });
@@ -6045,7 +6045,7 @@ const DashboardView: FC<{
       {/* ================= TAB 1: PREMIUM PERFORMANCE PRO DASHBOARD ================= */}
       {dashboardSubTab === "pro" && (
         <div ref={dashboardProRef} className="space-y-8 animate-in fade-in duration-500 p-1 rounded-3xl bg-[#080c14] border border-slate-900/60 shadow-inner">
-          
+
           {/* Dashboard Header Banner */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-900/80">
             <div>
@@ -6056,7 +6056,7 @@ const DashboardView: FC<{
                 Visão Geral de Performance
               </p>
             </div>
-            
+
             {/* Actions list */}
             <div className="flex items-center gap-3">
               <div className="bg-[#111625] border border-slate-800 rounded-xl px-4 py-2.5 text-slate-300 font-extrabold text-[10px] tracking-wider uppercase flex items-center gap-2">
@@ -6072,7 +6072,7 @@ const DashboardView: FC<{
             const lbxWeight = latestWeightValue || 82.5;
             const lbxCmj = latestCmj?.height || 0;
             const lbxVo2 = latestVo2?.vo2max;
-            
+
             let lbxPeakForceN = 0;
             let hasForceData = false;
             if (latestImtp?.peakForce) {
@@ -6084,14 +6084,14 @@ const DashboardView: FC<{
               lbxPeakForceN = rawForce > 1000 ? rawForce : rawForce * 9.80665;
               hasForceData = true;
             }
-            
+
             const lbxForceKgf = lbxPeakForceN / 9.80665;
             const lbxRelForce = hasForceData && lbxWeight > 0 ? (lbxForceKgf / lbxWeight) : 0;
             const lbxRelForceN = hasForceData && lbxWeight > 0 ? (lbxPeakForceN / lbxWeight) : 0;
-            
+
             const lbxCmjScore = lbxCmj > 0 ? Math.min(100, Math.max(20, (lbxCmj / 65) * 100)) : 0;
             const lbxForceScore = lbxRelForce > 0 ? Math.min(100, Math.max(20, (lbxRelForce / 3.2) * 100)) : 0;
-            
+
             let lbxScore = 0;
             if (lbxCmjScore > 0 || lbxForceScore > 0) {
               if (hasVo2 && lbxVo2 !== undefined && lbxVo2 > 0) {
@@ -6107,7 +6107,7 @@ const DashboardView: FC<{
             return (
               <div className="border-l-[6px] border-l-[#308FFA] rounded-r-[2.5rem] rounded-l-xl bg-gradient-to-br from-[#02050E] to-[#0A1227] p-8 md:p-10 border border-[#308FFA]/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.85)] relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-[#308FFA]/5 rounded-full blur-[80px] -mr-24 -mt-24 group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-                
+
                 {/* Header Row */}
                 <div className="flex justify-between items-center relative z-10">
                   <h3 className="text-xs md:text-sm font-black text-[#308FFA] uppercase tracking-[0.25em] font-sans">
@@ -6197,7 +6197,7 @@ const DashboardView: FC<{
 
           {/* THREE CORE SPORTS SCIENCE METRICS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* 1. IMTP Card */}
             <div className="bg-[#0E1322] border border-slate-800 rounded-[2rem] p-6 hover:border-slate-700/80 transition-all duration-300 shadow-xl relative group overflow-hidden">
               <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/80" />
@@ -6223,10 +6223,10 @@ const DashboardView: FC<{
                 </span>
                 {imtpChangePct !== null && (
                   <span className={`flex items-center gap-0.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                    imtpChangePct > 0 
-                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10" 
-                      : imtpChangePct < 0 
-                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10" 
+                    imtpChangePct > 0
+                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10"
+                      : imtpChangePct < 0
+                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10"
                         : "text-slate-400 bg-slate-500/5 border-slate-500/10"
                   }`}>
                     {imtpChangePct > 0 ? (
@@ -6307,10 +6307,10 @@ const DashboardView: FC<{
                 </span>
                 {cmjChangePct !== null && (
                   <span className={`flex items-center gap-0.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                    cmjChangePct > 0 
-                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10" 
-                      : cmjChangePct < 0 
-                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10" 
+                    cmjChangePct > 0
+                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10"
+                      : cmjChangePct < 0
+                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10"
                         : "text-slate-400 bg-slate-500/5 border-slate-500/10"
                   }`}>
                     {cmjChangePct > 0 ? (
@@ -6391,10 +6391,10 @@ const DashboardView: FC<{
                 </span>
                 {rsiChangePct !== null && (
                   <span className={`flex items-center gap-0.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                    rsiChangePct > 0 
-                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10" 
-                      : rsiChangePct < 0 
-                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10" 
+                    rsiChangePct > 0
+                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10"
+                      : rsiChangePct < 0
+                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10"
                         : "text-slate-400 bg-slate-500/5 border-slate-500/10"
                   }`}>
                     {rsiChangePct > 0 ? (
@@ -6454,7 +6454,7 @@ const DashboardView: FC<{
 
           {/* LOWER HISTORICAL TRENDS + COHORT SUMMARY */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            
+
             {/* Left Box: EVOLUÇÃO GERAL DAS MÉTRICAS */}
             <div className="lg:col-span-8 bg-[#0E1322] border border-slate-800 rounded-[2rem] p-6 flex flex-col justify-between shadow-2xl relative">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 pb-4 border-b border-slate-900/40">
@@ -6577,7 +6577,7 @@ const DashboardView: FC<{
       {/* ================== TAB 2: PORTED ORIGINAL CLASSIC VIEW ================= */}
       {dashboardSubTab === "classic" && (
         <div className="space-y-8 animate-in fade-in duration-500">
-          
+
           {/* Welcome Header */}
           <section className="mb-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 sm:p-8 rounded-[2.2rem] bg-gradient-to-br from-slate-900/60 to-slate-900/30 border border-slate-800/40 relative">
@@ -6609,7 +6609,7 @@ const DashboardView: FC<{
             const theme = getReadinessCardTheme(activeScore, !hasWellnessToday && !activeScore);
 
             return (
-              <div 
+              <div
                 onClick={() => onAddWellness?.()}
                 className={`p-6 sm:p-7 rounded-[2.2rem] shadow-2xl transition-all cursor-pointer hover:scale-[1.005] relative overflow-hidden group ${theme.cardClasses}`}
               >
@@ -6933,38 +6933,38 @@ const DashboardView: FC<{
         // Historical 15 days data for selected athlete
         const todayVal = new Date();
         todayVal.setHours(23, 59, 59, 999);
-        
+
         const movingLoadHistory = [];
         for (let i = 14; i >= 0; i--) {
           const d = new Date(todayVal);
           d.setDate(todayVal.getDate() - i);
           const dStr = d.toISOString().split("T")[0];
-          
+
           const dStartA = new Date(d);
           dStartA.setDate(d.getDate() - 6);
           dStartA.setHours(0, 0, 0, 0);
-          
+
           const dStartC = new Date(d);
           dStartC.setDate(d.getDate() - 27);
           dStartC.setHours(0, 0, 0, 0);
-          
+
           const dEnd = new Date(d);
           dEnd.setHours(23, 59, 59, 999);
-          
+
           const acuteLoadSum = [
             ...activeWorkouts.filter(w => w.status === "completed" && w.rpe && w.date && new Date(w.date) >= dStartA && new Date(w.date) <= dEnd).map(w => calculateWorkoutInternalLoad(w)),
             ...activeExternal.filter(s => s.date && new Date(s.date) >= dStartA && new Date(s.date) <= dEnd).map(s => s.load || (s.durationMinutes * s.rpe || 0))
           ].reduce((sum, val) => sum + val, 0);
-          
+
           const chronicLoadSum = [
             ...activeWorkouts.filter(w => w.status === "completed" && w.rpe && w.date && new Date(w.date) >= dStartC && new Date(w.date) <= dEnd).map(w => calculateWorkoutInternalLoad(w)),
             ...activeExternal.filter(s => s.date && new Date(s.date) >= dStartC && new Date(s.date) <= dEnd).map(s => s.load || (s.durationMinutes * s.rpe || 0))
           ].reduce((sum, val) => sum + val, 0);
-          
+
           const acuteAvg = acuteLoadSum / 7;
           const chronicAvg = chronicLoadSum / 28;
           const acwrRatio = chronicAvg > 0 ? parseFloat((acuteAvg / chronicAvg).toFixed(2)) : 1.0;
-          
+
           const wellnessOnDate = (athlete.wellness || []).find(
             (well) => well.date && well.date.split("T")[0] === dStr
           );
@@ -6983,7 +6983,7 @@ const DashboardView: FC<{
         let idealCount = 0;
         let baixoCount = 0;
         let altoCount = 0;
-        
+
         athletes.forEach(ath => {
           const res = calculateACWR(ath.workouts || [], ath.externalSessions || []);
           if (res.ratio >= 0.8 && res.ratio <= 1.30) {
@@ -6994,7 +6994,7 @@ const DashboardView: FC<{
             altoCount++;
           }
         });
-        
+
         const total = athletes.length || 1;
         const idealPct = Math.round((idealCount / total) * 100);
         const baixoPct = Math.round((baixoCount / total) * 100);
@@ -7005,8 +7005,8 @@ const DashboardView: FC<{
         const latestWellness = wellnessHistory[0] || null;
         const hasRealWellnessData = wellnessHistory.length > 0;
         const activeReadiness = hasRealWellnessData ? latestWellness.readinessScore || 0 : 0;
-        
-        const avgSleepHours = hasRealWellnessData 
+
+        const avgSleepHours = hasRealWellnessData
           ? (() => {
               const validSleeps = wellnessHistory.map(w => safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0).filter(s => s > 0);
               if (validSleeps.length === 0) return 0;
@@ -7021,16 +7021,16 @@ const DashboardView: FC<{
         }
 
         const currentSleepScore = hasRealWellnessData && latestWellness
-          ? Math.min(100, Math.max(0, latestWellness.sleepQuality 
+          ? Math.min(100, Math.max(0, latestWellness.sleepQuality
               ? (latestWellness.sleepQuality > 10 ? latestWellness.sleepQuality : latestWellness.sleepQuality * 10)
               : ((safeParseFloat(latestWellness.calculatedSleepHours) || safeParseFloat(latestWellness.sleep) || 0) > 0
-                  ? Math.min(100, Math.round(((safeParseFloat(latestWellness.calculatedSleepHours) || safeParseFloat(latestWellness.sleep) || 0) / 8) * 100)) 
+                  ? Math.min(100, Math.round(((safeParseFloat(latestWellness.calculatedSleepHours) || safeParseFloat(latestWellness.sleep) || 0) / 8) * 100))
                   : 0)))
           : 0;
 
         // Custom sleep chart data for the selected athlete
         const hasRealSleepData = wellnessHistory.length > 0;
-        const sleepChartData = hasRealSleepData 
+        const sleepChartData = hasRealSleepData
           ? [...wellnessHistory]
               .slice(0, 15)
               .reverse()
@@ -7072,7 +7072,7 @@ const DashboardView: FC<{
                 )}
               </div>
             </div>
- 
+
             {showCargaReport && role === "coach" ? (
               <div className="bg-white rounded-3xl p-6 shadow-2xl overflow-auto flex justify-center">
                 <TrainingLoadReport athlete={athlete} onClose={() => setShowCargaReport(false)} />
@@ -7135,28 +7135,28 @@ const DashboardView: FC<{
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#0e1322" vertical={false} />
-                      <XAxis 
-                        dataKey="dateLabel" 
-                        stroke="#475569" 
-                        fontSize={9} 
-                        tickLine={false} 
+                      <XAxis
+                        dataKey="dateLabel"
+                        stroke="#475569"
+                        fontSize={9}
+                        tickLine={false}
                         axisLine={false}
                         dy={6}
                       />
-                      <YAxis 
+                      <YAxis
                         yAxisId="left"
-                        stroke="#475569" 
-                        fontSize={9} 
-                        tickLine={false} 
+                        stroke="#475569"
+                        fontSize={9}
+                        tickLine={false}
                         axisLine={false}
                         dx={-6}
                       />
-                      <YAxis 
+                      <YAxis
                         yAxisId="right"
                         orientation="right"
-                        stroke="#10b981" 
-                        fontSize={9} 
-                        tickLine={false} 
+                        stroke="#10b981"
+                        fontSize={9}
+                        tickLine={false}
                         axisLine={false}
                         dx={6}
                         domain={[0, 100]}
@@ -7230,7 +7230,7 @@ const DashboardView: FC<{
 
             {/* Core Cards Row 2: Readiness, Sleep and Sleep Quality */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
+
               {/* Readiness Card & Symptoms */}
               <div className="bg-[#080d16] border border-slate-900 rounded-3xl p-6 flex flex-col justify-between shadow-2xl space-y-6">
                 <div>
@@ -7245,15 +7245,15 @@ const DashboardView: FC<{
                   <svg className="w-36 h-36 transform -rotate-90">
                     <circle cx="72" cy="72" r="56" stroke="#0e1322" strokeWidth="12" fill="transparent" />
                     {hasRealWellnessData && (
-                      <circle 
-                        cx="72" 
-                        cy="72" 
-                        r="56" 
-                        stroke="#39FF14" 
-                        strokeWidth="12" 
-                        fill="transparent" 
-                        strokeDasharray="351" 
-                        strokeDashoffset={351 - (351 * activeReadiness) / 100} 
+                      <circle
+                        cx="72"
+                        cy="72"
+                        r="56"
+                        stroke="#39FF14"
+                        strokeWidth="12"
+                        fill="transparent"
+                        strokeDasharray="351"
+                        strokeDashoffset={351 - (351 * activeReadiness) / 100}
                         className="transition-all duration-1000 drop-shadow-[0_0_12px_rgba(57,255,20,0.7)]"
                       />
                     )}
@@ -7367,15 +7367,15 @@ const DashboardView: FC<{
                   <svg className="w-36 h-36 transform -rotate-90">
                     <circle cx="72" cy="72" r="56" stroke="#0e1322" strokeWidth="10" fill="transparent" />
                     {hasRealSleepData && (
-                      <circle 
-                        cx="72" 
-                        cy="72" 
-                        r="56" 
-                        stroke="#f59e0b" 
-                        strokeWidth="10" 
-                        fill="transparent" 
-                        strokeDasharray="351" 
-                        strokeDashoffset={351 - (351 * currentSleepScore) / 100} 
+                      <circle
+                        cx="72"
+                        cy="72"
+                        r="56"
+                        stroke="#f59e0b"
+                        strokeWidth="10"
+                        fill="transparent"
+                        strokeDasharray="351"
+                        strokeDashoffset={351 - (351 * currentSleepScore) / 100}
                         className="transition-all duration-1000"
                       />
                     )}
@@ -7784,7 +7784,7 @@ const SessionTracker: FC<{
                 <div>
                   <h5 className="text-2xl md:text-3xl font-black uppercase text-white leading-tight tracking-tighter italic flex flex-wrap items-center gap-3">
                     <span>{ex.name}</span>
-                    
+
                     {/* Botão de Demonstração de Vídeo Inteligente */}
                     {(() => {
                       let customExs: any[] = [];
@@ -7807,8 +7807,8 @@ const SessionTracker: FC<{
                           target="_blank"
                           rel="noopener noreferrer"
                           className={`inline-flex items-center gap-1.5 px-3 py-1 text-[9px] uppercase font-black tracking-wider rounded-lg transition-all ${
-                            hasDirectVideo 
-                              ? "bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/20" 
+                            hasDirectVideo
+                              ? "bg-[#39FF14]/10 hover:bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/20"
                               : "bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 hover:border-slate-700"
                           }`}
                           title={hasDirectVideo ? "Assistir ao vídeo técnico de execução técnica cadastrado pela LB Sports" : "Pesquisar vídeo de execução deste exercício de forma automatizada no YouTube"}
@@ -9031,48 +9031,48 @@ const SpeedReport: FC<{
 
   // 8. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
   let sSpeedInterventionDirectives = [
-    { 
-      pillar: "Prioridade 1: Aceleração Inicial & Vetor Horizontal (SDF)", 
-      directive: "Trabalhar a inclinação postural de saída e a capacidade de empurrar o solo para trás nos primeiros apoios, maximizando a produção de força horizontal." 
+    {
+      pillar: "Prioridade 1: Aceleração Inicial & Vetor Horizontal (SDF)",
+      directive: "Trabalhar a inclinação postural de saída e a capacidade de empurrar o solo para trás nos primeiros apoios, maximizando a produção de força horizontal."
     },
-    { 
-      pillar: "Prioridade 2: Mecânica de Velocidade Máxima & Stiffness", 
-      directive: "Refinar a ação de tornozelo rígido na fase de contato rápida, reduzindo o tempo de frenagem e otimizando a frequência de passada." 
+    {
+      pillar: "Prioridade 2: Mecânica de Velocidade Máxima & Stiffness",
+      directive: "Refinar a ação de tornozelo rígido na fase de contato rápida, reduzindo o tempo de frenagem e otimizando a frequência de passada."
     },
-    { 
-      pillar: "Prioridade 3: Tolerância Excêntrica de Isquiotibiais", 
-      directive: "Fortalecer a musculatura posterior da coxa em ângulos específicos de frenagem, prevenindo lesões musculares durante a fase de balanço terminal da corrida." 
+    {
+      pillar: "Prioridade 3: Tolerância Excêntrica de Isquiotibiais",
+      directive: "Fortalecer a musculatura posterior da coxa em ângulos específicos de frenagem, prevenindo lesões musculares durante a fase de balanço terminal da corrida."
     }
   ];
 
   if (speedClass === "Elite" || speedClass === "Excelente") {
     sSpeedInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Polimento Neuromuscular & Velocidade Máxima", 
-        directive: "Aplicar estímulos de corrida supramáxima e facilitação neural para recrutar frequências de passada elevadas sob técnica fluida e relaxada." 
+      {
+        pillar: "Prioridade 1: Polimento Neuromuscular & Velocidade Máxima",
+        directive: "Aplicar estímulos de corrida supramáxima e facilitação neural para recrutar frequências de passada elevadas sob técnica fluida e relaxada."
       },
-      { 
-        pillar: "Prioridade 2: Pliometria Unilateral Horizontal Reativa", 
-        directive: "Trabalhar saltos de projeção horizontal contínuos com tempo mínimo de contato no solo para maximizar a stiffness dinâmica." 
+      {
+        pillar: "Prioridade 2: Pliometria Unilateral Horizontal Reativa",
+        directive: "Trabalhar saltos de projeção horizontal contínuos com tempo mínimo de contato no solo para maximizar a stiffness dinâmica."
       },
-      { 
-        pillar: "Prioridade 3: Gestão de Carga e Micro-Ciclos de Velocidade", 
-        directive: "Garantir recuperação completa entre repetições e blocos de sprints para preservar a qualidade máxima do sistema nervoso central." 
+      {
+        pillar: "Prioridade 3: Gestão de Carga e Micro-Ciclos de Velocidade",
+        directive: "Garantir recuperação completa entre repetições e blocos de sprints para preservar a qualidade máxima do sistema nervoso central."
       }
     ];
   } else if (speedClass === "Abaixo da Média" || speedClass === "Necessita Atenção") {
     sSpeedInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Força Explosiva de Base e Extensão de Quadril", 
-        directive: "Desenvolver a capacidade de tripla extensão agressiva e potência de membros inferiores para vencer a inércia do corpo na saída." 
+      {
+        pillar: "Prioridade 1: Força Explosiva de Base e Extensão de Quadril",
+        directive: "Desenvolver a capacidade de tripla extensão agressiva e potência de membros inferiores para vencer a inércia do corpo na saída."
       },
-      { 
-        pillar: "Prioridade 2: Drills Posturais e Ângulos de Ataque", 
-        directive: "Corrigir a postura de corrida e o posicionamento do pé em dorsiflexão antes do contato com o solo para evitar forças de frenagem excessivas." 
+      {
+        pillar: "Prioridade 2: Drills Posturais e Ângulos de Ataque",
+        directive: "Corrigir a postura de corrida e o posicionamento do pé em dorsiflexão antes do contato com o solo para evitar forças de frenagem excessivas."
       },
-      { 
-        pillar: "Prioridade 3: Condicionamento de Tendões e Pliometria Básica", 
-        directive: "Fortalecer o complexo tendão calcâneo-panturrilha com estímulos elásticos repetitivos de baixa intensidade." 
+      {
+        pillar: "Prioridade 3: Condicionamento de Tendões e Pliometria Básica",
+        directive: "Fortalecer o complexo tendão calcâneo-panturrilha com estímulos elásticos repetitivos de baixa intensidade."
       }
     ];
   }
@@ -9151,10 +9151,10 @@ const SpeedReport: FC<{
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
-        
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          
+
           {/* Page 1 */}
           <ReportPage pageNumber={1} totalPages={3}>
             <ReportHeader
@@ -9461,10 +9461,10 @@ const SpeedReport: FC<{
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
-              
+
               {/* Column 1: Executive Summary & Kinematic Metrics */}
               <div className="space-y-5 overflow-hidden">
-                
+
                 {/* 1. STATUS DE SPRINT GERAL */}
                 <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
                   <div className="absolute right-3 bottom-3 opacity-5">
@@ -9489,7 +9489,7 @@ const SpeedReport: FC<{
                   <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
                     Métricas de Arranque & Velocidade
                   </h4>
-                  
+
                   <div className="space-y-2 font-sans text-[9.5px]">
                     {sTime5m > 0 && (
                       <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
@@ -9543,7 +9543,7 @@ const SpeedReport: FC<{
 
               {/* Column 2: Technical Interpretation & Directives */}
               <div className="space-y-5 flex flex-col justify-between h-full">
-                
+
                 {/* 4. INTERPRETAÇÃO TÉCNICA */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                   <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono">
@@ -9554,7 +9554,7 @@ const SpeedReport: FC<{
                       Mecânica & Rampa de Velocidade
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-2.5 text-[9.5px] leading-relaxed">
                     <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Aceleração e SDF (Horizontal):</span>
@@ -9581,7 +9581,7 @@ const SpeedReport: FC<{
                       Diretrizes de Intervenção para o Treinador
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-3 font-sans">
                     {sSpeedInterventionDirectives.map((item, idx) => (
                       <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 font-sans font-bold">
@@ -9605,7 +9605,7 @@ const SpeedReport: FC<{
                   <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono">
                     🎯 METAS DE EVOLUÇÃO
                   </span>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-2">
                     <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
                       <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">META TEMPO 10M</span>
@@ -9939,7 +9939,7 @@ const Vo2maxReport: FC<{
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
-        
+
         {/* Barra Superior Flutuante de Ações Rápidas (Padrão LB) */}
         <div className="sticky top-2 z-50 mb-4 mx-2 md:mx-0 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-white no-print">
           <div className="flex items-center gap-2.5">
@@ -10003,7 +10003,7 @@ const Vo2maxReport: FC<{
 
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          
+
           {/* PÁGINA 1: RESULTADOS CARDIORRESPIRATÓRIOS & DIAGNÓSTICO METABÓLICO */}
           <ReportPage pageNumber={1} totalPages={totalPages}>
             <ReportHeader
@@ -10063,7 +10063,7 @@ const Vo2maxReport: FC<{
 
             {/* Painel Central dos 6 Resultados da Avaliação */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 mb-4.5 select-none font-sans">
-              
+
               {/* Resultado 1: VO2 Máximo Relativo e Absoluto */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
@@ -10255,7 +10255,7 @@ const Vo2maxReport: FC<{
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                
+
                 {/* Quadrante 1 */}
                 <div className={`p-3 rounded-xl border transition-all ${cardioProfile.quadrant === "Q1" ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
                   <div className="flex justify-between items-center mb-1">
@@ -10415,7 +10415,7 @@ const Vo2maxReport: FC<{
 
             {/* Alinhamento Estratégico: Treinador & Atleta */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 select-none font-sans">
-              
+
               {/* Para a Comissão Técnica / Treinador */}
               <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col justify-between shadow-sm">
                 <div>
@@ -10702,7 +10702,7 @@ const CmjReport: FC<{
 
   // Football-Specific Normatives Detection:
   const isFutebol = athlete.modality?.toLowerCase().includes("futebol") || athlete.modality?.toLowerCase().includes("soccer");
-  
+
   // Set default / general normative requirements
   let reqHeightMin = 36;
   let reqHeightMax = 45;
@@ -10771,7 +10771,7 @@ const CmjReport: FC<{
   // Classify Jump Height:
   let heightClass = "Baixo";
   let heightColor = "bg-red-500 text-red-550 border-red-200/50";
-  
+
   const hEliteLimit = isFutebol ? reqHeightMax : 50;
   const hBomLimit = isFutebol ? reqHeightMin : 40;
   const hModLimit = isFutebol ? (reqHeightMin - 5) : 30;
@@ -10790,7 +10790,7 @@ const CmjReport: FC<{
   // Classify Relative Peak Power:
   let powerClass = "Baixo";
   let powerColor = "bg-red-500 text-red-550 border-red-200/50";
-  
+
   const pEliteLimit = isFutebol ? reqRelPowerMax : 62;
   const pBomLimit = isFutebol ? reqRelPowerMin : 50;
   const pModLimit = isFutebol ? (reqRelPowerMin - 5) : 40;
@@ -10865,7 +10865,7 @@ const CmjReport: FC<{
 
   // 2. EXPLICAÇÃO TÉCNICA (Treinador)
   const averageForceWkg = data.averageForce ? data.averageForce / cmjWeight : 0;
-  
+
   let sCmjExcExc = "A aplicação de força concêntrica apresenta-se dentro de parâmetros consistentes, sugerindo capacidade de superação da inércia. Potencial de otimização na curva de força-tempo.";
   if (averageForceWkg > 25) {
     sCmjExcExc = "Expressiva capacidade de aplicação de força máxima relativa ao peso corporal. O impulso gerado reflete um sistema neuromuscular denso e responsivo com alta eficiência propulsiva.";
@@ -10897,48 +10897,48 @@ const CmjReport: FC<{
 
   // Diretrizes de Intervenção Metodológica (Sem receitas de bolo - Caminhos de treino):
   let sCmjInterventionDirectives = [
-    { 
-      pillar: "Prioridade 1: Taxa de Desenvolvimento de Força (RFD)", 
-      directive: "Trabalhar ações de máxima intenção de aceleração na fase concêntrica, desenvolvendo a capacidade de aplicar altos picos de força em janelas temporais curtas." 
+    {
+      pillar: "Prioridade 1: Taxa de Desenvolvimento de Força (RFD)",
+      directive: "Trabalhar ações de máxima intenção de aceleração na fase concêntrica, desenvolvendo a capacidade de aplicar altos picos de força em janelas temporais curtas."
     },
-    { 
-      pillar: "Prioridade 2: Transição Amortecimento-Propulsão (CAE)", 
-      directive: "Otimizar a fase de contra-movimento, evitando desacelerações excessivamente lentas para maximizar o reaproveitamento de energia elástica muscular." 
+    {
+      pillar: "Prioridade 2: Transição Amortecimento-Propulsão (CAE)",
+      directive: "Otimizar a fase de contra-movimento, evitando desacelerações excessivamente lentas para maximizar o reaproveitamento de energia elástica muscular."
     },
-    { 
-      pillar: "Prioridade 3: Transferência Dinâmica e Estabilidade", 
-      directive: "Conectar a impulsão vertical à mecânica de desaceleração e aterrissagem equilibrada, blindando articulações de joelho e tornozelo." 
+    {
+      pillar: "Prioridade 3: Transferência Dinâmica e Estabilidade",
+      directive: "Conectar a impulsão vertical à mecânica de desaceleração e aterrissagem equilibrada, blindando articulações de joelho e tornozelo."
     }
   ];
 
   if (cmjHeight < 30) {
     sCmjInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Consolidação da Força de Base", 
-        directive: "Elevar a capacidade máxima de produção de força nos extensores de membros inferiores, criando a fundação estrutural necessária para impulsionar a massa corporal." 
+      {
+        pillar: "Prioridade 1: Consolidação da Força de Base",
+        directive: "Elevar a capacidade máxima de produção de força nos extensores de membros inferiores, criando a fundação estrutural necessária para impulsionar a massa corporal."
       },
-      { 
-        pillar: "Prioridade 2: Padrão Motor de Tripla Extensão", 
-        directive: "Refinar a sincronização coordenada entre tornozelos, joelhos e quadril durante o contra-movimento preparatório." 
+      {
+        pillar: "Prioridade 2: Padrão Motor de Tripla Extensão",
+        directive: "Refinar a sincronização coordenada entre tornozelos, joelhos e quadril durante o contra-movimento preparatório."
       },
-      { 
-        pillar: "Prioridade 3: Pliometria Extensiva e Condicionamento Tendíneo", 
-        directive: "Utilizar estímulos elásticos de baixa e média intensidade com alto volume para preparar o aparelho locomotor para maiores sobrecargas dinâmicas." 
+      {
+        pillar: "Prioridade 3: Pliometria Extensiva e Condicionamento Tendíneo",
+        directive: "Utilizar estímulos elásticos de baixa e média intensidade com alto volume para preparar o aparelho locomotor para maiores sobrecargas dinâmicas."
       }
     ];
   } else if (cmjHeight >= 45) {
     sCmjInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Métodos de Contraste e Potenciação (PAP)", 
-        directive: "Utilizar combinações de sobrecarga seguidas de impulsões máximas para otimizar o recrutamento de unidades motoras de altíssimo limiar." 
+      {
+        pillar: "Prioridade 1: Métodos de Contraste e Potenciação (PAP)",
+        directive: "Utilizar combinações de sobrecarga seguidas de impulsões máximas para otimizar o recrutamento de unidades motoras de altíssimo limiar."
       },
-      { 
-        pillar: "Prioridade 2: Transferência para Situações Esportivas", 
-        directive: "Integrar a capacidade de salto vertical com deslocamentos rápidos, fintas e demandas reativas típicas da modalidade do atleta." 
+      {
+        pillar: "Prioridade 2: Transferência para Situações Esportivas",
+        directive: "Integrar a capacidade de salto vertical com deslocamentos rápidos, fintas e demandas reativas típicas da modalidade do atleta."
       },
-      { 
-        pillar: "Prioridade 3: Monitoramento de Prontidão e Carga Aguda", 
-        directive: "Acompanhar a variabilidade da altura de salto ao longo da semana como indicador sensível de fadiga central e prontidão competitiva." 
+      {
+        pillar: "Prioridade 3: Monitoramento de Prontidão e Carga Aguda",
+        directive: "Acompanhar a variabilidade da altura de salto ao longo da semana como indicador sensível de fadiga central e prontidão competitiva."
       }
     ];
   }
@@ -11059,10 +11059,10 @@ const CmjReport: FC<{
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
-        
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          
+
           {/* Page 1 */}
           <ReportPage pageNumber={1} totalPages={4}>
             <ReportHeader
@@ -11320,7 +11320,7 @@ const CmjReport: FC<{
                         }}
                       />
                       <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{ fontSize: '8px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                      
+
                       {/* Reference line comparing with the immediate previous assessment */}
                       {previousData && previousData.height ? (
                         <ReferenceLine yAxisId="left" y={previousData.height} stroke="#3b82f6" strokeDasharray="4 4" strokeWidth={1.5}>
@@ -11392,14 +11392,14 @@ const CmjReport: FC<{
                       PROGRESSÃO INDIVIDUAL
                     </span>
                   </div>
-                  
+
                   {(() => {
                     const powerWkg = data.power / (data.weight || 1);
                     const prevPowerWkg = previousData ? (previousData.power || 0) / (previousData.weight || 1) : null;
                     const heightDiff = previousData && previousData.height ? data.height - previousData.height : 0;
                     const powerDiff = previousData && previousData.power ? data.power - previousData.power : 0;
                     const hasImproved = heightDiff >= 0;
-                    
+
                     return (
                       <div className="space-y-4">
                         <div className={`p-4 rounded-2xl border ${hasImproved || !previousData ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>
@@ -11420,14 +11420,14 @@ const CmjReport: FC<{
                             )}
                           </div>
                           <p className="text-[9px] font-medium leading-relaxed uppercase text-slate-300">
-                            {previousData 
-                              ? (hasImproved 
+                            {previousData
+                              ? (hasImproved
                                   ? `Ganho de ${heightDiff.toFixed(1)} cm e ${powerDiff >= 0 ? `+${powerDiff}` : powerDiff} W em relação ao teste anterior, consolidando a evolução do seu potencial individual.`
                                   : `Variação de ${heightDiff.toFixed(1)} cm em relação ao teste anterior. Indicativo para modular descanso e focar na qualidade dos disparos neuromusculares.`)
                               : "Marco inicial estabelecido. Todas as próximas avaliações serão comparadas com este valor para medir sua evolução real."}
                           </p>
                         </div>
-                        
+
                         <div className="space-y-2 bg-slate-800/60 p-3.5 rounded-2xl border border-slate-800">
                           <div className="flex justify-between text-[8px] font-black uppercase tracking-wider text-slate-400">
                             <span>Potência Relativa Atual</span>
@@ -11440,7 +11440,7 @@ const CmjReport: FC<{
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="space-y-2 mt-2 pt-3 border-t border-slate-800">
                           <p className="text-[9.5px] text-slate-300 font-medium leading-relaxed uppercase">
                             Cada atleta possui ritmo e potencial únicos. A evolução contínua frente ao seu próprio histórico é o indicador mais fidedigno de adaptação ao treinamento.
@@ -11450,7 +11450,7 @@ const CmjReport: FC<{
                     );
                   })()}
                 </div>
-                
+
                 <div className="mt-4 pt-4 border-t border-slate-800 flex items-start gap-2">
                   <Info className="w-3.5 h-3.5 text-brand-primary shrink-0 mt-0.5" />
                   <p className="text-[8px] text-slate-400 font-black leading-snug italic uppercase tracking-wider">
@@ -11472,10 +11472,10 @@ const CmjReport: FC<{
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
-              
+
               {/* Column 1: Resumo Executivo & Parâmetros Mecânicos */}
               <div className="space-y-5 overflow-hidden">
-                
+
                 {/* 1. STATUS GERAL */}
                 <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
                   <div className="absolute right-3 bottom-3 opacity-5">
@@ -11500,7 +11500,7 @@ const CmjReport: FC<{
                   <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
                     Métricas de Impulsão & Força
                   </h4>
-                  
+
                   <div className="space-y-2 font-sans text-[9.5px]">
                     <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <span className="font-bold text-slate-600 uppercase">Altura de Salto (CMJ):</span>
@@ -11545,7 +11545,7 @@ const CmjReport: FC<{
 
               {/* Column 2: Technical Interpretation (Coach focus) */}
               <div className="space-y-5">
-                
+
                 {/* 4. INTERPRETAÇÃO TÉCNICA */}
                 <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans h-full flex flex-col justify-between">
                   <div>
@@ -11555,7 +11555,7 @@ const CmjReport: FC<{
                     <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold mb-3 border-b pb-2">
                       Fase Excêntrica & Acionamento
                     </h4>
-                    
+
                     <div className="space-y-3 text-[9.5px] leading-relaxed text-slate-700">
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Produção e Aplicação de Força:</span>
@@ -11589,7 +11589,7 @@ const CmjReport: FC<{
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 font-sans">
-              
+
               {/* Column 1 & 2 (Span 2): Diretrizes Metodológicas */}
               <div className="md:col-span-2 space-y-6">
 
@@ -11603,7 +11603,7 @@ const CmjReport: FC<{
                       Diretrizes de Intervenção para o Treinador
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-3 font-sans">
                     {sCmjInterventionDirectives.map((item, idx) => (
                       <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-3 last:border-0 last:pb-0 font-sans font-bold">
@@ -11632,7 +11632,7 @@ const CmjReport: FC<{
                   <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono font-bold">
                     🎯 METAS DE EVOLUÇÃO
                   </span>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-3 font-sans">
                     <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
                       <span className="text-[7px] font-black text-slate-400 uppercase block mb-1 font-mono font-bold">MÁX. ALTURA</span>
@@ -11965,7 +11965,7 @@ const DropJumpReport: FC<{
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
-        
+
         {/* Barra Superior Flutuante de Ações Rápidas (Padrão LB) */}
         <div className="sticky top-2 z-50 mb-4 mx-2 md:mx-0 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-white no-print">
           <div className="flex items-center gap-2.5">
@@ -12029,7 +12029,7 @@ const DropJumpReport: FC<{
 
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          
+
           {/* PÁGINA 1: RESULTADOS BIOMÉTRICOS & DIAGNÓSTICO DE REATIVIDADE */}
           <ReportPage pageNumber={1} totalPages={totalPages}>
             <ReportHeader
@@ -12089,7 +12089,7 @@ const DropJumpReport: FC<{
 
             {/* PILAR 2: Painel Central dos 6 Resultados da Avaliação */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3.5 mb-4.5 select-none font-sans">
-              
+
               {/* Resultado 1: Índice de Força Reativa (RSI) */}
               <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex flex-col justify-between shadow-sm">
                 <div>
@@ -12274,7 +12274,7 @@ const DropJumpReport: FC<{
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                
+
                 {/* Quadrante 1 */}
                 <div className={`p-3 rounded-xl border transition-all ${dropProfile.quadrant === "Q1" ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 shadow-sm" : "bg-white border-slate-200 opacity-60"}`}>
                   <div className="flex justify-between items-center mb-1">
@@ -12434,7 +12434,7 @@ const DropJumpReport: FC<{
 
             {/* PILAR 5: Alinhamento Estratégico Dual (Treinador & Atleta) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 select-none font-sans">
-              
+
               {/* Para a Comissão Técnica / Treinador */}
               <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col justify-between shadow-sm">
                 <div>
@@ -12719,10 +12719,10 @@ const StrengthReport: FC<{
   const AsymmetryBracket = ({ percent }: { percent: number }) => {
     const isGood = percent <= 10;
     const isAttention = percent > 10 && percent <= 15;
-    const colorClass = isGood 
-      ? "text-emerald-600 border-emerald-500 bg-emerald-50/50" 
-      : isAttention 
-        ? "text-amber-500 border-amber-500 bg-amber-50/50" 
+    const colorClass = isGood
+      ? "text-emerald-600 border-emerald-500 bg-emerald-50/50"
+      : isAttention
+        ? "text-amber-500 border-amber-500 bg-amber-50/50"
         : "text-rose-600 border-rose-500 bg-rose-50/50";
 
     return (
@@ -12848,7 +12848,7 @@ const StrengthReport: FC<{
   }
 
   // 4. INTERPRETAÇÃO TÉCNICA (Treinador)
-  const sStrExcExc = data.quadricepsR > data.quadricepsL 
+  const sStrExcExc = data.quadricepsR > data.quadricepsL
     ? `Déficit de extensão no membro esquerdo (-${asymQuad.value}%). Risco biomecânico de sobrecarga patelofemoral contralateral em aterrissagens e frenagens.`
     : data.quadricepsL > data.quadricepsR
       ? `Déficit de extensão no membro direito (-${asymQuad.value}%). Risco biomecânico de sobrecarga patelofemoral contralateral em aterrissagens e frenagens.`
@@ -12878,48 +12878,48 @@ const StrengthReport: FC<{
 
   // 7. DIRETRIZES DE INTERVENÇÃO METODOLÓGICA (Sem receitas de bolo - Caminhos de treino)
   let sStrInterventionDirectives = [
-    { 
-      pillar: "Ênfase Isolateral Unilateral", 
-      directive: "Igualar a capacidade de produção de força entre os membros iniciando o estímulo pelo lado deficitário, mantendo volume controlado sem chegar à falha neuromuscular excessiva." 
+    {
+      pillar: "Ênfase Isolateral Unilateral",
+      directive: "Igualar a capacidade de produção de força entre os membros iniciando o estímulo pelo lado deficitário, mantendo volume controlado sem chegar à falha neuromuscular excessiva."
     },
-    { 
-      pillar: "Capacidade de Frenagem da Cadeia Posterior", 
-      directive: "Fortalecer a força de desaceleração dos isquiotibiais para equilibrar a razão I/Q, reduzindo o estresse anterior da tíbia em mudanças de direção." 
+    {
+      pillar: "Capacidade de Frenagem da Cadeia Posterior",
+      directive: "Fortalecer a força de desaceleração dos isquiotibiais para equilibrar a razão I/Q, reduzindo o estresse anterior da tíbia em mudanças de direção."
     },
-    { 
-      pillar: "Recrutamento Neuromuscular de Alto Limiar", 
-      directive: "Priorizar intenção de velocidade máxima na contração (RFD) e tempos de sustentação isométrica em ângulos articulares críticos da modalidade esportiva." 
+    {
+      pillar: "Recrutamento Neuromuscular de Alto Limiar",
+      directive: "Priorizar intenção de velocidade máxima na contração (RFD) e tempos de sustentação isométrica em ângulos articulares críticos da modalidade esportiva."
     }
   ];
 
   if (asymQuad.value >= 10 || asymHam.value >= 10) {
     sStrInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Correção do Déficit de Simetria", 
-        directive: `Priorizar sobrecarga isolateral direcionada ao membro ${data.quadricepsR > data.quadricepsL ? "esquerdo" : "direito"} com volume adicional de 1 a 2 séries de qualidade, evitando compensações bilaterais.` 
+      {
+        pillar: "Prioridade 1: Correção do Déficit de Simetria",
+        directive: `Priorizar sobrecarga isolateral direcionada ao membro ${data.quadricepsR > data.quadricepsL ? "esquerdo" : "direito"} com volume adicional de 1 a 2 séries de qualidade, evitando compensações bilaterais.`
       },
-      { 
-        pillar: "Prioridade 2: Estabilidade e Frenagem Articular", 
-        directive: "Desenvolver a tolerância à carga excêntrica e desaceleração na cadeia posterior para blindar o joelho contra torque de rotação e translação anterior." 
+      {
+        pillar: "Prioridade 2: Estabilidade e Frenagem Articular",
+        directive: "Desenvolver a tolerância à carga excêntrica e desaceleração na cadeia posterior para blindar o joelho contra torque de rotação e translação anterior."
       },
-      { 
-        pillar: "Prioridade 3: Gestão de Carga e Fadiga", 
-        directive: "Executar o trabalho de força com o atleta descansado (início da sessão ou dia dedicado), evitando que a fadiga agrave o padrão de movimento compensatório." 
+      {
+        pillar: "Prioridade 3: Gestão de Carga e Fadiga",
+        directive: "Executar o trabalho de força com o atleta descansado (início da sessão ou dia dedicado), evitando que a fadiga agrave o padrão de movimento compensatório."
       }
     ];
   } else if (iqR.ratio < 50 || iqL.ratio < 50) {
     sStrInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Elevação da Força de Isquiotibiais", 
-        directive: "Aumentar a proporção de estímulo específico para flexores de joelho e extensores de quadril, buscando restabelecer a razão I/Q acima de 55%." 
+      {
+        pillar: "Prioridade 1: Elevação da Força de Isquiotibiais",
+        directive: "Aumentar a proporção de estímulo específico para flexores de joelho e extensores de quadril, buscando restabelecer a razão I/Q acima de 55%."
       },
-      { 
-        pillar: "Prioridade 2: Força em Comprimentos Musculares Longos", 
-        directive: "Trabalhar ações de desaceleração com o quadril flexionado para preparar os isquiotibiais para sprints e aterrissagens de alto impacto." 
+      {
+        pillar: "Prioridade 2: Força em Comprimentos Musculares Longos",
+        directive: "Trabalhar ações de desaceleração com o quadril flexionado para preparar os isquiotibiais para sprints e aterrissagens de alto impacto."
       },
-      { 
-        pillar: "Prioridade 3: Manutenção da Simetria Bilateral", 
-        directive: "Preservar o ótimo equilíbrio bilateral já conquistado, monitorando qualquer sinal de sobrecarga assimétrica nos treinos técnicos de campo." 
+      {
+        pillar: "Prioridade 3: Manutenção da Simetria Bilateral",
+        directive: "Preservar o ótimo equilíbrio bilateral já conquistado, monitorando qualquer sinal de sobrecarga assimétrica nos treinos técnicos de campo."
       }
     ];
   }
@@ -12933,14 +12933,14 @@ const StrengthReport: FC<{
     const diff = sideA - sideB;
     const maxVal = Math.max(sideA, sideB);
     const pct = parseFloat(((Math.abs(diff) / maxVal) * 100).toFixed(1));
-    const maxScaleLimit = 20; 
-    const ratio = diff / maxVal; 
+    const maxScaleLimit = 20;
+    const ratio = diff / maxVal;
     const percentImbalance = ratio * 100;
     const positionPercent = Math.max(10, Math.min(90, 50 + (percentImbalance / maxScaleLimit) * 40));
     const isGood = pct <= 10;
     const isAttention = pct > 10 && pct <= 15;
     const colorClass = isGood ? "bg-emerald-400" : isAttention ? "bg-yellow-400" : "bg-rose-500";
-    
+
     return (
       <div className="mt-3 w-full pr-1 font-sans">
         <div className="flex justify-between text-[7px] text-slate-400 uppercase tracking-widest font-black select-none">
@@ -12951,7 +12951,7 @@ const StrengthReport: FC<{
         <div className="relative h-2 bg-slate-100/80 rounded-full border border-slate-200 mt-1 select-none">
           <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-0.5 bg-slate-300" />
           <div className="absolute left-[30%] right-[30%] top-0 bottom-0 bg-emerald-500/10 rounded-sm" />
-          <div 
+          <div
             className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white shadow ${colorClass} transition-all duration-500`}
             style={{ left: `${positionPercent}%`, marginLeft: '-6px' }}
           />
@@ -12972,10 +12972,10 @@ const StrengthReport: FC<{
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
-        
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          
+
           {/* Page 1: Segmented Knee Extension/Flexion */}
           <ReportPage pageNumber={1} totalPages={totalReportPages}>
             <ReportHeader
@@ -12997,7 +12997,7 @@ const StrengthReport: FC<{
                     <h3 className="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-4 border-l-2 border-emerald-500 pl-2">
                       Ações Articulares (Joelho)
                     </h3>
-                    
+
                     {/* Extensão (Quadríceps) */}
                     <div className="mb-6">
                       <div className="flex justify-between items-center mb-1.5">
@@ -13011,9 +13011,9 @@ const StrengthReport: FC<{
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] font-black text-slate-400 w-3">D</span>
                             <div className="flex-grow h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-slate-500 rounded-full transition-all duration-500" 
-                                style={{ width: `${Math.min((data.quadricepsR / 60) * 100, 100)}%` }} 
+                              <div
+                                className="h-full bg-slate-500 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min((data.quadricepsR / 60) * 100, 100)}%` }}
                               />
                             </div>
                             <div className="w-12 text-right shrink-0">
@@ -13026,9 +13026,9 @@ const StrengthReport: FC<{
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] font-black text-slate-400 w-3">E</span>
                             <div className="flex-grow h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-slate-500 rounded-full transition-all duration-500" 
-                                style={{ width: `${Math.min((data.quadricepsL / 60) * 100, 100)}%` }} 
+                              <div
+                                className="h-full bg-slate-500 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min((data.quadricepsL / 60) * 100, 100)}%` }}
                               />
                             </div>
                             <div className="w-12 text-right shrink-0">
@@ -13038,7 +13038,7 @@ const StrengthReport: FC<{
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Asymmetry Deficit Bracket */}
                         <AsymmetryBracket percent={asymQuad.value} />
                       </div>
@@ -13057,9 +13057,9 @@ const StrengthReport: FC<{
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] font-black text-slate-400 w-3">D</span>
                             <div className="flex-grow h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-slate-500 rounded-full transition-all duration-500" 
-                                style={{ width: `${Math.min((data.hamstringsR / 30) * 100, 100)}%` }} 
+                              <div
+                                className="h-full bg-slate-500 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min((data.hamstringsR / 30) * 100, 100)}%` }}
                               />
                             </div>
                             <div className="w-12 text-right shrink-0">
@@ -13072,9 +13072,9 @@ const StrengthReport: FC<{
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] font-black text-slate-400 w-3">E</span>
                             <div className="flex-grow h-2 bg-slate-100 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-slate-500 rounded-full transition-all duration-500" 
-                                style={{ width: `${Math.min((data.hamstringsL / 30) * 100, 100)}%` }} 
+                              <div
+                                className="h-full bg-slate-500 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min((data.hamstringsL / 30) * 100, 100)}%` }}
                               />
                             </div>
                             <div className="w-12 text-right shrink-0">
@@ -13084,7 +13084,7 @@ const StrengthReport: FC<{
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Asymmetry Deficit Bracket */}
                         <AsymmetryBracket percent={asymHam.value} />
                       </div>
@@ -13141,7 +13141,7 @@ const StrengthReport: FC<{
                 {/* Right side panel: Dynamic Human Muscle Map */}
                 <div className="col-span-7 flex flex-col justify-center items-center bg-slate-50/25 border-l border-slate-100 px-4 h-full w-full">
                   <div className="flex flex-col justify-around h-full py-2 w-full max-w-[300px]">
-                    
+
                     {/* Front View (Anterior) */}
                     <div className="flex flex-col items-center w-full">
                       {/* Title & Side letters row */}
@@ -13150,7 +13150,7 @@ const StrengthReport: FC<{
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Anterior</span>
                         <span className="font-sans font-black text-[11px] text-slate-300">E</span>
                       </div>
-                      
+
                       {/* 3-column Layout for Label (D) - SVG - Label (E) */}
                       <div className="flex items-center justify-between w-full gap-2">
                         {/* Right Quad label (D, on left side of image) */}
@@ -13158,10 +13158,10 @@ const StrengthReport: FC<{
                           {/* Evolution Data (Above Force) */}
                           {previousData && (
                             <div className={`text-[7.5px] font-black leading-tight mb-1 ${
-                              data.quadricepsR - previousData.quadricepsR > 0 
-                                ? "text-emerald-600" 
-                                : data.quadricepsR - previousData.quadricepsR === 0 
-                                  ? "text-slate-500" 
+                              data.quadricepsR - previousData.quadricepsR > 0
+                                ? "text-emerald-600"
+                                : data.quadricepsR - previousData.quadricepsR === 0
+                                  ? "text-slate-500"
                                   : "text-rose-600"
                             }`}>
                               <span className="block">{data.quadricepsR - previousData.quadricepsR > 0 ? "▲" : data.quadricepsR - previousData.quadricepsR === 0 ? "•" : "▼"} {Math.abs(((data.quadricepsR - previousData.quadricepsR) / previousData.quadricepsR) * 100).toFixed(0)}%</span>
@@ -13202,24 +13202,24 @@ const StrengthReport: FC<{
                               <path d="M56,215 L62,222 L54,222 Z" />
                               <path d="M44,215 L38,222 L46,222 Z" />
                             </g>
-                            
+
                             {/* Quadriceps Left (Esq - on the right of drawing) */}
-                            <path 
-                              d="M51,105 L58,105 C58,110 59,125 57,155 L51,155 C52,125 51,110 51,105 Z" 
-                              fill={quadColors.fill} 
-                              fillOpacity="0.8" 
-                              stroke={quadColors.stroke} 
-                              strokeWidth="1" 
+                            <path
+                              d="M51,105 L58,105 C58,110 59,125 57,155 L51,155 C52,125 51,110 51,105 Z"
+                              fill={quadColors.fill}
+                              fillOpacity="0.8"
+                              stroke={quadColors.stroke}
+                              strokeWidth="1"
                               className="transition-all duration-500 cursor-pointer hover:fill-opacity-100"
                             />
-                            
+
                             {/* Quadriceps Right (Dir - on the left of drawing) */}
-                            <path 
-                              d="M49,105 L42,105 C42,110 41,125 43,155 L49,155 C48,125 49,110 49,105 Z" 
-                              fill={quadColors.fill} 
-                              fillOpacity="0.8" 
-                              stroke={quadColors.stroke} 
-                              strokeWidth="1" 
+                            <path
+                              d="M49,105 L42,105 C42,110 41,125 43,155 L49,155 C48,125 49,110 49,105 Z"
+                              fill={quadColors.fill}
+                              fillOpacity="0.8"
+                              stroke={quadColors.stroke}
+                              strokeWidth="1"
                               className="transition-all duration-500 cursor-pointer hover:fill-opacity-100"
                             />
                           </svg>
@@ -13230,10 +13230,10 @@ const StrengthReport: FC<{
                           {/* Evolution Data (Above Force) */}
                           {previousData && (
                             <div className={`text-[7.5px] font-black leading-tight mb-1 ${
-                              data.quadricepsL - previousData.quadricepsL > 0 
-                                ? "text-emerald-600" 
-                                : data.quadricepsL - previousData.quadricepsL === 0 
-                                  ? "text-slate-500" 
+                              data.quadricepsL - previousData.quadricepsL > 0
+                                ? "text-emerald-600"
+                                : data.quadricepsL - previousData.quadricepsL === 0
+                                  ? "text-slate-500"
                                   : "text-rose-600"
                             }`}>
                               <span className="block">{data.quadricepsL - previousData.quadricepsL > 0 ? "▲" : data.quadricepsL - previousData.quadricepsL === 0 ? "•" : "▼"} {Math.abs(((data.quadricepsL - previousData.quadricepsL) / previousData.quadricepsL) * 100).toFixed(0)}%</span>
@@ -13258,7 +13258,7 @@ const StrengthReport: FC<{
                         </div>
                       </div>
                     </div>
- 
+
                     {/* Back View (Posterior) */}
                     <div className="flex flex-col items-center w-full">
                       {/* Title & Side letters row */}
@@ -13267,7 +13267,7 @@ const StrengthReport: FC<{
                         <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Posterior</span>
                         <span className="font-sans font-black text-[11px] text-slate-300">D</span>
                       </div>
-                      
+
                       {/* 3-column Layout for Label (E) - SVG - Label (D) */}
                       <div className="flex items-center justify-between w-full gap-2">
                         {/* Left Ham label (E, on left side of image in back view) */}
@@ -13275,10 +13275,10 @@ const StrengthReport: FC<{
                           {/* Evolution Data (Above Force) */}
                           {previousData && (
                             <div className={`text-[7.5px] font-black leading-tight mb-1 ${
-                              data.hamstringsL - previousData.hamstringsL > 0 
-                                ? "text-emerald-600" 
-                                : data.hamstringsL - previousData.hamstringsL === 0 
-                                  ? "text-slate-500" 
+                              data.hamstringsL - previousData.hamstringsL > 0
+                                ? "text-emerald-600"
+                                : data.hamstringsL - previousData.hamstringsL === 0
+                                  ? "text-slate-500"
                                   : "text-rose-600"
                             }`}>
                               <span className="block">{data.hamstringsL - previousData.hamstringsL > 0 ? "▲" : data.hamstringsL - previousData.hamstringsL === 0 ? "•" : "▼"} {Math.abs(((data.hamstringsL - previousData.hamstringsL) / previousData.hamstringsL) * 100).toFixed(0)}%</span>
@@ -13319,24 +13319,24 @@ const StrengthReport: FC<{
                               <path d="M56,215 L62,222 L54,222 Z" />
                               <path d="M44,215 L38,222 L46,222 Z" />
                             </g>
-                            
+
                             {/* Hamstring Left (Esq - on the left of drawing in back view) */}
-                            <path 
-                              d="M49,105 L42,105 C42,110 41,125 43,155 L49,155 C48,125 49,110 49,105 Z" 
-                              fill={hamColors.fill} 
-                              fillOpacity="0.8" 
-                              stroke={hamColors.stroke} 
-                              strokeWidth="1" 
+                            <path
+                              d="M49,105 L42,105 C42,110 41,125 43,155 L49,155 C48,125 49,110 49,105 Z"
+                              fill={hamColors.fill}
+                              fillOpacity="0.8"
+                              stroke={hamColors.stroke}
+                              strokeWidth="1"
                               className="transition-all duration-500 cursor-pointer hover:fill-opacity-100"
                             />
-                            
+
                             {/* Hamstring Right (Dir - on the right of drawing in back view) */}
-                            <path 
-                              d="M51,105 L58,105 C58,110 59,125 57,155 L51,155 C52,125 51,110 51,105 Z" 
-                              fill={hamColors.fill} 
-                              fillOpacity="0.8" 
-                              stroke={hamColors.stroke} 
-                              strokeWidth="1" 
+                            <path
+                              d="M51,105 L58,105 C58,110 59,125 57,155 L51,155 C52,125 51,110 51,105 Z"
+                              fill={hamColors.fill}
+                              fillOpacity="0.8"
+                              stroke={hamColors.stroke}
+                              strokeWidth="1"
                               className="transition-all duration-500 cursor-pointer hover:fill-opacity-100"
                             />
                           </svg>
@@ -13347,10 +13347,10 @@ const StrengthReport: FC<{
                           {/* Evolution Data (Above Force) */}
                           {previousData && (
                             <div className={`text-[7.5px] font-black leading-tight mb-1 ${
-                              data.hamstringsR - previousData.hamstringsR > 0 
-                                ? "text-emerald-600" 
-                                : data.hamstringsR - previousData.hamstringsR === 0 
-                                  ? "text-slate-500" 
+                              data.hamstringsR - previousData.hamstringsR > 0
+                                ? "text-emerald-600"
+                                : data.hamstringsR - previousData.hamstringsR === 0
+                                  ? "text-slate-500"
                                   : "text-rose-600"
                             }`}>
                               <span className="block">{data.hamstringsR - previousData.hamstringsR > 0 ? "▲" : data.hamstringsR - previousData.hamstringsR === 0 ? "•" : "▼"} {Math.abs(((data.hamstringsR - previousData.hamstringsR) / previousData.hamstringsR) * 100).toFixed(0)}%</span>
@@ -13375,7 +13375,7 @@ const StrengthReport: FC<{
                         </div>
                       </div>
                     </div>
- 
+
                   </div>
                 </div>
               </div>
@@ -13501,7 +13501,7 @@ const StrengthReport: FC<{
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3.5 font-sans text-slate-800 text-[10.5px]">
               {/* Left Column: Diagnóstico, Riscos e Metas */}
               <div className="md:col-span-1 space-y-3 flex flex-col h-full">
-                
+
                 {/* 1. STATUS GERAL (RESUMO EXECUTIVO) */}
                 <div className="bg-slate-900 text-white p-3 rounded-xl border border-slate-800 relative overflow-hidden shadow-sm">
                   <div className="absolute right-1 top-1 text-orange-500 opacity-20">
@@ -13558,7 +13558,7 @@ const StrengthReport: FC<{
 
               {/* Right Column: Técnico e Diretrizes Metodológicas */}
               <div className="md:col-span-1 space-y-3 flex flex-col h-full">
-                
+
                 {/* 4. INTERPRETAÇÃO TÉCNICA (TREINADOR) */}
                 <div className="bg-white border border-slate-200/80 p-3 rounded-xl shadow-sm space-y-2 flex-grow">
                   <h4 className="text-[9px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-1 flex items-center gap-1 font-bold">
@@ -13700,7 +13700,7 @@ const StrengthReport: FC<{
                             </span>
                             <span className="text-[8px] font-extrabold text-slate-400">Repetições: {data.quadricepsDetailsR.repetitions || 2}</span>
                           </div>
-                          
+
                           <div className="grid grid-cols-4 gap-2 py-2.5 text-[8.5px] font-bold text-slate-300 uppercase tracking-wider">
                             <div>
                               <span className="text-slate-500 text-[7px] block">Força Máx</span>
@@ -13734,7 +13734,7 @@ const StrengthReport: FC<{
                             </span>
                             <span className="text-[8px] font-extrabold text-slate-400">Repetições: {data.quadricepsDetailsL.repetitions || 2}</span>
                           </div>
-                          
+
                           <div className="grid grid-cols-4 gap-2 py-2.5 text-[8.5px] font-bold text-slate-300 uppercase tracking-wider">
                             <div>
                               <span className="text-slate-500 text-[7px] block">Força Máx</span>
@@ -13802,7 +13802,7 @@ const StrengthReport: FC<{
                             </span>
                             <span className="text-[8px] font-extrabold text-slate-400">Repetições: {data.hamstringsDetailsR.repetitions || 2}</span>
                           </div>
-                          
+
                           <div className="grid grid-cols-4 gap-2 py-2.5 text-[8.5px] font-bold text-slate-300 uppercase tracking-wider">
                             <div>
                               <span className="text-slate-500 text-[7px] block">Força Máx</span>
@@ -13836,7 +13836,7 @@ const StrengthReport: FC<{
                             </span>
                             <span className="text-[8px] font-extrabold text-slate-400">Repetições: {data.hamstringsDetailsL.repetitions || 2}</span>
                           </div>
-                          
+
                           <div className="grid grid-cols-4 gap-2 py-2.5 text-[8.5px] font-bold text-slate-300 uppercase tracking-wider">
                             <div>
                               <span className="text-slate-500 text-[7px] block">Força Máx</span>
@@ -14011,17 +14011,134 @@ const ImtpReport: FC<{
     triggerPrint();
   };
 
+  const totalPages = 2;
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-900/80 p-4 print:bg-white print:p-0 print:static">
-      <div ref={reportRef} className="report-container mx-auto w-fit">
-        <ImtpReportPages athlete={athlete} data={data} history={history} />
-      </div>
-      <div className="flex flex-wrap justify-center gap-3 pb-8 print:hidden">
-        <button className="bg-emerald-600 text-white rounded-xl p-4 font-bold" onClick={() => downloadSinglePage(0)}>Baixar resultados (JPEG)</button>
-        <button className="bg-emerald-600 text-white rounded-xl p-4 font-bold" onClick={() => downloadSinglePage(1)}>Baixar interpretação (JPEG)</button>
-        <button className="bg-slate-700 text-white rounded-xl p-4 font-bold" onClick={handleExportAllPages}>Baixar 2 páginas</button>
-        <button className="bg-slate-700 text-white rounded-xl p-4 font-bold" onClick={handlePrint}>Imprimir / PDF</button>
-        <button className="bg-slate-700 text-white rounded-xl p-4 font-bold" onClick={onClose}>Fechar</button>
+    <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
+      <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
+
+        {/* Barra Superior Flutuante de Ações Rápidas */}
+        <div className="sticky top-2 z-50 mb-4 mx-2 md:mx-0 bg-slate-900/95 backdrop-blur-md border border-slate-800 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-white no-print">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#39FF14] animate-pulse shrink-0" />
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-slate-100 block leading-tight">
+                Relatório IMTP • {athlete.name}
+              </span>
+              <span className="text-[9.5px] font-bold text-slate-400 uppercase">
+                {totalPages} Páginas A4 • Monitoramento Neuromuscular
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleExportAllPages}
+              className="flex items-center gap-1.5 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-md cursor-pointer"
+              title="Baixar ambas as páginas sequencialmente"
+            >
+              <Download size={14} />
+              <span>Baixar Todas (1 e 2)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(0)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 1 (Dados e Avaliação)"
+            >
+              <FileText size={14} className="text-[#39FF14]" />
+              <span>Pág. 1 (Dados)</span>
+            </button>
+
+            <button
+              onClick={() => downloadSinglePage(1)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Baixar apenas a Página 2 (Diretrizes e Treinamento)"
+            >
+              <FileText size={14} className="text-emerald-400" />
+              <span>Pág. 2 (Diretrizes)</span>
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider active:scale-95 transition-all border border-slate-700 cursor-pointer"
+              title="Imprimir ou Salvar em PDF"
+            >
+              <Printer size={14} />
+              <span>PDF</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 bg-slate-800/90 hover:bg-red-500/20 hover:text-red-400 text-slate-300 p-2 rounded-xl active:scale-95 transition-all border border-slate-700 cursor-pointer ml-1"
+              title="Fechar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Printable/exportable container */}
+        <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
+
+        <ImtpReportPages athlete={athlete} data={data} history={history} ReportPage={ReportPage} ReportHeader={ReportHeader} />
+
+        </div>
+
+        {/* Buttons Row (Controls) */}
+        <div className="mt-8 no-print pb-24 px-4 md:px-0 font-sans select-none w-full">
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 md:p-5 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col text-center lg:text-left">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center justify-center lg:justify-start gap-2">
+                <Sparkles size={14} className="text-[#39FF14]" /> Exportação do Relatório IMTP
+              </span>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-xl">
+                Baixe o relatório completo de 2 páginas ou selecione individualmente a página desejada em alta definição (JPEG).
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 w-full lg:w-auto">
+              <button
+                onClick={handleExportAllPages}
+                className="flex items-center justify-center gap-2 bg-[#39FF14] hover:bg-[#32e010] text-slate-950 py-3.5 px-5 rounded-xl font-black text-xs uppercase tracking-wider active:scale-95 transition-all shadow-xl shadow-[#39FF14]/15 cursor-pointer"
+              >
+                <Download size={16} /> Baixar Ambas (Pág. 1 e 2)
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(0)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 1 (Dados e Avaliação)"
+              >
+                <FileText size={15} className="text-[#39FF14]" /> Baixar Pág. 1
+              </button>
+
+              <button
+                onClick={() => downloadSinglePage(1)}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+                title="Baixar apenas a Página 2 (Diretrizes e Treinamento)"
+              >
+                <FileText size={15} className="text-emerald-400" /> Baixar Pág. 2
+              </button>
+
+              <button
+                onClick={handlePrint}
+                className="flex items-center justify-center gap-2 bg-slate-900 border border-slate-700 hover:border-slate-500 text-slate-200 hover:text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+              >
+                <Printer size={16} /> Imprimir / PDF
+              </button>
+
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+          <p className="text-[10px] text-slate-400 text-center mt-3 font-mono">
+            💡 Dica: Se o navegador solicitar autorização para múltiplos downloads, clique em "Permitir", ou utilize os botões individuais de cada página acima.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -14051,12 +14168,12 @@ const BarIndicator = ({ label, current, minNormal, maxNormal, unit, prevVal, inv
   const minVal = Math.min(minNormal * 0.5, current * 0.8);
   const maxVal = Math.max(maxNormal * 1.5, current * 1.15);
   const range = maxVal - minVal;
-  
+
   const normalStartPct = ((minNormal - minVal) / range) * 100;
   const normalEndPct = ((maxNormal - minVal) / range) * 100;
-  
+
   const currentPct = Math.max(1, Math.min(99, ((current - minVal) / range) * 100));
-  
+
   let classification = "Normal";
   let colorClass = "text-emerald-650 bg-emerald-500";
   if (current < minNormal) {
@@ -14066,7 +14183,7 @@ const BarIndicator = ({ label, current, minNormal, maxNormal, unit, prevVal, inv
     classification = inverse ? "Alto" : "Excelente";
     colorClass = inverse ? "text-rose-600 bg-rose-500" : "text-emerald-650 bg-emerald-500";
   }
-  
+
   const comp = getComparison(current, prevVal, unit, inverse);
 
   return (
@@ -14091,7 +14208,7 @@ const BarIndicator = ({ label, current, minNormal, maxNormal, unit, prevVal, inv
           </span>
         </div>
       </div>
-      
+
       <div className="relative h-4.5 bg-slate-100 rounded-md flex text-[7px] font-bold">
         <div className="h-full bg-amber-100/30 flex items-center justify-center text-amber-600/70 uppercase tracking-widest rounded-l-md" style={{ width: `${normalStartPct}%` }}>
           Abaixo
@@ -14102,8 +14219,8 @@ const BarIndicator = ({ label, current, minNormal, maxNormal, unit, prevVal, inv
         <div className="h-full bg-rose-50/20 flex items-center justify-center text-rose-500/70 uppercase tracking-widest rounded-r-md" style={{ width: `${100 - normalEndPct}%` }}>
           Alto
         </div>
-        
-        <div 
+
+        <div
           className="absolute top-0 bottom-0 w-1 bg-slate-800 shadow-sm -translate-x-1/2"
           style={{ left: `${currentPct}%` }}
         >
@@ -14112,7 +14229,7 @@ const BarIndicator = ({ label, current, minNormal, maxNormal, unit, prevVal, inv
           </div>
         </div>
       </div>
-      
+
       <div className="flex justify-between text-[7px] font-bold text-slate-400 uppercase tracking-wider">
         <span>Mín Normal: {minNormal.toFixed(1)} {unit}</span>
         <span>Máx Normal: {maxNormal.toFixed(1)} {unit}</span>
@@ -14169,7 +14286,7 @@ const VisualSegmentedFigure = ({ title, sub, values, classifications }: any) => 
         <span className="text-[10px] font-black uppercase tracking-widest text-slate-700 block leading-tight">{title}</span>
         <span className="text-[7px] font-bold text-slate-450 uppercase tracking-widest">{sub}</span>
       </div>
-      
+
       <div className="grid grid-cols-3 gap-x-2 items-center w-full relative">
         <div className="absolute top-0 left-0 text-[7px] font-extrabold text-slate-400 uppercase tracking-widest">Esquerdo(a)</div>
         <div className="absolute top-0 right-0 text-[7px] font-extrabold text-slate-400 uppercase tracking-widest text-right">Direito(a)</div>
@@ -14182,7 +14299,7 @@ const VisualSegmentedFigure = ({ title, sub, values, classifications }: any) => 
             {classifications.armL.label}
           </span>
         </div>
-        
+
         {/* SVG Human body (Center spanning rows) */}
         <div className="row-span-3 flex justify-center items-center py-2 relative">
            <svg viewBox="0 0 100 150" className="w-14 h-32 text-slate-350 fill-current opacity-70">
@@ -14193,7 +14310,7 @@ const VisualSegmentedFigure = ({ title, sub, values, classifications }: any) => 
              <path d="M41,81 L36,135 L42,135 L46,84 Z" className="fill-slate-150 stroke-slate-300 stroke-1" />
              <path d="M59,81 L64,135 L58,135 L54,84 Z" className="fill-slate-150 stroke-slate-300 stroke-1" />
            </svg>
-           
+
            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
              <span className="text-[6.5px] font-black text-slate-400 uppercase tracking-wider leading-none">Tronco</span>
              <span className="text-[10px] font-black text-slate-800 leading-tight">{values.trunk}</span>
@@ -14202,7 +14319,7 @@ const VisualSegmentedFigure = ({ title, sub, values, classifications }: any) => 
              </span>
            </div>
         </div>
-        
+
         {/* Right Arm (Direito) */}
         <div className="text-right mt-5 flex flex-col items-end justify-center border-b border-dashed border-slate-200 pb-2">
           <span className="text-[8px] text-slate-450 uppercase font-bold">Braço D</span>
@@ -14224,7 +14341,7 @@ const VisualSegmentedFigure = ({ title, sub, values, classifications }: any) => 
             {classifications.legL.label}
           </span>
         </div>
-        
+
         {/* Right Leg (Direito) */}
         <div className="text-right mb-3 flex flex-col items-end justify-center border-t border-dashed border-slate-200 pt-2">
           <span className="text-[8px] text-slate-450 uppercase font-bold">Perna D</span>
@@ -14551,47 +14668,47 @@ const BioimpedanceReport: FC<{
 
   if (isFatHigh) {
     bioInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Recomposição Corporal & Déficit Energético Controlado", 
-        directive: "Ajustar o balanço calórico para redução progressiva do percentual de gordura, preservando integralmente o tecido muscular ativo." 
+      {
+        pillar: "Prioridade 1: Recomposição Corporal & Déficit Energético Controlado",
+        directive: "Ajustar o balanço calórico para redução progressiva do percentual de gordura, preservando integralmente o tecido muscular ativo."
       },
-      { 
-        pillar: "Prioridade 2: Manutenção de Sobrecarga Tensional e Força", 
-        directive: "Preservar a intensidade nos treinos de força para sinalizar retenção de massa magra e ativação neuromuscular durante a perda de peso." 
+      {
+        pillar: "Prioridade 2: Manutenção de Sobrecarga Tensional e Força",
+        directive: "Preservar a intensidade nos treinos de força para sinalizar retenção de massa magra e ativação neuromuscular durante a perda de peso."
       },
-      { 
-        pillar: "Prioridade 3: Aporte Hídrico e Recuperação Metabólica", 
-        directive: "Otimizar a hidratação diária para acelerar a excreção de subprodutos metabólicos e manter a taxa de filtração celular eficiente." 
+      {
+        pillar: "Prioridade 3: Aporte Hídrico e Recuperação Metabólica",
+        directive: "Otimizar a hidratação diária para acelerar a excreção de subprodutos metabólicos e manter a taxa de filtração celular eficiente."
       }
     ];
   } else if (isMuscleLow) {
     bioInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Estímulo Tensional & Sobrecarga Mecânica Progressiva", 
-        directive: "Trabalhar em faixas de tensão mecânica sustentada com foco em recrutamento de unidades motoras de alto limiar para hipertrofia funcional." 
+      {
+        pillar: "Prioridade 1: Estímulo Tensional & Sobrecarga Mecânica Progressiva",
+        directive: "Trabalhar em faixas de tensão mecânica sustentada com foco em recrutamento de unidades motoras de alto limiar para hipertrofia funcional."
       },
-      { 
-        pillar: "Prioridade 2: Suporte Energético e Síntese Proteica", 
-        directive: "Garantir densidade calórica e fracionamento proteico adequado para suportar o estado anabólico e a recuperação muscular entre as sessões." 
+      {
+        pillar: "Prioridade 2: Suporte Energético e Síntese Proteica",
+        directive: "Garantir densidade calórica e fracionamento proteico adequado para suportar o estado anabólico e a recuperação muscular entre as sessões."
       },
-      { 
-        pillar: "Prioridade 3: Correção de Assimetrias Segmentares", 
-        directive: "Introduzir blocos de exercícios unilaterais para equalizar a massa magra entre membros e proteger as articulações." 
+      {
+        pillar: "Prioridade 3: Correção de Assimetrias Segmentares",
+        directive: "Introduzir blocos de exercícios unilaterais para equalizar a massa magra entre membros e proteger as articulações."
       }
     ];
   } else {
     bioInterventionDirectives = [
-      { 
-        pillar: "Prioridade 1: Polimento da Relação Força/Peso (Potência Relativa)", 
-        directive: "Sustentar os níveis ideais de composição corporal focando em transferir a massa muscular existente para potência e agilidade desportiva." 
+      {
+        pillar: "Prioridade 1: Polimento da Relação Força/Peso (Potência Relativa)",
+        directive: "Sustentar os níveis ideais de composição corporal focando em transferir a massa muscular existente para potência e agilidade desportiva."
       },
-      { 
-        pillar: "Prioridade 2: Equalização Muscular Unilateral e Estabilidade", 
-        directive: "Manter o controle sobre assimetrias periféricas para blindar a mecânica articular contra sobrecargas durante gestos esportivos exigentes." 
+      {
+        pillar: "Prioridade 2: Equalização Muscular Unilateral e Estabilidade",
+        directive: "Manter o controle sobre assimetrias periféricas para blindar a mecânica articular contra sobrecargas durante gestos esportivos exigentes."
       },
-      { 
-        pillar: "Prioridade 3: Periodização Nutricional Conforme Calendário", 
-        directive: "Ajustar o aporte de substratos energéticos de acordo com a intensidade das fases de treino (acumulação, choque e polimento competitivo)." 
+      {
+        pillar: "Prioridade 3: Periodização Nutricional Conforme Calendário",
+        directive: "Ajustar o aporte de substratos energéticos de acordo com a intensidade das fases de treino (acumulação, choque e polimento competitivo)."
       }
     ];
   }
@@ -14870,10 +14987,10 @@ const BioimpedanceReport: FC<{
   return (
     <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans">
-        
+
         {/* Printable/exportable container */}
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
-          
+
           {/* Page 1: Head stats and Body Constitution */}
           <ReportPage pageNumber={1} totalPages={3}>
             <ReportHeader
@@ -14911,31 +15028,31 @@ const BioimpedanceReport: FC<{
                       Análise de Composição Corporal
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-3.5">
-                    <BarIndicator 
-                      label="Peso Corporal Total" 
-                      current={sWeight} 
-                      minNormal={minWeight} 
-                      maxNormal={maxWeight} 
-                      unit="kg" 
-                      prevVal={previousData?.weight} 
+                    <BarIndicator
+                      label="Peso Corporal Total"
+                      current={sWeight}
+                      minNormal={minWeight}
+                      maxNormal={maxWeight}
+                      unit="kg"
+                      prevVal={previousData?.weight}
                     />
-                    <BarIndicator 
-                      label="MME (Massa de Músculo Esquelético)" 
-                      current={sMuscle} 
-                      minNormal={minMme} 
-                      maxNormal={maxMme} 
-                      unit="kg" 
-                      prevVal={previousData?.muscleMass} 
+                    <BarIndicator
+                      label="MME (Massa de Músculo Esquelético)"
+                      current={sMuscle}
+                      minNormal={minMme}
+                      maxNormal={maxMme}
+                      unit="kg"
+                      prevVal={previousData?.muscleMass}
                     />
-                    <BarIndicator 
-                      label="Massa de Gordura Absoluta" 
-                      current={currentFatKg} 
-                      minNormal={minFatKg} 
-                      maxNormal={maxFatKg} 
-                      unit="kg" 
-                      prevVal={previousFatKg} 
+                    <BarIndicator
+                      label="Massa de Gordura Absoluta"
+                      current={currentFatKg}
+                      minNormal={minFatKg}
+                      maxNormal={maxFatKg}
+                      unit="kg"
+                      prevVal={previousFatKg}
                       inverse={true}
                     />
                   </div>
@@ -14949,43 +15066,43 @@ const BioimpedanceReport: FC<{
                       Diagnóstico de Saúde & Metabolismo
                     </h4>
                   </div>
-                  
+
                   <div className="divide-y divide-slate-100">
-                    <DiagnosticRow 
-                      label="IMC (Índice de Massa Corporal)" 
-                      current={currentImc} 
-                      prev={previousImc} 
-                      unit="kg/m²" 
-                      normalRange="18.5 ~ 24.9" 
+                    <DiagnosticRow
+                      label="IMC (Índice de Massa Corporal)"
+                      current={currentImc}
+                      prev={previousImc}
+                      unit="kg/m²"
+                      normalRange="18.5 ~ 24.9"
                     />
-                    <DiagnosticRow 
-                      label="PGC (Percentual de Gordura)" 
-                      current={sFatPct} 
-                      prev={previousData?.fatPercentage} 
-                      unit="%" 
-                      normalRange={isMale ? "10.0 ~ 20.0" : "18.0 ~ 28.0"} 
+                    <DiagnosticRow
+                      label="PGC (Percentual de Gordura)"
+                      current={sFatPct}
+                      prev={previousData?.fatPercentage}
+                      unit="%"
+                      normalRange={isMale ? "10.0 ~ 20.0" : "18.0 ~ 28.0"}
                       inverse={true}
                     />
-                    <DiagnosticRow 
-                      label="TMB (Taxa de Metabolismo Basal)" 
-                      current={sTmb} 
-                      prev={previousData?.basalMetabolism} 
-                      unit="kcal" 
-                      normalRange={isMale ? "1500 ~ 2100" : "1200 ~ 1600"} 
+                    <DiagnosticRow
+                      label="TMB (Taxa de Metabolismo Basal)"
+                      current={sTmb}
+                      prev={previousData?.basalMetabolism}
+                      unit="kcal"
+                      normalRange={isMale ? "1500 ~ 2100" : "1200 ~ 1600"}
                     />
-                    <DiagnosticRow 
-                      label="ACT (Água Corporal Total)" 
-                      current={sWater} 
-                      prev={previousData?.hydration} 
-                      unit="%" 
-                      normalRange={isMale ? "55.0 ~ 65.0" : "50.0 ~ 60.0"} 
+                    <DiagnosticRow
+                      label="ACT (Água Corporal Total)"
+                      current={sWater}
+                      prev={previousData?.hydration}
+                      unit="%"
+                      normalRange={isMale ? "55.0 ~ 65.0" : "50.0 ~ 60.0"}
                     />
-                    <DiagnosticRow 
-                      label="MLG (Massa Livre de Gordura)" 
-                      current={currentMlg} 
-                      prev={previousMlg} 
-                      unit="kg" 
-                      normalRange={`${(minWeight * (isMale ? 0.80 : 0.72)).toFixed(1)} ~ ${(maxWeight * (isMale ? 0.90 : 0.82)).toFixed(1)}`} 
+                    <DiagnosticRow
+                      label="MLG (Massa Livre de Gordura)"
+                      current={currentMlg}
+                      prev={previousMlg}
+                      unit="kg"
+                      normalRange={`${(minWeight * (isMale ? 0.80 : 0.72)).toFixed(1)} ~ ${(maxWeight * (isMale ? 0.90 : 0.82)).toFixed(1)}`}
                     />
                   </div>
                 </div>
@@ -14994,8 +15111,8 @@ const BioimpedanceReport: FC<{
               {/* Right Column: Bonecos de Segmentação (Col-span 5) */}
               <div className="lg:col-span-5 flex flex-col gap-4">
                 {/* Segmented Muscle */}
-                <VisualSegmentedFigure 
-                  title="Massa Magra Segmentada" 
+                <VisualSegmentedFigure
+                  title="Massa Magra Segmentada"
                   sub="Distribuição de Músculo Esquelético"
                   values={{
                     armL: mArmL,
@@ -15014,8 +15131,8 @@ const BioimpedanceReport: FC<{
                 />
 
                 {/* Segmented Fat */}
-                <VisualSegmentedFigure 
-                  title="Gordura Segmentada" 
+                <VisualSegmentedFigure
+                  title="Gordura Segmentada"
                   sub="Percentual de Gordura Localizado"
                   values={{
                     armL: fArmL,
@@ -15092,26 +15209,26 @@ const BioimpedanceReport: FC<{
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{ fill: "#94a3b8", fontSize: 8, fontWeight: 800 }} 
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#94a3b8", fontSize: 8, fontWeight: 800 }}
                       />
-                      <YAxis 
-                        yAxisId="left" 
-                        axisLine={false} 
-                        tickLine={false} 
+                      <YAxis
+                        yAxisId="left"
+                        axisLine={false}
+                        tickLine={false}
                         tick={{ fill: "#334155", fontSize: 8, fontWeight: 800 }}
                       />
-                      <YAxis 
-                        yAxisId="right" 
-                        orientation="right" 
-                        axisLine={false} 
-                        tickLine={false} 
+                      <YAxis
+                        yAxisId="right"
+                        orientation="right"
+                        axisLine={false}
+                        tickLine={false}
                         tick={{ fill: "#ea580c", fontSize: 8, fontWeight: 800 }}
                       />
-                      <Tooltip 
+                      <Tooltip
                         contentStyle={{
                           borderRadius: "12px",
                           border: "1px solid #e2e8f0",
@@ -15120,32 +15237,32 @@ const BioimpedanceReport: FC<{
                         }}
                       />
                       <Legend wrapperStyle={{ fontSize: "9px", fontWeight: 800, paddingTop: "10px" }} />
-                      <Area 
-                        yAxisId="left" 
-                        name="Peso (kg)" 
-                        type="monotone" 
-                        dataKey="weight" 
-                        fill="url(#colorWeight)" 
-                        stroke="#3b82f6" 
-                        strokeWidth={2} 
+                      <Area
+                        yAxisId="left"
+                        name="Peso (kg)"
+                        type="monotone"
+                        dataKey="weight"
+                        fill="url(#colorWeight)"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
                       />
-                      <Line 
-                        yAxisId="left" 
-                        name="Massa Muscular (kg)" 
-                        type="monotone" 
-                        dataKey="muscleMass" 
-                        stroke="#10b981" 
-                        strokeWidth={3} 
-                        dot={{ fill: "#10b981", r: 4 }} 
+                      <Line
+                        yAxisId="left"
+                        name="Massa Muscular (kg)"
+                        type="monotone"
+                        dataKey="muscleMass"
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        dot={{ fill: "#10b981", r: 4 }}
                       />
-                      <Line 
-                        yAxisId="right" 
-                        name="Gordura (%)" 
-                        type="monotone" 
-                        dataKey="fatPercentage" 
-                        stroke="#ea580c" 
-                        strokeWidth={3} 
-                        dot={{ fill: "#ea580c", r: 4 }} 
+                      <Line
+                        yAxisId="right"
+                        name="Gordura (%)"
+                        type="monotone"
+                        dataKey="fatPercentage"
+                        stroke="#ea580c"
+                        strokeWidth={3}
+                        dot={{ fill: "#ea580c", r: 4 }}
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
@@ -15232,10 +15349,10 @@ const BioimpedanceReport: FC<{
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
-              
+
               {/* Column 1: Diagnóstico Fisiológico & Métricas Reais */}
               <div className="space-y-5 overflow-hidden">
-                
+
                 {/* 1. STATUS CORPORAL GERAL */}
                 <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
                   <div className="absolute right-3 bottom-3 opacity-5">
@@ -15260,7 +15377,7 @@ const BioimpedanceReport: FC<{
                   <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
                     Métricas de Tecido & Estrutura
                   </h4>
-                  
+
                   <div className="space-y-2 font-sans text-[9.5px]">
                     <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <span className="font-bold text-slate-600 uppercase">Massa Muscular Total:</span>
@@ -15310,7 +15427,7 @@ const BioimpedanceReport: FC<{
 
               {/* Column 2: Diretrizes & Metas */}
               <div className="space-y-5 flex flex-col justify-between h-full">
-                
+
                 {/* 4. INTERPRETAÇÃO TÉCNICA */}
                 <div id="tech-interpretation-card" className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
                   <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono">
@@ -15321,7 +15438,7 @@ const BioimpedanceReport: FC<{
                       Metabolismo & Tecido Ativo
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-2.5 text-[9.5px] leading-relaxed">
                     <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                       <span className="font-black text-slate-500 uppercase block mb-0.5 text-[7.5px]">Relação Tecidual:</span>
@@ -15348,7 +15465,7 @@ const BioimpedanceReport: FC<{
                       Diretrizes de Intervenção para o Treinador
                     </h4>
                   </div>
-                  
+
                   <div className="space-y-3 font-sans">
                     {bioInterventionDirectives.map((item, idx) => (
                       <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 font-sans font-bold">
@@ -15372,7 +15489,7 @@ const BioimpedanceReport: FC<{
                   <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono">
                     🎯 METAS DE EVOLUÇÃO
                   </span>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-2">
                     <div className="p-2.5 bg-slate-900 rounded-2xl border border-slate-800 text-center">
                       <span className="text-[7px] font-black text-slate-400 uppercase block mb-1">META GORDURA</span>
@@ -16112,7 +16229,7 @@ const PeriodizationConfig: FC<{
     const newAcademy = academyDays.includes(id)
       ? academyDays.filter((d) => d !== id)
       : [...academyDays, id].sort();
-    
+
     const unionDays = Array.from(new Set([...newAcademy, ...courtDays])).sort();
     onChange({ start, end, days: unionDays, academyDays: newAcademy, courtDays });
   };
@@ -16121,7 +16238,7 @@ const PeriodizationConfig: FC<{
     const newCourt = courtDays.includes(id)
       ? courtDays.filter((d) => d !== id)
       : [...courtDays, id].sort();
-    
+
     const unionDays = Array.from(new Set([...academyDays, ...newCourt])).sort();
     onChange({ start, end, days: unionDays, academyDays, courtDays: newCourt });
   };
@@ -16651,7 +16768,7 @@ const AssessmentForm: FC<{
       const details = prev[muscle] || {};
       const updatedDetails = { ...details, [field]: val };
       let updatedRoot = { ...prev, [muscle]: updatedDetails };
-      
+
       // Keep root values in sync when sub-field peakForce is changed
       if (field === "peakForce") {
         if (muscle === "quadricepsDetailsR") updatedRoot.quadricepsR = val;
@@ -16668,7 +16785,7 @@ const AssessmentForm: FC<{
     let finalData = { ...formData, date };
     if (type === "isometricStrength") {
       const athleteWeight = athlete?.weight || 70;
-      
+
       const syncDetails = (detailsKey: "quadricepsDetailsR" | "quadricepsDetailsL" | "hamstringsDetailsR" | "hamstringsDetailsL", peakVal: number) => {
         if (!finalData[detailsKey]) {
           finalData[detailsKey] = {
@@ -16690,7 +16807,7 @@ const AssessmentForm: FC<{
           };
         }
       };
-      
+
       syncDetails("quadricepsDetailsR", finalData.quadricepsR);
       syncDetails("quadricepsDetailsL", finalData.quadricepsL);
       syncDetails("hamstringsDetailsR", finalData.hamstringsR);
@@ -16926,7 +17043,7 @@ const AssessmentForm: FC<{
                 <p className="text-[10px] font-black text-brand-primary uppercase mb-4 tracking-widest italic select-none">
                   ⚡ CURVA FORÇA-TEMPO ELITE (QUADRÍCEPS & ISQUIOTIBIAIS)
                 </p>
-                
+
                 <div className="flex flex-wrap gap-2 mb-4">
                   {[
                     { key: "quadricepsDetailsR", label: "Quadríceps Direito" },
@@ -16994,7 +17111,7 @@ const AssessmentForm: FC<{
                         <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">
                           Tabela de Intervalos de Tempo (@Pico, @100ms, @200ms, @300ms)
                         </p>
-                        
+
                         <div className="overflow-x-auto rounded-lg border border-slate-800 bg-[#060b18]/80">
                           <table className="w-full text-left border-collapse font-sans text-[10px]">
                             <thead>
@@ -17690,8 +17807,8 @@ const WellnessForm: FC<{
                   Total Calculado de Sono
                 </label>
                 <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">
-                  {calculatedSleep 
-                    ? `Resultado das horas de repouso: ${calculatedSleep.formatted}` 
+                  {calculatedSleep
+                    ? `Resultado das horas de repouso: ${calculatedSleep.formatted}`
                     : "Ajuste os horários acima para calcular ou digite o total manualmente."}
                 </p>
               </div>
@@ -17727,8 +17844,8 @@ const WellnessForm: FC<{
 
         {/* DIA DE JOGO & PRONTIDÃO PSICOLÓGICA/EMOCIONAL */}
         <div className={`p-6 rounded-3xl border transition-all space-y-6 ${
-          isMatchDay 
-            ? "bg-amber-500/10 border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)]" 
+          isMatchDay
+            ? "bg-amber-500/10 border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)]"
             : "bg-slate-950 border-slate-800"
         }`}>
           <div className="flex items-center justify-between">
@@ -17744,8 +17861,8 @@ const WellnessForm: FC<{
               type="button"
               onClick={() => setIsMatchDay(!isMatchDay)}
               className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                isMatchDay 
-                  ? "bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]" 
+                isMatchDay
+                  ? "bg-amber-500 text-slate-950 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]"
                   : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
               }`}
             >
@@ -17773,8 +17890,8 @@ const WellnessForm: FC<{
                       type="button"
                       onClick={() => setEmotionalReadiness(v)}
                       className={`h-9 rounded-xl text-[10px] font-black transition-all border flex items-center justify-center ${
-                        emotionalReadiness === v 
-                          ? "bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105" 
+                        emotionalReadiness === v
+                          ? "bg-amber-400 text-slate-950 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105"
                           : "bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-700"
                       }`}
                     >
@@ -17802,8 +17919,8 @@ const WellnessForm: FC<{
                       type="button"
                       onClick={() => setPsychologicalReadiness(v)}
                       className={`h-9 rounded-xl text-[10px] font-black transition-all border flex items-center justify-center ${
-                        psychologicalReadiness === v 
-                          ? "bg-indigo-500 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-105" 
+                        psychologicalReadiness === v
+                          ? "bg-indigo-500 text-white border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.5)] scale-105"
                           : "bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-700"
                       }`}
                     >
@@ -17978,7 +18095,7 @@ const WellnessForm: FC<{
               </svg>
               CICLO MENSTRUAL & SINTOMATOLOGIA
             </h4>
-            
+
             <div className="space-y-3">
               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block px-1">
                 Fase Atual do Ciclo
@@ -17998,7 +18115,7 @@ const WellnessForm: FC<{
                       type="button"
                       onClick={() => setData((prev: any) => ({ ...prev, menstrualPhase: phase.value }))}
                       className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all ${
-                        isSelected 
+                        isSelected
                           ? "bg-[#ec4899] border-[#ec4899] text-white shadow-[0_0_15px_rgba(236,72,153,0.3)] scale-[1.03]"
                           : "bg-slate-950 border-slate-850 text-slate-400 hover:border-slate-700"
                       }`}
@@ -18031,8 +18148,8 @@ const WellnessForm: FC<{
                   "Sem Sintomas"
                 ].map((symptom) => {
                   const symptomsList = data.menstrualSymptoms || [];
-                  const isSelected = symptom === "Sem Sintomas" 
-                    ? symptomsList.length === 0 
+                  const isSelected = symptom === "Sem Sintomas"
+                    ? symptomsList.length === 0
                     : symptomsList.includes(symptom);
                   return (
                     <button
@@ -18052,7 +18169,7 @@ const WellnessForm: FC<{
                         }
                       }}
                       className={`p-2.5 rounded-xl border flex items-center justify-center text-center transition-all text-[9px] font-black uppercase tracking-wider ${
-                        isSelected 
+                        isSelected
                           ? "bg-[#ec4899]/20 border-[#ec4899] text-[#ec4899]"
                           : "bg-slate-950 border-slate-850 text-slate-500 hover:border-slate-700"
                       }`}
@@ -18079,10 +18196,10 @@ const WellnessForm: FC<{
           onClick={() => {
             const rawSleep = typeof data.sleep === 'number' && !isNaN(data.sleep) ? data.sleep : safeParseFloat(data.sleep) || 8;
             const sleepHoursFormatted = data.sleepHoursFormatted || formatSleepHours(rawSleep);
-            onSave({ 
-              ...data, 
-              sleep: rawSleep, 
-              sleepHoursFormatted, 
+            onSave({
+              ...data,
+              sleep: rawSleep,
+              sleepHoursFormatted,
               sleepStartTime,
               wakeUpTime,
               calculatedSleepHours: rawSleep,
@@ -18090,7 +18207,7 @@ const WellnessForm: FC<{
               emotionalReadiness,
               psychologicalReadiness,
               psychologyNotes,
-              date 
+              date
             });
           }}
           className="w-1/2 py-4 uppercase font-black tracking-[0.15em] shadow-[0_0_30px_rgba(57,255,20,0.2)] text-xs"
