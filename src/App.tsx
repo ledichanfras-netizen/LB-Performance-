@@ -358,9 +358,8 @@ const Login: FC<{
   onLogin: (user: UserWithPlan) => void;
   athletes: Athlete[];
   iframeCookieWarning?: boolean;
-}> = ({ onLogin, athletes, iframeCookieWarning }) => {
+}> = ({ onLogin, iframeCookieWarning }) => {
   const navigate = useNavigate();
-  const [roleMode, setRoleMode] = useState<"coach" | "athlete">("coach");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -378,8 +377,7 @@ const Login: FC<{
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           username, 
-          password,
-          preferredRole: roleMode 
+          password
         }),
       });
 
@@ -392,7 +390,7 @@ const Login: FC<{
         const userData = JSON.parse(resText);
         onLogin(userData);
       } else {
-        let errorMsg = "Credenciais inválidas. Verifique seu nome e senha.";
+        let errorMsg = "Credenciais inválidas. Verifique seu login e senha.";
         try {
           const data = JSON.parse(resText);
           errorMsg = data.error || errorMsg;
@@ -452,38 +450,6 @@ const Login: FC<{
           </p>
         </div>
 
-        {/* Toggle Treinador / Aluno */}
-        <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 mb-8 gap-1.5">
-          <button
-            type="button"
-            onClick={() => {
-              setRoleMode("coach");
-              setError("");
-            }}
-            className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              roleMode === "coach"
-                ? "bg-brand-primary text-brand-dark shadow-[0_0_20px_rgba(57,255,20,0.3)]"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-            }`}
-          >
-            Treinador
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setRoleMode("athlete");
-              setError("");
-            }}
-            className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              roleMode === "athlete"
-                ? "bg-brand-primary text-brand-dark shadow-[0_0_20px_rgba(57,255,20,0.3)]"
-                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
-            }`}
-          >
-            Aluno
-          </button>
-        </div>
-
         {iframeCookieWarning && (
           <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200">
             <p className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">
@@ -496,30 +462,9 @@ const Login: FC<{
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
-          {roleMode === "athlete" && athletes && athletes.length > 0 && (
-            <div>
-              <label htmlFor="login-athlete-select" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-2 px-1">
-                Selecione seu nome
-              </label>
-              <select
-                id="login-athlete-select"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="admin-field w-full font-bold relative z-10 bg-slate-900 text-white"
-              >
-                <option value="">-- Escolha seu nome na lista --</option>
-                {athletes.map((a) => (
-                  <option key={a.id} value={a.name}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
           <div>
             <label htmlFor="login-username" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-2 px-1">
-              {roleMode === "coach" ? "Usuário do Treinador" : "Nome ou Usuário do Aluno"}
+              Login / Usuário
             </label>
             <input
               id="login-username"
@@ -532,14 +477,14 @@ const Login: FC<{
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="admin-field w-full font-bold relative z-10"
-              placeholder={roleMode === "coach" ? "Ex: leandro" : "Seu nome completo ou usuário"}
+              placeholder="Digite seu usuário ou nome"
               required
             />
           </div>
 
           <div>
             <label htmlFor="login-password" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-2 px-1">
-              {roleMode === "coach" ? "Senha" : "Senha ou Data de Nascimento"}
+              Senha
             </label>
             <div className="relative">
               <input
@@ -550,7 +495,7 @@ const Login: FC<{
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="admin-field w-full font-bold relative z-10 !pr-16"
-                placeholder={roleMode === "coach" ? "Digite sua senha" : "DDMMAAAA ou senha informada"}
+                placeholder="Digite sua senha"
                 required
               />
               <button
@@ -566,11 +511,6 @@ const Login: FC<{
                 )}
               </button>
             </div>
-            {roleMode === "athlete" && (
-              <p className="text-[9px] text-slate-400 font-bold px-1 mt-2">
-                Dica: Digite sua data de nascimento (ex: 15081998) ou a senha informada pelo seu treinador.
-              </p>
-            )}
           </div>
 
           {error && (
@@ -584,7 +524,7 @@ const Login: FC<{
             disabled={loading}
             className="w-full py-5 shadow-[0_0_30px_rgba(57,255,20,0.2)]"
           >
-            {loading ? "Acessando..." : roleMode === "coach" ? "Entrar como Treinador" : "Entrar como Aluno"}
+            {loading ? "Acessando..." : "Entrar"}
           </Button>
         </form>
 
