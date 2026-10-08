@@ -360,20 +360,27 @@ const Login: FC<{
   iframeCookieWarning?: boolean;
 }> = ({ onLogin, athletes, iframeCookieWarning }) => {
   const navigate = useNavigate();
+  const [roleMode, setRoleMode] = useState<"coach" | "athlete">("coach");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ 
+          username, 
+          password,
+          preferredRole: roleMode 
+        }),
       });
 
       const resText = await response.text();
@@ -413,6 +420,8 @@ const Login: FC<{
       setError(
         `Erro ao conectar com o servidor: ${err.message || "Verifique sua conexão."}`,
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -427,8 +436,8 @@ const Login: FC<{
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md premium-card p-10 md:p-14 relative z-10 border-slate-800/40"
       >
-        <div className="flex flex-col items-center mb-12">
-          <div className="w-24 h-24 rounded-[2rem] bg-slate-900/90 shadow-[0_0_50px_rgba(57,255,20,0.35)] mb-8 flex items-center justify-center border border-brand-primary/30 overflow-hidden">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-24 h-24 rounded-[2rem] bg-slate-900/90 shadow-[0_0_50px_rgba(57,255,20,0.35)] mb-6 flex items-center justify-center border border-brand-primary/30 overflow-hidden">
             <img
               src="/pwa-192x192.svg"
               className="app-logo filter drop-shadow-[0_0_12px_rgba(57,255,20,0.3)]"
@@ -438,9 +447,41 @@ const Login: FC<{
           <h1 className="text-3xl font-black tracking-tighter uppercase italic text-white leading-none">
             Elite <span className="text-brand-primary">Hub</span>
           </h1>
-          <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em] mt-4 neon-text-glow">
+          <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.4em] mt-3 neon-text-glow">
             Performance Monitoring System
           </p>
+        </div>
+
+        {/* Toggle Treinador / Aluno */}
+        <div className="flex bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 mb-8 gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setRoleMode("coach");
+              setError("");
+            }}
+            className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              roleMode === "coach"
+                ? "bg-brand-primary text-brand-dark shadow-[0_0_20px_rgba(57,255,20,0.3)]"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+            }`}
+          >
+            Treinador
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setRoleMode("athlete");
+              setError("");
+            }}
+            className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              roleMode === "athlete"
+                ? "bg-brand-primary text-brand-dark shadow-[0_0_20px_rgba(57,255,20,0.3)]"
+                : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+            }`}
+          >
+            Aluno
+          </button>
         </div>
 
         {iframeCookieWarning && (
@@ -454,10 +495,31 @@ const Login: FC<{
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-8">
+        <form onSubmit={handleLogin} className="space-y-6">
+          {roleMode === "athlete" && athletes && athletes.length > 0 && (
+            <div>
+              <label htmlFor="login-athlete-select" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-2 px-1">
+                Selecione seu nome
+              </label>
+              <select
+                id="login-athlete-select"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="admin-field w-full font-bold relative z-10 bg-slate-900 text-white"
+              >
+                <option value="">-- Escolha seu nome na lista --</option>
+                {athletes.map((a) => (
+                  <option key={a.id} value={a.name}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
-            <label htmlFor="login-username" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-3 px-1">
-              Usuário de acesso
+            <label htmlFor="login-username" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-2 px-1">
+              {roleMode === "coach" ? "Usuário do Treinador" : "Nome ou Usuário do Aluno"}
             </label>
             <input
               id="login-username"
@@ -470,13 +532,14 @@ const Login: FC<{
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="admin-field w-full font-bold relative z-10"
-              placeholder="Usuário informado no convite"
+              placeholder={roleMode === "coach" ? "Ex: leandro" : "Seu nome completo ou usuário"}
               required
             />
           </div>
+
           <div>
-            <label htmlFor="login-password" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-3 px-1">
-              Senha
+            <label htmlFor="login-password" className="block text-[10px] font-black text-slate-200 uppercase tracking-widest mb-2 px-1">
+              {roleMode === "coach" ? "Senha" : "Senha ou Data de Nascimento"}
             </label>
             <div className="relative">
               <input
@@ -487,7 +550,7 @@ const Login: FC<{
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="admin-field w-full font-bold relative z-10 !pr-16"
-                placeholder="Digite sua senha"
+                placeholder={roleMode === "coach" ? "Digite sua senha" : "DDMMAAAA ou senha informada"}
                 required
               />
               <button
@@ -503,6 +566,11 @@ const Login: FC<{
                 )}
               </button>
             </div>
+            {roleMode === "athlete" && (
+              <p className="text-[9px] text-slate-400 font-bold px-1 mt-2">
+                Dica: Digite sua data de nascimento (ex: 15081998) ou a senha informada pelo seu treinador.
+              </p>
+            )}
           </div>
 
           {error && (
@@ -513,37 +581,11 @@ const Login: FC<{
 
           <Button
             type="submit"
+            disabled={loading}
             className="w-full py-5 shadow-[0_0_30px_rgba(57,255,20,0.2)]"
           >
-            Entrar no aplicativo
+            {loading ? "Acessando..." : roleMode === "coach" ? "Entrar como Treinador" : "Entrar como Aluno"}
           </Button>
-
-          <div className="relative my-2 flex items-center justify-center">
-            <div className="border-t border-slate-800 w-full"></div>
-            <span className="bg-[#0b101d] px-3 text-[9px] font-black uppercase text-slate-500 tracking-widest absolute">ou</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={async () => {
-              setUsername("leandro");
-              setPassword("techno10");
-              try {
-                const res = await fetch("/api/auth/login", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ username: "leandro", password: "techno10" }),
-                });
-                if (res.ok) {
-                  const data = await res.json();
-                  onLogin(data);
-                }
-              } catch (e) {}
-            }}
-            className="w-full py-3.5 px-4 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 font-black rounded-2xl text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
-          >
-            ⚡ Acesso Direto Treinador (PRO)
-          </button>
         </form>
 
         <div className="mt-8 text-center flex flex-col gap-4">
