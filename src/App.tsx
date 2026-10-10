@@ -696,6 +696,12 @@ const EliteHubApp: FC<{
   const handleLoginSuccess = (userData: UserWithPlan) => {
     setUser(userData);
     safeLocalStorage.setItem("lb_user", JSON.stringify(userData));
+    if (userData.role === "coach") {
+      setSelectedId(null);
+      setActiveTab("dash");
+      setDashboardSubTab("pro");
+      setDashboardFilter("all");
+    }
     toast.success(
       `Bem-vindo, ${userData.role === "coach" ? "Treinador" : "Atleta"}!`,
     );
@@ -1327,13 +1333,12 @@ const EliteHubApp: FC<{
       const found = athletes.find((a) => a.id === selectedId);
       if (found) return found;
     }
-    return athletes.length > 0 ? athletes[0] : undefined;
-  }, [athletes, selectedId, user]);
-
-  useEffect(() => {
-    if (athletes.length > 0 && !selectedId && user?.role === "coach") {
-      setSelectedId(athletes[0].id);
+    // Para o Treinador: quando nenhum atleta está selecionado (selectedId === null),
+    // deve retornar undefined para exibir o Dashboard Geral (com métricas, treinos do dia e lista de atletas)
+    if (user?.role === "coach") {
+      return undefined;
     }
+    return athletes.length > 0 ? athletes[0] : undefined;
   }, [athletes, selectedId, user]);
 
   const handleGenerateAIModeling = async (skipConfirm = false) => {
@@ -1583,6 +1588,9 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
+                  if (!selectedId && athletes.length > 0) {
+                    setSelectedId(athletes[0].id);
+                  }
                   setActiveTab("assessment");
                   setAiModelingResult(null);
                 }}
@@ -1600,6 +1608,9 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
+                  if (!selectedId && athletes.length > 0) {
+                    setSelectedId(athletes[0].id);
+                  }
                   setActiveTab("training");
                   setAiModelingResult(null);
                 }}
@@ -1617,6 +1628,9 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
+                  if (!selectedId && athletes.length > 0) {
+                    setSelectedId(athletes[0].id);
+                  }
                   setActiveTab("dash");
                   setDashboardSubTab("elite-monitoring");
                   setAiModelingResult(null);
@@ -1635,6 +1649,9 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
+                  if (!selectedId && athletes.length > 0) {
+                    setSelectedId(athletes[0].id);
+                  }
                   setActiveTab("dash");
                   setDashboardSubTab("classic");
                   setAiModelingResult(null);
@@ -1893,6 +1910,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("assessment");
                     setAiModelingResult(null);
                   }}
@@ -1910,6 +1930,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("training");
                     setAiModelingResult(null);
                   }}
@@ -1927,6 +1950,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("dash");
                     setDashboardSubTab("elite-monitoring");
                     setAiModelingResult(null);
@@ -1945,6 +1971,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("dash");
                     setDashboardSubTab("classic");
                     setAiModelingResult(null);
@@ -1964,6 +1993,9 @@ const EliteHubApp: FC<{
                   <button
                     onClick={() => {
                       setIsAiChatOpen(false);
+                      if (!selectedId && athletes.length > 0) {
+                        setSelectedId(athletes[0].id);
+                      }
                       setActiveTab("dash");
                       setDashboardSubTab("decision-matrix");
                       setAiModelingResult(null);
@@ -1983,6 +2015,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("dash");
                     setDashboardSubTab("nutrition");
                     setAiModelingResult(null);
@@ -2001,6 +2036,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("injuries");
                     setAiModelingResult(null);
                   }}
@@ -2023,6 +2061,9 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("competitions");
                     setAiModelingResult(null);
                   }}
@@ -2040,6 +2081,9 @@ const EliteHubApp: FC<{
                 <AiOnly><button
                   onClick={() => {
                     setIsAiChatOpen(false);
+                    if (!selectedId && athletes.length > 0) {
+                      setSelectedId(athletes[0].id);
+                    }
                     setActiveTab("ai-modeling");
                   }}
                   className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
