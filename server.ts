@@ -1,3 +1,4 @@
+import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, syncRevision, archiveMissingWorkoutsSQL } from './server/workoutSync';
 import { normalizeBirthDate } from './src/utils/birthDate';
 import { createSaveBatch } from './server/saveBatch';
 import { exerciseMetadata } from "./server/exerciseMetadata";
@@ -986,6 +987,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
           const parsedFields = parseBackupAthleteFields(a);
           return {
             ...a,
+            syncRevision: syncRevision(a.updated_at),
             photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
             gender: a.gender || 'M',
             weeklyFrequency: a.weekly_frequency,
@@ -1026,7 +1028,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
               ...es,
               durationMinutes: es.duration_minutes
             })),
-            workouts: (a.workouts || []).map((wk: any) => ({
+            workouts: (a.workouts || []).filter((wk: any) => !wk.archived_at).map((wk: any) => ({
               ...wk,
               date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
               durationMinutes: wk.duration_minutes,
@@ -1232,7 +1234,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     const setsByEx = groupById(performedSetsRes.rows, 'exercise_id');
     const exByWorkout = groupById(exercisesRes.rows, 'workout_id');
     const wellnessByAth = groupById(wellnessRes.rows);
-    const workoutsByAth = groupById(workoutsRes.rows);
+    const workoutsByAth = groupById(workoutsRes.rows.filter((w:any) => !w.archived_at));
     const strengthByAth = groupById(strengthRes.rows);
     const cmjByAth = groupById(cmjRes.rows);
     const vo2ByAth = groupById(vo2Res.rows);
@@ -1249,6 +1251,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         name: a.name,
         photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
         dob: normalizeBirthDate(a.dob),
+            syncRevision: syncRevision(a.updated_at),
         gender: a.gender || 'M',
         modality: a.modality,
         competitiveLevel: a.competitive_level,
@@ -1470,12 +1473,10 @@ apiRouter.post('/backup/import', authMiddleware, async (req, res) => {
 
 apiRouter.post('/salvar', authMiddleware, async (req, res) => {
   const athletes = req.body;
-  if (Array.isArray(athletes) && athletes.length > 0) {
-    await setCachedAthletes(athletes);
-  }
+
   if ((req as any).account?.role === 'athlete') {
     try {return res.json(await saveStudentData(pool,(req as any).account,athletes));}
-    catch (error:any) {console.error('[StudentSave]',error.code || error.name);return res.status(error instanceof ScopeDenied?403:503).json({error:error instanceof ScopeDenied?'Este registro não pertence ao aluno.':'Não foi possível salvar agora. Seus registros permanecem no dispositivo; tente sincronizar novamente.'});}
+    catch (error:any) {if(error instanceof SyncConflict)return res.status(409).json({error:error.message,code:'SYNC_CONFLICT'});console.error('[StudentSave]',error.code || error.name);return res.status(error instanceof ScopeDenied?403:503).json({error:error instanceof ScopeDenied?'Este registro não pertence ao aluno.':'Não foi possível salvar agora. Seus registros permanecem no dispositivo; tente sincronizar novamente.'});}
   }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
@@ -1673,20 +1674,14 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
         // Upsert Workouts
         const incomingWkIds = (athlete.workouts || []).map((wk: any) => wk.id).filter((id: any) => id);
-        const { data: existingWks } = await supabase.from('workouts').select('id').eq('athlete_id', athlete.id);
-        const toDeleteWkIds = (existingWks || []).filter(w => !incomingWkIds.includes(w.id)).map(w => w.id);
-        if (toDeleteWkIds.length > 0) {
-          for (const idToDelete of toDeleteWkIds) {
-            const { data: exercises } = await supabase.from('prescribed_exercises').select('id').eq('workout_id', idToDelete);
-            if (exercises && exercises.length > 0) {
-              const { error: setDelErr } = await supabase.from('performed_sets').delete().in('exercise_id', exercises.map(e => e.id));
-              if (setDelErr) throw setDelErr;
-              const { error: exDelErr } = await supabase.from('prescribed_exercises').delete().eq('workout_id', idToDelete);
-              if (exDelErr) throw exDelErr;
-            }
-            const { error: wkDelErr } = await supabase.from('workouts').delete().eq('id', idToDelete);
-            if (wkDelErr) throw wkDelErr;
-          }
+        const { data: existingWks, error: existingWkError } = await supabase.from('workouts').select('id,archived_at').eq('athlete_id', athlete.id);
+        if (existingWkError) throw existingWkError;
+        const archivedIds = new Set((existingWks || []).filter(w=>w.archived_at).map(w=>w.id));
+        athlete.workouts = (athlete.workouts || []).filter((w:any)=>!archivedIds.has(w.id));
+        const toDeleteWkIds = (existingWks || []).filter(w=>!w.archived_at && !incomingWkIds.includes(w.id)).map(w=>w.id);
+        if (toDeleteWkIds.length) {
+          const {error} = await supabase.from('workouts').update({archived_at:new Date().toISOString()}).eq('athlete_id',athlete.id).in('id',toDeleteWkIds);
+          if (error) throw error;
         }
 
         if (athlete.workouts?.length > 0) {
@@ -1992,6 +1987,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
     await client.query('BEGIN');
     await client.query("SET LOCAL statement_timeout = '30s'; SET LOCAL lock_timeout = '10s'; SET LOCAL idle_in_transaction_session_timeout = '15s'");
     if ((req as any).account) await validateScopedSave(client,(req as any).account,athletes);
+    await lockAthleteSnapshots(client, athletes);
     const writes = createSaveBatch(client);
     for (const athlete of athletes) {
       console.log(`Salvando atleta: ${athlete.name} (${athlete.id})`);
@@ -2079,19 +2075,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       console.log(`Salvando treinos para ${athlete.name}...`);
       const incomingWorkoutIds = (athlete.workouts || []).map((wk: any) => wk.id).filter((id: any) => id);
       
-      // DEEP SYNC WORKOUTS: Delete workouts that are NO LONGER in the incoming list for this athlete
-      if (incomingWorkoutIds.length > 0) {
-        // Delete prescribed_exercises and performed_sets first (though CASCADE should handle it, we do it for safety)
-        const wkPlaceholders = incomingWorkoutIds.map((_, idx) => `$${idx + 2}`).join(', ');
-        await writes.query(`DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders})))`, [athlete.id, ...incomingWorkoutIds]);
-        await writes.query(`DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders}))`, [athlete.id, ...incomingWorkoutIds]);
-        await writes.query(`DELETE FROM workouts WHERE athlete_id = $1 AND id NOT IN (${wkPlaceholders})`, [athlete.id, ...incomingWorkoutIds]);
-      } else {
-        // If athlete now has ZERO workouts, delete all existing ones
-        await writes.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))', [athlete.id]);
-        await writes.query('DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)', [athlete.id]);
-        await writes.query('DELETE FROM workouts WHERE athlete_id = $1', [athlete.id]);
-      }
+      // Archive omitted workouts instead of deleting their prescription/history.
+      await writes.query(archiveMissingWorkoutsSQL, [athlete.id,JSON.stringify(incomingWorkoutIds)]);
 
       for (const wk of (athlete.workouts || [])) {
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
@@ -2235,9 +2220,11 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
     await writes.flush();
     if ((req as any).account) await attachSavedAthletes(client,(req as any).account,athletes);
+    const syncRevisions = await readSavedRevisions(client, athletes);
     await client.query('COMMIT');
     console.log('Dados salvos com sucesso!');
-    res.json({ message: 'Dados sincronizados com sucesso!' });
+    await setCachedAthletes(athletes.map((a:any)=>({...a,syncRevision:syncRevisions[a.id]}))).catch(e=>console.warn('[Cache]',e.message));
+    res.json({ message: 'Dados sincronizados com sucesso!', syncRevisions });
   } catch (error: any) {
     discardClient = true;
     console.error("[ScopedSave]",error.code || error.message);
@@ -2248,6 +2235,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
         console.error('Erro ao executar ROLLBACK:', rollError.message);
       }
     }
+    if (error instanceof SyncConflict) return res.status(409).json({error:error.message,code:'SYNC_CONFLICT'});
     if ((req as any).account) return res.status(error instanceof ScopeDenied ? 403 : 503).json({error:'Não foi possível salvar os dados autorizados.'});
     console.error('Erro ao salvar dados no banco Postgres (Acionando fallback automático para Supabase Proxy):', error);
     
@@ -2315,15 +2303,13 @@ apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
       await removeWorkoutFromCache(id);
       return res.json(resData);
     } catch (e: any) {
-      console.warn('[API] Falha em scopedDelete treino (procedendo via cache):', e?.message);
+      return res.status(e instanceof ScopeDenied ? 403 : 503).json({error:'Não foi possível remover o treino.'});
     }
   }
 
   if (isDbConnected) {
     try {
-      await pool.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id = $1)', [id]);
-      await pool.query('DELETE FROM prescribed_exercises WHERE workout_id = $1', [id]);
-      await pool.query('DELETE FROM workouts WHERE id = $1', [id]);
+      await pool.query('UPDATE workouts SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
     } catch (dbErr: any) {
       console.warn('[API] Falha ao deletar treino do banco:', dbErr?.message);
     }
@@ -3397,6 +3383,7 @@ async function runSetup(retries = 1) {
         video_url TEXT,
         image_url TEXT
     );`);
+    await client.query('ALTER TABLE workouts ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ');
     await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS prescription_meta JSONB NOT NULL DEFAULT '{}'::jsonb;`);
     await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS rest VARCHAR(50);`);
     await client.query(`ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS notes TEXT;`);

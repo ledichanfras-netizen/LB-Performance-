@@ -25,11 +25,10 @@ export async function scopedDelete(pool:Pool,account:AccountScope,type:string,id
     WHERE t.id=$1 AND s.organization_id=$2 AND ($3::text='coach' OR ($3::text='athlete' AND t.athlete_id=$4 AND $5::text IN ('wellness','sessions')))
     FOR UPDATE OF t`,[id,account.organization_id,account.role,account.athlete_id || null,type]);
   if(!row.rows.length) throw new ScopeDenied('Registro indisponível.');
-  if(type==='workouts'){
-   await c.query('DELETE FROM public.performed_sets WHERE exercise_id IN (SELECT id FROM public.prescribed_exercises WHERE workout_id=$1)',[id]);
-   await c.query('DELETE FROM public.prescribed_exercises WHERE workout_id=$1',[id]);
-  }
-  await c.query(`DELETE FROM public.${table} WHERE id=$1`,[id]);
+  if(type==='workouts') {
+   await c.query('UPDATE public.workouts SET archived_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1',[id]);
+   await c.query('UPDATE public.athletes SET updated_at=CURRENT_TIMESTAMP WHERE id=$1',[row.rows[0].athlete_id]);
+  } else await c.query(`DELETE FROM public.${table} WHERE id=$1`,[id]);
   await c.query('COMMIT');return {deleted:true};
  }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
 }

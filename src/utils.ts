@@ -2352,7 +2352,8 @@ export function mergeArrayById<T extends { id: string; date?: string; updatedAt?
 
 export function mergeAthletesWithLocalCache(
   localAthletes: Athlete[] = [],
-  remoteAthletes: Athlete[] = []
+  remoteAthletes: Athlete[] = [],
+  options: { authoritativeWorkouts?: boolean } = {}
 ): Athlete[] {
   const deletedIds = getDeletedItemIds();
   const mergedMap = new Map<string, Athlete>();
@@ -2377,7 +2378,7 @@ export function mergeAthletesWithLocalCache(
       const mergedWellness = mergeArrayById(lAth.wellness || [], rAth.wellness || [], deletedIds)
         .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date));
 
-      const mergedWorkouts = mergeArrayById(lAth.workouts || [], rAth.workouts || [], deletedIds)
+      const mergedWorkouts = (options.authoritativeWorkouts ? (rAth.workouts || []) : mergeArrayById(lAth.workouts || [], rAth.workouts || [], deletedIds))
         .map(w => {
           const exs = Array.isArray(w.exercises) ? [...w.exercises] : [];
           return { ...w, exercises: orderedExercises(exs) };

@@ -225,6 +225,24 @@ export const useAthletes = (token?: string | null) => {
     }
   }, [athletes, cacheKey]);
 
+  const updateUnsavedDrafts = (saved: Athlete[], failed: boolean) => {
+    const key = `${cacheKey}:unsaved`;
+    let drafts: Athlete[] = [];
+    try { drafts = JSON.parse(safeLocalStorage.getItem(key) || '[]'); } catch {}
+    const ids = new Set(saved.map(a=>a.id));
+    drafts = drafts.filter(a=>!ids.has(a.id));
+    if (failed) drafts.push(...saved);
+    if (drafts.length) safeLocalStorage.setItem(key, JSON.stringify(drafts)); else safeLocalStorage.removeItem(key);
+  };
+
+  const acceptSaveReceipt = async (res: Response, saved: Athlete[]) => {
+    const receipt = await res.json();
+    if (receipt.syncRevisions) {
+      for (const a of saved) if (receipt.syncRevisions[a.id]) a.syncRevision=receipt.syncRevisions[a.id];
+      setAthletes(prev=>prev.map(a=>receipt.syncRevisions[a.id] ? {...a,syncRevision:receipt.syncRevisions[a.id]} : a));
+    }
+  };
+
   const api = {
     async loadAthletes(isSilent = false): Promise<Athlete[]> {
       const timeoutPromise = new Promise<Athlete[]>((_, reject) => 
@@ -317,7 +335,7 @@ export const useAthletes = (token?: string | null) => {
           if (!res.ok) {
             if (res.status === 401) {
               window.dispatchEvent(new Event('lb:session-invalid'));
-              return;
+              throw new Error('Sessão expirada. Entre novamente para salvar.');
             }
             const errText = await res.text();
             let errorMsg = errText;
@@ -327,6 +345,7 @@ export const useAthletes = (token?: string | null) => {
             } catch (e) {}
             throw new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
           }
+          await acceptSaveReceipt(res, athletes);
           return;
         }
         await supabaseService.saveAthletes(athletes);
@@ -355,7 +374,7 @@ export const useAthletes = (token?: string | null) => {
           if (!res.ok) {
             if (res.status === 401) {
               window.dispatchEvent(new Event('lb:session-invalid'));
-              return;
+              throw new Error('Sessão expirada. Entre novamente para salvar.');
             }
             const errText = await res.text();
             let errorMsg = errText;
@@ -365,6 +384,7 @@ export const useAthletes = (token?: string | null) => {
             } catch (e) {}
             throw new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
           }
+          await acceptSaveReceipt(res, [athlete]);
           return;
         }
         console.log(`[Hooks] Salvando atleta ${athlete.id} no Supabase...`);
@@ -454,7 +474,7 @@ export const useAthletes = (token?: string | null) => {
         })();
 
         // Merge remote response safely with local cache/state
-        const mergedAthletes = mergeAthletesWithLocalCache(localCachedAthletes, filtered);
+        const mergedAthletes = mergeAthletesWithLocalCache(localCachedAthletes, filtered, {authoritativeWorkouts:true});
 
         // Detect if new workouts or wellness items arrived from another device during silent background sync
         if (isSilent && athletesRef.current.length > 0) {
@@ -474,10 +494,7 @@ export const useAthletes = (token?: string | null) => {
         console.log('Dados dos atletas atualizados, mesclados e cacheados.');
         lastSyncTimeRef.current = Date.now();
 
-        // If local had new items not yet on the server, sync back to database
-        if (mergedAthletes.length > filtered.length) {
-          api.saveAthletes(mergedAthletes).catch(e => console.warn('[Sync] Background sync back to DB:', e));
-        }
+
       }
     } catch (err: any) {
       if (!token && isPermissionDeniedError(err)) {
@@ -538,11 +555,11 @@ export const useAthletes = (token?: string | null) => {
     const hasInitialData = athletesRef.current.length > 0;
     syncData(hasInitialData);
 
-    // Auto-sync when page recovers focus, online connection, visibility change, or page show (with 5-min throttle)
+    // Refresh on device return without continuously polling an inactive app.
     const handleRefocusOrOnline = () => {
       const now = Date.now();
-      // Throttle window refocus sync to at most once every 5 minutes (300,000 ms) to prevent excessive bandwidth consumption
-      const MIN_REFOCUS_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+      // Coalesce focus/pageshow/visibility events while keeping device returns fresh.
+      const MIN_REFOCUS_SYNC_INTERVAL_MS = 30 * 1000;
       if (now - lastSyncTimeRef.current > MIN_REFOCUS_SYNC_INTERVAL_MS && navigator.onLine && document.visibilityState === 'visible' && !syncingRef.current) {
         console.log('[Auto-Sync] Janela ativa e online após inatividade. Sincronizando dados em background...');
         lastSyncTimeRef.current = now;
@@ -644,6 +661,7 @@ export const useAthletes = (token?: string | null) => {
   }, [token]);
 
   const save = async (newAthletes: Athlete[], specificAthleteId?: string) => {
+    let syncConflict = false;
     saveRevisionRef.current += 1;
     pendingSavesRef.current += 1;
     // Immediate local state and cache update for maximum responsiveness
@@ -662,6 +680,7 @@ export const useAthletes = (token?: string | null) => {
       } else {
         await api.saveAthletes(newAthletes);
       }
+      updateUnsavedDrafts(specificAthleteId ? newAthletes.filter(a=>a.id===specificAthleteId) : newAthletes, false);
       setLastSyncedAt(new Date());
       try {
         if (typeof BroadcastChannel !== 'undefined') {
@@ -673,6 +692,8 @@ export const useAthletes = (token?: string | null) => {
       console.log("Sincronização concluída com sucesso.");
       return true;
     } catch (e: any) {
+      syncConflict = String(e?.message || '').includes('outro dispositivo');
+      updateUnsavedDrafts(specificAthleteId ? newAthletes.filter(a=>a.id===specificAthleteId) : newAthletes, true);
       logError("Erro na sincronização:", e);
       const detail = e?.detail || e?.response?.data?.detail || '';
       const message = e?.message || String(e);
@@ -681,6 +702,7 @@ export const useAthletes = (token?: string | null) => {
     } finally {
       pendingSavesRef.current -= 1;
       setSyncing(pendingSavesRef.current > 0);
+      if (syncConflict && pendingSavesRef.current === 0) await syncDataRef.current(true);
     }
   };
 
@@ -1519,7 +1541,7 @@ export const useAthletes = (token?: string | null) => {
         });
 
         setAthletes(updated);
-        await save(updated, athlete.id);
+        if (!await save(updated, athlete.id)) {toast.error('Periodização ainda não salva. Verifique a sincronização antes de continuar.', {id:toastId});return [];}
         toast.success(`IA Co-Pilot: Periodização com ${formattedWorkouts.length} treinos gerada com sucesso!`, { id: toastId });
         return formattedWorkouts;
       } else {

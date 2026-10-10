@@ -119,6 +119,7 @@ export interface MatchEvent {
 }
 
 export interface Athlete {
+  syncRevision?: string;
   id: string;
   name: string;
   dob: string;

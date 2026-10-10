@@ -1,3 +1,4 @@
+import { lockAthleteSnapshots, readSavedRevisions } from './workoutSync';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { AccountScope, ScopeDenied } from './scope';
@@ -8,6 +9,7 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
  const athlete=payload[0];const c=await pool.connect();let discardClient=false;
  try{await c.query('BEGIN');
  const scope=await c.query('SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE athlete_id=$1 AND organization_id=$2 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id) FOR UPDATE',[account.athlete_id,account.organization_id]);if(!scope.rows.length)throw new ScopeDenied();
+ await lockAthleteSnapshots(c,[athlete]);
  const upsert=async(table:'wellness'|'external_sessions',item:any,fields:Record<string,string>)=>{
   if(!item || typeof item!=='object' || (item.id!==undefined && (typeof item.id!=='string' || !item.id || item.id.length>200)))throw new ScopeDenied();
   const id=item.id || randomUUID();const columns=['id','athlete_id'];const values:any[]=[id,account.athlete_id];
@@ -52,6 +54,8 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
    }
   }
  }
- await c.query('COMMIT');return {message:'Prontidão, sessões e execução sincronizadas. Prescrição preservada.'};
+ await c.query('UPDATE athletes SET updated_at=CURRENT_TIMESTAMP WHERE id=$1',[athlete.id]);
+ const syncRevisions=await readSavedRevisions(c,[athlete]);
+ await c.query('COMMIT');return {syncRevisions,message:'Prontidão, sessões e execução sincronizadas. Prescrição preservada.'};
  }catch(e){discardClient=true;try{await c.query('ROLLBACK');}catch{}throw e;}finally{c.release(discardClient);}
 }

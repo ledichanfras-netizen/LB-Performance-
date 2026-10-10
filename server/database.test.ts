@@ -165,7 +165,8 @@ test('student writes execution without changing prescription or another athlete'
  try{await db.exec(`CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
  CREATE TABLE wellness(id text PRIMARY KEY,athlete_id text,date text,fatigue integer,sleep integer,stress integer,soreness integer,mood integer);
  CREATE TABLE external_sessions(id text PRIMARY KEY,athlete_id text,date text);
- CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,name text,status text,rpe real,duration_minutes real,total_load real,feedback text);
+ CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz DEFAULT CURRENT_TIMESTAMP);INSERT INTO athletes(id) VALUES('a'),('b');
+ CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,name text,status text,rpe real,duration_minutes real,total_load real,feedback text,archived_at timestamptz);
  CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,weight real);
  CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);
  INSERT INTO lb_accounts.athlete_scopes VALUES('a','org1'),('b','org2');
@@ -346,12 +347,13 @@ test('commercial editing archives plans and voids payments with persisted audit'
   assert.equal((await post(`entries/${e}/date`,{date:'2026-02-31',reason:'Data impossível'})).status,400);
   assert.equal((await db.query('SELECT effective_on::text FROM lb_billing.entries')).rows[0].effective_on,'2026-09-25');
   assert.equal((await db.query('SELECT registered_on::text FROM lb_billing.subscriptions')).rows[0].registered_on,'2026-09-20');
+  const expiryBeforeArchive=(await db.query('SELECT valid_until FROM lb_billing.subscriptions')).rows[0].valid_until.toISOString();
   assert.equal((await post(`entries/${e}/remove`,{reason:'Duplicado'})).status,200);
   assert.equal((await post(`entries/${e}/edit`,{amountCents:1,method:'pix',reason:'Teste'})).status,400);
   assert.equal((await post(`plans/${p}/remove`,{reason:'Encerrado'})).status,200);
   assert.equal((await db.query('SELECT * FROM lb_billing.entries')).rows.length,1);
   assert.equal((await db.query('SELECT archived,resources FROM lb_billing.plans')).rows[0].archived,true);
-  assert.equal((await db.query('SELECT valid_until FROM lb_billing.subscriptions')).rows[0].valid_until.toISOString().slice(0,10),'2027-01-01');
+  assert.equal((await db.query('SELECT valid_until FROM lb_billing.subscriptions')).rows[0].valid_until.toISOString(),expiryBeforeArchive);
   assert.equal((await db.query('SELECT * FROM lb_billing.management_audit')).rows.length,6);
   await db.exec('SET ROLE anon');await assert.rejects(()=>db.query('SELECT * FROM lb_billing.management_audit'));
  }finally{if(server)await new Promise<void>(r=>server.close(()=>r()));await db.close();}

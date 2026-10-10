@@ -5,7 +5,7 @@ export function createSaveBatch(client: {query: (sql: string) => Promise<any>}) 
   const statements: string[] = [];
   return {
     async query(sql: string, values: unknown[] = []) {
-      if (!/^(INSERT|DELETE)\b/i.test(sql.trim())) throw new Error('Unsupported save statement');
+      if (!/^(INSERT|DELETE|UPDATE)\b/i.test(sql.trim())) throw new Error('Unsupported save statement');
       statements.push(sql.replace(/\$(\d+)\b/g, (_, index) => {
         if (Number(index) > values.length) throw new Error('Missing save parameter');
         const value = values[Number(index) - 1];

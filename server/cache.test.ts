@@ -87,3 +87,44 @@ test('student instructions distinguish individual shots, pyramid rounds and opti
  assert.ok(summary.indexOf('Bloco 2')<summary.indexOf('Desaquecimento'));
  assert.doesNotMatch(summary,/Bloco 3/);
 });
+
+test('tablet cache cannot restore workouts replaced on the phone after an authoritative read',async()=>{
+ const {mergeAthletesWithLocalCache}=await import('../src/utils');
+ const completed={id:'done',date:'2026-09-01',status:'completed',exercises:[{id:'history'}]};
+ const old={id:'old',date:'2026-08-01',status:'planned',exercises:[]};
+ const fresh={id:'new',date:'2026-10-09',status:'planned',exercises:[{id:'new-ex'}]};
+ const tablet:any={id:'a',workouts:[completed,old],assessments:{},wellness:[]};
+ const phone:any={...tablet,workouts:[completed,fresh],syncRevision:'2026-10-09T19:53:13Z'};
+ const synced=mergeAthletesWithLocalCache([tablet],[phone],{authoritativeWorkouts:true});
+ assert.deepEqual(new Set(synced[0].workouts.map(w=>w.id)),new Set(['done','new']));
+ assert.equal(synced[0].workouts.find(w=>w.id==='done')?.exercises[0].id,'history');
+ const reload=mergeAthletesWithLocalCache(synced,[phone],{authoritativeWorkouts:true});
+ assert.equal(reload[0].workouts.some(w=>w.id==='old'),false);
+});
+
+test('replacement archives old prescriptions, retains completed history, and rejects stale snapshots',async()=>{
+ const {lockAthleteSnapshots,readSavedRevisions,SyncConflict,archiveMissingWorkoutsSQL}=await import('./workoutSync');
+ const db=new PGlite();
+ try{
+  await db.exec(`CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz);CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,status text,updated_at timestamptz);CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text);CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text);INSERT INTO athletes VALUES('a','2026-10-09 12:00:00Z'),('b','2026-10-09 12:00:00Z');INSERT INTO workouts VALUES('old','a','planned',now()),('done','a','completed',now()),('foreign','b','planned',now());INSERT INTO prescribed_exercises VALUES('ex','old');INSERT INTO performed_sets VALUES('set','ex');`);
+  const schema=await readFile(new URL('./workout-sync-schema.sql',import.meta.url),'utf8');await db.exec(schema);await db.exec(schema);
+  const client={query:(sql:string,args:any[])=>db.query(sql,args)};
+  const current:any={id:'a',syncRevision:'2026-10-09T12:00:00.000Z',workouts:[{id:'done'},{id:'new'}]};
+  await db.exec('BEGIN');await lockAthleteSnapshots(client,[current]);
+  const {createSaveBatch}=await import('./saveBatch');
+  const writes=createSaveBatch({query:sql=>db.exec(sql)});
+  await writes.query(archiveMissingWorkoutsSQL,['a',JSON.stringify(['done','new'])]);await writes.flush();
+  await db.exec("INSERT INTO workouts(id,athlete_id,status) VALUES('new','a','planned');UPDATE athletes SET updated_at='2026-10-09 13:00:00Z' WHERE id='a';COMMIT");
+  const rows=(await db.query('SELECT id FROM workouts WHERE athlete_id=$1 AND archived_at IS NULL',['a'])).rows;
+  assert.deepEqual(new Set(rows.map(r=>r.id)),new Set(['done','new']));
+  assert.equal((await db.query('SELECT count(*) as count FROM performed_sets')).rows[0].count,1);
+  assert.equal((await db.query("SELECT archived_at FROM workouts WHERE id='foreign'")).rows[0].archived_at,null);
+  await assert.rejects(()=>lockAthleteSnapshots(client,[current]),SyncConflict);
+  const legacy:any={id:'a',workouts:[{id:'old'},{id:'done'},{id:'new'}]};await lockAthleteSnapshots(client,[legacy]);
+  assert.equal(legacy.workouts.some((w:any)=>w.id==='old'),false);
+  assert.equal((await readSavedRevisions(client,[current])).a,'2026-10-09T13:00:00.000Z');
+  // Recovery only unarchives the original row: exercises and sets have not been lost.
+  await db.exec("UPDATE workouts SET archived_at=NULL WHERE id='old'");
+  assert.equal((await db.query("SELECT count(*) AS count FROM workouts WHERE id='old' AND archived_at IS NULL")).rows[0].count,1);
+ }finally{await db.close();}
+});

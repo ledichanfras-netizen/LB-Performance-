@@ -1,3 +1,4 @@
+import { syncRevision } from '../../server/workoutSync';
 import { exerciseMetadata } from "../../server/exerciseMetadata";
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -368,6 +369,7 @@ export const supabaseService = {
 
         return {
           id: a.id,
+          syncRevision: syncRevision(a.updated_at),
           name: a.name,
           photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
           dob: a.dob,
@@ -412,7 +414,7 @@ export const supabaseService = {
             ...es,
             durationMinutes: es.duration_minutes
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-          workouts: (a.workouts || []).map((wk: any) => ({
+          workouts: (a.workouts || []).filter((wk:any)=>!wk.archived_at).map((wk: any) => ({
             ...wk,
             date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
             durationMinutes: wk.duration_minutes,
@@ -770,13 +772,14 @@ export const supabaseService = {
     // Workouts
     console.log(`[Supabase] Sincronizando treinos...`);
     const incomingWkIds = workouts.map(wk => wk.id).filter(id => id);
-    const { data: existingWks } = await supabase.from('workouts').select('id').eq('athlete_id', athlete.id);
-    const toDeleteWkIds = (existingWks || []).filter(w => !incomingWkIds.includes(w.id)).map(w => w.id);
-    
-    if (toDeleteWkIds.length > 0) {
-      for (const idToDelete of toDeleteWkIds) {
-        await this.deleteWorkout(idToDelete);
-      }
+    const { data: existingWks, error: existingWkError } = await supabase.from('workouts').select('id,archived_at').eq('athlete_id',athlete.id);
+    if (existingWkError) throw existingWkError;
+    const archivedIds=new Set((existingWks || []).filter(w=>w.archived_at).map(w=>w.id));
+    for (let i=workouts.length-1;i>=0;i--) if (archivedIds.has(workouts[i].id)) workouts.splice(i,1);
+    const missingIds=(existingWks || []).filter(w=>!w.archived_at && !incomingWkIds.includes(w.id)).map(w=>w.id);
+    if (missingIds.length) {
+      const {error}=await supabase.from('workouts').update({archived_at:new Date().toISOString()}).eq('athlete_id',athlete.id).in('id',missingIds);
+      if(error)throw error;
     }
 
     if (workouts.length > 0) {

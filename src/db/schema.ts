@@ -62,6 +62,7 @@ export const wellness = pgTable('wellness', {
 });
 
 export const workouts = pgTable('workouts', {
+  archivedAt: timestamp('archived_at'),
   id: text('id').primaryKey(),
   athleteId: text('athlete_id').references(() => athletes.id, { onDelete: 'cascade' }),
   date: text('date').notNull(),
