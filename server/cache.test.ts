@@ -128,3 +128,35 @@ test('replacement archives old prescriptions, retains completed history, and rej
   assert.equal((await db.query("SELECT count(*) AS count FROM workouts WHERE id='old' AND archived_at IS NULL")).rows[0].count,1);
  }finally{await db.close();}
 });
+
+test('periodization rebases a slow generation and retries a conflict without regenerating workouts',async()=>{
+ const {persistPeriodization}=await import('../src/utils/periodizationSave');
+ const generated:any=[{id:'generated',date:'2026-10-14',status:'planned',exercises:[{id:'exercise'}]}];
+ const done:any={id:'done',date:'2026-10-12',status:'completed',totalLoad:700,exercises:[{id:'history',performedSets:[{id:'set',isCompleted:true}]}]};
+ const active:any={id:'active',date:'2026-10-13',status:'in_progress',exercises:[]};
+ const old:any={id:'old',date:'2026-09-01',status:'planned',exercises:[]};
+ const latest:any={id:'a',name:'Nome atualizado',syncRevision:'v2',workouts:[done,active,old],wellness:[{id:'new-wellness'}],assessments:{imtp:[{id:'new-test'}]}};
+ let reads=0,saves=0;const drafts:any[]=[];
+ const result=await persistPeriodization('a',generated,{periodizationStart:'2026-10-13',periodizationEnd:'2026-11-13'},true,{
+  load:async()=>{reads++;return [{...latest,syncRevision:reads===1?'v2':'v3'}];},
+  save:async a=>{saves++;assert.equal(a.name,'Nome atualizado');assert.deepEqual(a.wellness,latest.wellness);assert.deepEqual(a.assessments,latest.assessments);assert.deepEqual(new Set(a.workouts.map(w=>w.id)),new Set(['generated','done','active']));if(saves===1)throw Object.assign(new Error('conflict'),{status:409});a.syncRevision='v4';},
+  draft:a=>drafts.push(a)
+ });
+ assert.equal(reads,2);assert.equal(saves,2);assert.equal(result.syncRevision,'v4');
+ assert.equal(result.workouts.find(w=>w.id==='done'),done);
+ assert.equal(result.workouts.find(w=>w.id==='generated'),generated[0]);
+ assert.deepEqual(drafts.map(a=>a.workouts.find((w:any)=>w.id==='generated')?.id),['generated','generated']);
+});
+
+test('periodization preserves pending workouts when requested and keeps a failed draft without false success',async()=>{
+ const {persistPeriodization}=await import('../src/utils/periodizationSave');
+ const generated:any=[{id:'new',date:'2026-10-14',status:'planned'}];
+ const latest:any={id:'a',workouts:[{id:'old',date:'2026-10-13',status:'planned'},generated[0]]};
+ let attempts=0;let retained:any;
+ await assert.rejects(()=>persistPeriodization('a',generated,{},false,{load:async()=>[latest],draft:a=>retained=a,save:async()=>{attempts++;throw new Error('network unavailable');}}),/network unavailable/);
+ assert.equal(attempts,1);assert.deepEqual(retained.workouts.map((w:any)=>w.id),['old','new']);
+ let conflicts=0;
+ await assert.rejects(()=>persistPeriodization('a',generated,{},true,{load:async()=>[latest],save:async()=>{conflicts++;throw Object.assign(new Error('conflict'),{status:409});}}),/conflict/);
+ assert.equal(conflicts,3);
+ await assert.rejects(()=>persistPeriodization('missing',generated,{},true,{load:async()=>[latest],save:async()=>{throw new Error('must not write');}}),/Aluno indisponível/);
+});

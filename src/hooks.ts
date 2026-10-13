@@ -1,3 +1,4 @@
+import { persistPeriodization } from './utils/periodizationSave';
 import { orderedExercises } from "./utils/exerciseOrder";
 
 import { useState, useEffect, useRef } from 'react';
@@ -343,7 +344,9 @@ export const useAthletes = (token?: string | null) => {
               const parsed = JSON.parse(errText);
               errorMsg = parsed.error || parsed.detail || parsed.message || errText;
             } catch (e) {}
-            throw new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
+            const error = new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
+            (error as any).status = res.status;
+            throw error;
           }
           await acceptSaveReceipt(res, athletes);
           return;
@@ -355,7 +358,7 @@ export const useAthletes = (token?: string | null) => {
           return;
         }
         logError('Database/Supabase Save Error:', error);
-        throw new Error(error.message || "Erro ao salvar dados no Banco de Dados. Verifique sua conexão.");
+        throw error;
       }
     },
     async saveAthlete(athlete: Athlete): Promise<void> {
@@ -382,7 +385,9 @@ export const useAthletes = (token?: string | null) => {
               const parsed = JSON.parse(errText);
               errorMsg = parsed.error || parsed.detail || parsed.message || errText;
             } catch (e) {}
-            throw new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
+            const error = new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
+            (error as any).status = res.status;
+            throw error;
           }
           await acceptSaveReceipt(res, [athlete]);
           return;
@@ -395,7 +400,7 @@ export const useAthletes = (token?: string | null) => {
           return;
         }
         logError('Database/Supabase Save Athlete Error:', error);
-        throw new Error(error.message || "Erro ao salvar atleta no Banco de Dados. Verifique sua conexão.");
+        throw error;
       }
     }
   };
@@ -1199,6 +1204,9 @@ export const useAthletes = (token?: string | null) => {
     console.log("Iniciando geração de treinos IA Co-Pilot para:", athlete.name, "com opções:", options);
     
     try {
+      const freshAthlete = (await api.loadAthletes(true)).find(a=>a.id===athlete.id);
+      if (!freshAthlete) throw new Error('Não foi possível carregar os dados atuais do aluno.');
+      athlete = freshAthlete;
       const dayNamesPt = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
       const todayStr = getLocalDateString();
       
@@ -1508,40 +1516,36 @@ export const useAthletes = (token?: string | null) => {
         });
 
         const replacePendingWorkouts = options?.replacePendingWorkouts !== false;
-
-        const updated = athletes.map(a => {
-          if (a.id === athlete.id) {
-            const currentWorkouts = Array.isArray(a.workouts) ? a.workouts : [];
-            
-            // Preserve completed workouts 100% intact (history and loads)
-            const completedWorkouts = currentWorkouts.filter(w => w.status === 'completed');
-            
-            // When replacePendingWorkouts is true (default), replace old uncompleted planned workouts
-            // so stale workouts from "a algum tempo atrás" do not clutter or supersede the new periodization cycle!
-            const preservedWorkouts = replacePendingWorkouts
-              ? completedWorkouts
-              : currentWorkouts;
-
-            // Merge and sort by date ascending for chronological periodization flow
-            const merged = [...formattedWorkouts, ...preservedWorkouts].sort((x, y) => 
-               new Date(x.date).getTime() - new Date(y.date).getTime()
-            );
-
-            return {
-              ...a,
-              periodizationStart: startStr,
-              periodizationEnd: endStr,
-              trainingDays: targetDays,
-              academyDays: effectiveAcademyDays,
-              courtDays: effectiveCourtDays,
-              workouts: merged
-            };
-          }
-          return a;
-        });
-
-        setAthletes(updated);
-        if (!await save(updated, athlete.id)) {toast.error('Periodização ainda não salva. Verifique a sincronização antes de continuar.', {id:toastId});return [];}
+        saveRevisionRef.current += 1;
+        pendingSavesRef.current += 1;
+        setSyncing(true);
+        try {
+          const saved = await persistPeriodization(athlete.id, formattedWorkouts, {
+            periodizationStart:startStr, periodizationEnd:endStr, trainingDays:targetDays,
+            academyDays:effectiveAcademyDays, courtDays:effectiveCourtDays
+          }, replacePendingWorkouts, {
+            load:()=>api.loadAthletes(true), save:a=>api.saveAthlete(a),
+            draft:a=>updateUnsavedDrafts([a],true)
+          });
+          // Use current memory, not the render captured before generation started.
+          const updated = athletesRef.current.map(a=>a.id===saved.id ? saved : a);
+          if (!updated.some(a=>a.id===saved.id)) updated.push(saved);
+          athletesRef.current = updated;
+          setAthletes(updated);
+          safeLocalStorage.setItem(cacheKey,JSON.stringify(updated));
+          updateUnsavedDrafts([saved],false);
+          setLastSyncedAt(new Date());
+          lastSyncTimeRef.current=Date.now();
+          try {
+            if (typeof BroadcastChannel !== 'undefined') {
+              const channel=new BroadcastChannel('lb_sports_data_sync');
+              channel.postMessage('data_saved');channel.close();
+            }
+          } catch {}
+        } finally {
+          pendingSavesRef.current -= 1;
+          setSyncing(pendingSavesRef.current>0);
+        }
         toast.success(`IA Co-Pilot: Periodização com ${formattedWorkouts.length} treinos gerada com sucesso!`, { id: toastId });
         return formattedWorkouts;
       } else {
