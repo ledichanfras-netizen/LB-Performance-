@@ -111,7 +111,7 @@ import { AiPerformanceChatModal } from "./components/AiPerformanceChatModal";
 import { PwaInstallBanner } from "./components/PwaInstallBanner";
 import { AnamnesisModal } from "./components/AnamnesisModal";
 import { LBPerformanceDecisionMatrix } from "./components/LBPerformanceDecisionMatrix";
-import { NutritionGuidancePanel, SmartWorkoutNutritionCard } from "./components/NutritionGuidancePanel";
+import { NutritionGuidancePanel } from "./components/NutritionGuidancePanel";
 import { WorkoutStravaShareModal } from "./components/WorkoutStravaShareModal";
 import { CommunityFeedModal } from "./components/CommunityFeedModal";
 import { PeriodizeAthleteModal } from "./components/PeriodizeAthleteModal";
@@ -3633,12 +3633,6 @@ const EliteHubApp: FC<{
 
                         {trainingSubTab === "planned" && (
                           <>
-                            <SmartWorkoutNutritionCard
-                              athlete={selected}
-                              workouts={selected.workouts || []}
-                              externalSessions={selected.externalSessions || []}
-                              onOpenFullNutritionTab={() => setTrainingSubTab("nutrition")}
-                            />
                             <div className="coach-section-heading flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                               <div>
                                 <h3 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter text-[#fcfdff] leading-none">
@@ -6815,13 +6809,6 @@ const DashboardView: FC<{
             />
           )}
 
-          {/* Smart Fueling & Recovery Card for Athlete Home */}
-          <SmartWorkoutNutritionCard
-            athlete={athlete}
-            workouts={athlete.workouts || []}
-            externalSessions={athlete.externalSessions || []}
-            onOpenFullNutritionTab={() => setDashboardSubTab("nutrition")}
-          />
 
           {/* Quick list of wellness logs */}
           <div className="w-full">
