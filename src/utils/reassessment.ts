@@ -73,3 +73,23 @@ export function reassessmentMessage(dueDate:string|null,today:string,hasAssessme
   const days=daysBetween(today,dueDate);
   return days<0?`Reavaliação pendente há ${-days} ${days===-1?'dia':'dias'}`:days===0?'Reavaliação prevista para hoje':`Reavaliar em ${days} ${days===1?'dia':'dias'}`;
 }
+
+export type ReassessmentFilter='all'|'today'|'upcoming'|'overdue'|'undefined';
+export function reassessmentSummary(athlete:Athlete,today:string){
+  const result=buildReassessment(athlete,today);
+  const relevant=result.items.filter(i=>i.dueDate && (i.dueDate===result.dueDate || daysBetween(today,i.dueDate)<=0));
+  const tests=relevant.length?relevant.map(i=>i.type):result.items.length?result.items.map(i=>i.type):result.initial;
+  const days=result.dueDate?daysBetween(today,result.dueDate):null;
+  const status:Exclude<ReassessmentFilter,'all'>|'future'=days===null?'undefined':days<0?'overdue':days===0?'today':days<=7?'upcoming':'future';
+  return {athlete,result,tests,days,status,message:reassessmentMessage(result.dueDate,today,result.items.length>0 || result.manual)};
+}
+export function reassessmentCenterData(athletes:Athlete[],today:string,filter:ReassessmentFilter='all',query=''){
+  const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+  const all=athletes.filter(a=>a?.id && !/^(featured-|model-|meta-)/.test(a.id)).map(a=>reassessmentSummary(a,today))
+    .sort((a,b)=>(a.result.dueDate || '9999').localeCompare(b.result.dueDate || '9999') || a.athlete.name.localeCompare(b.athlete.name,'pt-BR'));
+  const counts={all:all.length,today:0,upcoming:0,overdue:0,undefined:0};
+  for(const row of all)if(row.status!=='future')counts[row.status]++;
+  const search=normalize(query.trim());
+  const rows=all.filter(row=>(filter==='all' || row.status===filter) && (!search || normalize(row.athlete.name).includes(search)));
+  return {rows,counts};
+}

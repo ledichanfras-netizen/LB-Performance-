@@ -1971,3 +1971,79 @@ textarea:not([class*="bg-"]) {
 select:not([class*="bg-"]) option { background-color: #ffffff !important; color: #0f172a !important; }
 input:not([class*="bg-"])::placeholder,
 textarea:not([class*="bg-"])::placeholder { color: #475569 !important; opacity: 1; }
+
+/* Shared app typography and theme tokens for the Matriz LB reminder and center. */
+.lb-reassessment {
+  --ra-bg: rgba(15,23,42,.7); --ra-inner: #0b1329; --ra-text: #f1f5f9;
+  --ra-muted: #94a3b8; --ra-border: #263249; --ra-accent: #34d399;
+  --ra-today: #fcd34d; --ra-overdue: #fda4af;
+  font-family: var(--font-sans); color: var(--ra-text); min-width: 0; width: 100%;
+}
+body.light-theme .lb-reassessment {
+  --ra-bg: #ffffff; --ra-inner: #f1f5f9; --ra-text: #0f172a;
+  --ra-muted: #475569; --ra-border: #cbd5e1; --ra-accent: #047857;
+  --ra-today: #92400e; --ra-overdue: #be123c;
+}
+.lb-reassessment.ra-panel { background: var(--ra-bg); border: 1px solid var(--ra-border); border-radius: 1.5rem; padding: 1.5rem; margin-bottom: 1.5rem; backdrop-filter: blur(24px); }
+.lb-reassessment.ra-notice { border-left: 3px solid #10b981; }
+.lb-reassessment .ra-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.lb-reassessment .ra-title { color: var(--ra-text); font-size: 1.25rem; font-weight: 900; font-style: italic; text-transform: uppercase; letter-spacing: -.025em; line-height: 1.3; margin-top: .5rem; overflow-wrap: anywhere; }
+.lb-reassessment .ra-eyebrow { color: var(--ra-accent); display: flex; align-items: center; gap: .5rem; font-size: .625rem; font-weight: 900; text-transform: uppercase; letter-spacing: .16em; }
+.lb-reassessment .ra-muted { color: var(--ra-muted); }
+.lb-reassessment .ra-meta { font-size: .6875rem; line-height: 1.6; margin-top: .3rem; }
+.lb-reassessment .ra-copy { font-size: .8125rem; line-height: 1.65; margin-top: .5rem; }
+.lb-reassessment .ra-label { font-size: .625rem; font-weight: 900; line-height: 1.6; letter-spacing: .09em; text-transform: uppercase; }
+.lb-reassessment .ra-accent { color: var(--ra-accent); }
+.lb-reassessment .ra-min { min-width: 0; overflow-wrap: anywhere; }
+.lb-reassessment .ra-actions { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.lb-reassessment .ra-button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; border: 1px solid var(--ra-border); background: var(--ra-inner); color: var(--ra-text); padding: .65rem .8rem; border-radius: .75rem; font-size: .625rem; line-height: 1.4; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; cursor: pointer; min-height: 40px; }
+.lb-reassessment .ra-button:hover { border-color: var(--ra-accent); }
+.lb-reassessment .ra-primary { background: #10b981; border-color: #10b981; color: #020617; font-weight: 900; }
+.lb-reassessment button:disabled { opacity: .6; cursor: wait; }
+.lb-reassessment .ra-badge { display: inline-block; border: 1px solid var(--ra-border); background: var(--ra-inner); color: var(--ra-muted); border-radius: .6rem; padding: .35rem .55rem; font-size: .625rem; font-weight: 800; line-height: 1.55; margin-top: .5rem; }
+.lb-reassessment .ra-overdue { color: var(--ra-overdue); }
+.lb-reassessment .ra-today { color: var(--ra-today); }
+.lb-reassessment .ra-upcoming { color: var(--ra-accent); }
+.lb-reassessment .ra-details { border-top: 1px solid var(--ra-border); padding-top: 1rem; margin-top: 1rem; display: grid; gap: .85rem; }
+.lb-reassessment .ra-embedded .ra-details { margin-top: .75rem; }
+.lb-reassessment .ra-input { background: var(--ra-inner) !important; color: var(--ra-text) !important; -webkit-text-fill-color: var(--ra-text); border: 1px solid var(--ra-border) !important; border-radius: .75rem; padding: .75rem; font: inherit; font-size: .875rem; width: 100%; min-width: 0; color-scheme: dark; }
+body.light-theme .lb-reassessment .ra-input { color-scheme: light; }
+.lb-reassessment .ra-input::placeholder { color: var(--ra-muted); -webkit-text-fill-color: var(--ra-muted); }
+.lb-reassessment .ra-date-label { display: block; max-width: 19rem; margin-bottom: 1rem; }
+.lb-reassessment .ra-date-label input { margin-top: .4rem; }
+.lb-reassessment .ra-tests { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .75rem; margin-top: .5rem; }
+.lb-reassessment .ra-check { display: flex; align-items: center; gap: .6rem; font-size: .75rem; line-height: 1.6; }
+.lb-reassessment input[type=checkbox] { accent-color: #10b981; width: 1rem; height: 1rem; flex-shrink: 0; }
+.lb-reassessment .ra-counters { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .75rem; margin: 1.25rem 0; }
+.lb-reassessment .ra-counter { border: 1px solid var(--ra-border); background: var(--ra-inner); border-radius: 1rem; padding: 1rem; text-align: left; cursor: pointer; }
+.lb-reassessment .ra-counter[aria-pressed=true], .lb-reassessment .ra-filter[aria-pressed=true] { border-color: var(--ra-accent); box-shadow: 0 0 0 1px var(--ra-accent); }
+.lb-reassessment .ra-counter-value { display: block; font-size: 1.75rem; font-weight: 900; line-height: 1.3; }
+.lb-reassessment .ra-toolbar { display: flex; align-items: center; gap: .85rem; flex-wrap: wrap; }
+.lb-reassessment .ra-search { display: flex; align-items: center; gap: .6rem; flex: 1 1 220px; color: var(--ra-muted); min-width: 0; }
+.lb-reassessment .ra-filters { display: flex; flex-wrap: wrap; gap: .5rem; }
+.lb-reassessment .ra-result-count { font-size: .6875rem; margin: 1rem 0; }
+.lb-reassessment .ra-list-heading, .lb-reassessment .ra-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr) minmax(0,1fr); gap: 1rem; align-items: start; }
+.lb-reassessment .ra-list-heading { font-size: .6rem; font-weight: 900; color: var(--ra-muted); text-transform: uppercase; letter-spacing: .12em; padding: .5rem 1rem; }
+.lb-reassessment .ra-list { padding: 0; margin: 0; list-style: none; display: grid; gap: .75rem; }
+.lb-reassessment .ra-list-item { background: var(--ra-inner); border: 1px solid var(--ra-border); border-radius: 1rem; padding: 1rem; min-width: 0; }
+.lb-reassessment .ra-athlete-name { color: var(--ra-text); font-weight: 900; font-size: .8125rem; letter-spacing: .025em; text-transform: uppercase; overflow-wrap: anywhere; }
+.lb-reassessment .ra-row .ra-badge, .lb-reassessment .ra-tests-summary { margin-top: 0; }
+.lb-reassessment .ra-mobile-label { display: none; }
+.lb-reassessment .ra-inline-detail { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--ra-border); }
+.lb-reassessment .ra-close { padding: .4rem; min-height: 32px; }
+.lb-reassessment .ra-empty { display: grid; justify-items: center; text-align: center; gap: .5rem; padding: 2rem 1rem; color: var(--ra-muted); }
+@media(max-width: 1100px) {
+ .lb-reassessment .ra-list-heading { display: none; }
+ .lb-reassessment .ra-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .lb-reassessment .ra-mobile-label { display: block; font-size: .6rem; font-weight: 900; text-transform: uppercase; color: var(--ra-muted); margin-bottom: .35rem; letter-spacing: .1em; }
+}
+@media(max-width: 600px) {
+ .lb-reassessment.ra-panel { padding: 1rem; }
+ .lb-reassessment .ra-title { font-size: 1rem; }
+ .lb-reassessment .ra-row, .lb-reassessment .ra-tests { grid-template-columns: minmax(0,1fr); }
+ .lb-reassessment .ra-counter { padding: .75rem .5rem; }
+ .lb-reassessment .ra-counter .ra-label { font-size: .5625rem; letter-spacing: .03em; }
+ .lb-reassessment .ra-counter-value { font-size: 1.5rem; }
+ .lb-reassessment .ra-toolbar { align-items: stretch; }
+ .lb-reassessment .ra-row-actions .ra-primary { flex-basis: 100%; }
+}

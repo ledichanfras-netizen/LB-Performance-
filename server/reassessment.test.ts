@@ -75,3 +75,31 @@ test('partial measurements never use missing mass or a missing limb as zero to a
   const result=buildReassessment(athlete({assessments}),'2026-10-15');assert.equal(result.dueDate,null);assert.ok(result.items.every(i=>i.dueDate===null));
  }
 });
+
+
+test('central counts athletes once, orders deadlines, filters seven days and searches accents',async()=>{
+ const {reassessmentCenterData}=await import('../src/utils/reassessment');
+ const planned=(id:string,name:string,dueDate:string)=>athlete({id,name,reassessmentPlan:{dueDate,createdOn:'2026-10-01',tests:['imtp'],baseline:{imtp:{id:'latest',date:'2026-10-01'}}}});
+ const list=[planned('far','Futuro','2026-11-20'),planned('near','Próximo','2026-10-22'),planned('today','Émanuel','2026-10-15'),planned('over','Atrasado','2026-10-10'),athlete({id:'missing',name:'Inicial',assessments:{}}),planned('model-fake','Modelo','2026-10-15')];
+ const data=reassessmentCenterData(list,'2026-10-15');
+ assert.deepEqual(data.counts,{all:5,today:1,upcoming:1,overdue:1,undefined:1});
+ assert.deepEqual(data.rows.map(r=>r.athlete.id),['over','today','near','far','missing']);
+ for(const [filter,id] of [['today','today'],['upcoming','near'],['overdue','over'],['undefined','missing']] as const)assert.deepEqual(reassessmentCenterData(list,'2026-10-15',filter).rows.map(r=>r.athlete.id),[id]);
+ assert.deepEqual(reassessmentCenterData(list,'2026-10-15','all',' EMANUEL ').rows.map(r=>r.athlete.id),['today']);
+ assert.equal(reassessmentCenterData(list,'2026-10-15','all','não existe').rows.length,0);
+ const centerModule=await import('../src/components/ReassessmentCenter');
+ const html=renderToStaticMarkup(React.createElement(centerModule.default,{athletes:list,today:'2026-10-15',onSave:async()=>{},onAssess:()=>{}}));
+ assert.match(html,/Central de Reavaliações/);assert.match(html,/Buscar atleta na central/);assert.match(html,/Abrir avaliações/);assert.match(html,/Ajustar data/);assert.match(html,/Ver critérios/);
+ assert.doesNotMatch(html,/Modelo|bg-white|text-slate-900/);
+});
+
+test('central and individual card share remaining tests and refresh after a reassessment',async()=>{
+ const {reassessmentCenterData,reassessmentSummary}=await import('../src/utils/reassessment');
+ const a=athlete({reassessmentPlan:{dueDate:'2026-10-15',createdOn:'2026-10-01',tests:['imtp'],baseline:{imtp:{id:'latest',date:'2026-10-01'}}}});
+ const center=reassessmentCenterData([a],'2026-10-15').rows[0],card=reassessmentSummary(a,'2026-10-15');
+ assert.deepEqual(center.tests,card.tests);assert.equal(center.message,card.message);
+ a.assessments.imtp.push({id:'retest',date:'2026-10-15',relativePeakForce:1.8});
+ const next=reassessmentCenterData([a],'2026-10-15');assert.equal(next.counts.today,0);assert.equal(next.rows[0].result.manual,false);
+ const readOnlyHtml=renderToStaticMarkup(React.createElement(ReassessmentNotice,{athlete:a,today:'2026-10-15',readOnly:true,onSave:async()=>{},onAssess:()=>{}}));assert.doesNotMatch(readOnlyHtml,/Agendar reavaliação|Ajustar agendamento/);
+ const initialEditor=renderToStaticMarkup(React.createElement(ReassessmentNotice,{athlete:a,today:'2026-10-15',initialMode:'schedule',embedded:true,onSave:async()=>{},onAssess:()=>{}}));assert.match(initialEditor,/Salvar agendamento/);assert.match(initialEditor,/type="date"/);assert.match(initialEditor,/ra-input bg-brand-dark/);
+});

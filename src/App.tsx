@@ -1,3 +1,4 @@
+import ReassessmentCenter from './components/ReassessmentCenter';
 import ReassessmentNotice from './components/ReassessmentNotice';
 import ImtpReportPages from "./components/ImtpReportPages";
 import { imtpValue } from "./utils/imtpAnalysis";
@@ -2495,6 +2496,7 @@ const EliteHubApp: FC<{
                 </div>
               ) : !selected && user.role === "coach" ? (
                 <div className="flex flex-col items-center px-4 max-w-7xl mx-auto w-full">
+                  <ReassessmentCenter athletes={athletes} readOnly={isSupervisedToken(user?.token)} onSave={(id,plan)=>saveReassessmentPlan(id,plan)} onAssess={id=>{setSelectedId(id);setActiveTab('assessment');setIsAiChatOpen(false);setAiModelingResult(null);}} />
                   {/* Banner de Aniversariantes do Dia no Dashboard do Treinador */}
                   {(() => {
                     const birthdayAthletesToday = athletes.filter((a) => isBirthdayToday(a.dob));
