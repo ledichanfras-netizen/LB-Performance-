@@ -1,3 +1,4 @@
+import ReassessmentNotice from './components/ReassessmentNotice';
 import ImtpReportPages from "./components/ImtpReportPages";
 import { imtpValue } from "./utils/imtpAnalysis";
 import { normalizeBirthDate } from "./utils/birthDate";
@@ -191,7 +192,7 @@ import Supervisor from "./pages/Supervisor";
 import AccessSettings from "./pages/AccessSettings";
 import AcceptInvite from "./pages/AcceptInvite";
 import AccountSetup from "./pages/AccountSetup";
-import { clearAthleteCaches } from "./utils/accountCache";
+import { clearAthleteCaches, isSupervisedToken } from "./utils/accountCache";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
 import { UserWithPlan, isPro } from "./utils/plan";
@@ -669,6 +670,7 @@ const EliteHubApp: FC<{
     save,
     addAthlete,
     updateAthlete,
+    saveReassessmentPlan,
     deleteAthlete,
     addWellness,
     updateWellness,
@@ -2485,6 +2487,7 @@ const EliteHubApp: FC<{
                   </div>
                 </div>
               </section>
+              {selected && user.role === 'coach' && <ReassessmentNotice key={selected.id} readOnly={isSupervisedToken(user?.token)} athlete={selected} onSave={plan=>saveReassessmentPlan(selected.id,plan)} onAssess={()=>{setActiveTab('assessment');setIsAiChatOpen(false);setAiModelingResult(null);}} />}
               {/* Render Guia directly without requiring an athlete selection */}
               {activeTab === "info" ? (
                 <div className="w-full max-w-7xl mx-auto px-4 py-4 animate-in fade-in duration-500">

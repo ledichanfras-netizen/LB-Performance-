@@ -1,3 +1,5 @@
+import { reassessmentRouter } from './server/reassessment';
+import { readReassessmentPlan } from './src/utils/reassessment';
 import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, syncRevision, archiveMissingWorkoutsSQL } from './server/workoutSync';
 import { normalizeBirthDate } from './src/utils/birthDate';
 import { createSaveBatch } from './server/saveBatch';
@@ -452,6 +454,7 @@ async function ensureColumns() {
     await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS psychology_notes TEXT').catch(() => {});
 
     // Athletes
+    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS reassessment_plan JSONB');
     await client.query('ALTER TABLE athletes DROP CONSTRAINT IF EXISTS athletes_competitive_level_check').catch(() => {});
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS photo_url TEXT').catch(() => {});
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS is_tournament_mode BOOLEAN DEFAULT FALSE').catch(() => {});
@@ -518,6 +521,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
 const scopedAccountRouter = accountRouter(pool, JWT_SECRET);
 apiRouter.use('/accounts', scopedAccountRouter);
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
+apiRouter.use('/athletes', authMiddleware, reassessmentRouter(pool));
 
 // Health check
 apiRouter.get('/health', async (req, res) => {
@@ -988,6 +992,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
           return {
             ...a,
             syncRevision: syncRevision(a.updated_at),
+            reassessmentPlan: readReassessmentPlan(a.reassessment_plan),
             photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
             gender: a.gender || 'M',
             weeklyFrequency: a.weekly_frequency,
@@ -1252,6 +1257,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
         dob: normalizeBirthDate(a.dob),
             syncRevision: syncRevision(a.updated_at),
+            reassessmentPlan: readReassessmentPlan(a.reassessment_plan),
         gender: a.gender || 'M',
         modality: a.modality,
         competitiveLevel: a.competitive_level,

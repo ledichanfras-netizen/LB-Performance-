@@ -14,6 +14,7 @@ export const users = pgTable('users', {
 });
 
 export const athletes = pgTable('athletes', {
+  reassessmentPlan: jsonb('reassessment_plan'),
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   dob: text('dob'),

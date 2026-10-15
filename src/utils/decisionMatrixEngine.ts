@@ -343,7 +343,11 @@ export function generateAthleteDecisionMatrix(
   const activeRows: DecisionMatrixRow[] = [];
   const attentionSignals: AttentionSignal[] = [];
   const gender = athlete.gender || "M";
-  const assessments = athlete.assessments || {};
+  // The API/cache can return newest-first arrays. The engine reads the last row.
+  // Normalize chronological order without mutating the athlete's stored history.
+  const assessments = Object.fromEntries(Object.entries(athlete.assessments || {}).map(([key,rows])=>[
+    key, [...(Array.isArray(rows)?rows:[])].sort((a,b)=>(Date.parse(a.date)||0)-(Date.parse(b.date)||0) || String(a.id).localeCompare(String(b.id)))
+  ])) as Athlete['assessments'];
 
   // 1. ANÁLISE DE IMTP (FORÇA MÁXIMA & TDF)
   const imtpHistory = assessments.imtp || [];

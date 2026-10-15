@@ -1,3 +1,4 @@
+import { readReassessmentPlan } from '../utils/reassessment';
 import { syncRevision } from '../../server/workoutSync';
 import { exerciseMetadata } from "../../server/exerciseMetadata";
 
@@ -370,6 +371,7 @@ export const supabaseService = {
         return {
           id: a.id,
           syncRevision: syncRevision(a.updated_at),
+          reassessmentPlan: readReassessmentPlan(a.reassessment_plan),
           name: a.name,
           photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
           dob: a.dob,

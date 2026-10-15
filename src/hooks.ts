@@ -711,6 +711,19 @@ export const useAthletes = (token?: string | null) => {
     }
   };
 
+  const saveReassessmentPlan = async (athleteId: string, plan: {dueDate:string;tests:AssessmentType[]}|null) => {
+    if(readOnly || !token)throw new Error('Apenas o treinador responsável pode agendar.');
+    saveRevisionRef.current += 1;
+    pendingSavesRef.current += 1;
+    try {
+      const res=await fetch(`/api/athletes/${encodeURIComponent(athleteId)}/reassessment`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({plan})});
+      const receipt=await res.json();if(!res.ok)throw new Error(receipt.error || 'Não foi possível salvar o agendamento.');
+      const latest=(await api.loadAthletes(true)).find(a=>a.id===athleteId);
+      if(!latest)throw new Error('Agendamento salvo. Atualize o aplicativo para confirmar a sincronização.');
+      setAthletes(prev=>prev.map(a=>a.id===athleteId?latest:a));
+    } finally {pendingSavesRef.current -= 1;}
+  };
+
   const updateAthlete = async (athleteId: string, data: Partial<Athlete>) => {
     const updated = athletes.map(a => a.id === athleteId ? { ...a, ...data } : a);
     setAthletes(updated);
@@ -1674,7 +1687,7 @@ export const useAthletes = (token?: string | null) => {
 
   const guard=<T extends (...args:any[])=>any>(fn:T):T => (readOnly ? ((..._args:any[])=>{toast.error("Supervisão somente leitura: peça ao treinador para alterar o registro.");}) : fn) as T;
   return { 
-    athletes, loading, syncing, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
+    athletes, loading, syncing, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), saveReassessmentPlan: guard(saveReassessmentPlan), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
     addWorkout: guard(addWorkout), addWorkouts: guard(addWorkouts), updateWorkout: guard(updateWorkout), deleteWorkout: guard(deleteWorkout), addAssessment: guard(addAssessment), updateAssessment: guard(updateAssessment),
     removeAssessment: guard(removeAssessment), analyzePerformance: guard(analyzePerformance), generateAIWorkouts: guard(generateAIWorkouts), addExternalSession: guard(addExternalSession), updateExternalSession: guard(updateExternalSession), deleteExternalSession: guard(deleteExternalSession),
     importDemoAthlete: guard(importDemoAthlete), syncData, iframeCookieWarning
