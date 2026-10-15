@@ -50,7 +50,7 @@ export function buildReassessment(athlete:Athlete,today:string, suppliedRows?:De
   const rows=suppliedRows || generateAthleteDecisionMatrix({...athlete,assessments:history as any}).activeRows;
   const byType=new Map<AssessmentType,ReassessmentItem>();
   for(const row of rows){
-    const type=categoryTest[row.category];if(!type || !latest(type) || row.id==='dyn-atleta-balanceado')continue;
+    const type=categoryTest[row.category];if(!type || !latest(type) || (row.id==='dyn-atleta-balanceado' || row.id==='dyn-cmj-queda-aguda'))continue;
     const measured=latest(type),positive=(key:string)=>Number(measured[key])>0;
     const enoughData=type==='imtp' ? (positive('relativePeakForce') || (positive('peakForce') && (positive('weight') || Number(athlete.weight)>0)))
       : type==='isometricStrength' ? ['quadricepsR','quadricepsL','hamstringsR','hamstringsL'].every(positive)
@@ -60,9 +60,18 @@ export function buildReassessment(athlete:Athlete,today:string, suppliedRows?:De
     const days=timelineDays(row.reassessmentTimeline),lastDate=dateOnly(measured.date);
     const dueDate=days===null?null:addDays(lastDate,days);
     const previous=byType.get(type);
-    if(!previous || (dueDate && (!previous.dueDate || dueDate<previous.dueDate)))byType.set(type,{type,dueDate,lastDate,reason:`Acompanhar a evolução individual de ${assessmentLabels[type]}. ${row.monitoring || 'Confirmar resposta ao bloco de treino.'}`,timeline:row.reassessmentTimeline,source:'matrix'});
+    if(!previous || (dueDate && (!previous.dueDate || dueDate<previous.dueDate)))byType.set(type,{type,dueDate,lastDate,reason:`Padrão operacional LB: ${row.reassessmentTimeline}. ${row.finding}. Antecipar conforme avaliação do treinador, sintomas ou queda de desempenho.`,timeline:row.reassessmentTimeline,source:'matrix'});
   }
-  // Recorded tests with no matching matrix rule have no invented deadline.
+  // Complete tests without an intervention row follow the 90-day maintenance default.
+  // Explicitly supplied rows remain authoritative (e.g. previews and tests).
+  if(!suppliedRows)for(const type of matrixTests){
+    const measured=latest(type);if(!measured || byType.has(type))continue;
+    const positive=(key:string)=>Number(measured[key])>0;
+    const complete=type==='isometricStrength' ? ['quadricepsR','quadricepsL','hamstringsR','hamstringsL'].every(positive)
+      : type==='vo2max' ? positive('vo2max') : false;
+    if(complete){const lastDate=dateOnly(measured.date);byType.set(type,{type,lastDate,dueDate:addDays(lastDate,90),timeline:'90 dias',reason:'Reavaliação de manutenção em 90 dias, conforme padrão operacional LB.',source:'matrix'});}
+  }
+  // Partial tests without an applicable rule need a coach-defined deadline.
   for(const type of matrixTests)if(latest(type) && !byType.has(type))byType.set(type,{type,dueDate:null,lastDate:dateOnly(latest(type).date),reason:'Sem prazo aplicável na Matriz LB. Definir a data com o treinador.',source:'matrix'});
   const items=[...byType.values()].sort((a,b)=>(a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
   return {items,dueDate:items.find(i=>i.dueDate)?.dueDate || null,initial,manual:false,completed:[] as AssessmentType[]};

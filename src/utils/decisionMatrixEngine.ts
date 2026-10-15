@@ -33,8 +33,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Isometria Superada no Rack (posição do IMTP a 130-140°): 3 séries x 5 segundos de contração máxima",
       "Acessórios de Cadeia Posterior (RDL, Elevação Pélvica, Panturrilha): 3 séries x 8 reps"
     ],
-    monitoring: "IMTP a cada 3 a 4 semanas (célula de carga)",
-    reassessmentTimeline: "3 a 4 semanas",
+    monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "30 dias",
     transfer: "Sustentação física em aterrissagens, estabilidade pélvica e resiliência articular",
     evidenceReference: "Suchomel et al. (2016), Comfort et al. (2019, 2024), Parâmetros LB Sports"
   },
@@ -56,8 +56,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Jump Squats com Barra Hexagonal ou Halteres (15-20% peso corporal)",
       "Pliometria e Treinamento do Ciclo Alongamento-Encurtamento (CAE)"
     ],
-    monitoring: "Monitoramento de manutenção a cada 4 a 6 semanas",
-    reassessmentTimeline: "4 a 6 semanas",
+    monitoring: "Reavaliação programada em 60 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "60 dias",
     transfer: "Eficiência mecânica nos saltos e sprints sem acúmulo de peso morto ou lentidão",
     evidenceReference: "Suchomel et al. (2016), Turner et al. (2020)"
   },
@@ -79,8 +79,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Pliometria de Alto Nível (Drop Jumps e Saltos Reativos)",
       "Transferência específica para velocidade e impulsão"
     ],
-    monitoring: "Reavaliação a cada 6 a 8 semanas",
-    reassessmentTimeline: "6 a 8 semanas",
+    monitoring: "Reavaliação programada em 90 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "90 dias",
     transfer: "Preservação da robustez mecânica com prontidão neural máxima para velocidade e impulsão",
     evidenceReference: "Stone et al. (2004), Suchomel et al. (2016)"
   },
@@ -104,8 +104,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Isometria Explosiva ('empurrar o chão o mais rápido possível'): 4 x 3s com descanso de 90s",
       "Kettlebell Swings Pesados e Arremessos de Medicine Ball: 3 x 5 reps"
     ],
-    monitoring: "Cálculo de RFD nos primeiros 100-200ms a cada quinzena",
-    reassessmentTimeline: "2 semanas",
+    monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "30 dias",
     transfer: "Arranque inicial de sprint (0 a 10m), antecipação em disputas de bola e primeiro passo reativo",
     evidenceReference: "Aagaard et al. (2002), Maffiuletti et al. (2016)"
   },
@@ -129,8 +129,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Agachamentos com máxima aceleração concêntrica (50-60% 1RM): 4 x 4 reps",
       "Drop Lands com foco em frenagem e re-explosão imediata: 3 x 4 reps"
     ],
-    monitoring: "CMJ quinzenal (altura e potência pico via Sayers)",
-    reassessmentTimeline: "2 semanas",
+    monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "30 dias",
     transfer: "Duelos aéreos, saltos de bloqueio/cabeceio e aceleração de corrida",
     evidenceReference: "Sayers et al. (1999), Claudino et al. (2017)"
   },
@@ -178,8 +178,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Drop Jump da caixa de 20-25cm com foco em 'chão quente' (sair imediatamente): 3 x 5 reps",
       "Isometria pesada de sóleo/gastrocnêmio em pé (plantar flexão sustentada): 3 x 20s"
     ],
-    monitoring: "Drop Jump e RSI a cada 2 semanas",
-    reassessmentTimeline: "2 semanas",
+    monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "30 dias",
     transfer: "Eficiência de corrida (menor gasto energético por passada), fintas dinâmicas e transições ágeis",
     evidenceReference: "Flanagan & Comyns (2008), Young (1995)"
   },
@@ -204,8 +204,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Single Leg Romanian Deadlift (RDL Unilateral): 3 séries x 6-8 reps com cadência controlada",
       "Saltos e aterrissagens unilaterais (Single-leg drop lands) com foco em simetria de frenagem: 3 x 4 reps"
     ],
-    monitoring: "Dinamometria isométrica ou salto unilateral a cada 2-3 semanas",
-    reassessmentTimeline: "2 a 3 semanas",
+    monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "30 dias",
     transfer: "Proteção contra recidivas, desaceleração segura em mudanças de direção bruscas",
     evidenceReference: "Croisier et al. (2008), Impellizzeri et al. (2007)"
   },
@@ -228,8 +228,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Stiff com halteres com foco no alongamento sob tensão: 3 x 8 reps",
       "Flexão de joelho nórdica assistida ou em máquina deitada: 3 x 8 reps"
     ],
-    monitoring: "Dinamometria de flexão/extensão mensal",
-    reassessmentTimeline: "4 semanas",
+    monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "30 dias",
     transfer: "Prevenção direta de estiramentos de isquiotibiais e estabilização de joelho em sprints",
     evidenceReference: "Al Attar et al. (2017), Baroni et al. (2020)"
   },
@@ -253,8 +253,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "Saídas de blocos em diferentes posturas (de joelhos, em 3 apoios): 4 repetições",
       "Broad Jumps (Salto em distância parado) com aterrissagem estável: 3 x 4 reps"
     ],
-    monitoring: "Fotocélula de 5m e 10m a cada 3 semanas",
-    reassessmentTimeline: "3 semanas",
+    monitoring: "Reavaliação programada em 60 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "60 dias",
     transfer: "Primeiro passo veloz, ultrapassagem da marcação e transição ataque-defesa ágil",
     evidenceReference: "Morin et al. (2016), Petrakos et al. (2016)"
   },
@@ -278,8 +278,8 @@ export const MASTER_DECISION_MATRIX: DecisionMatrixRow[] = [
       "HIIT Longo: 4 séries de 3 minutos a 90-95% da FCmáx com 2 min de recuperação ativa",
       "Jogos Reduzidos (Small-Sided Games - SSG) em campos com dimensões ampliadas"
     ],
-    monitoring: "Teste de VAM (T-Car ou Yo-Yo) a cada 6 semanas",
-    reassessmentTimeline: "6 semanas",
+    monitoring: "Reavaliação programada em 60 dias; acompanhamento durante os treinos",
+    reassessmentTimeline: "60 dias",
     transfer: "Menor perda de precisão técnica no final da partida e aceleração da recuperação entre tiros",
     evidenceReference: "Buchheit & Laursen (2013), Bangsbo et al. (2008)"
   },
@@ -407,8 +407,8 @@ export function generateAthleteDecisionMatrix(
             "Isometria Superada no Rack (posição do IMTP a 130-140°): 3 séries x 5 segundos de contração firme",
             "Acessórios de Cadeia Posterior (RDL, Elevação Pélvica, Panturrilha): 3 séries x 8 reps"
           ],
-          monitoring: "IMTP a cada 3-4 semanas (célula de carga)",
-          reassessmentTimeline: "3 a 4 semanas",
+          monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+          reassessmentTimeline: "30 dias",
           transfer: "Suporte articular em aterrissagens, estabilidade pélvica e resiliência mecânica",
           evidenceReference: "Suchomel et al. (2016), Comfort et al. (2024)",
           status: "detectado"
@@ -433,8 +433,8 @@ export function generateAthleteDecisionMatrix(
             "Jump Squats com Barra Hexagonal (15-20% peso corporal): 3 séries x 4 reps",
             "Transferência direta para aterrissagens e impulsão específica da modalidade"
           ],
-          monitoring: "Monitoramento a cada 4 a 6 semanas",
-          reassessmentTimeline: "4 a 6 semanas",
+          monitoring: "Reavaliação programada em 60 dias; acompanhamento durante os treinos",
+          reassessmentTimeline: "60 dias",
           transfer: "Eficiência mecânica nos saltos e sprints sem sobrepeso de massa muscular não-funcional",
           evidenceReference: "Suchomel et al. (2016), Turner et al. (2020)",
           status: "normal"
@@ -459,8 +459,8 @@ export function generateAthleteDecisionMatrix(
             "Jump Squats e Pliometria de Alto Nível (Drop Jumps)",
             "Transferência direta para gestos esportivos de explosão máxima"
           ],
-          monitoring: "Reavaliação a cada 6 a 8 semanas",
-          reassessmentTimeline: "6 a 8 semanas",
+          monitoring: "Reavaliação programada em 90 dias; acompanhamento durante os treinos",
+          reassessmentTimeline: "90 dias",
           transfer: "Preservação da estabilidade mecânica com prontidão neural para velocidade e saltos",
           evidenceReference: "Suchomel et al. (2016), Comfort et al. (2024)",
           status: "otimo"
@@ -489,8 +489,8 @@ export function generateAthleteDecisionMatrix(
           "Isometria Balística Rápida ('empurrar o mais rápido possível'): 3 x 3s",
           "Arremessos de Medicine Ball em rotação/frente: 3 x 6 reps"
         ],
-        monitoring: "RFD100/200 a cada 2 semanas",
-        reassessmentTimeline: "2 semanas",
+        monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "30 dias",
         transfer: "Primeiro passo explosivo de aceleração e reação imediata de finta",
         evidenceReference: "Aagaard et al. (2002), Maffiuletti et al. (2016)",
         status: "detectado"
@@ -513,8 +513,8 @@ export function generateAthleteDecisionMatrix(
         practicalDetails: [
           "Exercícios balísticos de manutenção no aquecimento: 2 séries x 4 saltos verticais com intenção máxima"
         ],
-        monitoring: "Monitoramento quinzenal",
-        reassessmentTimeline: "2 a 4 semanas",
+        monitoring: "Reavaliação programada em 90 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "90 dias",
         transfer: "Reatividade imediata no primeiro passo",
         evidenceReference: "Maffiuletti et al. (2016)",
         status: "normal"
@@ -558,8 +558,8 @@ export function generateAthleteDecisionMatrix(
           "Agachamentos com máxima velocidade concêntrica: 4 x 4 reps @ 55% 1RM",
           "Pliometria extensiva moderada: saltos contínuos sobre barreiras baixas (3 x 6 reps)"
         ],
-        monitoring: "CMJ quinzenal",
-        reassessmentTimeline: "2 semanas",
+        monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "30 dias",
         transfer: "Potência de impulsão para cabeceios, bloqueios e decolagem de sprints",
         evidenceReference: "Sayers et al. (1999), Claudino et al. (2017)",
         status: "detectado"
@@ -582,8 +582,8 @@ export function generateAthleteDecisionMatrix(
         practicalDetails: [
           "3 saltos verticais máximos na fase de ativação neural da sessão principal"
         ],
-        monitoring: "CMJ quinzenal",
-        reassessmentTimeline: "2 a 4 semanas",
+        monitoring: "Reavaliação em 60 dias abaixo da meta ou 90 dias na meta; acompanhamento durante os treinos",
+        reassessmentTimeline: h < targetH ? "60 dias" : "90 dias",
         transfer: "Manutenção do alcance aéreo",
         evidenceReference: "Claudino et al. (2017)",
         status: "normal"
@@ -656,8 +656,8 @@ export function generateAthleteDecisionMatrix(
           "Drop Jump da caixa de 20cm: 3 séries x 5 repetições focando em 'chão quente'",
           "Isometria pesada de panturrilha/sóleo sustentada em pé: 3 x 20s"
         ],
-        monitoring: "RSI e tempo de contato a cada 2 semanas",
-        reassessmentTimeline: "2 semanas",
+        monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "30 dias",
         transfer: "Agilidade em fintas de corpo, arrancadas e menor frenagem no início da corrida",
         evidenceReference: "Flanagan & Comyns (2008), Young (1995)",
         status: "detectado"
@@ -680,8 +680,8 @@ export function generateAthleteDecisionMatrix(
         practicalDetails: [
           "2 séries de 8 pogos reativos antes de sprints"
         ],
-        monitoring: "Drop Jump quinzenal",
-        reassessmentTimeline: "2 a 4 semanas",
+        monitoring: "Reavaliação em 60 dias abaixo da meta ou 90 dias na meta; acompanhamento durante os treinos",
+        reassessmentTimeline: tc > 200 || rsi < 2 ? "60 dias" : "90 dias",
         transfer: "Economia de corrida e agilidade reativa",
         evidenceReference: "Flanagan & Comyns (2008)",
         status: "normal"
@@ -735,8 +735,8 @@ export function generateAthleteDecisionMatrix(
           "Stiff Unilateral (Single-Leg RDL): 3 x 8 reps com foco na estabilidade do quadril",
           "Saltos Unilaterais com aterrissagem controlada (Drop Lands): 3 x 5 por perna"
         ],
-        monitoring: "Dinamometria e salto unilateral a cada 2-3 semanas",
-        reassessmentTimeline: "2 a 3 semanas",
+        monitoring: isSevere ? "Reavaliar assimetrias em 30 dias" : "Reavaliar assimetrias em 60 dias",
+        reassessmentTimeline: isSevere ? "30 dias" : "60 dias",
         transfer: "Proteção ligamentar e muscular em desacelerações bruscas e mudanças de direção",
         evidenceReference: "Croisier et al. (2008), Impellizzeri et al. (2007)",
         status: "detectado"
@@ -775,8 +775,8 @@ export function generateAthleteDecisionMatrix(
           "Stiff com Halteres ou Barra: 3 séries x 8 reps com boa cadência",
           "Glute Ham Raise ou Flexão de Joelho Unilateral: 3 x 8 reps"
         ],
-        monitoring: "Dinamometria de flexão/extensão a cada 4 semanas",
-        reassessmentTimeline: "4 semanas",
+        monitoring: "Reavaliação programada em 30 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "30 dias",
         transfer: "Redução comprovada de até 51% em lesões de isquiotibiais e estabilização do joelho em sprints",
         evidenceReference: "Al Attar et al. (2017), Baroni et al. (2020)",
         status: "detectado"
@@ -811,8 +811,8 @@ export function generateAthleteDecisionMatrix(
           "Broad Jumps e Boundings (saltos horizontais alternados): 3 x 5 saltos",
           "Treino de ângulos de saída e ataque agressivo de sola no solo"
         ],
-        monitoring: "Fotocélula de 10m e 30m quinzenal",
-        reassessmentTimeline: "3 semanas",
+        monitoring: "Reavaliação programada em 60 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "60 dias",
         transfer: "Ganho de vantagens no arranque curto, fintas e primeiras passadas de disputa",
         evidenceReference: "Morin et al. (2016), Petrakos et al. (2016)",
         status: "detectado"
@@ -835,8 +835,8 @@ export function generateAthleteDecisionMatrix(
         practicalDetails: [
           "3 tiros de 20m com intenção máxima pós-aquecimento"
         ],
-        monitoring: "Fotocélula mensal",
-        reassessmentTimeline: "4 semanas",
+        monitoring: "Reavaliação programada em 90 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "90 dias",
         transfer: "Manutenção da velocidade de pico em campo",
         evidenceReference: "Morin et al. (2016)",
         status: "normal"
@@ -870,8 +870,8 @@ export function generateAthleteDecisionMatrix(
           "HIIT Curto: 2 blocos de 6 minutos (15s @ 110% VAM / 15s recuperação passiva)",
           "Small-Sided Games (SSG) com foco em transições rápidas"
         ],
-        monitoring: "Teste de VAM a cada 6 semanas",
-        reassessmentTimeline: "6 semanas",
+        monitoring: "Reavaliação programada em 60 dias; acompanhamento durante os treinos",
+        reassessmentTimeline: "60 dias",
         transfer: "Manutenção da precisão técnica sob fadiga e recuperação entre sprints",
         evidenceReference: "Buchheit & Laursen (2013)",
         status: "detectado"
@@ -989,8 +989,8 @@ export function generateAthleteDecisionMatrix(
         "Manter rotina programada de força e potência",
         "Continuar monitoramento preventivo diário de cargas e saltos semanais"
       ],
-      monitoring: "Monitoramento contínuo quinzenal",
-      reassessmentTimeline: "2 a 4 semanas",
+      monitoring: "Reavaliação programada em 90 dias; acompanhamento durante os treinos",
+      reassessmentTimeline: "90 dias",
       transfer: "Consistência de alto rendimento nos treinos e partidas oficiais",
       evidenceReference: "Suchomel et al. (2016)",
       status: "otimo"
