@@ -1,3 +1,4 @@
+import { FollowUpType } from './utils/followUp';
 import { persistPeriodization } from './utils/periodizationSave';
 import { orderedExercises } from "./utils/exerciseOrder";
 
@@ -665,7 +666,7 @@ export const useAthletes = (token?: string | null) => {
     }
   }, [token]);
 
-  const save = async (newAthletes: Athlete[], specificAthleteId?: string) => {
+  const save = async (newAthletes: Athlete[], specificAthleteId?: string | string[]) => {
     let syncConflict = false;
     saveRevisionRef.current += 1;
     pendingSavesRef.current += 1;
@@ -674,7 +675,9 @@ export const useAthletes = (token?: string | null) => {
     console.log("Iniciando sincronização em segundo plano...");
     setSyncing(true);
     try {
-      if (specificAthleteId) {
+      if (Array.isArray(specificAthleteId)) {
+        await api.saveAthletes(newAthletes.filter(a=>specificAthleteId.includes(a.id)));
+      } else if (specificAthleteId) {
         const athlete = newAthletes.find(a => a.id === specificAthleteId);
         if (athlete) {
           // Optimized: save only the relevant athlete and keep local state intact
@@ -685,7 +688,7 @@ export const useAthletes = (token?: string | null) => {
       } else {
         await api.saveAthletes(newAthletes);
       }
-      updateUnsavedDrafts(specificAthleteId ? newAthletes.filter(a=>a.id===specificAthleteId) : newAthletes, false);
+      updateUnsavedDrafts(specificAthleteId ? newAthletes.filter(a=>Array.isArray(specificAthleteId)?specificAthleteId.includes(a.id):a.id===specificAthleteId) : newAthletes, false);
       setLastSyncedAt(new Date());
       try {
         if (typeof BroadcastChannel !== 'undefined') {
@@ -698,7 +701,7 @@ export const useAthletes = (token?: string | null) => {
       return true;
     } catch (e: any) {
       syncConflict = String(e?.message || '').includes('outro dispositivo');
-      updateUnsavedDrafts(specificAthleteId ? newAthletes.filter(a=>a.id===specificAthleteId) : newAthletes, true);
+      updateUnsavedDrafts(specificAthleteId ? newAthletes.filter(a=>Array.isArray(specificAthleteId)?specificAthleteId.includes(a.id):a.id===specificAthleteId) : newAthletes, true);
       logError("Erro na sincronização:", e);
       const detail = e?.detail || e?.response?.data?.detail || '';
       const message = e?.message || String(e);
@@ -722,6 +725,15 @@ export const useAthletes = (token?: string | null) => {
       if(!latest)throw new Error('Agendamento salvo. Atualize o aplicativo para confirmar a sincronização.');
       setAthletes(prev=>prev.map(a=>a.id===athleteId?latest:a));
     } finally {pendingSavesRef.current -= 1;}
+  };
+
+  const updateFollowUpType = async (ids: string[], type: FollowUpType) => {
+    if(readOnly || !token)throw new Error('Apenas o treinador responsável pode alterar cadastros.');
+    if(!ids.length)return;
+    const updated=athletes.map(a=>ids.includes(a.id)?{...a,followUpType:type}:a);
+    setAthletes(updated);
+    if(!await save(updated,ids))throw new Error('Não foi possível confirmar o salvamento. Sincronize e tente novamente.');
+    toast.success(type==='assessment-only'?'Cadastros movidos para Alunos — somente avaliações.':'Cadastros movidos para Atletas.');
   };
 
   const updateAthlete = async (athleteId: string, data: Partial<Athlete>) => {
@@ -1687,7 +1699,7 @@ export const useAthletes = (token?: string | null) => {
 
   const guard=<T extends (...args:any[])=>any>(fn:T):T => (readOnly ? ((..._args:any[])=>{toast.error("Supervisão somente leitura: peça ao treinador para alterar o registro.");}) : fn) as T;
   return { 
-    athletes, loading, syncing, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), saveReassessmentPlan: guard(saveReassessmentPlan), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
+    athletes, loading, syncing, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), saveReassessmentPlan: guard(saveReassessmentPlan), updateFollowUpType: guard(updateFollowUpType), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
     addWorkout: guard(addWorkout), addWorkouts: guard(addWorkouts), updateWorkout: guard(updateWorkout), deleteWorkout: guard(deleteWorkout), addAssessment: guard(addAssessment), updateAssessment: guard(updateAssessment),
     removeAssessment: guard(removeAssessment), analyzePerformance: guard(analyzePerformance), generateAIWorkouts: guard(generateAIWorkouts), addExternalSession: guard(addExternalSession), updateExternalSession: guard(updateExternalSession), deleteExternalSession: guard(deleteExternalSession),
     importDemoAthlete: guard(importDemoAthlete), syncData, iframeCookieWarning

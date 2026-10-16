@@ -1,3 +1,4 @@
+import { readFollowUpType } from '../src/utils/followUp';
 /** A stale device must never replace a more recent server snapshot. */
 export class SyncConflict extends Error {
   constructor() { super('Os dados foram atualizados em outro dispositivo. Sincronize antes de salvar novamente.'); }
@@ -9,9 +10,10 @@ export const syncRevision = (value: unknown): string | undefined => {
 };
 export async function lockAthleteSnapshots(client: any, athletes: any[]) {
   const ids = athletes.map(a => a.id);
-  const {rows} = await client.query('SELECT id,updated_at FROM athletes WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE', [ids]);
+  const {rows} = await client.query('SELECT id,updated_at,injury_history FROM athletes WHERE id = ANY($1::text[]) ORDER BY id FOR UPDATE', [ids]);
   for (const row of rows) {
     const incoming = athletes.find(a => a.id === row.id);
+    if (incoming.followUpType === undefined) incoming.followUpType=readFollowUpType(row);
     if (incoming.syncRevision && syncRevision(incoming.syncRevision) !== syncRevision(row.updated_at)) throw new SyncConflict();
   }
   const archived = await client.query('SELECT id,athlete_id FROM workouts WHERE athlete_id = ANY($1::text[]) AND archived_at IS NOT NULL', [ids]);

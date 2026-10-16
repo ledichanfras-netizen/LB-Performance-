@@ -119,6 +119,7 @@ export interface MatchEvent {
 }
 
 export interface Athlete {
+  followUpType?: import('./utils/followUp').FollowUpType;
   reassessmentPlan?: import('./utils/reassessment').ReassessmentPlan | null;
   syncRevision?: string;
   id: string;

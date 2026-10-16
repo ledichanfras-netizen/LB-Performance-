@@ -1,3 +1,5 @@
+import RegistrationDirectory from './components/RegistrationDirectory';
+import { isAssessmentOnly, followUpType } from './utils/followUp';
 import ReassessmentNotice from './components/ReassessmentNotice';
 import ImtpReportPages from "./components/ImtpReportPages";
 import { imtpValue } from "./utils/imtpAnalysis";
@@ -671,6 +673,7 @@ const EliteHubApp: FC<{
     addAthlete,
     updateAthlete,
     saveReassessmentPlan,
+    updateFollowUpType,
     deleteAthlete,
     addWellness,
     updateWellness,
@@ -753,15 +756,18 @@ const EliteHubApp: FC<{
   const [showSidebarAthletes, setShowSidebarAthletes] = useState(false);
   const [isPeriodizationExpanded, setIsPeriodizationExpanded] = useState(false);
 
+  const performanceAthletes = useMemo(()=>athletes.filter(a=>!isAssessmentOnly(a)),[athletes]);
+  const [showDirectory,setShowDirectory]=useState(false);
+
   const featuredAthletesList = useMemo(() => {
     const today = getLocalDateString();
-    let list = athletes;
+    let list = performanceAthletes;
     switch (dashboardFilter) {
       case "elite":
-        list = athletes.filter((a) => a.competitiveLevel === "elite");
+        list = performanceAthletes.filter((a) => a.competitiveLevel === "elite");
         break;
       case "low-readiness":
-        list = athletes.filter((a) => {
+        list = performanceAthletes.filter((a) => {
           const todayWell = (a.wellness || []).find(
             (w) => w.date && w.date.startsWith(today),
           );
@@ -769,13 +775,13 @@ const EliteHubApp: FC<{
         });
         break;
       case "scheduled-today":
-        list = athletes.filter((a) =>
+        list = performanceAthletes.filter((a) =>
           (a.workouts || []).some((wk) => wk.date && wk.date.startsWith(today)),
         );
         break;
       case "all":
       default:
-        list = athletes;
+        list = performanceAthletes;
         break;
     }
 
@@ -854,7 +860,7 @@ const EliteHubApp: FC<{
       }
       return b.acwr - a.acwr; // Higher ACWR of that category first
     });
-  }, [athletes, selectedId, dashboardFilter]);
+  }, [performanceAthletes, selectedId, dashboardFilter]);
 
   const [activeTab, setActiveTab] = useState<
     "dash" | "training" | "assessment" | "ai-modeling" | "premium" | "info" | "injuries" | "competitions"
@@ -887,23 +893,23 @@ const EliteHubApp: FC<{
     const today = getLocalDateString();
     switch (dashboardFilter) {
       case "elite":
-        return athletes.filter((a) => a.competitiveLevel === "elite");
+        return performanceAthletes.filter((a) => a.competitiveLevel === "elite");
       case "low-readiness":
-        return athletes.filter((a) => {
+        return performanceAthletes.filter((a) => {
           const todayWell = (a.wellness || []).find(
             (w) => w.date && w.date.startsWith(today),
           );
           return todayWell && (todayWell.readinessScore || 0) < 50;
         });
       case "scheduled-today":
-        return athletes.filter((a) =>
+        return performanceAthletes.filter((a) =>
           (a.workouts || []).some((wk) => wk.date && wk.date.startsWith(today)),
         );
       case "all":
       default:
-        return athletes;
+        return performanceAthletes;
     }
-  }, [athletes, dashboardFilter]);
+  }, [performanceAthletes, dashboardFilter]);
 
   // Retention Layer: Memoized notification calculation
   const notifications = useMemo(() => {
@@ -921,7 +927,7 @@ const EliteHubApp: FC<{
         ? athletes.find((a) => a.id === user.athleteId)
         : null;
 
-    if (user.role === "athlete" && athlete) {
+    if (user.role === "athlete" && athlete && !isAssessmentOnly(athlete)) {
       // 1. Wellness Missing
       const hasWellnessToday = (athlete.wellness || []).some(
         (w) => w.date && w.date.startsWith(today),
@@ -974,7 +980,7 @@ const EliteHubApp: FC<{
         });
       }
     } else if (user.role === "coach") {
-      athletes.forEach((a) => {
+      performanceAthletes.forEach((a) => {
         // Birthday check
         if (isBirthdayToday(a.dob, today)) {
           list.push({
@@ -1342,6 +1348,12 @@ const EliteHubApp: FC<{
     }
     return athletes.length > 0 ? athletes[0] : undefined;
   }, [athletes, selectedId, user]);
+
+  useEffect(()=>{
+    if(selected && isAssessmentOnly(selected) && activeTab!=="assessment" && activeTab!=="info"){
+      setActiveTab("assessment");setIsAiChatOpen(false);setAiModelingResult(null);
+    }
+  },[selected?.id,selected?.followUpType,activeTab]);
 
   const handleGenerateAIModeling = async (skipConfirm = false) => {
     if (user?.role !== "coach") {
@@ -1868,7 +1880,7 @@ const EliteHubApp: FC<{
                     >
                       <div className="flex items-center gap-3">
                         <Users className="w-4 h-4 text-slate-500" />
-                        <span>Atletas</span>
+                        <span>Atletas e Alunos</span>
                       </div>
                       <span className="text-[10px] bg-slate-800 text-slate-400 font-black px-1.5 py-0.5 rounded">
                         {athletes.length}
@@ -2342,13 +2354,14 @@ const EliteHubApp: FC<{
                   <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-[30] w-full xl:w-auto shrink-0 justify-start sm:justify-end">
                     {user.role === "coach" && (
                       <>
+                        <button type="button" onClick={()=>setShowDirectory(true)} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-black uppercase tracking-wider hover:bg-brand-primary/20"><Users size={16}/>Cadastros</button>
                         <div className="relative group w-full sm:w-60 lg:w-64">
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-primary/50 group-focus-within:text-brand-primary transition-colors">
                             <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                           </div>
                           <input
                             type="text"
-                            placeholder="BUSCAR ATLETA..."
+                            placeholder="BUSCAR ATLETA OU ALUNO..."
                             className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-[10px] sm:text-[11px] font-black text-white hover:border-slate-700 focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 outline-none transition-all shadow-xl uppercase tracking-widest placeholder:text-slate-600"
                             value={searchTerm}
                             onChange={(e) => {
@@ -2419,7 +2432,7 @@ const EliteHubApp: FC<{
                           className="flex items-center justify-center gap-2.5 w-full sm:w-auto bg-brand-primary text-brand-dark px-5 py-3.5 rounded-2xl font-black text-[10px] sm:text-[11px] uppercase tracking-[0.15em] hover:brightness-110 active:scale-95 transition-all shadow-[0_0_25px_rgba(57,255,20,0.25)] group shrink-0 cursor-pointer"
                         >
                           <Plus className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-90 transition-transform" />
-                          <span className="whitespace-nowrap">Novo Atleta</span>
+                          <span className="whitespace-nowrap">Novo Cadastro</span>
                         </button>
                       </>
                     )}
@@ -2487,7 +2500,8 @@ const EliteHubApp: FC<{
                   </div>
                 </div>
               </section>
-              {selected && user.role === 'coach' && <ReassessmentNotice key={selected.id} readOnly={isSupervisedToken(user?.token)} athlete={selected} onSave={plan=>saveReassessmentPlan(selected.id,plan)} onAssess={()=>{setActiveTab('assessment');setIsAiChatOpen(false);setAiModelingResult(null);}} />}
+              {selected && !isAssessmentOnly(selected) && user.role === 'coach' && <ReassessmentNotice key={selected.id} readOnly={isSupervisedToken(user?.token)} athlete={selected} onSave={plan=>saveReassessmentPlan(selected.id,plan)} onAssess={()=>{setActiveTab('assessment');setIsAiChatOpen(false);setAiModelingResult(null);}} />}
+              {selected && isAssessmentOnly(selected) && <div className="lb-surface-card rounded-2xl p-4 mb-4"><p className="font-bold text-brand-primary">Aluno — somente avaliações</p><p className="text-sm text-slate-400 mt-1">Avaliações, histórico e relatórios. Sem controle de treinos ou avisos automáticos de reavaliação.</p></div>}
               {/* Render Guia directly without requiring an athlete selection */}
               {activeTab === "info" ? (
                 <div className="w-full max-w-7xl mx-auto px-4 py-4 animate-in fade-in duration-500">
@@ -2497,7 +2511,7 @@ const EliteHubApp: FC<{
                 <div className="flex flex-col items-center px-4 max-w-7xl mx-auto w-full">
                   {/* Banner de Aniversariantes do Dia no Dashboard do Treinador */}
                   {(() => {
-                    const birthdayAthletesToday = athletes.filter((a) => isBirthdayToday(a.dob));
+                    const birthdayAthletesToday = performanceAthletes.filter((a) => isBirthdayToday(a.dob));
                     if (birthdayAthletesToday.length === 0) return null;
 
                     return (
@@ -2605,14 +2619,14 @@ const EliteHubApp: FC<{
                       {
                         key: "all",
                         label: "Atletas Totais",
-                        value: athletes.length,
+                        value: performanceAthletes.length,
                         icon: Users,
                         color: "brand-primary",
                       },
                       {
                         key: "elite",
                         label: "Atletas Elite",
-                        value: athletes.filter(
+                        value: performanceAthletes.filter(
                           (a) => a.competitiveLevel === "elite",
                         ).length,
                         icon: Activity,
@@ -2621,7 +2635,7 @@ const EliteHubApp: FC<{
                       {
                         key: "low-readiness",
                         label: "Baixa Prontidão Hoje",
-                        value: athletes.filter((a) => {
+                        value: performanceAthletes.filter((a) => {
                           const today = getLocalDateString();
                           const todayWell = (a.wellness || []).find(
                             (w) => w.date && w.date.startsWith(today),
@@ -2634,7 +2648,7 @@ const EliteHubApp: FC<{
                       {
                         key: "scheduled-today",
                         label: "Atletas com Treino agendado no dia",
-                        value: athletes.filter((a) =>
+                        value: performanceAthletes.filter((a) =>
                           (a.workouts || []).some(
                             (wk) =>
                               wk.date && wk.date.startsWith(getLocalDateString()),
@@ -3469,7 +3483,7 @@ const EliteHubApp: FC<{
                         }
                         role={user.role}
                         onStartWorkout={startWorkoutFlow}
-                        athletes={athletes}
+                        athletes={performanceAthletes}
                         onSelectAthleteId={setSelectedId}
                         dashboardSubTab={dashboardSubTab}
                         setDashboardSubTab={setDashboardSubTab}
@@ -4135,6 +4149,8 @@ const EliteHubApp: FC<{
             </main>
 
             {/* MODALS - All with optimized responsiveness */}
+            {showDirectory && user?.role==='coach' && <RegistrationDirectory athletes={athletes} readOnly={isSupervisedToken(user?.token)} onChangeType={updateFollowUpType} onClose={()=>setShowDirectory(false)} onOpen={id=>{const a=athletes.find(a=>a.id===id);setSelectedId(id);setActiveTab(a&&isAssessmentOnly(a)?'assessment':'dash');setIsAiChatOpen(false);setAiModelingResult(null);setShowDirectory(false);}}/>}
+
             {modalState.type === "athlete" && (
               <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-3 sm:px-4">
                 <AthleteForm
@@ -16344,7 +16360,8 @@ const AthleteForm: FC<{
   initialData?: Athlete;
 }> = ({ onSave, onCancel, initialData }) => {
   const [formData, setFormData] = useState<Partial<Athlete>>(
-    initialData ? { ...initialData, dob: normalizeBirthDate(initialData.dob) } : {
+    initialData ? { ...initialData, followUpType: followUpType(initialData.followUpType), dob: normalizeBirthDate(initialData.dob) } : {
+      followUpType: "athlete",
       name: "",
       dob: "",
       gender: "M",
@@ -16379,7 +16396,7 @@ const AthleteForm: FC<{
   return (
     <Card
       className="max-w-2xl w-full mx-auto space-y-10 bg-slate-900 border-slate-800 p-8 md:p-12 shadow-2xl"
-      title="Bio-Profile Atleta Elite"
+      title="Cadastro — Atleta ou Aluno"
     >
       <form onSubmit={handleSubmit} className="space-y-10">
         <div className="space-y-6">
@@ -16387,6 +16404,15 @@ const AthleteForm: FC<{
             <h3 className="text-xs font-black uppercase text-slate-500 tracking-[0.2em] mb-4">
               Dados Básicos
             </h3>
+
+            <div>
+              <label htmlFor="follow-up-type" className="text-[11px] font-black text-slate-500 uppercase block mb-3 px-1">Tipo de acompanhamento</label>
+              <select id="follow-up-type" value={formData.followUpType || 'athlete'} onChange={e=>update({followUpType:e.target.value as Athlete['followUpType']})} className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 text-xs text-white font-black outline-none focus:border-brand-primary">
+                <option value="athlete">Atleta — acompanhamento de performance</option>
+                <option value="assessment-only">Aluno — somente avaliações</option>
+              </select>
+              <p className="text-xs text-slate-400 mt-2">{formData.followUpType==='assessment-only'?'Mantém avaliações, evolução e relatórios. Não aparece no Painel de Atletas e não recebe avisos de reavaliação.':'Inclui painel de performance, treinos, prontidão e avisos de reavaliação.'}</p>
+            </div>
 
             {/* Foto de Perfil */}
             <div>
@@ -16458,7 +16484,7 @@ const AthleteForm: FC<{
             </div>
 
             <Field
-              label="Nome Completo Atleta"
+              label="Nome Completo"
               value={formData.name || ""}
               onChange={(v) => update({ name: v })}
               type="text"

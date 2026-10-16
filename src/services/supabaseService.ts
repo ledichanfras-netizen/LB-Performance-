@@ -1,3 +1,4 @@
+import { readFollowUpType, followUpType } from '../utils/followUp';
 import { readReassessmentPlan } from '../utils/reassessment';
 import { syncRevision } from '../../server/workoutSync';
 import { exerciseMetadata } from "../../server/exerciseMetadata";
@@ -98,6 +99,7 @@ const serializeBackupAthleteFields = (athlete: any) => {
   const imtp = athlete.assessments?.imtp || athlete.imtpBackup || [];
   const postural = athlete.assessments?.postural || athlete.posturalBackup || [];
   return JSON.stringify({
+    followUpType: followUpType(athlete.followUpType),
     legacy: athlete.injuryHistory || '',
     injuries: athlete.injuries || [],
     medicalExams: athlete.medicalExams || [],
@@ -381,7 +383,8 @@ export const supabaseService = {
           position: a.position,
           goal: a.goal,
           weeklyFrequency: a.weekly_frequency,
-          injuryHistory: parsedFields.injuryHistory,
+          followUpType: readFollowUpType(a),
+            injuryHistory: parsedFields.injuryHistory,
           isTournamentMode: a.is_tournament_mode,
           periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
           periodizationEnd: a.periodization_end || parsedFields.periodizationEnd || undefined,

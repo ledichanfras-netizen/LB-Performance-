@@ -1,3 +1,4 @@
+import { readFollowUpType } from '../src/utils/followUp';
 import { Router } from 'express';
 import { mayAccessAthlete, ScopeDenied } from './scope';
 import { assessmentLabels, readReassessmentPlan } from '../src/utils/reassessment';
@@ -12,6 +13,7 @@ export async function saveReassessmentPlan(pool:any,account:any,athleteId:string
     const owned=await c.query('SELECT id,injury_history FROM athletes WHERE id=$1 FOR UPDATE',[athleteId]);if(!owned.rows.length)throw new ScopeDenied();
     let plan:any=null;
     if(input!==null){
+      if(readFollowUpType(owned.rows[0])==='assessment-only')throw new Error('Alunos de somente avaliações não possuem agendamento automático de reavaliação.');
       if(!input || !normalizeBirthDate(input.dueDate) || !Array.isArray(input.tests) || !input.tests.length || input.tests.length>8 || input.tests.some((t:any)=>typeof t!=='string' || !Object.hasOwn(assessmentLabels,t)))throw new Error('Selecione uma data válida e pelo menos uma avaliação.');
       const createdOn=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
       const baseline:any={};

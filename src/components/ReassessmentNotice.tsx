@@ -1,3 +1,4 @@
+import { isAssessmentOnly } from '../utils/followUp';
 import React,{useState,useEffect} from 'react';
 import {Bell,CalendarDays,ChevronDown} from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ export default function ReassessmentNotice({athlete,onSave,onAssess,readOnly=fal
   try{await onSave(reset?null:{dueDate:date,tests});setEditing(false);toast.success(reset?'Sugestões da Matriz LB retomadas.':'Reavaliação agendada!');onClose?.();}
   catch(error:any){toast.error(error.message || 'Não foi possível salvar. Tente novamente.');}finally{setSaving(false);}
  };
+ if(isAssessmentOnly(athlete))return null;
  return <section className={`lb-reassessment ${embedded?'ra-embedded':'ra-panel ra-notice'}`} aria-label="Reavaliação do atleta">
   {!embedded && <div className="ra-heading-row">
    <div className="ra-min"><p className="ra-eyebrow"><Bell size={16}/> Reavaliação — Matriz LB</p><h2 className="ra-title">{message}</h2>{result.dueDate && <p className="ra-muted ra-meta">{dateLabel(result.dueDate)} · {result.manual?'Agendado pelo treinador':'Prazo sugerido pelo padrão LB'}</p>}<p className="ra-copy"><strong>Avaliações {result.manual?'agendadas':'sugeridas'}: </strong>{suggested.map(t=>assessmentLabels[t]).join(' · ') || 'Definir com o treinador'}</p><span className={`ra-badge ra-${status}`}>{result.manual?'Agendamento do treinador':'Sugestão da Matriz LB'}</span></div>

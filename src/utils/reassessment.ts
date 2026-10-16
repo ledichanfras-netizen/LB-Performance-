@@ -1,3 +1,4 @@
+import { isAssessmentOnly } from './followUp';
 import type { Athlete, AssessmentType, DecisionCategory, DecisionMatrixRow } from '../types';
 import { generateAthleteDecisionMatrix } from './decisionMatrixEngine';
 import { normalizeBirthDate as dateOnly } from './birthDate';
@@ -35,6 +36,7 @@ export function readReassessmentPlan(value:unknown):ReassessmentPlan|null {
 }
 export type ReassessmentItem={type:AssessmentType;dueDate:string|null;lastDate:string|null;reason:string;timeline?:string;source:'matrix'|'coach'};
 export function buildReassessment(athlete:Athlete,today:string, suppliedRows?:DecisionMatrixRow[]):{items:ReassessmentItem[];dueDate:string|null;initial:AssessmentType[];manual:boolean;completed:AssessmentType[]} {
+  if(isAssessmentOnly(athlete))return {items:[],dueDate:null,initial:[],manual:false,completed:[]};
   const history=Object.fromEntries(Object.keys(assessmentLabels).map(t=>[t,validAssessmentHistory(athlete,t as AssessmentType,today)]));
   const latest=(type:AssessmentType)=>history[type].at(-1);
   const initial=matrixTests.filter(type=>!latest(type));
@@ -94,7 +96,7 @@ export function reassessmentSummary(athlete:Athlete,today:string){
 }
 export function reassessmentCenterData(athletes:Athlete[],today:string,filter:ReassessmentFilter='all',query=''){
   const normalize=(value:string)=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
-  const all=athletes.filter(a=>a?.id && !/^(featured-|model-|meta-)/.test(a.id)).map(a=>reassessmentSummary(a,today))
+  const all=athletes.filter(a=>a?.id && !isAssessmentOnly(a) && !/^(featured-|model-|meta-)/.test(a.id)).map(a=>reassessmentSummary(a,today))
     .sort((a,b)=>(a.result.dueDate || '9999').localeCompare(b.result.dueDate || '9999') || a.athlete.name.localeCompare(b.athlete.name,'pt-BR'));
   const counts={all:all.length,today:0,upcoming:0,overdue:0,undefined:0};
   for(const row of all)if(row.status!=='future')counts[row.status]++;

@@ -1,3 +1,4 @@
+import { readFollowUpType, followUpType } from './src/utils/followUp';
 import { reassessmentRouter } from './server/reassessment';
 import { readReassessmentPlan } from './src/utils/reassessment';
 import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, syncRevision, archiveMissingWorkoutsSQL } from './server/workoutSync';
@@ -389,6 +390,7 @@ const serializeBackupAthleteFields = (athlete: any) => {
   const imtp = athlete.assessments?.imtp || athlete.imtpBackup || [];
   const postural = athlete.assessments?.postural || athlete.posturalBackup || [];
   return JSON.stringify({
+    followUpType: followUpType(athlete.followUpType),
     legacy: athlete.injuryHistory || '',
     injuries: athlete.injuries || [],
     trainingDays: athlete.trainingDays || [1, 3, 5],
@@ -997,6 +999,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
             gender: a.gender || 'M',
             weeklyFrequency: a.weekly_frequency,
             competitiveLevel: a.competitive_level,
+            followUpType: readFollowUpType(a),
             injuryHistory: parsedFields.injuryHistory,
             isTournamentMode: a.is_tournament_mode,
             periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
@@ -1264,7 +1267,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         position: a.position,
         goal: a.goal,
         weeklyFrequency: a.weekly_frequency,
-        injuryHistory: parsedFields.injuryHistory,
+        followUpType: readFollowUpType(a),
+            injuryHistory: parsedFields.injuryHistory,
         isTournamentMode: a.is_tournament_mode,
         periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
         periodizationEnd: a.periodization_end || parsedFields.periodizationEnd || undefined,

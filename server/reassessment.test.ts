@@ -126,3 +126,16 @@ test('LB routine intervals cover severity, normal maintenance and separate acute
  assert.equal(result.items.find(i=>i.type==='imtp')?.dueDate,'2026-10-31');
  assert.equal(result.items.find(i=>i.type==='cmj')?.dueDate,'2026-12-30');
 });
+
+
+test('assessment-only students have no reassessment deadlines, even with a manual plan',async()=>{
+ const {reassessmentCenterData}=await import('../src/utils/reassessment');
+ const a=athlete({followUpType:'assessment-only',reassessmentPlan:{dueDate:'2026-10-15',createdOn:'2026-10-01',tests:['imtp'],baseline:{imtp:{id:'latest',date:'2026-10-01'}}}});
+ const before=JSON.stringify(a.assessments);
+ const result=buildReassessment(a,'2026-10-15');
+ assert.deepEqual(result.items,[]);assert.deepEqual(result.initial,[]);assert.equal(result.dueDate,null);assert.equal(result.manual,false);
+ assert.equal(reassessmentCenterData([a],'2026-10-15').counts.all,0);
+ assert.equal(renderToStaticMarkup(React.createElement(ReassessmentNotice,{athlete:a,today:'2026-10-15',onSave:async()=>{},onAssess:()=>{}})),'');
+ a.followUpType='athlete';assert.equal(buildReassessment(a,'2026-10-15').dueDate,'2026-10-15');
+ assert.equal(JSON.stringify(a.assessments),before);
+});
