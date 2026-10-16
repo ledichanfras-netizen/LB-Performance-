@@ -1,4 +1,3 @@
-import RegistrationDirectory from './components/RegistrationDirectory';
 import { isAssessmentOnly, followUpType } from './utils/followUp';
 import ReassessmentNotice from './components/ReassessmentNotice';
 import ImtpReportPages from "./components/ImtpReportPages";
@@ -673,7 +672,6 @@ const EliteHubApp: FC<{
     addAthlete,
     updateAthlete,
     saveReassessmentPlan,
-    updateFollowUpType,
     deleteAthlete,
     addWellness,
     updateWellness,
@@ -757,7 +755,6 @@ const EliteHubApp: FC<{
   const [isPeriodizationExpanded, setIsPeriodizationExpanded] = useState(false);
 
   const performanceAthletes = useMemo(()=>athletes.filter(a=>!isAssessmentOnly(a)),[athletes]);
-  const [showDirectory,setShowDirectory]=useState(false);
 
   const featuredAthletesList = useMemo(() => {
     const today = getLocalDateString();
@@ -2354,7 +2351,6 @@ const EliteHubApp: FC<{
                   <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-[30] w-full xl:w-auto shrink-0 justify-start sm:justify-end">
                     {user.role === "coach" && (
                       <>
-                        <button type="button" onClick={()=>setShowDirectory(true)} className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-black uppercase tracking-wider hover:bg-brand-primary/20"><Users size={16}/>Cadastros</button>
                         <div className="relative group w-full sm:w-60 lg:w-64">
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-primary/50 group-focus-within:text-brand-primary transition-colors">
                             <Users className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -4149,7 +4145,6 @@ const EliteHubApp: FC<{
             </main>
 
             {/* MODALS - All with optimized responsiveness */}
-            {showDirectory && user?.role==='coach' && <RegistrationDirectory athletes={athletes} readOnly={isSupervisedToken(user?.token)} onChangeType={updateFollowUpType} onClose={()=>setShowDirectory(false)} onOpen={id=>{const a=athletes.find(a=>a.id===id);setSelectedId(id);setActiveTab(a&&isAssessmentOnly(a)?'assessment':'dash');setIsAiChatOpen(false);setAiModelingResult(null);setShowDirectory(false);}}/>}
 
             {modalState.type === "athlete" && (
               <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-950/85 backdrop-blur-md overflow-y-auto pt-4 sm:pt-6 pb-24 sm:pb-16 px-3 sm:px-4">
