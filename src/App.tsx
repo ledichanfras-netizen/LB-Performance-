@@ -10727,253 +10727,14 @@ const CmjReport: FC<{
   const cmjFlightTime = data.flightTime || 0;
   const cmjDepth = data.depth || 0;
 
-  // Football-Specific Normatives Detection:
-  const isFutebol = athlete.modality?.toLowerCase().includes("futebol") || athlete.modality?.toLowerCase().includes("soccer");
-
-  // Set default / general normative requirements
-  let reqHeightMin = 36;
-  let reqHeightMax = 45;
-  let reqRelPowerMin = 48;
-  let reqRelPowerMax = 58;
-  let soccerCategory = "Geral";
-
-  if (isFutebol) {
-    const age = calculateAge(athlete.dob);
-    const isFemale = athlete.gender === "F";
-    if (isFemale) {
-      if (age <= 15) {
-        soccerCategory = "Sub-15 Feminino (14-15 anos)";
-        reqHeightMin = 22;
-        reqHeightMax = 26;
-        reqRelPowerMin = 32;
-        reqRelPowerMax = 38;
-      } else if (age <= 17) {
-        soccerCategory = "Sub-17 Feminino (16-17 anos)";
-        reqHeightMin = 25;
-        reqHeightMax = 30;
-        reqRelPowerMin = 36;
-        reqRelPowerMax = 42;
-      } else if (age <= 20) {
-        soccerCategory = "Sub-20 Feminino (18-20 anos)";
-        reqHeightMin = 28;
-        reqHeightMax = 33;
-        reqRelPowerMin = 40;
-        reqRelPowerMax = 46;
-      } else {
-        soccerCategory = "Profissional Feminino (Adulto)";
-        reqHeightMin = 30;
-        reqHeightMax = 36;
-        reqRelPowerMin = 42;
-        reqRelPowerMax = 50;
-      }
-    } else {
-      if (age <= 15) {
-        soccerCategory = "Sub-15 Masculino (14-15 anos)";
-        reqHeightMin = 31;
-        reqHeightMax = 35;
-        reqRelPowerMin = 42;
-        reqRelPowerMax = 48;
-      } else if (age <= 17) {
-        soccerCategory = "Sub-17 Masculino (16-17 anos)";
-        reqHeightMin = 36;
-        reqHeightMax = 41;
-        reqRelPowerMin = 48;
-        reqRelPowerMax = 54;
-      } else if (age <= 20) {
-        soccerCategory = "Sub-20 Masculino (18-20 anos)";
-        reqHeightMin = 40;
-        reqHeightMax = 44;
-        reqRelPowerMin = 52;
-        reqRelPowerMax = 58;
-      } else {
-        soccerCategory = "Profissional Masculino (Adulto)";
-        reqHeightMin = 43;
-        reqHeightMax = 50;
-        reqRelPowerMin = 55;
-        reqRelPowerMax = 65;
-      }
-    }
-  }
-
-  // Classify Jump Height:
-  let heightClass = "Baixo";
-  let heightColor = "bg-red-500 text-red-550 border-red-200/50";
-
-  const hEliteLimit = isFutebol ? reqHeightMax : 50;
-  const hBomLimit = isFutebol ? reqHeightMin : 40;
-  const hModLimit = isFutebol ? (reqHeightMin - 5) : 30;
-
-  if (cmjHeight >= hEliteLimit) {
-    heightClass = "Elite";
-    heightColor = "bg-brand-primary text-brand-dark border-brand-primary/20";
-  } else if (cmjHeight >= hBomLimit) {
-    heightClass = "Bom";
-    heightColor = "bg-emerald-500 text-emerald-600 border-emerald-200/50";
-  } else if (cmjHeight >= hModLimit) {
-    heightClass = "Moderado";
-    heightColor = "bg-amber-500 text-amber-600 border-amber-200/50";
-  }
-
-  // Classify Relative Peak Power:
-  let powerClass = "Baixo";
-  let powerColor = "bg-red-500 text-red-550 border-red-200/50";
-
-  const pEliteLimit = isFutebol ? reqRelPowerMax : 62;
-  const pBomLimit = isFutebol ? reqRelPowerMin : 50;
-  const pModLimit = isFutebol ? (reqRelPowerMin - 5) : 40;
-
-  if (cmjPowerRel >= pEliteLimit) {
-    powerClass = "Elite";
-    powerColor = "bg-brand-primary text-brand-dark border-brand-primary/20";
-  } else if (cmjPowerRel >= pBomLimit) {
-    powerClass = "Bom";
-    powerColor = "bg-emerald-500 text-emerald-600 border-emerald-200/50";
-  } else if (cmjPowerRel >= pModLimit) {
-    powerClass = "Moderado";
-    powerColor = "bg-amber-500 text-amber-600 border-amber-200/50";
-  }
-
-  // Score Cardiovascular/Explosive CmjScore:
-  let cmjScore = Math.round(
-    Math.min(((cmjHeight / 50) * 50) + ((cmjPowerRel / 60) * 50), 100)
-  );
-  if (cmjScore < 20) cmjScore = 20;
-
-  let cmjScoreClass = "Em Desenvolvimento";
-  let cmjScoreColor = "bg-amber-500/10 text-amber-500 border-amber-500/20";
-  if (cmjScore >= 80) {
-    cmjScoreClass = "Excelente Rendimento";
-    cmjScoreColor = "bg-brand-primary/10 text-brand-primary border-brand-primary/20";
-  } else if (cmjScore >= 65) {
-    cmjScoreClass = "Ótima Explosão";
-    cmjScoreColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  } else if (cmjScore >= 45) {
-    cmjScoreClass = "Consistente";
-    cmjScoreColor = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
-  }
-
-  // Reactive Index Cmj Efficiency (IEP):
-  const fTimeEff = Math.min(Math.round((cmjFlightTime / 650) * 100), 100);
-  const pRelEff = Math.min(Math.round((cmjPowerRel / 60) * 100), 100);
-  const cmjStiffnessEff = Math.min(Math.round((cmjHeight / 50) * 100), 100);
-  const totalEfficiencyCmj = Math.round((fTimeEff + pRelEff + cmjStiffnessEff) / 3);
-
-  let efficiencyLevelCmj = "Em Desenvolvimento";
-  let efficiencyColorCmj = "bg-amber-500/10 text-amber-500 border-amber-500/20";
-  if (totalEfficiencyCmj >= 80) {
-    efficiencyLevelCmj = "Excelente Aproveitamento";
-    efficiencyColorCmj = "bg-brand-primary/10 text-brand-primary border-brand-primary/20";
-  } else if (totalEfficiencyCmj >= 65) {
-    efficiencyLevelCmj = "Alta Eficiência";
-    efficiencyColorCmj = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  } else if (totalEfficiencyCmj >= 45) {
-    efficiencyLevelCmj = "Boa Eficiência";
-    efficiencyColorCmj = "bg-yellow-500/10 text-yellow-500 border-yellow-500/30";
-  }
-
-  // 1. VEREDICTO RESUMO DO ESPECIALISTA (Cientista do Esporte) - Foco em Evolução Individual
-  let veredictoResumoCmj = `Perfil funcional de força explosiva bem estruturado. O atleta demonstra boa capacidade de impulsão, com oportunidade contínua de elevar a aceleração concêntrica na fase de subida do contra-movimento.`;
-  if (previousData) {
-    const hDiff = cmjHeight - prevHeight;
-    if (hDiff > 0) {
-      veredictoResumoCmj = `Excelente evolução neuromuscular em relação à avaliação anterior (+${hDiff.toFixed(1)} cm de impulsão). Demonstra ótima absorção das cargas de treino, aumento no gradiente de aceleração e resposta elástica superior dos membros inferiores.`;
-    } else if (hDiff === 0) {
-      veredictoResumoCmj = `Manutenção consistente da potência e impulsão vertical em relação ao teste anterior. Apresenta estabilidade motora e base física consolidada para novos estímulos de força rápida.`;
-    } else {
-      veredictoResumoCmj = `Oscilação fisiológica pontual de ${hDiff.toFixed(1)} cm em relação à avaliação anterior. Sugere ajuste fino na recuperação neuromuscular e foco em trabalhos de rigidez articular e pliometria para recuperar o pico de impulsão.`;
-    }
-  } else {
-    if (cmjHeight >= 40) {
-      veredictoResumoCmj = `Excelente dominância neuromuscular e capacidade de impulsão no marco inicial. Apresenta ótimo aproveitamento do ciclo alongamento-encurtamento e expressiva taxa de produção de força rápida.`;
-    } else {
-      veredictoResumoCmj = `Marco inicial de potência vertical estabelecido com sucesso. O teste serve como linha de base para monitorar a evolução gradual da velocidade e taxa de desenvolvimento de força nos próximos ciclos.`;
-    }
-  }
-
-  // 2. EXPLICAÇÃO TÉCNICA (Treinador)
-  const averageForceWkg = data.averageForce ? data.averageForce / cmjWeight : 0;
-
-  let sCmjExcExc = "A aplicação de força concêntrica apresenta-se dentro de parâmetros consistentes, sugerindo capacidade de superação da inércia. Potencial de otimização na curva de força-tempo.";
-  if (averageForceWkg > 25) {
-    sCmjExcExc = "Expressiva capacidade de aplicação de força máxima relativa ao peso corporal. O impulso gerado reflete um sistema neuromuscular denso e responsivo com alta eficiência propulsiva.";
-  } else if (averageForceWkg > 0 && averageForceWkg < 15) {
-    sCmjExcExc = "Oportunidade de expansão na magnitude de força aplicada no solo. Recomenda-se bloco focado em hipertrofia miofibrilar e fortalecimento de base para potencializar o impulso total.";
-  }
-
-  let sCmjAproveitamentoElastico = "Aproveitamento do CEA (Ciclo Alongamento Encurtamento) equilibrado. O atleta demonstra boa transição excêntrico-concêntrica com reaproveitamento de energia elástica dos tecidos conjuntivos.";
-  if (cmjHeight >= 45) {
-    sCmjAproveitamentoElastico = "Excelente rigidez elástica do complexo músculo-tendíneo (MTU). Potência elástica exemplar com mínimo vazamento de força na fase de transição (amortecimento/explosão).";
-  }
-
-  let sCmjFatoresNeuromusculares = "Acionamento de unidades motoras adequado, com margem expressiva de evolução através do aumento do gradiente de força no primeiro terço de subida.";
-  if (cmjPowerRel >= 55) {
-    sCmjFatoresNeuromusculares = "Excelente recrutamento de unidades motoras de alto limiar de excitação. Taxa de disparo e sincronização de fibras rápidas em alto nível de prontidão.";
-  }
-
-  // 3. TRADUÇÃO SIMPLES (Atleta)
-  let sCmjAthleteTranslation = "Seu salto vertical mostrou ótima energia! Vamos continuar treinando sua impulsão para você superar suas próprias marcas a cada avaliação, empurrando o chão com o máximo de velocidade!";
-  if (previousData && cmjHeight > prevHeight) {
-    sCmjAthleteTranslation = `Parabéns! Você pulou ${(cmjHeight - prevHeight).toFixed(1)} cm mais alto que na sua última avaliação! Seu treino está fazendo efeito e sua explosão está aumentando!`;
-  }
-
-  // 4. EXPLICAÇÃO PARA PAIS
-  let sCmjParentsExplanation = `O Countermovement Jump avalia a impulsão vertical e a saúde da potência das pernas. A marca do seu filho (${cmjHeight} cm) é totalmente segura e indica boa rigidez estrutural nas articulações, prevenindo cansaço mecânico.`;
-  if (calculateAge(athlete.dob) < 18) {
-    sCmjParentsExplanation = `Monitoramos a potência muscular do seu filho com foco total na segurança articular. O teste mostra que ele desenvolve uma boa impulsão (${cmjHeight} cm) de forma equilibrada, protegendo joelhos e tornozelos contra sobrecargas típicas do crescimento.`;
-  }
-
-  // Diretrizes de Intervenção Metodológica (Sem receitas de bolo - Caminhos de treino):
-  let sCmjInterventionDirectives = [
-    {
-      pillar: "Prioridade 1: Taxa de Desenvolvimento de Força (RFD)",
-      directive: "Trabalhar ações de máxima intenção de aceleração na fase concêntrica, desenvolvendo a capacidade de aplicar altos picos de força em janelas temporais curtas."
-    },
-    {
-      pillar: "Prioridade 2: Transição Amortecimento-Propulsão (CAE)",
-      directive: "Otimizar a fase de contra-movimento, evitando desacelerações excessivamente lentas para maximizar o reaproveitamento de energia elástica muscular."
-    },
-    {
-      pillar: "Prioridade 3: Transferência Dinâmica e Estabilidade",
-      directive: "Conectar a impulsão vertical à mecânica de desaceleração e aterrissagem equilibrada, blindando articulações de joelho e tornozelo."
-    }
-  ];
-
-  if (cmjHeight < 30) {
-    sCmjInterventionDirectives = [
-      {
-        pillar: "Prioridade 1: Consolidação da Força de Base",
-        directive: "Elevar a capacidade máxima de produção de força nos extensores de membros inferiores, criando a fundação estrutural necessária para impulsionar a massa corporal."
-      },
-      {
-        pillar: "Prioridade 2: Padrão Motor de Tripla Extensão",
-        directive: "Refinar a sincronização coordenada entre tornozelos, joelhos e quadril durante o contra-movimento preparatório."
-      },
-      {
-        pillar: "Prioridade 3: Pliometria Extensiva e Condicionamento Tendíneo",
-        directive: "Utilizar estímulos elásticos de baixa e média intensidade com alto volume para preparar o aparelho locomotor para maiores sobrecargas dinâmicas."
-      }
-    ];
-  } else if (cmjHeight >= 45) {
-    sCmjInterventionDirectives = [
-      {
-        pillar: "Prioridade 1: Métodos de Contraste e Potenciação (PAP)",
-        directive: "Utilizar combinações de sobrecarga seguidas de impulsões máximas para otimizar o recrutamento de unidades motoras de altíssimo limiar."
-      },
-      {
-        pillar: "Prioridade 2: Transferência para Situações Esportivas",
-        directive: "Integrar a capacidade de salto vertical com deslocamentos rápidos, fintas e demandas reativas típicas da modalidade do atleta."
-      },
-      {
-        pillar: "Prioridade 3: Monitoramento de Prontidão e Carga Aguda",
-        directive: "Acompanhar a variabilidade da altura de salto ao longo da semana como indicador sensível de fadiga central e prontidão competitiva."
-      }
-    ];
-  }
-
-  // Target Evolution Metas:
-  const targetCmjHeight = cmjHeight + (cmjHeight < 30 ? 5 : cmjHeight < 45 ? 4 : 2);
-  const targetCmjPower = Math.round(cmjPowerRel * 1.08);
-  const targetTimeframeCmj = cmjHeight < 35 ? "4 a 6 semanas" : "6 a 8 semanas";
+  const hasPreviousHeight = !!previousData && prevHeight > 0 && cmjHeight > 0;
+  const comparisonSummary = !hasPreviousHeight
+    ? "Este teste estabelece uma referência individual. A evolução será analisada nas próximas avaliações realizadas com o mesmo protocolo."
+    : cmjHeight > prevHeight
+      ? "A altura do salto aumentou em relação ao teste anterior. Confirmar a consistência dessa resposta em condições semelhantes de avaliação."
+      : cmjHeight < prevHeight
+        ? "A altura do salto diminuiu em relação ao teste anterior. Revisar as condições do teste, a recuperação e a carga recente antes de ajustar o treinamento."
+        : "A altura do salto foi mantida em relação ao teste anterior. Considerar também a potência e as condições de execução ao revisar o planejamento.";
 
   const handleExportJpeg = async () => {
     if (!reportRef.current) return;
@@ -11091,21 +10852,20 @@ const CmjReport: FC<{
         <div ref={reportRef} className="print-container bg-slate-100/10 md:bg-transparent">
 
           {/* Page 1 */}
-          <ReportPage pageNumber={1} totalPages={4}>
+          <ReportPage pageNumber={1} totalPages={3}>
             <ReportHeader
               title="RELATÓRIO DE SALTO VERTICAL"
               subTitle="MENSURAÇÃO DE POTÊNCIA E ALTURA DO SALTO"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[
-                { label: "TEMPO DE VOO", value: `${data.flightTime || 0} MS` },
-                { label: "PÁGINA", value: "01 DE 04" }
+                { label: "PÁGINA", value: "01 DE 03" }
               ]}
             />
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 mt-4 font-sans">
+            <div className="grid grid-cols-2 gap-4 mb-5 mt-4 font-sans">
               {/* ALTURA DO SALTO */}
-              <div className="bg-brand-primary p-8 rounded-[2.5rem] text-brand-dark shadow-xl relative overflow-hidden group flex flex-col justify-between">
+              <div className="bg-brand-primary p-5 rounded-2xl text-brand-dark shadow-xl relative overflow-hidden group flex flex-col justify-between">
                 <div className="absolute -right-4 -top-4 opacity-[0.05] group-hover:scale-110 transition-transform text-brand-dark">
                   <TrendingUp className="w-32 h-32" />
                 </div>
@@ -11121,20 +10881,20 @@ const CmjReport: FC<{
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 mt-4 animate-fadeIn">
-                  <h3 className="text-5xl font-black italic leading-none font-sans">
+                  <h3 className="text-4xl font-black italic leading-none font-sans">
                     {cmjHeight}
                   </h3>
                   <span className="text-sm font-bold opacity-60 uppercase italic font-sans">
                     CM
                   </span>
                 </div>
-                <p className="text-[9px] mt-6 font-black uppercase italic leading-relaxed text-brand-dark/80 font-bold font-sans">
-                  MENSURA O DESLOCAMENTO VERTICAL MÁXIMO DO CENTRO DE GRAVIDADE, REFLETINDO A CAPACIDADE DE IMPULSÃO EXTREMA DO ATLETA CONTRA A GRAVIDADE.
+                <p className="text-[10px] mt-3 font-black uppercase italic leading-relaxed text-brand-dark/80 font-bold font-sans">
+                  Altura atingida no salto; referência para acompanhar a impulsão vertical.
                 </p>
               </div>
 
               {/* POTÊNCIA */}
-              <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] relative overflow-hidden group flex flex-col justify-between">
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl relative overflow-hidden group flex flex-col justify-between">
                 <div className="absolute -right-4 -top-4 text-orange-500 opacity-[0.03] group-hover:scale-110 transition-transform">
                   <Zap className="w-32 h-32" />
                 </div>
@@ -11150,20 +10910,20 @@ const CmjReport: FC<{
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 mt-4">
-                  <h3 className="text-5xl font-black text-slate-900 italic leading-none font-sans">
+                  <h3 className="text-4xl font-black text-slate-900 italic leading-none font-sans">
                     {data.power || 0}
                   </h3>
                   <span className="text-sm font-bold text-slate-400 uppercase italic font-sans">
                     W
                   </span>
                 </div>
-                <p className="text-[9px] mt-6 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                  REPRESENTA O TRABALHO MECÂNICO EXPLOSIVO INSTANTÂNEO (EM WATTS) DESENVOLVIDO PELOS MEMBROS INFERIORES DURANTE A TRIPLA EXTENSÃO DO SALTO.
+                <p className="text-[10px] mt-3 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
+                  Potência registrada no teste, expressa em watts.
                 </p>
               </div>
 
               {/* TEMPO DE VOO */}
-              <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] relative overflow-hidden group flex flex-col justify-between">
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl relative overflow-hidden group flex flex-col justify-between">
                 <div className="absolute -right-4 -top-4 text-blue-500 opacity-[0.03] group-hover:scale-110 transition-transform">
                   <Clock className="w-32 h-32" />
                 </div>
@@ -11179,20 +10939,20 @@ const CmjReport: FC<{
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 mt-4">
-                  <h3 className="text-5xl font-black text-slate-900 italic leading-none font-sans">
+                  <h3 className="text-4xl font-black text-slate-900 italic leading-none font-sans">
                     {data.flightTime || 0}
                   </h3>
                   <span className="text-sm font-bold text-slate-400 uppercase italic font-sans">
                     MS
                   </span>
                 </div>
-                <p className="text-[9px] mt-6 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                  MENSURA A DURAÇÃO EXATA DA FASE AÉREA DO SALTO (EM MS), QUE É DIRETAMENTE PROPORCIONAL À ALTURA ATINGIDA E INDICA A EFICIÊNCIA BALÍSTICA GERAL.
+                <p className="text-[10px] mt-3 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
+                  Tempo entre a decolagem e o retorno ao solo.
                 </p>
               </div>
 
               {/* POTÊNCIA/PESO */}
-              <div className="bg-white border border-slate-200 p-8 rounded-[2.5rem] relative overflow-hidden group flex flex-col justify-between">
+              <div className="bg-white border border-slate-200 p-5 rounded-2xl relative overflow-hidden group flex flex-col justify-between">
                 <div className="absolute -right-4 -top-4 text-emerald-500 opacity-[0.03] group-hover:scale-110 transition-transform">
                   <Activity className="w-32 h-32" />
                 </div>
@@ -11208,15 +10968,15 @@ const CmjReport: FC<{
                   )}
                 </div>
                 <div className="flex items-baseline gap-2 mt-4">
-                  <h3 className="text-5xl font-black text-slate-900 italic leading-none font-sans">
+                  <h3 className="text-4xl font-black text-slate-900 italic leading-none font-sans">
                     {(data.power / (data.weight || 1)).toFixed(1)}
                   </h3>
                   <span className="text-sm font-bold text-slate-400 uppercase italic font-sans">
                     W/KG
                   </span>
                 </div>
-                <p className="text-[9px] mt-6 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
-                  INDICA A POTÊNCIA DISPONÍVEL POR CADA QUILO DO ATLETA. É A MÉTRICA MAIS CRÍTICA PARA ESPORTES DE ACELERAÇÃO E ARRANCADA DIRETA.
+                <p className="text-[10px] mt-3 font-black text-slate-400 uppercase italic leading-relaxed font-bold font-sans">
+                  Potência em relação à massa corporal, expressa em W/kg.
                 </p>
               </div>
             </div>
@@ -11236,13 +10996,13 @@ const CmjReport: FC<{
           </ReportPage>
 
           {/* Page 2 */}
-          <ReportPage pageNumber={2} totalPages={4}>
+          <ReportPage pageNumber={2} totalPages={3}>
             <ReportHeader
               title="RELATÓRIO DE SALTO VERTICAL"
               subTitle="HISTÓRICO E COMPOSIÇÃO DE FORÇA EXPLOSIVA"
               athlete={athlete}
               date={formatDate(data.date)}
-              extraStats={[{ label: "PÁGINA", value: "02 DE 04" }]}
+              extraStats={[{ label: "PÁGINA", value: "02 DE 03" }]}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
@@ -11488,195 +11248,44 @@ const CmjReport: FC<{
             </div>
           </ReportPage>
 
-          {/* Page 3: Diagnóstico Neuromuscular & Análise */}
-          <ReportPage pageNumber={3} totalPages={4}>
+          {/* Page 3: Síntese e aplicação prática, sem repetir os resultados */}
+          <ReportPage pageNumber={3} totalPages={3}>
             <ReportHeader
               title="RELATÓRIO DE SALTO VERTICAL"
-              subTitle="DIAGNÓSTICO NEUROMUSCULAR & ANÁLISE"
+              subTitle="SÍNTESE E ORIENTAÇÕES DE TREINO"
               athlete={athlete}
               date={formatDate(data.date)}
-              extraStats={[{ label: "STATUS", value: previousData ? (data.height >= (previousData.height || 0) ? "EM EVOLUÇÃO" : "ESTÁVEL") : "AVALIAÇÃO BASE" }, { label: "PÁGINA", value: "03 DE 04" }]}
+              extraStats={[{ label: "PÁGINA", value: "03 DE 03" }]}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 font-sans">
+            <div className="space-y-5 mt-5 font-sans">
+              <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                <h4 className="text-sm font-black uppercase tracking-wide text-emerald-800 mb-3">Leitura principal</h4>
+                <p className="text-xs text-slate-800 leading-relaxed">{comparisonSummary}</p>
+              </section>
 
-              {/* Column 1: Resumo Executivo & Parâmetros Mecânicos */}
-              <div className="space-y-5 overflow-hidden">
-
-                {/* 1. STATUS GERAL */}
-                <div className="bg-slate-900 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden h-fit">
-                  <div className="absolute right-3 bottom-3 opacity-5">
-                    <Sparkles className="w-16 h-16 text-indigo-400" />
-                  </div>
-                  <span className="text-[7px] font-black text-indigo-400 uppercase tracking-widest block mb-2 font-mono pb-1 border-b border-indigo-450/20">
-                    🔥 STATUS DIAGNÓSTICO GERAL
-                  </span>
-                  <h4 className="text-sm font-black uppercase italic tracking-wider mb-2 leading-tight text-white">
-                    Veredito Neuromuscular
-                  </h4>
-                  <p className="text-[10px] text-slate-200 leading-relaxed font-bold uppercase font-sans">
-                    {veredictoResumoCmj}
-                  </p>
+              <section className="bg-white border border-slate-200 rounded-2xl p-5">
+                <h4 className="text-sm font-black uppercase tracking-wide text-slate-900 mb-4">Prioridades para o treinamento</h4>
+                <div className="space-y-4">
+                  {[
+                    { title: "Força e potência", text: "Cruzar o CMJ com as avaliações de força e o histórico de treinamento para selecionar os estímulos e acompanhar a resposta individual." },
+                    { title: "Execução do salto", text: "Manter o padrão de contramovimento, uso dos braços e aterrissagem. Registrar mudanças de técnica que possam alterar a comparação." },
+                    { title: "Aplicação no esporte", text: "Integrar o trabalho de impulsão às demandas da modalidade. Confirmar a transferência nas ações de treino, campo ou quadra." },
+                  ].map((item,index)=>(
+                    <div key={item.title} className="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+                      <span className="w-6 h-6 shrink-0 rounded-full bg-emerald-700 text-white text-xs font-black flex items-center justify-center">{index+1}</span>
+                      <div><h5 className="text-xs font-bold text-slate-900 mb-1">{item.title}</h5><p className="text-xs text-slate-600 leading-relaxed">{item.text}</p></div>
+                    </div>
+                  ))}
                 </div>
+              </section>
 
-                {/* 2. PARÂMETROS MECÂNICOS COLETADOS */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm space-y-3 font-sans">
-                  <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest block font-mono font-bold font-sans">
-                    📊 PARÂMETROS MECÂNICOS COLETADOS
-                  </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 border-b pb-2">
-                    Métricas de Impulsão & Força
-                  </h4>
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <h4 className="text-xs font-black uppercase tracking-wide text-slate-800 mb-2">Como acompanhar a evolução</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">Comparar com o próprio histórico, mantendo equipamento, aquecimento e protocolo. Interpretar as diferenças considerando a variação habitual do teste, a carga recente e a recuperação. As metas e o momento da reavaliação devem ser definidos pelo treinador.</p>
+              </section>
 
-                  <div className="space-y-2 font-sans text-[9.5px]">
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-bold text-slate-600 uppercase">Altura de Salto (CMJ):</span>
-                      <span className="font-black text-slate-900 italic text-sm">{cmjHeight} cm</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-bold text-slate-600 uppercase">Potência Relativa:</span>
-                      <span className="font-black text-orange-600 italic text-sm">{cmjPowerRel.toFixed(1)} W/kg</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                      <span className="font-bold text-slate-600 uppercase">Tempo de Voo Estimado:</span>
-                      <span className="font-black text-slate-900 italic text-sm">{data.flightTime || 0} ms</span>
-                    </div>
-                    {data.averageForce && data.averageForce > 0 && (
-                      <div className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <span className="font-bold text-slate-600 uppercase">Força Média de Propulsão:</span>
-                        <span className="font-black text-slate-900 italic text-sm">{data.averageForce} N</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 3. IMPACTO NA PERFORMANCE */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm">
-                  <span className="text-[7.5px] font-black text-rose-500 uppercase tracking-widest block mb-1 font-mono select-none">
-                    ⚡ TRANSFERÊNCIA PARA O ESPORTE
-                  </span>
-                  <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 mb-2 border-b pb-1 font-bold">
-                    Eficiência Dinâmica Relativa
-                  </h4>
-                  <div className="flex gap-3 items-start bg-rose-50/20 p-3 rounded-2xl border border-rose-100/30">
-                    <Zap className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[9.5px] text-slate-800 font-bold uppercase leading-relaxed font-sans">
-                        O atleta desenvolve um perfil cinético com potência de <span className="text-orange-600 font-black">{cmjPowerRel.toFixed(1)} W/kg</span>, favorecendo desacelerações rápidas seguidas de saídas e impulsões verticais em quadra ou campo.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Column 2: Technical Interpretation (Coach focus) */}
-              <div className="space-y-5">
-
-                {/* 4. INTERPRETAÇÃO TÉCNICA */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/90 shadow-sm font-sans h-full flex flex-col justify-between">
-                  <div>
-                    <span className="text-[7px] font-black text-orange-600 uppercase tracking-widest block mb-1 font-mono font-bold">
-                      📊 INTERPRETAÇÃO TÉCNICA (TREINADOR)
-                    </span>
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold mb-3 border-b pb-2">
-                      Fase Excêntrica & Acionamento
-                    </h4>
-
-                    <div className="space-y-3 text-[9.5px] leading-relaxed text-slate-700">
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Produção e Aplicação de Força:</span>
-                        <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjExcExc}</p>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Ciclo Alongamento Encurtamento (CAE):</span>
-                        <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjAproveitamentoElastico}</p>
-                      </div>
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <span className="font-extrabold text-slate-500 uppercase block mb-1 text-[7.5px]">Recrutamento Neuromuscular de Alto Limiar:</span>
-                        <p className="text-slate-700 font-black uppercase text-xs leading-relaxed">{sCmjFatoresNeuromusculares}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          </ReportPage>
-
-          {/* Page 4: Diretrizes Metodológicas & Metas */}
-          <ReportPage pageNumber={4} totalPages={4}>
-            <ReportHeader
-              title="RELATÓRIO DE SALTO VERTICAL"
-              subTitle="DIRETRIZES DE INTERVENÇÃO & METAS"
-              athlete={athlete}
-              date={formatDate(data.date)}
-              extraStats={[{ label: "PRAZO", value: targetTimeframeCmj.toUpperCase() }, { label: "PÁGINA", value: "04 DE 04" }]}
-            />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 font-sans">
-
-              {/* Column 1 & 2 (Span 2): Diretrizes Metodológicas */}
-              <div className="md:col-span-2 space-y-6">
-
-                {/* DIRETRIZES METODOLÓGICAS */}
-                <div className="bg-white p-5 rounded-[2rem] border border-slate-200/85 shadow-sm font-sans">
-                  <span className="text-[7px] font-black text-indigo-600 uppercase tracking-widest block mb-1 font-mono font-semibold">
-                    🚀 METODOLOGIA DE TREINO
-                  </span>
-                  <div className="flex justify-between items-baseline border-b pb-2 mb-3">
-                    <h4 className="text-xs font-black uppercase italic tracking-wider text-slate-900 font-bold">
-                      Diretrizes de Intervenção para o Treinador
-                    </h4>
-                  </div>
-
-                  <div className="space-y-3 font-sans">
-                    {sCmjInterventionDirectives.map((item, idx) => (
-                      <div key={idx} className="flex gap-2.5 items-start text-[9.5px] border-b border-slate-100 pb-3 last:border-0 last:pb-0 font-sans font-bold">
-                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center text-[9px] font-black shrink-0 mt-0.5 font-mono">
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <span className="font-bold text-slate-900 uppercase block leading-tight text-[10px]">{item.pillar}</span>
-                          <span className="text-slate-600 font-medium text-[9px] leading-relaxed block mt-1 uppercase">{item.directive}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Column 3: Metas de Evolução Sidebar */}
-              <div className="space-y-6">
-
-                {/* METAS DE EVOLUÇÃO NEUROMUSCULAR */}
-                <div className="bg-slate-950 text-white p-5 rounded-[2rem] border border-slate-850 shadow-xl relative overflow-hidden font-sans">
-                  <div className="absolute right-3 top-3 opacity-5">
-                    <Target className="w-16 h-16 text-emerald-400" />
-                  </div>
-                  <span className="text-[7px] font-black text-emerald-400 uppercase tracking-widest block mb-2 font-mono font-bold">
-                    🎯 METAS DE EVOLUÇÃO
-                  </span>
-
-                  <div className="grid grid-cols-2 gap-3 mb-3 font-sans">
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-400 uppercase block mb-1 font-mono font-bold">MÁX. ALTURA</span>
-                      <span className="text-base font-black text-brand-primary italic font-sans">{targetCmjHeight} CM</span>
-                    </div>
-                    <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-center">
-                      <span className="text-[7px] font-black text-slate-455 uppercase block mb-1 font-mono font-bold font-semibold">POTÊNCIA REL.</span>
-                      <span className="text-base font-black text-emerald-400 italic font-sans">{targetCmjPower} W/KG</span>
-                    </div>
-                  </div>
-                  <div className="text-center bg-slate-900 p-2 text-[8px] font-black uppercase tracking-widest text-slate-400 font-sans">
-                    Prazo sugerido: <span className="text-white font-bold">{targetTimeframeCmj}</span>
-                  </div>
-                </div>
-
-              </div>
-
+              <p className="text-[10px] text-slate-500 leading-relaxed">O CMJ descreve o desempenho no salto. Altura, potência e tempo de voo, isoladamente, não permitem concluir sobre recrutamento muscular, rigidez tendínea, risco de lesão ou causa de uma mudança no resultado.</p>
             </div>
           </ReportPage>
 
