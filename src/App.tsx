@@ -16593,24 +16593,6 @@ const AthleteForm: FC<{
           />
         </div>
 
-        {/* IA Co-Pilot Periodization & Training Weekdays */}
-        <PeriodizationConfig
-          start={formData.periodizationStart}
-          end={formData.periodizationEnd}
-          days={formData.trainingDays || [1, 3, 5]}
-          academyDays={formData.academyDays || []}
-          courtDays={formData.courtDays || []}
-          onChange={({ start, end, days, academyDays, courtDays }) => {
-            update({
-              periodizationStart: start,
-              periodizationEnd: end,
-              trainingDays: days,
-              academyDays,
-              courtDays
-            });
-          }}
-        />
-
         <div className="sticky bottom-0 z-30 bg-slate-900/95 backdrop-blur-md flex flex-row gap-3 border-t border-slate-800 pt-4 pb-2 -mx-2 px-2">
           <Button
             onClick={onCancel}
