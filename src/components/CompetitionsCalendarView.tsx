@@ -132,6 +132,13 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
     });
   }, [matches, selectedSportFilter, selectedPriorityFilter]);
 
+  // Keep scheduled events first, newest event date/time first within each group.
+  const timelineMatches = useMemo(() => [...filteredMatches].sort((a, b) => {
+    const statusOrder = Number(b.status === "Agendado") - Number(a.status === "Agendado");
+    if (statusOrder) return statusOrder;
+    return b.date.localeCompare(a.date) || (b.time || "").localeCompare(a.time || "");
+  }), [filteredMatches]);
+
   // Priority A counts, victory counts, average pre-game readiness
   const stats = useMemo(() => {
     const total = matches.length;
@@ -639,7 +646,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredMatches.sort((a, b) => b.date.localeCompare(a.date)).map((m) => {
+              {timelineMatches.map((m) => {
                 const spInfo = SPORTS_LIST.find((s) => s.id === m.sport);
                 const isPast = m.date < getLocalDateString();
                 const isToday = m.date === getLocalDateString();
