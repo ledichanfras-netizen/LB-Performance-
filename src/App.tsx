@@ -1,4 +1,4 @@
-import MetricEvolution from './components/MetricEvolution';
+import AthleteDashboardPanel from './components/AthleteDashboardPanel';
 import { isAssessmentOnly, followUpType } from './utils/followUp';
 import ReassessmentNotice from './components/ReassessmentNotice';
 import ImtpReportPages from "./components/ImtpReportPages";
@@ -3476,6 +3476,7 @@ const EliteHubApp: FC<{
                         }
                         role={user.role}
                         onStartWorkout={startWorkoutFlow}
+                        onOpenWorkouts={() => setActiveTab("training")}
                         athletes={performanceAthletes}
                         onSelectAthleteId={setSelectedId}
                         dashboardSubTab={dashboardSubTab}
@@ -5424,6 +5425,7 @@ const DashboardView: FC<{
   onUpdateAthlete: (data: Partial<Athlete>) => void;
   role: "coach" | "athlete";
   onStartWorkout: (w: Workout) => void;
+  onOpenWorkouts?: () => void;
   onAddWellness?: () => void;
   athletes?: Athlete[];
   onSelectAthleteId?: (id: string) => void;
@@ -5439,6 +5441,7 @@ const DashboardView: FC<{
   onUpdateAthlete,
   role,
   onStartWorkout,
+  onOpenWorkouts,
   onAddWellness,
   athletes = [],
   onSelectAthleteId,
@@ -5658,228 +5661,9 @@ const DashboardView: FC<{
     return getInjuryRiskLevel(acwrData.ratio, fatigue, readiness);
   }, [acwrData.ratio, lastWellness]);
 
-  const weeklyFrequencyStats = useMemo(() => {
-    const workouts = athlete.workouts || [];
-    const external = athlete.externalSessions || [];
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const count = [...workouts, ...external].filter((s) => {
-      const d = new Date(s.date);
-      return d >= sevenDaysAgo && d <= now;
-    }).length;
-
-    const target = athlete.weeklyFrequency || 5;
-    return {
-      count,
-      target,
-      percentage: Math.min(100, Math.round((count / target) * 100)),
-    };
-  }, [athlete.workouts, athlete.externalSessions, athlete.weeklyFrequency]);
-
-  // PRO Metrics Fallback Calculations that mirror real database or fall back nicely
   const latestWeightValue = useMemo(() => {
     return latestWeight || athlete.weight || 75;
   }, [athlete, latestWeight]);
-
-  // Calculations for IMTP Impulse, CMJ height and RSI as KG
-  const imtpImpulse = useMemo(() => {
-    if (latestImtp) {
-      const val = latestImtp.peakForce || 0;
-      if (val > 1000) {
-        return parseFloat((val / 9.80665).toFixed(1));
-      }
-      return parseFloat(val.toFixed(1));
-    }
-    return 0;
-  }, [latestImtp]);
-
-  const cmjHeight = useMemo(() => {
-    if (latestCmj) {
-      return parseFloat((latestCmj.height || 0).toFixed(1));
-    }
-    return 0;
-  }, [latestCmj]);
-
-  const rsiValue = useMemo(() => {
-    const djList = athlete.assessments?.dropJump || [];
-    if (djList.length > 0) {
-      const sortedDj = [...djList].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      if (sortedDj[0].rsi) return parseFloat((sortedDj[0].rsi).toFixed(2));
-    }
-    if (latestCmj?.rsi) {
-      return parseFloat((latestCmj.rsi).toFixed(2));
-    }
-    return 0;
-  }, [latestCmj, athlete.assessments?.dropJump]);
-
-  // Period Averages and Peaks
-  const imtpAverages = useMemo(() => {
-    const list = athlete.assessments?.imtp || [];
-    if (list.length === 0) {
-      return { avg: "0", best: "0", bestDate: "--" };
-    }
-    const valMap = list.map(x => {
-      const val = x.peakForce;
-      return val > 1000 ? val / 9.80665 : val;
-    });
-    const avgVal = valMap.reduce((a,b) => a+b, 0) / list.length;
-    const maxVal = Math.max(...valMap);
-    const bestItem = list.find(x => {
-      const val = x.peakForce;
-      const converted = val > 1000 ? val / 9.80665 : val;
-      return Math.abs(converted - maxVal) < 0.1;
-    });
-    return {
-      avg: avgVal.toFixed(1),
-      best: maxVal.toFixed(1),
-      bestDate: bestItem ? formatDate(bestItem.date).split(" ")[0] : today,
-    };
-  }, [athlete.assessments?.imtp, today]);
-
-  const cmjAverages = useMemo(() => {
-    const list = athlete.assessments?.cmj || [];
-    if (list.length === 0) {
-      return { avg: "0", best: "0", bestDate: "--" };
-    }
-    const valMap = list.map(x => x.height);
-    const avgVal = valMap.reduce((a,b) => a+b, 0) / list.length;
-    const maxVal = Math.max(...valMap);
-    const bestItem = list.find(x => x.height === maxVal);
-    return {
-      avg: avgVal.toFixed(1),
-      best: maxVal.toFixed(1),
-      bestDate: bestItem ? formatDate(bestItem.date).split(" ")[0] : today,
-    };
-  }, [athlete.assessments?.cmj, today]);
-
-  const rsiAverages = useMemo(() => {
-    const djList = athlete.assessments?.dropJump || [];
-    const cmjList = athlete.assessments?.cmj || [];
-
-    const rsiList: number[] = [];
-    djList.forEach(x => { if (x.rsi) rsiList.push(x.rsi); });
-    cmjList.forEach(x => { if (x.rsi) rsiList.push(x.rsi); });
-
-    if (rsiList.length === 0) {
-      return { avg: "0.00", best: "0.00", bestDate: "--" };
-    }
-    const avgVal = rsiList.reduce((a,b) => a+b, 0) / rsiList.length;
-    const maxVal = Math.max(...rsiList);
-    return {
-      avg: avgVal.toFixed(2),
-      best: maxVal.toFixed(2),
-      bestDate: "--",
-    };
-  }, [athlete.assessments]);
-
-  const imtpChangePct = useMemo(() => {
-    const list = [...(athlete.assessments?.imtp || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (list.length < 2) return null;
-    const latestItem = list[list.length - 1];
-    const prevItem = list[list.length - 2];
-    const latestValRaw = latestItem.peakForce;
-    const prevValRaw = prevItem.peakForce;
-    const latestVal = latestValRaw > 1000 ? latestValRaw / 9.80665 : latestValRaw;
-    const prevVal = prevValRaw > 1000 ? prevValRaw / 9.80665 : prevValRaw;
-    if (prevVal <= 0) return null;
-    return parseFloat((((latestVal - prevVal) / prevVal) * 100).toFixed(1));
-  }, [athlete.assessments?.imtp]);
-
-  const cmjChangePct = useMemo(() => {
-    const list = [...(athlete.assessments?.cmj || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (list.length < 2) return null;
-    const latestVal = list[list.length - 1].height;
-    const prevVal = list[list.length - 2].height;
-    if (prevVal <= 0) return null;
-    return parseFloat((((latestVal - prevVal) / prevVal) * 100).toFixed(1));
-  }, [athlete.assessments?.cmj]);
-
-  const rsiChangePct = useMemo(() => {
-    const djList = [...(athlete.assessments?.dropJump || [])]
-      .filter(x => x.rsi && x.rsi > 0)
-      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (djList.length < 2) return null;
-    const latestVal = djList[djList.length - 1].rsi || 0;
-    const prevVal = djList[djList.length - 2].rsi || 0;
-    if (prevVal <= 0) return null;
-    return parseFloat((((latestVal - prevVal) / prevVal) * 100).toFixed(1));
-  }, [athlete.assessments?.dropJump]);
-
-  // Sparklines trend generators
-  const imtpSparkHistory = useMemo(() => {
-    const list = [...(athlete.assessments?.imtp || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (list.length > 0) {
-      return list.map(x => {
-        const val = x.peakForce;
-        return { value: parseFloat((val > 1000 ? val / 9.80665 : val).toFixed(1)) };
-      });
-    }
-    return [];
-  }, [athlete.assessments?.imtp, imtpImpulse]);
-
-  const cmjSparkHistory = useMemo(() => {
-    const list = [...(athlete.assessments?.cmj || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (list.length > 0) {
-      return list.map(x => ({ value: parseFloat((x.height).toFixed(1)) }));
-    }
-    return [];
-  }, [athlete.assessments?.cmj, cmjHeight]);
-
-  const rsiSparkHistory = useMemo(() => {
-    const djList = [...(athlete.assessments?.dropJump || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    if (djList.length > 0) {
-      return djList.map(x => ({ value: parseFloat((x.rsi || 2).toFixed(2)) }));
-    }
-    return [];
-  }, [athlete.assessments?.dropJump, rsiValue]);
-
-  // Period summary box
-  const sessionsCount = useMemo(() => {
-    const wkCount = (athlete.workouts || []).filter(w => w.status === "completed").length;
-    const exCount = (athlete.externalSessions || []).length;
-    return wkCount + exCount;
-  }, [athlete.workouts, athlete.externalSessions]);
-
-  const accumulatedCargaTotal = useMemo(() => {
-    const wkLoad = (athlete.workouts || [])
-      .filter(w => w.status === "completed" && w.rpe && w.durationMinutes)
-      .reduce((acc, w) => acc + (w.rpe || 0) * (w.durationMinutes || 60), 0);
-    const exLoad = (athlete.externalSessions || [])
-      .reduce((acc, s) => acc + (s.load || s.durationMinutes * (s.rpe || 5)), 0);
-    const sum = wkLoad + exLoad;
-    return sum > 0 ? `${sum.toLocaleString("pt-BR")} kg` : "0 kg";
-  }, [athlete.workouts, athlete.externalSessions]);
-
-  const averageSleepCalculated = useMemo(() => {
-    const wellness = athlete.wellness || [];
-    if (wellness.length === 0) return "N/A";
-    const validSleeps = wellness.map(w => safeParseFloat(w.calculatedSleepHours) || safeParseFloat(w.sleep) || 0).filter(s => s > 0);
-    if (validSleeps.length === 0) return "N/A";
-    const totalSleep = validSleeps.reduce((acc, curr) => acc + curr, 0);
-    const avg = totalSleep / validSleeps.length;
-    let hours = Math.floor(avg);
-    let minutes = Math.round((avg - hours) * 60);
-    if (minutes >= 60) {
-      hours += 1;
-      minutes = 0;
-    }
-    return `${hours}h ${minutes}m`;
-  }, [athlete.wellness]);
-
-  const jumpVolumeCalculated = useMemo(() => {
-    const cmjCount = (athlete.assessments?.cmj || []).length;
-    return cmjCount > 0 ? `${cmjCount * 15} saltos` : "0";
-  }, [athlete.assessments?.cmj]);
-
-  const userFatigueLevel = useMemo(() => {
-    const wellness = athlete.wellness || [];
-    if (wellness.length === 0) return "N/A";
-    const latestFatigue = wellness[0].fatigue || 1;
-    if (latestFatigue > 3) return "ALTO";
-    if (latestFatigue > 2) return "MÉDIO";
-    return "BAIXO";
-  }, [athlete.wellness]);
 
   // Jpeg exporter trigger
   const handleExportProDashboard = async () => {
@@ -6020,32 +5804,15 @@ const DashboardView: FC<{
         )}
       </AnimatePresence>
 
-      {/* ================= TAB 1: PREMIUM PERFORMANCE PRO DASHBOARD ================= */}
+      {/* Complete role-aware dashboard; other tabs retain their existing workflows. */}
       {dashboardSubTab === "pro" && (
-        <div ref={dashboardProRef} className="space-y-8 animate-in fade-in duration-500 p-1 rounded-3xl bg-[#080c14] border border-slate-900/60 shadow-inner">
-
-          {/* Dashboard Header Banner */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-900/80">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight">
-                Dashboard
-              </h2>
-              <p className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] mt-1.5">
-                Visão Geral de Performance
-              </p>
-            </div>
-
-            {/* Actions list */}
-            <div className="flex items-center gap-3">
-              <div className="bg-[#111625] border border-slate-800 rounded-xl px-4 py-2.5 text-slate-300 font-extrabold text-[10px] tracking-wider uppercase flex items-center gap-2">
-                <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                <span>Último Período (30 Dias)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* PERFORMANCE LB-X - NÍVEL ATIVO DE TREINO ANNEX */}
-          {(() => {
+        <div ref={dashboardProRef} className="p-1 min-w-0">
+          <AthleteDashboardPanel
+            athlete={athlete} role={role} today={today}
+            onAddWellness={onAddWellness} onEditWellness={onEditWellness} onStartWorkout={onStartWorkout} onOpenWorkouts={onOpenWorkouts}
+            onOpenReadiness={() => setDashboardSubTab('classic')}
+            onOpenLoad={() => setDashboardSubTab('elite-monitoring')}
+            lbx={(() => {
             const hasVo2 = !!latestVo2;
             const lbxWeight = latestWeightValue || 82.5;
             const lbxCmj = latestCmj?.height || 0;
@@ -6083,433 +5850,22 @@ const DashboardView: FC<{
             }
 
             return (
-              <div className="border-l-[6px] border-l-[#308FFA] rounded-r-[2.5rem] rounded-l-xl bg-gradient-to-br from-[#02050E] to-[#0A1227] p-8 md:p-10 border border-[#308FFA]/20 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.85)] relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-[#308FFA]/5 rounded-full blur-[80px] -mr-24 -mt-24 group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-                {/* Header Row */}
-                <div className="flex justify-between items-center relative z-10">
-                  <h3 className="text-xs md:text-sm font-black text-[#308FFA] uppercase tracking-[0.25em] font-sans">
-                    PERFORMANCE LB-X
-                  </h3>
-                  <Target className="w-5 h-5 text-[#308FFA]/80" />
+              <section className="bg-[#0E1322] border border-slate-800 border-l-4 border-l-brand-primary rounded-[2rem] p-5 sm:p-6 min-w-0 shadow-xl">
+                <div className="flex flex-wrap justify-between items-center gap-3">
+                  <div><h3 className="text-sm font-black uppercase text-brand-primary">{role === 'athlete' ? 'Minha performance LB-X' : 'Performance LB-X'}</h3><p className="text-xs text-slate-400 mt-1">Índice atual de performance</p></div>
+                  <p className="text-4xl font-black text-white">{lbxScore > 0 ? lbxScore : '—'}<span className="text-sm text-slate-400 ml-1">/100</span></p>
                 </div>
-
-                {/* Main Content Layout (Score and Subtitle) */}
-                <div className="mt-6 md:mt-8 relative z-10 flex flex-col items-start font-sans">
-                  <div className="flex items-baseline select-none">
-                    <span className="text-6xl md:text-7xl font-sans font-black tracking-tighter text-white">
-                      {lbxScore > 0 ? lbxScore : "--"}
-                    </span>
-                    <span className="text-xl md:text-2xl font-black text-[#308FFA]/40 ml-1.5 lowercase">
-                      /100
-                    </span>
-                  </div>
-                  <p className="text-[10px] md:text-[11px] font-black uppercase text-slate-300 tracking-[0.25em] mt-3.5 leading-none">
-                    NÍVEL ATIVO DE TREINO
-                  </p>
-                </div>
-
-                {/* Sub-divider line */}
-                <div className="h-px bg-slate-850/40 my-6 md:my-8 relative z-10" />
-
-                {/* Three metrics grid exactly styled like the image */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 relative z-10 font-sans">
-                  {/* 1. CMJ Potencia */}
-                  <div className="flex flex-col">
-                    <span className="text-[10px] md:text-[11px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
-                      🚀 POTÊNCIA (CMJ)
-                    </span>
-                    <span className="text-xl md:text-2xl font-black text-white italic tracking-tight uppercase font-sans mt-3">
-                      {lbxCmj > 0 ? `${lbxCmj.toFixed(1)}cm` : "--"}
-                    </span>
-                  </div>
-
-                  {/* 2. Força Relativa */}
-                  <div className="flex flex-col border-t border-slate-800/40 pt-4 md:border-t-0 md:pt-0 md:border-l md:border-r md:border-slate-850/40 md:px-8">
-                    <span className="text-[10px] md:text-[11px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
-                      💪 FORÇA RELATIVA
-                    </span>
-                    <span className="text-xl md:text-2xl font-black text-white italic tracking-tight uppercase font-sans mt-3">
-                      {lbxRelForce > 0 ? `${lbxRelForce.toFixed(2)} kgf/kg` : "--"}
-                    </span>
-                    {lbxRelForce > 0 && (
-                      <>
-                        <span className="text-[11px] font-bold text-slate-400/85 uppercase tracking-wider mt-1.5">
-                          ({lbxRelForceN.toFixed(1)} N/kg)
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 italic">
-                          {lbxForceKgf.toFixed(1)} kgf ({Math.round(lbxPeakForceN)} N)
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* 3. VO2 Folego */}
-                  <div className="flex flex-col border-t border-slate-800/40 pt-4 md:border-t-0 md:pt-0">
-                    <span className="text-[10px] md:text-[11px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
-                      🫁 FÔLEGO (VO2)
-                    </span>
-                    <span className="text-xl md:text-2xl font-black text-white italic tracking-tight uppercase font-sans mt-3">
-                      {lbxVo2 !== undefined && lbxVo2 !== null && lbxVo2 > 0 ? `${lbxVo2.toFixed(2)} ml/kg` : "--"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Bottom indicators description */}
-                <div className="h-px bg-slate-850/40 my-6 md:my-8 relative z-10" />
-
-                <div className="space-y-2 relative z-10 font-sans">
-                  <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#308FFA]" />
-                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#308FFA] leading-none">
-                      INDICADORES DE COMPOSIÇÃO LB-X:
-                    </h5>
-                  </div>
-                  <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider leading-relaxed italic">
-                    Média ponderada do salto vertical CMJ (Potência), da tração isométrica IMTP (Força) e do VO2 Máx (quando avaliado).
-                  </p>
-                </div>
-              </div>
+                <details className="mt-4 pt-3 border-t border-slate-800"><summary className="text-xs font-black text-brand-primary cursor-pointer py-2">{role === 'athlete' ? 'Entender meu resultado' : 'Ver composição e datas'}</summary>
+                  <p className="text-xs text-slate-400 mt-3">Índice composto por salto CMJ, força relativa e VO₂máx quando avaliado. Os resultados de cada capacidade estão no bloco de avaliações abaixo.</p>
+                  <ul className="text-xs text-slate-400 mt-3 space-y-2">
+                    <li>CMJ: {latestCmj ? formatDate(latestCmj.date) : 'Sem avaliação'}</li>
+                    <li>Força: {hasForceData ? formatDate((latestImtp?.peakForce ? latestImtp.date : latestIsometric!.date)) : 'Sem avaliação'}</li>
+                    <li>VO₂máx: {latestVo2 ? formatDate(latestVo2.date) : 'Não avaliado'}</li>
+                  </ul>
+                </details>
+              </section>
             );
-          })()}
-
-          {/* THREE CORE SPORTS SCIENCE METRICS GRID */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-            {/* 1. IMTP Card */}
-            <div className="bg-[#0E1322] border border-slate-800 rounded-[2rem] p-6 hover:border-slate-700/80 transition-all duration-300 shadow-xl relative group overflow-hidden">
-              <div className="absolute top-0 left-0 w-2 h-full bg-blue-500/80" />
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
-                    <Activity className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">IMTP</span>
-                    <span className="text-[8px] font-black uppercase tracking-[0.1em] text-blue-400">Pico de Força Máxima</span>
-                  </div>
-                </div>
-                <button onClick={() => setMetricTooltip("imtp")} className="text-slate-500 hover:text-white transition-colors">
-                  <Info className="w-4 h-4 cursor-pointer" />
-                </button>
-              </div>
-
-              {/* Main value and comparison */}
-              <div className="flex items-baseline gap-3 mt-4">
-                <span className="text-3xl md:text-4xl font-black text-white tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                  {imtpImpulse > 0 ? `${imtpImpulse.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })} kg` : "--"}
-                </span>
-                {imtpChangePct !== null && (
-                  <span className={`flex items-center gap-0.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                    imtpChangePct > 0
-                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10"
-                      : imtpChangePct < 0
-                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10"
-                        : "text-slate-400 bg-slate-500/5 border-slate-500/10"
-                  }`}>
-                    {imtpChangePct > 0 ? (
-                      <ArrowUp className="w-3 h-3 text-emerald-400" />
-                    ) : imtpChangePct < 0 ? (
-                      <ArrowDown className="w-3 h-3 text-rose-400" />
-                    ) : null}
-                    <span>{imtpChangePct > 0 ? `+${imtpChangePct}%` : `${imtpChangePct}%`}</span>
-                  </span>
-                )}
-              </div>
-              {imtpChangePct !== null && <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">vs período anterior</p>}
-
-              {/* Sparkline chart */}
-              <div className="h-16 w-full mt-6 flex items-center justify-center">
-                {imtpSparkHistory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={imtpSparkHistory} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="colorImtpSpark" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={1.8} fillOpacity={1} fill="url(#colorImtpSpark)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Sem Histórico</span>
-                )}
-              </div>
-
-              {/* Bottom footer values */}
-              <div className="flex justify-between items-center pt-4 mt-4 border-t border-slate-900 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                <div>
-                  <span className="text-slate-500 block">Média Período</span>
-                  <span className="text-white text-[11px] font-black">
-                    {imtpAverages.best !== "0" && imtpAverages.best !== "0.0" ? `${imtpAverages.avg} kg` : "--"}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block font-normal">Melhor Resultado</span>
-                  <span className="text-[#60A5FA] text-[11px] font-black">
-                    {imtpAverages.best !== "0" && imtpAverages.best !== "0.0" ? (
-                      <>
-                        {imtpAverages.best} kg <span className="text-[8px] font-bold text-slate-500">({imtpAverages.bestDate})</span>
-                      </>
-                    ) : (
-                      "--"
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 2. CMJ Card */}
-            <div className="bg-[#0E1322] border border-slate-850 rounded-[2rem] p-6 hover:border-slate-705 transition-all duration-300 shadow-xl relative group overflow-hidden">
-              <div className="absolute top-0 left-0 w-2 h-full bg-amber-500/80" />
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-                    <Zap className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">CMJ</span>
-                    <span className="text-[8px] font-black uppercase tracking-[0.1em] text-amber-500">Salto com Contramovimento</span>
-                  </div>
-                </div>
-                <button onClick={() => setMetricTooltip("cmj")} className="text-slate-500 hover:text-white transition-colors">
-                  <Info className="w-4 h-4 cursor-pointer" />
-                </button>
-              </div>
-
-              {/* Main value and comparison */}
-              <div className="flex items-baseline gap-3 mt-4">
-                <span className="text-3xl md:text-4xl font-black text-white tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                  {cmjHeight > 0 ? `${cmjHeight.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} cm` : "--"}
-                </span>
-                {cmjChangePct !== null && (
-                  <span className={`flex items-center gap-0.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                    cmjChangePct > 0
-                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10"
-                      : cmjChangePct < 0
-                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10"
-                        : "text-slate-400 bg-slate-500/5 border-slate-500/10"
-                  }`}>
-                    {cmjChangePct > 0 ? (
-                      <ArrowUp className="w-3 h-3 text-emerald-400" />
-                    ) : cmjChangePct < 0 ? (
-                      <ArrowDown className="w-3 h-3 text-rose-400" />
-                    ) : null}
-                    <span>{cmjChangePct > 0 ? `+${cmjChangePct}%` : `${cmjChangePct}%`}</span>
-                  </span>
-                )}
-              </div>
-              {cmjChangePct !== null && <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">vs período anterior</p>}
-
-              {/* Sparkline chart */}
-              <div className="h-16 w-full mt-6 flex items-center justify-center">
-                {cmjSparkHistory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={cmjSparkHistory} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="colorCmjSpark" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={1.8} fillOpacity={1} fill="url(#colorCmjSpark)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Sem Histórico</span>
-                )}
-              </div>
-
-              {/* Bottom footer values */}
-              <div className="flex justify-between items-center pt-4 mt-4 border-t border-slate-900 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                <div>
-                  <span className="text-slate-500 block">Média Período</span>
-                  <span className="text-white text-[11px] font-black">
-                    {cmjAverages.best !== "0" && cmjAverages.best !== "0.0" ? `${cmjAverages.avg} cm` : "--"}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block font-normal">Melhor Resultado</span>
-                  <span className="text-amber-400 text-[11px] font-black">
-                    {cmjAverages.best !== "0" && cmjAverages.best !== "0.0" ? (
-                      <>
-                        {cmjAverages.best} cm <span className="text-[8px] font-bold text-slate-500">({cmjAverages.bestDate})</span>
-                      </>
-                    ) : (
-                      "--"
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 3. RSI Card */}
-            <div className="bg-[#0E1322] border border-slate-800 rounded-[2rem] p-6 hover:border-slate-700/80 transition-all duration-300 shadow-xl relative group overflow-hidden">
-              <div className="absolute top-0 left-0 w-2 h-full bg-purple-500/80" />
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
-                    <Flame className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">RSI</span>
-                    <span className="text-[8px] font-black uppercase tracking-[0.1em] text-purple-400">Índice de Força Reativa</span>
-                  </div>
-                </div>
-                <button onClick={() => setMetricTooltip("rsi")} className="text-slate-500 hover:text-white transition-colors">
-                  <Info className="w-4 h-4 cursor-pointer" />
-                </button>
-              </div>
-
-              {/* Main value and comparison */}
-              <div className="flex items-baseline gap-3 mt-4">
-                <span className="text-3xl md:text-4xl font-black text-white tracking-tighter bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                  {rsiValue > 0 ? rsiValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "--"}
-                </span>
-                {rsiChangePct !== null && (
-                  <span className={`flex items-center gap-0.5 text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
-                    rsiChangePct > 0
-                      ? "text-emerald-400 bg-emerald-500/5 border-emerald-500/10"
-                      : rsiChangePct < 0
-                        ? "text-rose-400 bg-rose-500/5 border-rose-500/10"
-                        : "text-slate-400 bg-slate-500/5 border-slate-500/10"
-                  }`}>
-                    {rsiChangePct > 0 ? (
-                      <ArrowUp className="w-3 h-3 text-emerald-400" />
-                    ) : rsiChangePct < 0 ? (
-                      <ArrowDown className="w-3 h-3 text-rose-400" />
-                    ) : null}
-                    <span>{rsiChangePct > 0 ? `+${rsiChangePct}%` : `${rsiChangePct}%`}</span>
-                  </span>
-                )}
-              </div>
-              {rsiChangePct !== null && <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">vs período anterior</p>}
-
-              {/* Sparkline chart */}
-              <div className="h-16 w-full mt-6 flex items-center justify-center">
-                {rsiSparkHistory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={rsiSparkHistory} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
-                      <defs>
-                        <linearGradient id="colorRsiSpark" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#a855f7" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#a855f7" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <Area type="monotone" dataKey="value" stroke="#a855f7" strokeWidth={1.8} fillOpacity={1} fill="url(#colorRsiSpark)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <span className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Sem Histórico</span>
-                )}
-              </div>
-
-              {/* Bottom footer values */}
-              <div className="flex justify-between items-center pt-4 mt-4 border-t border-slate-900 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                <div>
-                  <span className="text-slate-500 block">Média Período</span>
-                  <span className="text-white text-[11px] font-black">
-                    {rsiAverages.best !== "0" && rsiAverages.best !== "0.00" && rsiAverages.best !== "0.0" ? rsiAverages.avg : "--"}
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-slate-500 block font-normal">Melhor Resultado</span>
-                  <span className="text-purple-400 text-[11px] font-black">
-                    {rsiAverages.best !== "0" && rsiAverages.best !== "0.00" && rsiAverages.best !== "0.0" ? (
-                      <>
-                        {rsiAverages.best} <span className="text-[8px] font-bold text-slate-500">({rsiAverages.bestDate})</span>
-                      </>
-                    ) : (
-                      "--"
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* LOWER HISTORICAL TRENDS + COHORT SUMMARY */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-
-            {/* Left Box: EVOLUÇÃO GERAL DAS MÉTRICAS */}
-            <div className="lg:col-span-8 min-w-0 bg-[#0E1322] border border-slate-800 rounded-[2rem] p-4 sm:p-6 flex flex-col shadow-2xl relative">
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 pb-4 border-b border-slate-900/40">
-                <div>
-                  <h3 className="text-sm font-black uppercase text-white tracking-wider">Evolução Geral das Métricas</h3>
-                  <p className="text-[9px] text-slate-500 font-extrabold uppercase mt-0.5">Força, salto e força reativa ao longo do tempo</p>
-                </div>
-              </div>
-              <MetricEvolution assessments={athlete.assessments} />
-            </div>
-
-            {/* Right Box: RESUMO DO PERÍODO */}
-            <div className="lg:col-span-4 bg-[#0E1322] border border-slate-800 rounded-[2rem] p-6 flex flex-col shadow-2xl">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-900/40">
-                <h3 className="text-sm font-black uppercase text-white tracking-wider">Resumo do Período</h3>
-                <button onClick={() => toast.success("Métricas acumuladas calculadas automaticamente baseadas nas sessões de treino e dados de testes.")} className="text-slate-500 hover:text-white">
-                  <Info className="w-4 h-4 cursor-pointer" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 flex-grow">
-                {/* 1. Sessões realizadas */}
-                <div className="bg-[#111625]/80 border border-slate-800/40 rounded-2xl p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Sessões</span>
-                    <ClipboardList className="w-3.5 h-3.5 text-[#60A5FA]" />
-                  </div>
-                  <div className="mt-4">
-                    <span className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-white leading-none block truncate">{sessionsCount}</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase block mt-1.5 truncate">Concluídas</span>
-                  </div>
-                </div>
-
-                {/* 2. Carga acumulada */}
-                <div className="bg-[#111625]/80 border border-slate-800/40 rounded-2xl p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Carga</span>
-                    <Dumbbell className="w-3.5 h-3.5 text-amber-500" />
-                  </div>
-                  <div className="mt-4">
-                    <span className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-white leading-none block truncate" title={accumulatedCargaTotal}>{accumulatedCargaTotal}</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase block mt-1.5 truncate">Volume Total</span>
-                  </div>
-                </div>
-
-                {/* 3. Média de Sono */}
-                <div className="bg-[#111625]/80 border border-slate-800/40 rounded-2xl p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Média de Sono</span>
-                    <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                  </div>
-                  <div className="mt-4">
-                    <span className="text-base sm:text-lg md:text-xl lg:text-2xl font-black text-white leading-none block truncate">{averageSleepCalculated}</span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase block mt-1.5 truncate">Por Noite</span>
-                  </div>
-                </div>
-
-                {/* 4. Índice de Fadiga */}
-                <div className="bg-[#111625]/80 border border-slate-800/40 rounded-2xl p-3 sm:p-4 flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">Fadiga</span>
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  </div>
-                  <div className="mt-4">
-                    <span className={`text-base sm:text-lg md:text-xl lg:text-2xl font-black block leading-none truncate ${userFatigueLevel === "ALTO" ? "text-red-400" : userFatigueLevel === "MÉDIO" ? "text-amber-400" : "text-emerald-400"}`}>
-                      {userFatigueLevel}
-                    </span>
-                    <span className="text-[8px] font-bold text-slate-400 uppercase block mt-1.5 truncate">Nível de Fadiga</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-
-
+          })()} />
         </div>
       )}
 
