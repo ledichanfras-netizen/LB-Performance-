@@ -56,7 +56,7 @@ export default function MetricEvolution({ assessments, compact = false, athleteV
         </ResponsiveContainer>
       </div> : <p className="text-xs text-slate-500 py-5">Sem avaliações válidas neste período.</p>}
       </>;
-      return <div key={s.name} className="min-w-0 border-t border-slate-800 pt-4">
+      return <div key={s.name} data-metric={['imtp', 'cmj', 'rsi'][index]} className="lb-metric-tile min-w-0 p-4 rounded-2xl border">
         {compact ? <>
           <div className="flex flex-wrap justify-between items-start gap-3">
             <div><h4 className="text-sm font-black text-white">{athleteView ? ['Força · IMTP', 'Salto · CMJ', 'Força reativa · RSI'][index] : s.name}</h4><p className="text-xs text-slate-400 mt-1">{latest ? `Última avaliação: ${metricDateLabel(latest.time, true)}` : 'Sem avaliação registrada'}</p></div>

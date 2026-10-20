@@ -2047,3 +2047,50 @@ body.light-theme .lb-reassessment .ra-input { color-scheme: light; }
  .lb-reassessment .ra-toolbar { align-items: stretch; }
  .lb-reassessment .ra-row-actions .ra-primary { flex-basis: 100%; }
 }
+
+/* Dashboard: quiet category tints, with explicit high-contrast theme tokens. */
+.lb-dashboard-panel {
+  --dash-text: #eef4f8;
+  --dash-muted: #b6c5d3;
+  --dash-action: #6ee7b7;
+}
+body.light-theme .lb-dashboard-panel {
+  --dash-text: #152b3a;
+  --dash-muted: #465969;
+  --dash-action: #006944;
+}
+.lb-dashboard-card {
+  --dash-card-bg: #141e2c;
+  --dash-card-border: #344458;
+  --dash-accent: #bbd3ed;
+  background: var(--dash-card-bg);
+  border-color: var(--dash-card-border);
+  border-top-width: 3px;
+}
+.lb-dashboard-card[data-tone="readiness"] { --dash-card-bg: #10241d; --dash-card-border: #315a49; --dash-accent: #8be3bb; }
+.lb-dashboard-card[data-tone="training"] { --dash-card-bg: #102528; --dash-card-border: #31585c; --dash-accent: #8edee0; }
+.lb-dashboard-card[data-tone="performance"] { --dash-card-bg: #1d2715; --dash-card-border: #4b5e31; --dash-accent: #c2e69c; }
+.lb-dashboard-card[data-tone="weekly"] { --dash-card-bg: #282115; --dash-card-border: #645235; --dash-accent: #f0d199; }
+.lb-dashboard-card[data-tone="goal"] { --dash-card-bg: #211a2d; --dash-card-border: #55416c; --dash-accent: #d5b9f3; }
+body.light-theme .lb-dashboard-card { --dash-card-bg: #f4f7fc; --dash-card-border: #c7d4e5; --dash-accent: #284f7b; }
+body.light-theme .lb-dashboard-card[data-tone="readiness"] { --dash-card-bg: #effaf5; --dash-card-border: #bbddce; --dash-accent: #126244; }
+body.light-theme .lb-dashboard-card[data-tone="training"] { --dash-card-bg: #edfafa; --dash-card-border: #bbdbdc; --dash-accent: #125d65; }
+body.light-theme .lb-dashboard-card[data-tone="performance"] { --dash-card-bg: #f3faeb; --dash-card-border: #ceddbb; --dash-accent: #48652b; }
+body.light-theme .lb-dashboard-card[data-tone="weekly"] { --dash-card-bg: #fff9ec; --dash-card-border: #e7d6b4; --dash-accent: #765321; }
+body.light-theme .lb-dashboard-card[data-tone="goal"] { --dash-card-bg: #f7f3ff; --dash-card-border: #d9cce9; --dash-accent: #63417d; }
+.lb-dashboard-panel .text-white, .lb-dashboard-panel .text-slate-300 { color: var(--dash-text) !important; }
+.lb-dashboard-panel .text-slate-400, .lb-dashboard-panel .text-slate-500 { color: var(--dash-muted) !important; }
+.lb-dashboard-panel .text-brand-primary { color: var(--dash-action) !important; }
+.lb-dashboard-panel .lb-dashboard-card h3 { color: var(--dash-accent) !important; }
+.lb-dashboard-panel .lb-dashboard-card h3 svg { color: inherit !important; }
+.lb-metric-tile { --metric-bg: #14233b; --metric-border: #344d72; --metric-accent: #b0d1ff; background: var(--metric-bg); border-color: var(--metric-border); }
+.lb-metric-tile[data-metric="cmj"] { --metric-bg: #2c2414; --metric-border: #685335; --metric-accent: #f3d291; }
+.lb-metric-tile[data-metric="rsi"] { --metric-bg: #261a37; --metric-border: #594076; --metric-accent: #d8b8ff; }
+body.light-theme .lb-metric-tile { --metric-bg: #eff6ff; --metric-border: #c4d7ef; --metric-accent: #24568f; }
+body.light-theme .lb-metric-tile[data-metric="cmj"] { --metric-bg: #fff8e8; --metric-border: #e8d5ae; --metric-accent: #7b5418; }
+body.light-theme .lb-metric-tile[data-metric="rsi"] { --metric-bg: #f7f1ff; --metric-border: #dcc8ee; --metric-accent: #6b3e91; }
+.lb-dashboard-panel .lb-metric-tile h4 { color: var(--metric-accent) !important; }
+.lb-portal-theme-toggle { background: #162c24; border: 1px solid #3c6b54; color: #c4f3d9; }
+.lb-portal-theme-toggle:hover { background: #214334; }
+body.light-theme .lb-portal-theme-toggle { background: #e5f4ec; border-color: #9fcbb4; color: #145f3c; }
+body.light-theme .lb-portal-theme-toggle:hover { background: #d3ebde; }

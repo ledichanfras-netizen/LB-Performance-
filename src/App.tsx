@@ -1,3 +1,4 @@
+import PortalThemeToggle from './components/PortalThemeToggle';
 import AthleteDashboardPanel from './components/AthleteDashboardPanel';
 import { isAssessmentOnly, followUpType } from './utils/followUp';
 import ReassessmentNotice from './components/ReassessmentNotice';
@@ -2477,6 +2478,9 @@ const EliteHubApp: FC<{
                       </button>
                     </div>
 
+                    <div className="flex items-center gap-2 shrink-0">
+                    <PortalThemeToggle theme={theme} onToggle={toggleTheme} />
+
                     {/* Central de Opções (Avisos de Planos, Supervisão, Convites) */}
                     <div className="relative shrink-0">
                       <button
@@ -2493,6 +2497,7 @@ const EliteHubApp: FC<{
                           Opções
                         </span>
                       </button>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -5850,7 +5855,7 @@ const DashboardView: FC<{
             }
 
             return (
-              <section className="bg-[#0E1322] border border-slate-800 border-l-4 border-l-brand-primary rounded-[2rem] p-5 sm:p-6 min-w-0 shadow-xl">
+              <section data-tone="performance" className="lb-dashboard-card border rounded-[2rem] p-5 sm:p-6 min-w-0 shadow-xl">
                 <div className="flex flex-wrap justify-between items-center gap-3">
                   <div><h3 className="text-sm font-black uppercase text-brand-primary">{role === 'athlete' ? 'Minha performance LB-X' : 'Performance LB-X'}</h3><p className="text-xs text-slate-400 mt-1">Índice atual de performance</p></div>
                   <p className="text-4xl font-black text-white">{lbxScore > 0 ? lbxScore : '—'}<span className="text-sm text-slate-400 ml-1">/100</span></p>
