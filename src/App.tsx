@@ -1,3 +1,4 @@
+import MetricEvolution from './components/MetricEvolution';
 import { isAssessmentOnly, followUpType } from './utils/followUp';
 import ReassessmentNotice from './components/ReassessmentNotice';
 import ImtpReportPages from "./components/ImtpReportPages";
@@ -3333,10 +3334,6 @@ const EliteHubApp: FC<{
                                   <span className="text-slate-400 font-bold uppercase text-[9px] sm:text-[10px] tracking-widest">
                                     {selected.modality || "SEM MODALIDADE"}
                                   </span>
-                                  <div className="w-1 h-1 bg-slate-700 rounded-full hidden sm:block" />
-                                  <span className="text-brand-primary font-bold uppercase text-[9px] sm:text-[10px] tracking-widest bg-brand-primary/5 px-2.5 sm:px-3 py-1 rounded-lg border border-brand-primary/10">
-                                    FREQ: {selected.weeklyFrequency || 0}x/SEM
-                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -5837,59 +5834,6 @@ const DashboardView: FC<{
     return [];
   }, [athlete.assessments?.dropJump, rsiValue]);
 
-  // Shared combined progress timeline chart
-  const timelineProgressData = useMemo(() => {
-    const imtpList = athlete.assessments?.imtp || [];
-    const cmjList = athlete.assessments?.cmj || [];
-    const djList = athlete.assessments?.dropJump || [];
-
-    const datesSet = new Set<string>();
-    imtpList.forEach(x => { if (x.date) datesSet.add(x.date); });
-    cmjList.forEach(x => { if (x.date) datesSet.add(x.date); });
-    djList.forEach(x => { if (x.date) datesSet.add(x.date); });
-
-    if (datesSet.size === 0) {
-      return [];
-    }
-
-    const sortedDates = Array.from(datesSet).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-
-    return sortedDates.map(dateStr => {
-      const imtpOnDate = imtpList.find(x => x.date === dateStr);
-      const cmjOnDate = cmjList.find(x => x.date === dateStr);
-      const djOnDate = djList.find(x => x.date === dateStr);
-
-      const formattedName = (() => {
-        try {
-          const parts = dateStr.split("-");
-          if (parts.length === 3) {
-            return `${parts[2]}/${parts[1]}`;
-          }
-          return dateStr;
-        } catch {
-          return dateStr;
-        }
-      })();
-
-      const entry: any = {
-        name: formattedName,
-      };
-
-      if (imtpOnDate) {
-        const val = imtpOnDate.peakForce;
-        entry["IMTP (kg)"] = parseFloat((val > 1000 ? val / 9.80665 : val).toFixed(1));
-      }
-      if (cmjOnDate) {
-        entry["CMJ (cm)"] = parseFloat(cmjOnDate.height.toFixed(1));
-      }
-      if (djOnDate) {
-        entry["RSI"] = parseFloat((djOnDate.rsi || 0).toFixed(2));
-      }
-
-      return entry;
-    });
-  }, [athlete.assessments]);
-
   // Period summary box
   const sessionsCount = useMemo(() => {
     const wkCount = (athlete.workouts || []).filter(w => w.status === "completed").length;
@@ -6490,53 +6434,14 @@ const DashboardView: FC<{
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
             {/* Left Box: EVOLUÇÃO GERAL DAS MÉTRICAS */}
-            <div className="lg:col-span-8 bg-[#0E1322] border border-slate-800 rounded-[2rem] p-6 flex flex-col justify-between shadow-2xl relative">
+            <div className="lg:col-span-8 min-w-0 bg-[#0E1322] border border-slate-800 rounded-[2rem] p-4 sm:p-6 flex flex-col shadow-2xl relative">
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 pb-4 border-b border-slate-900/40">
                 <div>
                   <h3 className="text-sm font-black uppercase text-white tracking-wider">Evolução Geral das Métricas</h3>
-                  <p className="text-[9px] text-slate-500 font-extrabold uppercase mt-0.5">Indicadores chave combinados do atleta</p>
-                </div>
-                <div className="flex flex-wrap gap-4 text-[9px] font-black uppercase tracking-wider">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-blue-500 inline-block" />
-                    <span className="text-blue-400">IMTP (kg)</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-amber-500 inline-block" />
-                    <span className="text-amber-400">CMJ (cm)</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-purple-500 inline-block" />
-                    <span className="text-purple-450">RSI</span>
-                  </div>
+                  <p className="text-[9px] text-slate-500 font-extrabold uppercase mt-0.5">Força, salto e força reativa ao longo do tempo</p>
                 </div>
               </div>
-
-              <div className="h-[250px] w-full flex items-center justify-center">
-                {timelineProgressData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={timelineProgressData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#161e38" vertical={false} opacity={0.5} />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={9} fontWeight="bold" tickLine={false} axisLine={false} />
-                      <YAxis stroke="#64748b" fontSize={9} fontWeight="bold" width={30} tickLine={false} axisLine={false} />
-                      <Tooltip
-                        contentStyle={{ backgroundColor: "#0b0f19", borderColor: "#1e293b", borderRadius: "1rem" }}
-                        itemStyle={{ fontSize: "10px", fontWeight: "bold", textTransform: "uppercase" }}
-                        labelStyle={{ fontSize: "9px", fontWeight: "black", color: "#64748b", textTransform: "uppercase" }}
-                      />
-                      <Line type="monotone" dataKey="IMTP (kg)" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                      <Line type="monotone" dataKey="CMJ (cm)" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                      <Line type="monotone" dataKey="RSI" stroke="#a855f7" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="text-center p-6 space-y-2">
-                    <Activity className="w-8 h-8 text-slate-750 mx-auto animate-pulse" />
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Histórico de Progresso Vazio</p>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase max-w-xs mx-auto">Adicione avaliações na aba de "Avaliações" para alimentar este gráfico com dados reais.</p>
-                  </div>
-                )}
-              </div>
+              <MetricEvolution assessments={athlete.assessments} />
             </div>
 
             {/* Right Box: RESUMO DO PERÍODO */}
