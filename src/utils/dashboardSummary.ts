@@ -1,5 +1,6 @@
 import type { Athlete } from '../types';
 import { metricDay } from './metricTimeline';
+import { readinessForDisplay } from './readinessDisplay';
 
 export const validNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 export function sessionLoad(session: { rpe?: number; durationMinutes?: number }): number | null {
@@ -18,8 +19,9 @@ export function dashboardSummary(athlete: Athlete, today: string) {
   const external = (athlete.externalSessions || []).filter(s => inWeek(s.date));
   const sessions = [...completed, ...external];
   const loads = sessions.map(sessionLoad).filter((n): n is number => n !== null);
-  const todayWellness = [...(athlete.wellness || [])].filter(w => metricDay(w.date) === day)
+  const todayWellnessRaw = [...(athlete.wellness || [])].filter(w => metricDay(w.date) === day)
     .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const todayWellness = todayWellnessRaw ? readinessForDisplay(todayWellnessRaw) : undefined;
   const todayWorkouts = (athlete.workouts || []).filter(w => metricDay(w.date) === day);
   const latestSession = [...(athlete.workouts || []).filter(w => w.status === 'completed'), ...(athlete.externalSessions || [])]
     .filter(w => { const d = metricDay(w.date); return d !== null && d <= day; })
