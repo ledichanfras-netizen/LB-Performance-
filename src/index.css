@@ -2053,6 +2053,7 @@ body.light-theme .lb-reassessment .ra-input { color-scheme: light; }
   --dash-text: #eef4f8;
   --dash-muted: #b6c5d3;
   --dash-action: #6ee7b7;
+  color: var(--dash-text);
 }
 body.light-theme .lb-dashboard-panel {
   --dash-text: #152b3a;
@@ -2063,6 +2064,7 @@ body.light-theme .lb-dashboard-panel {
   --dash-card-bg: #141e2c;
   --dash-card-border: #344458;
   --dash-accent: #bbd3ed;
+  color: var(--dash-text);
   background: var(--dash-card-bg);
   border-color: var(--dash-card-border);
   border-top-width: 3px;
@@ -2079,7 +2081,8 @@ body.light-theme .lb-dashboard-card[data-tone="performance"] { --dash-card-bg: #
 body.light-theme .lb-dashboard-card[data-tone="weekly"] { --dash-card-bg: #fff9ec; --dash-card-border: #e7d6b4; --dash-accent: #765321; }
 body.light-theme .lb-dashboard-card[data-tone="goal"] { --dash-card-bg: #f7f3ff; --dash-card-border: #d9cce9; --dash-accent: #63417d; }
 .lb-dashboard-panel .text-white, .lb-dashboard-panel .text-slate-300 { color: var(--dash-text) !important; }
-.lb-dashboard-panel .text-slate-400, .lb-dashboard-panel .text-slate-500 { color: var(--dash-muted) !important; }
+.lb-dashboard-panel .text-slate-400, .lb-dashboard-panel .text-slate-500, .lb-dashboard-panel .text-slate-600, .lb-dashboard-panel .text-slate-700 { color: var(--dash-muted) !important; }
+body.light-theme .lb-dashboard-panel :is(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700) { color: var(--dash-muted) !important; }
 .lb-dashboard-panel .text-brand-primary { color: var(--dash-action) !important; }
 .lb-dashboard-panel .lb-dashboard-card h3 { color: var(--dash-accent) !important; }
 .lb-dashboard-panel .lb-dashboard-card h3 svg { color: inherit !important; }
@@ -2115,3 +2118,28 @@ body.light-theme .lb-load-chart .lb-load-tooltip { background:#fff!important; co
 .lb-load-zone[data-zone="risk"] .lb-load-dot { background:var(--load-risk); }
 .lb-load-chart .recharts-text { fill:var(--load-muted)!important; }
 @media(max-width:420px) { .lb-load-chart .lb-load-unit { display:block; margin-top:3px; } }
+
+/* Screen-only dashboard contrast. Printed/white reports keep their own palette. */
+@media screen {
+  body:not(.light-theme) .lb-athlete-dashboard {
+    color: #eef4f8;
+  }
+  body:not(.light-theme) .lb-athlete-dashboard :is(.text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700):not(.lb-report-preview *, .report-page *, .bg-white *) {
+    color: #b6c5d3 !important;
+  }
+  body:not(.light-theme) :is(.lb-athlete-dashboard, .lb-metric-tile) :is(.recharts-cartesian-axis-tick-value, .recharts-label):not(.lb-report-preview *, .report-page *, .bg-white *, .lb-load-chart *) {
+    fill: #b6c5d3 !important;
+    stroke: none;
+  }
+  body:not(.light-theme) .lb-athlete-dashboard .recharts-legend-item-text:not(.lb-report-preview *, .report-page *, .bg-white *) {
+    color: #dce6ef !important;
+  }
+  body:not(.light-theme) .lb-athlete-dashboard .recharts-default-tooltip:not(.lb-report-preview *, .report-page *, .bg-white *) {
+    background-color: #14232b !important;
+    border-color: #40515f !important;
+    color: #eef4f8 !important;
+  }
+  body:not(.light-theme) .lb-athlete-dashboard .recharts-default-tooltip :is(.recharts-tooltip-label, .recharts-tooltip-item):not(.lb-report-preview *, .report-page *, .bg-white *) {
+    color: #eef4f8 !important;
+  }
+}

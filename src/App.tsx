@@ -5693,7 +5693,7 @@ const DashboardView: FC<{
   };
 
   return (
-    <div className="space-y-8 relative no-scrollbar">
+    <div className="lb-athlete-dashboard space-y-8 relative no-scrollbar">
 
       {/* SUB-TABS SEGMENTED CONTROLLER (Enables seamless swapping between PRO, CLASSIC, ELITE MONITORING, and DECISION MATRIX) */}
       <div className="hidden md:flex flex-wrap md:flex-nowrap justify-between items-center lb-segmented-group p-1.5 rounded-2xl max-w-4xl mx-auto backdrop-blur-xl gap-1.5">
@@ -6368,7 +6368,7 @@ const DashboardView: FC<{
             </div>
 
             {showCargaReport && role === "coach" ? (
-              <div className="bg-white rounded-3xl p-6 shadow-2xl overflow-auto flex justify-center">
+              <div className="lb-report-preview bg-white rounded-3xl p-6 shadow-2xl overflow-auto flex justify-center">
                 <TrainingLoadReport athlete={athlete} onClose={() => setShowCargaReport(false)} />
               </div>
             ) : (
