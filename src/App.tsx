@@ -1,3 +1,4 @@
+import LoadMonitoringChart from './components/LoadMonitoringChart';
 import PortalThemeToggle from './components/PortalThemeToggle';
 import AthleteDashboardPanel from './components/AthleteDashboardPanel';
 import { isAssessmentOnly, followUpType } from './utils/followUp';
@@ -6231,7 +6232,7 @@ const DashboardView: FC<{
         for (let i = 14; i >= 0; i--) {
           const d = new Date(todayVal);
           d.setDate(todayVal.getDate() - i);
-          const dStr = d.toISOString().split("T")[0];
+          const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
           const dStartA = new Date(d);
           dStartA.setDate(d.getDate() - 6);
@@ -6256,7 +6257,7 @@ const DashboardView: FC<{
 
           const acuteAvg = acuteLoadSum / 7;
           const chronicAvg = chronicLoadSum / 28;
-          const acwrRatio = chronicAvg > 0 ? parseFloat((acuteAvg / chronicAvg).toFixed(2)) : 1.0;
+          const acwrRatio = chronicAvg > 0 ? parseFloat((acuteAvg / chronicAvg).toFixed(2)) : null;
 
           const wellnessOnDate = (athlete.wellness || []).find(
             (well) => well.date && well.date.split("T")[0] === dStr
@@ -6374,152 +6375,8 @@ const DashboardView: FC<{
               <>
                 {/* Core Cards Row 1: ACWR Safety Zone and Distribution */}
                 <div className="grid grid-cols-1 gap-6">
-              {/* ACWR: Safety Zone Chart */}
-              <div className="bg-[#080d16] border border-slate-900 rounded-3xl p-6 space-y-6 shadow-2xl">
-                <div className="flex justify-between items-start border-b border-slate-900 pb-4">
-                  <div>
-                    <h4 className="text-xs font-black uppercase text-white tracking-widest flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-brand-primary" />
-                      ACWR: CARGA E PRONTIDÃO EM TEMPO REAL
-                    </h4>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Relação entre Carga Aguda/Crônica e o Score de Prontidão Diária (% de 100)</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <span className="text-[10px] font-extrabold text-white flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> Carga Aguda
-                    </span>
-                    <span className="text-[10px] font-extrabold text-white flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Carga Crônica
-                    </span>
-                    <span className="text-[10px] font-extrabold text-[#39FF14] flex items-center gap-1.5 animate-pulse drop-shadow-[0_0_8px_rgba(57,255,20,0.5)]">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#39FF14] shadow-[0_0_8px_#39FF14] inline-block" /> Prontidão (%)
-                    </span>
-                  </div>
+                  <LoadMonitoringChart history={movingLoadHistory} />
                 </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-[#0e1322] border border-slate-900 rounded-2xl p-4 flex flex-col justify-between">
-                    <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Carga Aguda (7d)</span>
-                    <span className="text-xl font-black text-blue-400 mt-1 font-mono">
-                      {activeACWR.acute} <span className="text-[10px] text-slate-500 uppercase font-sans">U.A.</span>
-                    </span>
-                  </div>
-                  <div className="bg-[#0e1322] border border-slate-900 rounded-2xl p-4 flex flex-col justify-between">
-                    <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Carga Crônica (28d)</span>
-                    <span className="text-xl font-black text-amber-500 mt-1 font-mono">
-                      {activeACWR.chronic} <span className="text-[10px] text-slate-500 uppercase font-sans">U.A.</span>
-                    </span>
-                  </div>
-                  <div className="bg-[#0e1322] border border-slate-900 rounded-2xl p-4 flex flex-col justify-between">
-                    <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">ACWR ATUAL</span>
-                    <span className={`text-xl font-black mt-1 font-mono ${activeACWR.color}`}>
-                      {activeACWR.ratio} <span className="text-[9px] text-slate-500 font-sans font-black uppercase">({activeACWR.status})</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-64 sm:h-72 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={movingLoadHistory}>
-                      <defs>
-                        <linearGradient id="acuteGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#0e1322" vertical={false} />
-                      <XAxis
-                        dataKey="dateLabel"
-                        stroke="#475569"
-                        fontSize={9}
-                        tickLine={false}
-                        axisLine={false}
-                        dy={6}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        stroke="#475569"
-                        fontSize={9}
-                        tickLine={false}
-                        axisLine={false}
-                        dx={-6}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        stroke="#10b981"
-                        fontSize={9}
-                        tickLine={false}
-                        axisLine={false}
-                        dx={6}
-                        domain={[0, 100]}
-                      />
-                      <Tooltip
-                        content={({ active, payload, label }: any) => {
-                          if (active && payload && payload.length) {
-                            return (
-                              <div className="bg-slate-950/95 border border-slate-800 p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl font-sans min-w-[210px]">
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-800/80 pb-2 mb-2 italic">
-                                  Data: {label}
-                                </p>
-                                <div className="space-y-2">
-                                  {payload.map((p: any, idx: number) => {
-                                    let itemColor = p.stroke || p.color || p.fill || "#3b82f6";
-                                    if (p.dataKey === "Carga Aguda" || p.name === "Carga Aguda") {
-                                      itemColor = "#3b82f6";
-                                    } else if (p.dataKey === "Carga Crônica" || p.name === "Carga Crônica") {
-                                      itemColor = "#f59e0b";
-                                    } else if (p.dataKey === "Prontidão" || p.name === "Prontidão" || p.name === "Prontidão (%)") {
-                                      itemColor = "#39FF14";
-                                    }
-                                    const isProntidao = p.dataKey === "Prontidão" || p.name === "Prontidão (%)";
-                                    return (
-                                      <div key={idx} className="flex items-center justify-between gap-4">
-                                        <div className="flex items-center gap-2">
-                                          <span
-                                            className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm"
-                                            style={{ backgroundColor: itemColor }}
-                                          />
-                                          <span
-                                            className="text-[11px] font-black uppercase tracking-wider"
-                                            style={{ color: itemColor }}
-                                          >
-                                            {p.name || p.dataKey}
-                                          </span>
-                                        </div>
-                                        <span
-                                          className="text-[12px] font-black italic font-mono"
-                                          style={{ color: itemColor }}
-                                        >
-                                          {typeof p.value === "number" ? Math.round(p.value) : p.value}
-                                          {isProntidao ? "%" : " U.A."}
-                                        </span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Area yAxisId="left" type="monotone" dataKey="Carga Aguda" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#acuteGrad)" />
-                      <Line yAxisId="left" type="monotone" dataKey="Carga Crônica" stroke="#f59e0b" strokeWidth={2.5} strokeDasharray="5 5" dot={false} />
-                      <Line yAxisId="right" type="monotone" dataKey="Prontidão" stroke="#39FF14" strokeWidth={3} dot={{ r: 4, stroke: '#39FF14', strokeWidth: 2, fill: '#0c111d' }} activeDot={{ r: 6, stroke: '#39FF14', strokeWidth: 3, fill: '#ffffff' }} name="Prontidão (%)" connectNulls />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Safety spectrum bands reference block */}
-                <div className="flex flex-wrap md:flex-nowrap gap-3 p-4 bg-[#0e1322] border border-slate-900 rounded-2xl justify-between text-[9px] font-black uppercase text-slate-400 tracking-widest">
-                  <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> RISCO BAIXO (&lt; 0.80)</div>
-                  <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> ZONA IDEAL (0.80 - 1.30)</div>
-                  <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-orange-500" /> ATENÇÃO (1.31 - 1.50)</div>
-                  <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> RISCO ALTO (&gt; 1.50)</div>
-                </div>
-              </div>
-            </div>
 
             {/* Core Cards Row 2: Readiness, Sleep and Sleep Quality */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

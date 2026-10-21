@@ -2094,3 +2094,19 @@ body.light-theme .lb-metric-tile[data-metric="rsi"] { --metric-bg: #f7f1ff; --me
 .lb-portal-theme-toggle:hover { background: #214334; }
 body.light-theme .lb-portal-theme-toggle { background: #e5f4ec; border-color: #9fcbb4; color: #145f3c; }
 body.light-theme .lb-portal-theme-toggle:hover { background: #d3ebde; }
+
+/* Full-width load monitoring with ratio-aligned reference zones. */
+.lb-load-chart { --load-text:#eef4fb; --load-muted:#b8c8d8; --load-grid:#405066; --load-acute:#75afff; --load-chronic:#f1ce78; --load-ratio:#d9bbff; --load-zone-low:#302b1c; --load-zone-ideal:#123a2b; --load-zone-attention:#3d2c1c; --load-zone-risk:#3b1c26; background:#0e1726; color:var(--load-text); border-color:#33445a; }
+body.light-theme .lb-load-chart { --load-text:#172c40; --load-muted:#465b6d; --load-grid:#b9c9d5; --load-acute:#1c5dc0; --load-chronic:#896115; --load-ratio:#7543a5; --load-zone-low:#fff4d4; --load-zone-ideal:#e3f5e9; --load-zone-attention:#ffead1; --load-zone-risk:#fbe5e8; background:#f4f8fc; border-color:#bfcfdf; }
+.lb-load-chart header p, .lb-load-chart > p { color:var(--load-muted); }
+.lb-load-stat { background:color-mix(in srgb, var(--load-text) 5%, transparent); }
+.lb-load-swatch { display:inline-block; width:12px; height:6px; border-radius:3px; }
+.lb-load-chart .lb-load-tooltip { background:#142236!important; border-color:var(--load-grid)!important; color:var(--load-text)!important; }
+body.light-theme .lb-load-chart .lb-load-tooltip { background:#fff!important; color:var(--load-text)!important; }
+.lb-load-zone[data-zone="low"] { background:var(--load-zone-low); }
+.lb-load-zone[data-zone="ideal"] { background:var(--load-zone-ideal); }
+.lb-load-zone[data-zone="attention"] { background:var(--load-zone-attention); }
+.lb-load-zone[data-zone="risk"] { background:var(--load-zone-risk); }
+.lb-load-chart .recharts-text { fill:var(--load-muted)!important; }
+.lb-load-band-label { display:none; }
+@media(min-width:640px) { .lb-load-band-label { display:block; } }
