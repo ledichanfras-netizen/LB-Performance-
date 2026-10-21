@@ -2095,18 +2095,23 @@ body.light-theme .lb-metric-tile[data-metric="rsi"] { --metric-bg: #f7f1ff; --me
 body.light-theme .lb-portal-theme-toggle { background: #e5f4ec; border-color: #9fcbb4; color: #145f3c; }
 body.light-theme .lb-portal-theme-toggle:hover { background: #d3ebde; }
 
-/* Full-width load monitoring with ratio-aligned reference zones. */
-.lb-load-chart { --load-text:#eef4fb; --load-muted:#b8c8d8; --load-grid:#405066; --load-acute:#75afff; --load-chronic:#f1ce78; --load-ratio:#d9bbff; --load-zone-low:#302b1c; --load-zone-ideal:#123a2b; --load-zone-attention:#3d2c1c; --load-zone-risk:#3b1c26; background:#0e1726; color:var(--load-text); border-color:#33445a; }
-body.light-theme .lb-load-chart { --load-text:#172c40; --load-muted:#465b6d; --load-grid:#b9c9d5; --load-acute:#1c5dc0; --load-chronic:#896115; --load-ratio:#7543a5; --load-zone-low:#fff4d4; --load-zone-ideal:#e3f5e9; --load-zone-attention:#ffead1; --load-zone-risk:#fbe5e8; background:#f4f8fc; border-color:#bfcfdf; }
-.lb-load-chart header p, .lb-load-chart > p { color:var(--load-muted); }
-.lb-load-stat { background:color-mix(in srgb, var(--load-text) 5%, transparent); }
-.lb-load-swatch { display:inline-block; width:12px; height:6px; border-radius:3px; }
-.lb-load-chart .lb-load-tooltip { background:#142236!important; border-color:var(--load-grid)!important; color:var(--load-text)!important; }
+/* Elite load monitoring: neutral surfaces and separate aligned scales. */
+.lb-load-chart { --load-text:#edf6f2; --load-muted:#b4c4bf; --load-grid:#2c3d42; --load-acute:#50dfa0; --load-chronic:#b7c5d2; --load-ratio:#6adce1; --load-ideal:#182e29; --load-amber:#dbbd79; --load-risk:#ed99a3; background:#101a21; color:var(--load-text); border-color:#2c3c43; }
+body.light-theme .lb-load-chart { --load-text:#142b25; --load-muted:#52685e; --load-grid:#dce8e1; --load-acute:#087b50; --load-chronic:#637c88; --load-ratio:#077d86; --load-ideal:#eaf6ef; --load-amber:#8c691f; --load-risk:#aa4955; background:#fff; border-color:#dce8e1; }
+.lb-load-chart header p, .lb-load-chart .lb-load-muted, .lb-load-chart .lb-load-unit { color:var(--load-muted); }
+.lb-load-chart h4, .lb-load-chart h5 { color:var(--load-text); }
+.lb-load-key { display:inline-block; width:18px; height:3px; background:var(--load-acute); border-radius:2px; }
+.lb-load-key[data-series="chronic"] { height:0; border-top:2px dashed var(--load-chronic); background:none; }
+.lb-load-key[data-series="ratio"] { background:var(--load-ratio); }
+.lb-load-status { background:var(--load-grid); color:var(--load-text); }
+.lb-load-status[data-zone="ideal"] { background:var(--load-ideal); color:var(--load-acute); }
+.lb-load-status[data-zone="attention"] { color:var(--load-amber); }
+.lb-load-status[data-zone="risk"] { color:var(--load-risk); }
+.lb-load-chart .lb-load-tooltip { background:#14232b!important; border-color:var(--load-grid)!important; color:var(--load-text)!important; }
 body.light-theme .lb-load-chart .lb-load-tooltip { background:#fff!important; color:var(--load-text)!important; }
-.lb-load-zone[data-zone="low"] { background:var(--load-zone-low); }
-.lb-load-zone[data-zone="ideal"] { background:var(--load-zone-ideal); }
-.lb-load-zone[data-zone="attention"] { background:var(--load-zone-attention); }
-.lb-load-zone[data-zone="risk"] { background:var(--load-zone-risk); }
+.lb-load-dot { width:6px; height:6px; border-radius:50%; background:var(--load-muted); }
+.lb-load-zone[data-zone="ideal"] .lb-load-dot { background:var(--load-acute); }
+.lb-load-zone[data-zone="attention"] .lb-load-dot { background:var(--load-amber); }
+.lb-load-zone[data-zone="risk"] .lb-load-dot { background:var(--load-risk); }
 .lb-load-chart .recharts-text { fill:var(--load-muted)!important; }
-.lb-load-band-label { display:none; }
-@media(min-width:640px) { .lb-load-band-label { display:block; } }
+@media(max-width:420px) { .lb-load-chart .lb-load-unit { display:block; margin-top:3px; } }
