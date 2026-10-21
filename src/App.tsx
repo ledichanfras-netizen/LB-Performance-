@@ -1350,7 +1350,7 @@ const EliteHubApp: FC<{
   }, [athletes, selectedId, user]);
 
   useEffect(()=>{
-    if(selected && isAssessmentOnly(selected) && activeTab!=="assessment" && activeTab!=="info"){
+    if(selected && isAssessmentOnly(selected) && activeTab!=="assessment" && activeTab!=="info" && !(activeTab === "competitions" && user?.role === "coach")){
       setActiveTab("assessment");setIsAiChatOpen(false);setAiModelingResult(null);
     }
   },[selected?.id,selected?.followUpType,activeTab]);
@@ -2075,9 +2075,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("competitions");
                     setAiModelingResult(null);
                   }}
@@ -2509,6 +2506,10 @@ const EliteHubApp: FC<{
               {activeTab === "info" ? (
                 <div className="w-full max-w-7xl mx-auto px-4 py-4 animate-in fade-in duration-500">
                   <AthleteGuide role={user?.role} />
+                </div>
+              ) : activeTab === "competitions" && user.role === "coach" ? (
+                <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 py-4">
+                  <CompetitionsCalendarView athlete={selected} allAthletes={athletes} onUpdateAthlete={data => { if (selected) updateAthlete(selected.id, data); }} onUpdateAthleteById={(id, data) => updateAthlete(id, data)} role="coach" />
                 </div>
               ) : !selected && user.role === "coach" ? (
                 <div className="flex flex-col items-center px-4 max-w-7xl mx-auto w-full">

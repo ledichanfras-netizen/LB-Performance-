@@ -1,30 +1,5 @@
 import React, { FC, useState, useMemo } from "react";
-import {
-  Trophy,
-  Calendar as CalendarIcon,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  MapPin,
-  Clock,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  User,
-  Activity,
-  Flame,
-  Target,
-  BarChart3,
-  Check,
-  X,
-  Edit2,
-  TrendingUp,
-  Award,
-  Zap,
-  Layers
-} from "lucide-react";
+import { Trophy, Calendar as CalendarIcon, Plus, Trash2, MapPin, ChevronLeft, ChevronRight, Filter, Check, X, Edit2, Layers } from "lucide-react";
 import {
   Athlete,
   MatchEvent,
@@ -38,9 +13,10 @@ import { motion, AnimatePresence } from "motion/react";
 import { formatDate, getLocalDateString } from "../utils";
 
 interface CompetitionsCalendarViewProps {
-  athlete: Athlete;
+  athlete?: Athlete;
   allAthletes?: Athlete[];
   onUpdateAthlete: (data: Partial<Athlete>) => void;
+  onUpdateAthleteById?: (id: string, data: Partial<Athlete>) => void;
   role: "coach" | "athlete";
 }
 
@@ -69,11 +45,22 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   athlete,
   allAthletes,
   onUpdateAthlete,
+  onUpdateAthleteById,
   role
 }) => {
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>("todos");
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("todas");
-  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "list">(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches ? 'list' : 'calendar');
+  const [athleteFilter, setAthleteFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedDay, setSelectedDay] = useState(getLocalDateString());
+  const owners = useMemo(() => role === 'coach' && onUpdateAthleteById ? (allAthletes || (athlete ? [athlete] : [])) : athlete ? [athlete] : [], [role, allAthletes, athlete, onUpdateAthleteById]);
+  const [formAthleteId, setFormAthleteId] = useState(athlete?.id || owners[0]?.id || '');
+  const formAthlete = owners.find(a => a.id === formAthleteId);
+  const persist = (owner: Athlete, data: Partial<Athlete>) => {
+    if (role === 'coach' && onUpdateAthleteById) onUpdateAthleteById(owner.id, data);
+    else if (owner.id === athlete?.id) onUpdateAthlete(data);
+  };
 
   // Current Month State for Calendar
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -85,7 +72,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
 
   // Form State
   const [formTitle, setFormTitle] = useState("");
-  const [formSport, setFormSport] = useState<SportOption>((athlete.modality as SportOption) || "Futebol");
+  const [formSport, setFormSport] = useState<SportOption>((athlete?.modality as SportOption) || "Futebol");
   const [formType, setFormType] = useState<MatchTypeOption>("Jogo / Partida");
   const [formDate, setFormDate] = useState(getLocalDateString());
   const [formTime, setFormTime] = useState("15:00");
@@ -118,41 +105,14 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   const [formElevation, setFormElevation] = useState<number>(0);
   const [formRankPos, setFormRankPos] = useState("");
 
-  // Get Matches
-  const matches = useMemo(() => {
-    return athlete.matches || [];
-  }, [athlete.matches]);
-
-  // Filtered matches
-  const filteredMatches = useMemo(() => {
-    return matches.filter((m) => {
-      if (selectedSportFilter !== "todos" && m.sport !== selectedSportFilter) return false;
-      if (selectedPriorityFilter !== "todas" && m.priority !== selectedPriorityFilter) return false;
-      return true;
-    });
-  }, [matches, selectedSportFilter, selectedPriorityFilter]);
-
-  // Keep scheduled events first, newest event date/time first within each group.
-  const timelineMatches = useMemo(() => [...filteredMatches].sort((a, b) => {
-    const statusOrder = Number(b.status === "Agendado") - Number(a.status === "Agendado");
-    if (statusOrder) return statusOrder;
-    return b.date.localeCompare(a.date) || (b.time || "").localeCompare(a.time || "");
-  }), [filteredMatches]);
-
-  // Priority A counts, victory counts, average pre-game readiness
-  const stats = useMemo(() => {
-    const total = matches.length;
-    const priorityA = matches.filter((m) => m.priority === "A").length;
-    const completed = matches.filter((m) => m.status === "Concluído");
-    const wins = matches.filter((m) => m.result === "Vitória" || m.result === "Pódio").length;
-    
-    const preScores = completed
-      .map((m) => m.preGameReadinessScore)
-      .filter((s): s is number => s !== undefined && s > 0);
-    const avgPreReadiness = preScores.length > 0 ? Math.round(preScores.reduce((a, b) => a + b, 0) / preScores.length) : 0;
-
-    return { total, priorityA, completedCount: completed.length, wins, avgPreReadiness };
-  }, [matches]);
+  // Keep the owner with each participation; event IDs may repeat across athletes.
+  const matches = useMemo(() => owners.flatMap(a => (a.matches || []).map(m => ({ ...m, athleteId: a.id, athleteName: a.name }))), [owners]);
+  const filteredMatches = useMemo(() => matches.filter(m =>
+    (athleteFilter === 'all' || m.athleteId === athleteFilter) &&
+    (selectedSportFilter === 'todos' || m.sport === selectedSportFilter) &&
+    (selectedPriorityFilter === 'todas' || m.priority === selectedPriorityFilter) &&
+    (statusFilter === 'all' || m.status === statusFilter)
+  ), [matches, athleteFilter, selectedSportFilter, selectedPriorityFilter, statusFilter]);
 
   // Calendar Helpers
   const year = currentDate.getFullYear();
@@ -178,21 +138,34 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   }, [year, month]);
 
   const monthName = currentDate.toLocaleString("pt-BR", { month: "long" });
+  const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const monthMatches = useMemo(() => filteredMatches.filter(m => m.date.startsWith(monthKey)).sort((a,b) => a.date.localeCompare(b.date) || (a.time || '99:99').localeCompare(b.time || '99:99') || a.athleteName.localeCompare(b.athleteName)), [filteredMatches, monthKey]);
+  const matchesByDay = useMemo(() => {
+    const result = new Map<string, typeof monthMatches>();
+    for (const m of monthMatches) result.set(m.date, [...(result.get(m.date) || []), m]);
+    return result;
+  }, [monthMatches]);
+  const visibleMatches = viewMode === 'list' ? monthMatches : matchesByDay.get(selectedDay) || [];
 
   const handlePrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
+    setSelectedDay(`${new Date(year, month - 1, 1).getFullYear()}-${String(new Date(year, month - 1, 1).getMonth() + 1).padStart(2, '0')}-01`);
   };
 
   const handleNextMonth = () => {
     setCurrentDate(new Date(year, month + 1, 1));
+    setSelectedDay(`${new Date(year, month + 1, 1).getFullYear()}-${String(new Date(year, month + 1, 1).getMonth() + 1).padStart(2, '0')}-01`);
   };
 
   // Open Create Modal for specific date or general
   const handleOpenCreateModal = (dateStr?: string) => {
+    const owner = owners.find(a => a.id === athleteFilter) || owners.find(a => a.id === athlete?.id) || owners[0];
+    if (!owner) return;
+    setFormAthleteId(owner.id);
     setSelectedMatch(null);
     setModalTab("info");
     setFormTitle("");
-    setFormSport((athlete.modality as SportOption) || "Futebol");
+    setFormSport((owner.modality as SportOption) || "Futebol");
     setFormType("Jogo / Partida");
     setFormDate(dateStr || getLocalDateString());
     setFormTime("15:00");
@@ -228,13 +201,14 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
 
   // Open Edit Modal for existing match
   const handleOpenEditModal = (match: MatchEvent) => {
+    setFormAthleteId(match.athleteId);
     setSelectedMatch(match);
     setModalTab("info");
     setFormTitle(match.title);
     setFormSport(match.sport);
     setFormType(match.type);
     setFormDate(match.date);
-    setFormTime(match.time || "15:00");
+    setFormTime(match.time || "");
     setFormOpponent(match.opponentOrEventName || "");
     setFormLocation(match.location || "");
     setFormVenueType(match.venueType);
@@ -248,10 +222,10 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
     // Post
     setFormResult(match.result || "Pendente");
     setFormScoreOrTime(match.scoreOrTime || "");
-    setFormDurationMinutes(match.durationMinutes || 90);
-    setFormPostRpe(match.postRpe || 7);
-    setFormSorenessPost(match.sorenessPost || 3);
-    setFormTravelFatiguePost(match.travelFatiguePost || 2);
+    setFormDurationMinutes(match.durationMinutes ?? 90);
+    setFormPostRpe(match.postRpe ?? 7);
+    setFormSorenessPost(match.sorenessPost ?? 3);
+    setFormTravelFatiguePost(match.travelFatiguePost ?? 2);
     setFormPostNotes(match.postGameNotes || "");
 
     // Sport extra
@@ -270,12 +244,12 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
 
   // Auto-fill Pre-Game Wellness if available for that date
   const handleAutoFillPreGameWellness = () => {
-    const wellnessForDate = athlete.wellness?.find((w) => w.date && w.date.startsWith(formDate));
+    const wellnessForDate = formAthlete?.wellness?.find((w) => w.date && w.date.startsWith(formDate));
     if (wellnessForDate && wellnessForDate.readinessScore) {
       setFormPreReadinessScore(wellnessForDate.readinessScore);
     } else {
       // Fallback to latest wellness
-      const latest = athlete.wellness?.[0];
+      const latest = formAthlete?.wellness?.[0];
       if (latest && latest.readinessScore) {
         setFormPreReadinessScore(latest.readinessScore);
       }
@@ -285,6 +259,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   // Save Match
   const handleSaveMatch = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formAthlete) return;
 
     const sportData: SportSpecificData = {
       minutesPlayed: formMinPlayed,
@@ -302,7 +277,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
 
     const matchToSave: MatchEvent = {
       id: selectedMatch ? selectedMatch.id : `match-${Date.now()}`,
-      athleteId: athlete.id,
+      athleteId: formAthlete.id,
       title: formTitle || `${formSport} vs ${formOpponent || "Adversário"}`,
       sport: formSport,
       type: formType,
@@ -312,7 +287,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
       location: formLocation,
       venueType: formVenueType,
       priority: formPriority,
-      status: isCompleted ? "Concluído" : "Agendado",
+      status: isCompleted ? "Concluído" : selectedMatch?.status === "Cancelado" ? "Cancelado" : "Agendado",
       preGameTargetReadiness: formTargetReadiness,
       preGameReadinessScore: formPreReadinessScore > 0 ? formPreReadinessScore : undefined,
       preGameCheckinDone: formPreReadinessScore > 0,
@@ -328,7 +303,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
       postGameNotes: formPostNotes
     };
 
-    let updatedMatches = [...matches];
+    let updatedMatches = [...(formAthlete.matches || [])];
     if (selectedMatch) {
       updatedMatches = updatedMatches.map((m) => (m.id === selectedMatch.id ? matchToSave : m));
     } else {
@@ -336,7 +311,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
     }
 
     // Also sync to athlete.externalSessions if completed, so training load/ACWR auto integrates!
-    let updatedExternal = [...(athlete.externalSessions || [])];
+    let updatedExternal = [...(formAthlete.externalSessions || [])];
     if (isCompleted && calculatedLoad > 0) {
       const existingExtIndex = updatedExternal.findIndex((e) => e.id === `ext-${matchToSave.id}`);
       const extSessionData = {
@@ -354,384 +329,61 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
       } else {
         updatedExternal = [extSessionData, ...updatedExternal];
       }
+    } else {
+      updatedExternal = updatedExternal.filter(e => e.id !== `ext-${matchToSave.id}`);
     }
 
-    onUpdateAthlete({
+    persist(formAthlete, {
       matches: updatedMatches,
       externalSessions: updatedExternal
     });
 
+    // Keep the saved event visible, including when its date or athlete changed.
+    setCurrentDate(new Date(`${formDate}T12:00:00`));
+    setSelectedDay(formDate);
+    if (athleteFilter !== 'all') setAthleteFilter(formAthlete.id);
+    if (selectedSportFilter !== 'todos' && selectedSportFilter !== formSport) setSelectedSportFilter('todos');
+    if (selectedPriorityFilter !== 'todas' && selectedPriorityFilter !== formPriority) setSelectedPriorityFilter('todas');
+    if (statusFilter !== 'all' && statusFilter !== matchToSave.status) setStatusFilter('all');
     setIsModalOpen(false);
   };
 
-  // Delete Match
-  const handleDeleteMatch = (matchId: string) => {
-    if (window.confirm("Excluir este evento de competição do calendário?")) {
-      const updated = matches.filter((m) => m.id !== matchId);
-      onUpdateAthlete({ matches: updated });
-    }
-  };
-
-  const getPriorityBadge = (p: MatchPriorityOption) => {
-    switch (p) {
-      case "A":
-        return <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30 font-black text-[9px] uppercase tracking-widest flex items-center gap-1"><Flame className="w-2.5 h-2.5 text-red-400 fill-red-400" /> ALVO A (PRINCIPAL)</span>;
-      case "B":
-        return <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black text-[9px] uppercase tracking-widest">PREPARATÓRIA (B)</span>;
-      case "C":
-        return <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 font-bold text-[9px] uppercase">SECUNDÁRIA (C)</span>;
-    }
-  };
-
-  const getResultBadge = (res?: MatchResultOption) => {
-    switch (res) {
-      case "Vitória":
-        return <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-black text-[10px] uppercase tracking-wider flex items-center gap-1"><Trophy className="w-3 h-3 text-emerald-400" /> VITÓRIA</span>;
-      case "Pódio":
-        return <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-black text-[10px] uppercase tracking-wider flex items-center gap-1"><Award className="w-3 h-3 text-amber-300" /> PÓDIO</span>;
-      case "Derrota":
-        return <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30 font-black text-[10px] uppercase tracking-wider">DERROTA</span>;
-      case "Empate":
-        return <span className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30 font-black text-[10px] uppercase tracking-wider">EMPATE</span>;
-      case "Concluído":
-        return <span className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-black text-[10px] uppercase tracking-wider">✓ CONCLUÍDO</span>;
-      default:
-        return <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 border border-slate-700 font-black text-[10px] uppercase tracking-wider">AGENDADO</span>;
+  // Scope all mutations to the event owner, never the dashboard selection.
+  const handleDeleteMatch = (match: MatchEvent) => {
+    const owner = owners.find(a => a.id === match.athleteId);
+    if (owner && window.confirm("Excluir este evento de competição do calendário?")) {
+      persist(owner, { matches: (owner.matches || []).filter(m => m.id !== match.id), externalSessions: (owner.externalSessions || []).filter(e => e.id !== `ext-${match.id}`) });
     }
   };
 
   return (
-    <div className="space-y-8">
-      
-      {/* HEADER BANNER */}
-      <div className="p-6 md:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full blur-[90px] pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-primary/10 rounded-full border border-brand-primary/20 text-[9px] font-black tracking-widest text-brand-primary uppercase">
-              <Trophy className="w-3.5 h-3.5 text-brand-primary" /> CALENDÁRIO UNIFICADO MULTIMODALIDADE
-            </div>
-            <h2 className="text-2xl md:text-4xl font-black italic uppercase tracking-tight text-white">
-              COMPETIÇÕES & <span className="text-brand-primary">COLETA PRÉ/PÓS JOGO</span>
-            </h2>
-            <p className="text-xs text-slate-400 max-w-2xl font-medium leading-relaxed">
-              Gerencie partidas, provas e torneios para qualquer esporte (Futebol, Vôlei, Tênis, Corrida, Ciclismo, Natação) com monitoramento de prontidão no dia da prova e estatísticas dinâmicas pós-competição.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => handleOpenCreateModal()}
-              className="flex items-center gap-2 px-5 py-3.5 bg-brand-primary hover:bg-lime-400 text-slate-950 font-black text-xs uppercase rounded-2xl tracking-wider shadow-lg shadow-brand-primary/20 transition-all active:scale-95 cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              Novo Jogo / Prova
-            </button>
-          </div>
+    <div className="lb-competitions space-y-5">
+      <header className="lc-hero">
+        <div className="lc-eyebrow"><Trophy size={15} /> LB PERFORMANCE · {role === 'coach' ? 'TREINADOR' : 'ATLETA'}</div>
+        <div className="lc-hero-row"><div><h2>Competições<br />no seu radar.</h2><p>{role === 'coach' ? 'Todos os seus atletas. Uma visão para planejar.' : 'Seus jogos, provas e torneios em um só lugar.'}</p></div><button className="lc-primary" onClick={() => handleOpenCreateModal()} disabled={!owners.length}><Plus size={17} /> Novo jogo / prova</button></div>
+        <div className="lc-hero-bottom"><span><span className="lc-dot" />{role === 'coach' ? 'Calendário geral' : 'Meu calendário'}</span><span>Jogos · Provas · Torneios</span></div>
+      </header>
+      <div className="lc-body">
+        <div className="lc-filters">
+          {role === 'coach' && <label>Atleta<select aria-label="Filtrar por atleta" value={athleteFilter} onChange={e => setAthleteFilter(e.target.value)}><option value="all">Todos os atletas</option>{owners.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
+          <label>Modalidade<select aria-label="Filtrar por modalidade" value={selectedSportFilter} onChange={e => setSelectedSportFilter(e.target.value)}><option value="todos">Todas as modalidades</option>{SPORTS_LIST.map(s => <option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}</select></label>
         </div>
-
-        {/* METRICS ROW */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-800/80">
-          <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total Agendado</span>
-            <span className="text-2xl font-black font-mono text-white mt-1 block">{stats.total}</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-            <span className="text-[10px] font-black text-red-400 uppercase tracking-widest block flex items-center gap-1">
-              <Flame className="w-3 h-3 text-red-500 fill-red-500" /> Alvos Principais (A)
-            </span>
-            <span className="text-2xl font-black font-mono text-red-400 mt-1 block">{stats.priorityA}</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">Vitórias / Pódios</span>
-            <span className="text-2xl font-black font-mono text-emerald-400 mt-1 block">{stats.wins}</span>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-            <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest block">Média Prontidão Pré-Jogo</span>
-            <span className="text-2xl font-black font-mono text-brand-primary mt-1 block">{stats.avgPreReadiness > 0 ? `${stats.avgPreReadiness}%` : "--"}</span>
-          </div>
-        </div>
+        <details className="lc-more-filters"><summary><Filter size={14} /> Mais filtros{selectedPriorityFilter !== 'todas' || statusFilter !== 'all' ? ' · ativos' : ''}</summary><div className="lc-filters"><label>Prioridade<select aria-label="Filtrar por prioridade" value={selectedPriorityFilter} onChange={e => setSelectedPriorityFilter(e.target.value)}><option value="todas">Todas as prioridades</option><option value="A">A · Principal</option><option value="B">B · Preparatória</option><option value="C">C · Secundária</option></select></label><label>Situação<select aria-label="Filtrar por situação" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="all">Todas as situações</option><option>Agendado</option><option>Concluído</option><option>Cancelado</option></select></label></div></details>
+        <div className="lc-toolbar"><div className="lc-segment" aria-label="Visualização"><button aria-pressed={viewMode === 'calendar'} onClick={() => setViewMode('calendar')}><CalendarIcon size={16} />Mês</button><button aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}><Layers size={16} />Agenda</button></div><span className="lc-muted">{monthMatches.length} {monthMatches.length === 1 ? 'participação' : 'participações'} no mês</span></div>
+        <div className="lc-month-row"><div><button aria-label="Mês anterior" onClick={handlePrevMonth}><ChevronLeft size={18} /></button><h3>{monthName} {year}</h3><button aria-label="Próximo mês" onClick={handleNextMonth}><ChevronRight size={18} /></button></div><button className="lc-today" onClick={() => { setCurrentDate(new Date()); setSelectedDay(getLocalDateString()); }}>Hoje</button></div>
+        {viewMode === 'calendar' && <div className="lc-grid" aria-label={`Calendário de ${monthName} ${year}`}>
+          {['DOM','SEG','TER','QUA','QUI','SEX','SÁB'].map(d => <span className="lc-weekday" key={d}>{d}</span>)}
+          {daysInMonth.map((day, i) => !day ? <span key={`empty-${i}`} /> : <button key={day.dateStr} className="lc-day" data-events={Boolean(matchesByDay.get(day.dateStr)?.length)} aria-current={day.dateStr === getLocalDateString() ? 'date' : undefined} aria-pressed={selectedDay === day.dateStr} aria-label={`${formatDate(day.dateStr)}, ${matchesByDay.get(day.dateStr)?.length || 0} participações`} onClick={() => setSelectedDay(day.dateStr)}><span>{day.dayNumber}</span><span className="lc-day-count" aria-hidden="true">{matchesByDay.get(day.dateStr)?.length ? (matchesByDay.get(day.dateStr)!.length > 3 ? `${matchesByDay.get(day.dateStr)!.length}` : '●'.repeat(matchesByDay.get(day.dateStr)!.length)) : '\u00a0'}</span></button>)}
+        </div>}
+        <section className="lc-agenda" aria-live="polite"><div className="lc-agenda-heading"><h3>{viewMode === 'calendar' ? 'Competições do dia' : 'Agenda do mês'}</h3><span className="lc-muted">{viewMode === 'calendar' ? formatDate(selectedDay) : `${monthMatches.length} participações`}</span></div>
+          {!visibleMatches.length ? <div className="lc-empty"><CalendarIcon size={28} /><p>{owners.length ? 'Sem competições para este período e filtros.' : 'Cadastre um atleta para começar.'}</p>{owners.length > 0 && <button className="lc-secondary" onClick={() => handleOpenCreateModal(viewMode === 'calendar' ? selectedDay : undefined)}><Plus size={15} />Adicionar competição</button>}</div> : <div className="lc-event-list">{visibleMatches.map(m => <article className="lc-event" key={`${m.athleteId}:${m.id}`}>
+            <div className="lc-time"><time>{m.time || 'A definir'}</time><span>{formatDate(m.date).slice(0,5)}</span></div>
+            <div className="lc-event-content"><span className="lc-sport">{m.sport}</span><h4>{m.athleteName}</h4><p className="lc-event-title">{m.title}</p><p className="lc-location"><MapPin size={13} />{m.location || 'Local a definir'} · {m.venueType}</p><div className="lc-event-footer"><span className="lc-priority" data-priority={m.priority}>{m.priority} · {m.priority === 'A' ? 'Principal' : m.priority === 'B' ? 'Preparatória' : 'Secundária'}</span><span className="lc-muted">{m.status}{m.status === 'Concluído' && m.result && m.result !== 'Concluído' ? ` · ${m.result}` : ''}</span></div>
+            {(m.preGameReadinessScore != null && m.preGameReadinessScore > 0 || m.status === 'Concluído' && m.postLoad != null) && <div className="lc-collected">{m.preGameReadinessScore != null && m.preGameReadinessScore > 0 && <span>Prontidão: {m.preGameReadinessScore}%</span>}{m.status === 'Concluído' && m.postLoad != null && <span>Carga: {m.postLoad.toLocaleString('pt-BR')} UA</span>}</div>}
+            <div className="lc-event-actions"><button className="lc-secondary" onClick={() => handleOpenEditModal(m)}><Edit2 size={14} />Detalhes / pré e pós</button><button className="lc-delete" aria-label={`Excluir ${m.title} de ${m.athleteName}`} onClick={() => handleDeleteMatch(m)}><Trash2 size={16} /></button></div></div>
+          </article>)}</div>}
+        </section>
       </div>
-
-      {/* FILTER & VIEW CONTROLS */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-3xl border border-slate-800">
-        
-        {/* FILTERS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 shrink-0 pr-2">
-            <Filter className="w-3.5 h-3.5 text-brand-primary" /> Esporte:
-          </span>
-          <select
-            value={selectedSportFilter}
-            onChange={(e) => setSelectedSportFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-white font-bold text-xs rounded-xl px-3 py-2 outline-none focus:border-brand-primary"
-          >
-            <option value="todos">Todas Modalidades</option>
-            {SPORTS_LIST.map((s) => (
-              <option key={s.id} value={s.id}>{s.icon} {s.label}</option>
-            ))}
-          </select>
-
-          <select
-            value={selectedPriorityFilter}
-            onChange={(e) => setSelectedPriorityFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-white font-bold text-xs rounded-xl px-3 py-2 outline-none focus:border-brand-primary"
-          >
-            <option value="todas">Todas Prioridades</option>
-            <option value="A">Prioridade A (Alvo)</option>
-            <option value="B">Prioridade B (Preparatória)</option>
-            <option value="C">Prioridade C (Treino)</option>
-          </select>
-        </div>
-
-        {/* VIEW MODE TOGGLE */}
-        <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 shrink-0">
-          <button
-            onClick={() => setViewMode("calendar")}
-            className={`px-4 py-2 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center gap-2 ${
-              viewMode === "calendar"
-                ? "bg-brand-primary text-slate-950 shadow-md"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <CalendarIcon className="w-3.5 h-3.5" />
-            Calendário Mensal
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`px-4 py-2 rounded-xl font-black text-[10px] tracking-wider uppercase transition-all flex items-center gap-2 ${
-              viewMode === "list"
-                ? "bg-brand-primary text-slate-950 shadow-md"
-                : "text-slate-400 hover:text-white"
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Lista & Coleta
-          </button>
-        </div>
-      </div>
-
-      {/* CALENDAR MONTHLY VIEW */}
-      {viewMode === "calendar" && (
-        <div className="p-6 md:p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-6">
-          
-          {/* MONTH NAVIGATOR */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handlePrevMonth}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <h3 className="text-xl font-black uppercase text-white italic tracking-tight font-mono">
-                {monthName} {year}
-              </h3>
-              <button
-                onClick={handleNextMonth}
-                className="p-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-colors cursor-pointer"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className="px-3.5 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-wider border border-slate-800"
-            >
-              Hoje
-            </button>
-          </div>
-
-          {/* WEEKDAY HEADERS */}
-          <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
-            <div>DOM</div>
-            <div>SEG</div>
-            <div>TER</div>
-            <div>QUA</div>
-            <div>QUI</div>
-            <div>SEX</div>
-            <div>SÁB</div>
-          </div>
-
-          {/* DAYS GRID */}
-          <div className="grid grid-cols-7 gap-2">
-            {daysInMonth.map((day, idx) => {
-              if (!day) {
-                return <div key={`empty-${idx}`} className="aspect-square rounded-2xl bg-slate-950/20 border border-slate-900/30" />;
-              }
-
-              const isToday = day.dateStr === getLocalDateString();
-              const dayMatches = filteredMatches.filter((m) => m.date === day.dateStr);
-
-              return (
-                <div
-                  key={day.dateStr}
-                  onClick={() => handleOpenCreateModal(day.dateStr)}
-                  className={`min-h-[110px] p-2 rounded-2xl border transition-all flex flex-col justify-between cursor-pointer group hover:border-brand-primary/50 ${
-                    isToday
-                      ? "bg-brand-primary/5 border-brand-primary/40 ring-1 ring-brand-primary/30"
-                      : "bg-slate-950/60 border-slate-800/80 hover:bg-slate-900/80"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-mono font-black ${isToday ? "text-brand-primary" : "text-slate-400"}`}>
-                      {day.dayNumber}
-                    </span>
-                    {isToday && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-ping" />
-                    )}
-                  </div>
-
-                  {/* MATCHES BADGES LIST ON THIS DAY */}
-                  <div className="space-y-1.5 my-1">
-                    {dayMatches.map((m) => {
-                      const spInfo = SPORTS_LIST.find((s) => s.id === m.sport);
-                      return (
-                        <div
-                          key={m.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenEditModal(m);
-                          }}
-                          className={`p-1.5 rounded-xl border text-left transition-all hover:scale-102 ${
-                            m.priority === "A"
-                              ? "bg-red-950/40 border-red-500/40 text-red-200"
-                              : m.priority === "B"
-                              ? "bg-amber-950/40 border-amber-500/40 text-amber-200"
-                              : "bg-slate-900 border-slate-800 text-slate-300"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-[10px] font-black truncate">
-                              {spInfo?.icon} {m.title}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1 text-[8px] font-bold text-slate-400 mt-0.5">
-                            <span>{m.time || "15:00"}</span>
-                            <span>• {m.venueType}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] font-bold text-brand-primary text-center">
-                    + Adicionar
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* LIST & TIMELINE VIEW */}
-      {(viewMode === "list" || filteredMatches.length > 0) && (
-        <div className="p-6 md:p-8 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-            <h3 className="text-lg font-black uppercase text-white italic tracking-tight flex items-center gap-2">
-              <Layers className="w-5 h-5 text-brand-primary" />
-              CRONOGRAMA E CENTRAL DE COLETA ({filteredMatches.length})
-            </h3>
-          </div>
-
-          {filteredMatches.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 font-medium text-xs">
-              Nenhuma competição encontrada para os filtros selecionados.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {timelineMatches.map((m) => {
-                const spInfo = SPORTS_LIST.find((s) => s.id === m.sport);
-                const isPast = m.date < getLocalDateString();
-                const isToday = m.date === getLocalDateString();
-
-                return (
-                  <div
-                    key={m.id}
-                    className={`p-5 rounded-3xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-6 ${
-                      isToday
-                        ? "bg-slate-950 border-brand-primary/50 shadow-xl shadow-brand-primary/5"
-                        : "bg-slate-950/80 border-slate-800 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-2xl shrink-0">
-                        {spInfo?.icon || "🏆"}
-                      </div>
-
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-base font-black text-white">{m.title}</h4>
-                          {getPriorityBadge(m.priority)}
-                          {getResultBadge(m.result)}
-                        </div>
-
-                        <div className="flex items-center gap-3 text-xs text-slate-400 font-medium flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="w-3.5 h-3.5 text-brand-primary" /> {formatDate(m.date)}
-                          </span>
-                          {m.time && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5 text-slate-500" /> {m.time}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-slate-500" /> {m.location || m.venueType}
-                          </span>
-                        </div>
-
-                        {/* PRE & POST INDICATORS */}
-                        <div className="flex items-center gap-4 pt-2 flex-wrap text-xs font-bold">
-                          {m.preGameReadinessScore ? (
-                            <span className="text-emerald-400 flex items-center gap-1 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Prontidão Pré-Jogo: {m.preGameReadinessScore}%
-                            </span>
-                          ) : (
-                            <span className="text-amber-400 flex items-center gap-1 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                              <AlertTriangle className="w-3.5 h-3.5" /> Coleta Pré-Jogo Pendente
-                            </span>
-                          )}
-
-                          {m.postLoad ? (
-                            <span className="text-brand-primary flex items-center gap-1 bg-brand-primary/10 px-2.5 py-1 rounded-lg border border-brand-primary/20">
-                              <Zap className="w-3.5 h-3.5" /> Carga do Jogo: {m.postLoad} AU ({m.durationMinutes}min | PSE {m.postRpe})
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                      <button
-                        onClick={() => handleOpenEditModal(m)}
-                        className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase rounded-xl border border-slate-800 transition-colors flex items-center gap-2"
-                      >
-                        <Edit2 className="w-3.5 h-3.5 text-brand-primary" />
-                        Coletar / Editar Dados
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteMatch(m.id)}
-                        className="p-2.5 rounded-xl bg-slate-900 text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-slate-800 transition-colors"
-                        title="Excluir Competição"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* CREATE / EDIT & COLLECTION MODAL */}
       <AnimatePresence>
         {isModalOpen && (
@@ -740,7 +392,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-auto max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] overflow-y-auto shadow-2xl space-y-5 relative no-scrollbar"
+              className="lc-modal bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-auto max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] overflow-y-auto shadow-2xl space-y-5 relative no-scrollbar"
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
@@ -753,6 +405,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                   </h3>
                 </div>
                 <button
+                  aria-label="Fechar competição"
                   onClick={() => setIsModalOpen(false)}
                   className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors"
                 >
@@ -800,6 +453,11 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
               </div>
 
               <form onSubmit={handleSaveMatch} className="space-y-6">
+                <label className="lc-owner-label">Atleta
+                  <select aria-label="Atleta da competição" value={formAthleteId} disabled={Boolean(selectedMatch) || role !== 'coach'} onChange={e => { setFormAthleteId(e.target.value); const owner = owners.find(a => a.id === e.target.value); setFormSport((owner?.modality as SportOption) || 'Futebol'); }}>
+                    {owners.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </label>
                 
                 {/* TAB 1: BASIC MATCH INFO */}
                 {modalTab === "info" && (
@@ -845,7 +503,8 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                       </label>
                       <input
                         type="text"
-                        value={formTitle}
+                        aria-label="Nome da competição"
+                          value={formTitle}
                         onChange={(e) => setFormTitle(e.target.value)}
                         onFocus={(e) => e.target.select()}
                         onClick={(e) => (e.target as HTMLInputElement).select()}
@@ -862,6 +521,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                         </label>
                         <input
                           type="date"
+                          aria-label="Data da competição"
                           value={formDate}
                           onChange={(e) => setFormDate(e.target.value)}
                           className="w-full bg-slate-950 border border-slate-800 focus:border-brand-primary rounded-xl p-3 text-xs text-white font-black outline-none"
@@ -875,6 +535,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                         </label>
                         <input
                           type="time"
+                          aria-label="Horário da competição"
                           value={formTime}
                           onChange={(e) => setFormTime(e.target.value)}
                           className="w-full bg-slate-950 border border-slate-800 focus:border-brand-primary rounded-xl p-3 text-xs text-white font-black outline-none"
@@ -1017,6 +678,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                           Resultado Final
                         </label>
                         <select
+                          aria-label="Resultado final"
                           value={formResult}
                           onChange={(e) => setFormResult(e.target.value as MatchResultOption)}
                           className="w-full bg-slate-950 border border-slate-800 focus:border-brand-primary rounded-xl p-3 text-xs text-white font-black outline-none"
@@ -1053,6 +715,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                         </label>
                         <input
                           type="number"
+                          aria-label="Duração da competição em minutos"
                           value={formDurationMinutes === 0 ? "" : formDurationMinutes || ""}
                           onChange={(e) => setFormDurationMinutes(Number(e.target.value) || 0)}
                           onFocus={(e) => e.target.select()}
@@ -1068,8 +731,9 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                         </label>
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           max="10"
+                          aria-label="PSE da competição"
                           value={formPostRpe === 0 ? "" : formPostRpe || ""}
                           onChange={(e) => setFormPostRpe(Number(e.target.value) || 0)}
                           onFocus={(e) => e.target.select()}
