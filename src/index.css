@@ -2217,3 +2217,35 @@ body.light-theme .lb-competitions { --lc-scheme:light; --lc-bg:#f5f8f6; --lc-pan
   .lb-competitions .lc-event h4 { font-size:19px; }
   .lb-competitions .lc-event-actions .lc-secondary { padding:10px; font-size:12px; }
 }
+
+/* Role-specific system help: concise instructions with LB theme contrast. */
+.lb-guide-hub { --guide-bg:#111d27; --guide-hero:#122d24; --guide-text:#eff6f2; --guide-muted:#b7cbbf; --guide-line:#334b40; --guide-green:#8ce5b9; --guide-soft:#1b392c; --guide-selected:#90edc3; --guide-selected-text:#102b20; }
+body.light-theme .lb-guide-hub { --guide-bg:#fff; --guide-hero:#eaf7ef; --guide-text:#162c25; --guide-muted:#4c6258; --guide-line:#ceded3; --guide-green:#086841; --guide-soft:#edf7f0; --guide-selected:#086b46; --guide-selected-text:#fff; }
+.lb-guide-tabs { display:flex; flex-wrap:wrap; gap:8px; }
+.lb-guide-hub .lb-guide-tabs button { display:flex; align-items:center; justify-content:center; gap:8px; padding:12px 16px; min-height:46px; border:1px solid var(--guide-line); border-radius:13px; background:var(--guide-bg); color:var(--guide-muted); font-size:12px; font-weight:800; }
+.lb-guide-hub .lb-guide-tabs button[aria-pressed="true"] { background:var(--guide-selected); color:var(--guide-selected-text); border-color:var(--guide-selected); }
+.lb-system-guide { color:var(--guide-text); min-width:0; }
+.lb-system-guide .lsg-hero { padding:28px; border:1px solid var(--guide-line); border-top:3px solid var(--guide-green); border-radius:24px; background:var(--guide-hero); }
+.lb-system-guide .lsg-eyebrow { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:800; letter-spacing:1.5px; color:var(--guide-green); }
+.lb-system-guide h1 { font-size:clamp(25px,4vw,38px); font-weight:900; line-height:1.15; letter-spacing:-.8px; margin:15px 0; color:var(--guide-text); }
+.lb-system-guide p { color:var(--guide-muted); font-size:14px; line-height:1.65; }
+.lb-system-guide .lsg-role { display:inline-block; margin-top:18px; color:var(--guide-green); font-size:12px; font-weight:750; }
+.lb-system-guide .lsg-routine { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin:22px 0 28px; }
+.lb-system-guide .lsg-step { display:flex; align-items:flex-start; gap:12px; padding:18px; background:var(--guide-bg); border:1px solid var(--guide-line); border-radius:18px; }
+.lb-system-guide .lsg-number { display:flex; align-items:center; justify-content:center; width:28px; height:28px; flex-shrink:0; border-radius:9px; background:var(--guide-soft); color:var(--guide-green); font-weight:850; font-size:13px; }
+.lb-system-guide .lsg-step h2 { font-size:15px; font-weight:850; color:var(--guide-text); margin:1px 0 7px; }
+.lb-system-guide .lsg-step p { font-size:13px; }
+.lb-system-guide .lsg-modules > h2 { color:var(--guide-text); font-size:18px; font-weight:850; margin-bottom:15px; }
+.lb-system-guide .lsg-module { margin-top:10px; border:1px solid var(--guide-line); border-radius:17px; background:var(--guide-bg); }
+.lb-system-guide .lsg-module summary { list-style:none; display:flex; align-items:center; gap:13px; padding:17px; min-height:64px; cursor:pointer; }
+.lb-system-guide .lsg-module summary::-webkit-details-marker { display:none; }
+.lb-system-guide .lsg-module-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:40px; height:40px; border-radius:12px; background:var(--guide-soft); color:var(--guide-green); }
+.lb-system-guide .lsg-module-title { display:flex; flex-direction:column; gap:5px; min-width:0; flex:1; }
+.lb-system-guide .lsg-module-title strong { font-size:15px; font-weight:850; color:var(--guide-text); }
+.lb-system-guide .lsg-module-title > span { font-size:12px; color:var(--guide-muted); }
+.lb-system-guide .lsg-chevron { color:var(--guide-muted); flex-shrink:0; }
+.lb-system-guide .lsg-module[open] .lsg-chevron { transform:rotate(180deg); }
+.lb-system-guide .lsg-module ol { list-style:decimal; margin:0 20px 20px 37px; border-top:1px solid var(--guide-line); padding:12px 0 0 8px; font-size:14px; line-height:1.75; color:var(--guide-muted); }
+.lb-system-guide .lsg-module li { padding:5px 0 5px 3px; }
+@media(max-width:800px) { .lb-system-guide .lsg-routine { grid-template-columns:1fr; gap:10px; } }
+@media(max-width:450px) { .lb-guide-hub .lb-guide-tabs button { flex:1 1 100%; justify-content:flex-start; } .lb-system-guide .lsg-hero { padding:22px 18px; } .lb-system-guide .lsg-module summary { padding:14px; gap:10px; } .lb-system-guide .lsg-module-title strong { font-size:14px; } }

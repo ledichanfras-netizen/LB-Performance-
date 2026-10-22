@@ -105,7 +105,7 @@ import { PremiumHub } from "./components/PremiumHub";
 import { AthleteGuide } from "./components/AthleteGuide";
 import { WorkoutEditorPremium } from "./components/WorkoutEditorPremium";
 import { SessionTrackerPremium } from "./components/SessionTrackerPremium";
-import { SPORTS_DATA, parseNormativeValue } from "./data/imtpNormatives";
+import { SPORT_MODALITIES } from "./data/sportModalities";
 import { ENRICHED_LIBRARY } from "./data/exercises";
 import { InjuriesView } from "./components/InjuriesView";
 import { MenstrualCycleDashboard } from "./components/MenstrualCycleDashboard";
@@ -5461,8 +5461,6 @@ const DashboardView: FC<{
   const setDashboardSubTab = propSetDashboardSubTab || setLocalSubTab;
   const [showCargaReport, setShowCargaReport] = useState(false);
   const [metricTooltip, setMetricTooltip] = useState<string | null>(null);
-  const [normativeSearch, setNormativeSearch] = useState("");
-  const [activeNormativeTab, setActiveNormativeTab] = useState<"all" | "imtp" | "cmj" | "speed" | "vo2">("all");
   const [wellnessToDelete, setWellnessToDelete] = useState<any | null>(null);
   const dashboardProRef = useRef<HTMLDivElement>(null);
 
@@ -5773,12 +5771,12 @@ const DashboardView: FC<{
               </button>
               {metricTooltip === "imtp" && (
                 <div className="space-y-4">
-                  <h3 className="text-lg font-black uppercase tracking-wider text-amber-400">IMTP - Impulso de Macaulay</h3>
+                  <h3 className="text-lg font-black uppercase tracking-wider text-amber-400">IMTP - Força Isométrica</h3>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    O <strong>Impulso de Macaulay / IMTP (Isometric Mid-Thigh Pull)</strong> é o padrão-ouro na ciência do esporte para medir a força máxima em Newtons (N) e a taxa de desenvolvimento de força relativa (RFD em N/kg).
+                    Consulte os resultados do <strong>IMTP (Isometric Mid-Thigh Pull)</strong> registrados nas avaliações do atleta, com as unidades e a data de cada teste.
                   </p>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    Nossos algoritmos integram o pico de força isométrica na coxa, cruzando com normativos das divisões profissionais da EFL e periódicos de prestígio para avaliar a integridade neuromuscular antes dos jogos.
+                    O histórico permite acompanhar a evolução da força do próprio atleta. Considere o protocolo utilizado e o contexto do treinamento ao comparar os resultados.
                   </p>
                 </div>
               )}
@@ -15262,8 +15260,8 @@ const AthleteForm: FC<{
                   className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-5 text-xs text-white font-black outline-none focus:border-brand-primary"
                 />
                 <datalist id="modalidades-list">
-                  {Object.values(SPORTS_DATA).flatMap((cat) => cat.sports).map((s, idx) => (
-                    <option key={idx} value={s.name} />
+                  {SPORT_MODALITIES.map((name) => (
+                    <option key={name} value={name} />
                   ))}
                 </datalist>
               </div>
