@@ -1,3 +1,4 @@
+import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
 import { protocolSummary } from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
 import React, { FC, useState, useEffect, useMemo, useRef } from "react";
@@ -404,7 +405,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     const rawExercisesList = Array.isArray(workout.exercises) ? [...workout.exercises] : [];
     const rawExercises = orderedExercises(rawExercisesList);
 
-    const normalizedExercises = rawExercises.map((ex, idx) => {
+    const normalizedExercises = rawExercises.map((rawEx, idx) => {
+      const ex = reconcilePrescriptionSets(rawEx, workout.status);
       const special = detectSpecialMethod(ex);
       const targetReps = parseRepetitions(special.clusterReps || ex.reps);
       const setsCount = Math.max(1, Number(ex.sets) || (ex.performedSets?.length || 3));
@@ -420,20 +422,19 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               ? perSetWeights[sIdx]
               : targetWeight;
             const hasValidSetWeight = s.weight !== undefined && s.weight !== null && Number(s.weight) > 0;
-            const finalSetWeight = hasValidSetWeight
-              ? Number(s.weight)
-              : (isEditingCompleted ? (s.weight ?? 0) : prescribedWeightForSet);
+            const recorded = isEditingCompleted || s.isCompleted === true || workout.status === 'in_progress';
+            const finalSetWeight = recorded ? (s.weight ?? prescribedWeightForSet) : hasValidSetWeight ? Number(s.weight) : prescribedWeightForSet;
 
             const hasValidSetReps = s.reps !== undefined && s.reps !== null && Number(s.reps) > 0;
-            const finalSetReps = hasValidSetReps ? Number(s.reps) : targetReps;
+            const finalSetReps = recorded ? (s.reps ?? targetReps) : hasValidSetReps ? Number(s.reps) : targetReps;
 
             return {
               ...s,
               reps: finalSetReps,
               weight: finalSetWeight,
-              distance: (s as any).distance || targetDistance,
-              timeSeconds: (s as any).timeSeconds || targetTime,
-              intensity: (s as any).intensity || ex.targetIntensity || 0,
+              distance: s.distance ?? targetDistance,
+              timeSeconds: s.timeSeconds ?? targetTime,
+              intensity: s.intensity ?? ex.targetIntensity ?? 0,
               isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
             };
           })

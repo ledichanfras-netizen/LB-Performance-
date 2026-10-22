@@ -1,3 +1,4 @@
+import { reconcilePrescriptionSets } from "./utils/prescriptionSets";
 import LoadMonitoringChart from './components/LoadMonitoringChart';
 import PortalThemeToggle from './components/PortalThemeToggle';
 import AthleteDashboardPanel from './components/AthleteDashboardPanel';
@@ -6659,7 +6660,8 @@ const SessionTracker: FC<{
     date: workout.date?.split("T")[0] || getLocalDateString(),
     durationMinutes: workout.durationMinutes || 60,
     exercises: (Array.isArray(workout.exercises) ? workout.exercises : []).map(
-      (ex) => {
+      (rawEx) => {
+        const ex = reconcilePrescriptionSets(rawEx, workout.status);
         const targetReps = parseTrackerReps(ex.reps);
         const setsCount = Math.max(1, Number(ex.sets) || (ex.performedSets?.length || 3));
         const perSetWeights = parsePerSetWeights(ex.weight, setsCount);
@@ -6667,8 +6669,8 @@ const SessionTracker: FC<{
         const initialSets = ex.performedSets && ex.performedSets.length > 0
           ? ex.performedSets.map((s, sIdx) => ({
               ...s,
-              reps: (s.reps === 0 || !s.reps) ? targetReps : s.reps,
-              weight: (s.weight === 0 || !s.weight) ? (perSetWeights[sIdx] || targetWeight || 0) : s.weight,
+              reps: workout.status === 'completed' || workout.status === 'in_progress' || s.isCompleted ? (s.reps ?? targetReps) : (s.reps || targetReps),
+              weight: workout.status === 'completed' || workout.status === 'in_progress' || s.isCompleted ? (s.weight ?? 0) : (s.weight || perSetWeights[sIdx] || targetWeight || 0),
             }))
           : Array.from({ length: setsCount }).map((_, i) => ({
               id: `s-${Date.now()}-${i}`,

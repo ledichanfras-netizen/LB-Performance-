@@ -1,3 +1,4 @@
+import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
 import ConditioningProtocolEditor from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
 import { AiOnly, useAiAccess } from './AiAccess';
@@ -930,7 +931,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     };
 
     const newExercises = [...current];
-    newExercises[targetIndex] = { ...updatedEx, order_index: targetIndex };
+    newExercises[targetIndex] = {
+      ...reconcilePrescriptionSets({ ...updatedEx, performedSets: edited.status === 'completed' ? updatedEx.performedSets : undefined }, edited.status),
+      order_index: targetIndex,
+    };
 
     setEdited(prev => ({
       ...prev,
@@ -1073,7 +1077,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           if (updates.repsType === "time") {
             updated.repsType = "time";
           }
-          return updated;
+          return reconcilePrescriptionSets(updated, prev.status);
         }
         return { ...ex, order_index: i };
       }),
@@ -1090,7 +1094,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
           if (field === "repsType" && value === "time") {
             updated.repsType = "time";
           }
-          return updated;
+          return reconcilePrescriptionSets(updated, prev.status);
         }
         return { ...ex, order_index: i };
       }),
@@ -2158,7 +2162,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             onClick={() => {
               const finalName = (edited.name || "").trim() || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length || 0) % 26))}` : "Treino A");
               const finalExercises = (edited.exercises || []).map((ex, i) => ({
-                ...ex,
+                ...reconcilePrescriptionSets(ex, edited.status),
                 order_index: i
               }));
               onSave({
@@ -3228,7 +3232,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               onClick={() => {
                 const finalName = (edited.name || "").trim() || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length || 0) % 26))}` : "Treino A");
                 const finalExercises = (edited.exercises || []).map((ex, i) => ({
-                  ...ex,
+                  ...reconcilePrescriptionSets(ex, edited.status),
                   order_index: i
                 }));
                 onSave({
@@ -3939,6 +3943,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             </label>
                             <input
                               type="number"
+                              aria-label={`Séries de ${ex.name}`}
                               value={ex.sets}
                               onChange={(e) => updateExField(ex.id, "sets", parseInt(e.target.value) || 1)}
                               onFocus={(e) => e.target.select()}
@@ -5281,7 +5286,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             onClick={() => {
               const finalName = (edited.name || "").trim() || (athlete?.workouts?.length ? `Treino ${String.fromCharCode(65 + ((athlete.workouts.length || 0) % 26))}` : "Treino A");
               const finalExercises = (edited.exercises || []).map((ex, i) => ({
-                ...ex,
+                ...reconcilePrescriptionSets(ex, edited.status),
                 order_index: i
               }));
               onSave({
