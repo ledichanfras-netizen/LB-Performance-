@@ -3357,9 +3357,9 @@ const EliteHubApp: FC<{
                               </div>
                               <div className="bg-slate-950/40 border border-slate-800/50 p-5 sm:p-6 rounded-2xl sm:rounded-3xl">
                                 <span className="text-[9px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">
-                                  Protocolo LBHUB
+                                  Nível do atleta
                                 </span>
-                                <span className="text-base sm:text-lg font-black text-brand-secondary uppercase italic tracking-tight leading-tight">
+                                <span className="lb-athlete-level text-base sm:text-lg font-black uppercase italic tracking-tight leading-tight">
                                   {formatCompetitiveLevel(selected.competitiveLevel, selected.modality) ||
                                     "Nível Profissional"}
                                 </span>

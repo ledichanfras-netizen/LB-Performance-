@@ -2245,3 +2245,7 @@ button.lb-method-button[aria-pressed="true"] { background:var(--method-selected)
 .lb-method-ring { --tw-ring-color:var(--method-line); border-color:var(--method-line)!important; }
 .lb-method-primary { background:var(--method-selected)!important; color:var(--method-selected-text)!important; }
 @media(max-width:450px) { .advanced-methods-master-card { padding:16px; } .advanced-methods-master-card h5 { font-size:14px; } button.lb-method-button { padding:10px 12px; } }
+
+/* Athlete profile level uses the LB green in each theme. */
+.lb-athlete-level { color:#6ee7b7!important; }
+body.light-theme .lb-athlete-level { color:#08754c!important; }
