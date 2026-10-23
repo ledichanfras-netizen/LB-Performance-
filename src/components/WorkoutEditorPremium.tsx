@@ -1,3 +1,4 @@
+import { AdvancedMethodsCard } from "./AdvancedMethodsCard";
 import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
 import ConditioningProtocolEditor from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
@@ -538,7 +539,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
     setIsEditorOpen(false);
     setExerciseToEdit(null);
-    toast.success(`"${updated.name}" salvo com sucesso! 📚`);
+    toast.success(`${updated.name}" salvo com sucesso! 📚`);
   };
 
   const handleDeleteExercise = (id: string) => {
@@ -575,7 +576,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     window.dispatchEvent(new Event("storage"));
 
     setExerciseToClone(null);
-    toast.success(`"${item.name}" clonado com sucesso como "${cloned.name}"!`);
+    toast.success(`${item.name}" clonado com sucesso como "${cloned.name}"!`);
     
     // Automatically open editor on the cloned exercise so they can modify it
     setExerciseToEdit(cloned);
@@ -629,7 +630,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const updated = [newExercise, ...customLibraryExercises];
     setCustomLibraryExercises(updated);
     localStorage.setItem("LB_CUSTOM_LIBRARY_EXERCISES", JSON.stringify(updated));
-    toast.success(`"${ex.name}" salvo na biblioteca com sucesso! 📚`);
+    toast.success(`${ex.name}" salvo na biblioteca com sucesso! 📚`);
   };
 
   const saveAllAiSuggestedExercises = () => {
@@ -865,11 +866,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     setRecentAdds(prev => [libEx.id, ...prev.slice(0, 4)]);
 
     if (method === "complex_contrast") {
-      toast.success(`🇫🇷 Adicionado ao Contraste Francês: ${libEx.name} (${blockTagVal})!`, { duration: 3500, icon: "🇫🇷" });
+      toast.success(`Adicionado ao Contraste Francês: ${libEx.name} (${blockTagVal})!`, { duration: 3500, icon: undefined });
     } else if (method === "cluster") {
-      toast.success(`🎯 Adicionado como Cluster Set: ${libEx.name}!`, { duration: 3500, icon: "🎯" });
+      toast.success(`Adicionado como Cluster Set: ${libEx.name}!`, { duration: 3500, icon: "🎯" });
     } else if (method === "rest_pause") {
-      toast.success(`🔥 Adicionado como Rest-Pause: ${libEx.name}!`, { duration: 3500, icon: "🔥" });
+      toast.success(`Adicionado como Rest-Pause: ${libEx.name}!`, { duration: 3500, icon: "🔥" });
     } else {
       toast.success(`Prescrito: ${libEx.name} (${setsVal}x ${repVal})`);
     }
@@ -946,7 +947,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     setSwapSearchQuery("");
 
     const methodTag = oldEx.executionMethod === "complex_contrast"
-      ? ` (mantido Estágio ${oldEx.blockTag || "1A"} • Contraste Francês 🇫🇷)`
+      ? ` (mantido Estágio ${oldEx.blockTag || "1A"} • Contraste Francês )`
       : oldEx.executionMethod === "cluster"
       ? " (mantido Cluster Set 🎯)"
       : oldEx.executionMethod === "rest_pause"
@@ -1220,7 +1221,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: reindexed
     });
     setExpandedExerciseId(blockExs[0].id);
-    toast.success("🇫🇷 Bloco de Contraste Francês (4 Estágios) adicionado com sucesso!", { duration: 4000, icon: "🇫🇷" });
+    toast.success("Bloco de Contraste Francês (4 Estágios) adicionado com sucesso!", { duration: 4000, icon: undefined });
   };
 
   // Adiciona um Par Contrastado Clássico (1A + 1B)
@@ -1273,7 +1274,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: reindexed
     });
     setExpandedExerciseId(blockExs[0].id);
-    toast.success("⚡ Complex PAP Clássico (1A + 1B) adicionado!", { duration: 3500, icon: "⚡" });
+    toast.success("Complex PAP Clássico (1A + 1B) adicionado!", { duration: 3500, icon: "⚡" });
   };
 
   // Adiciona Exercício em Cluster Set
@@ -1299,7 +1300,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: reindexed
     });
     setExpandedExerciseId(clusterEx.id);
-    toast.success("🎯 Cluster Set (2+2+2 • 20s intra-pausa) adicionado!", { icon: "🎯" });
+    toast.success("Cluster Set (2+2+2 • 20s intra-pausa) adicionado!", { icon: "🎯" });
   };
 
   // Adiciona Exercício em Rest-Pause
@@ -1324,7 +1325,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       exercises: reindexed
     });
     setExpandedExerciseId(restPauseEx.id);
-    toast.success("🔥 Rest-Pause (8+3+2 • 15s intra-pausa) adicionado!", { icon: "🔥" });
+    toast.success("Rest-Pause (8+3+2 • 15s intra-pausa) adicionado!", { icon: "🔥" });
   };
 
   // Adiciona Exercício em Drop-Set Triplo
@@ -1345,7 +1346,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, dropSetEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(dropSetEx.id);
-    toast.success("📉 Drop-Set Triplo (8+8+8) adicionado!", { icon: "📉" });
+    toast.success("Drop-Set Triplo (8+8+8) adicionado!", { icon: "📉" });
   };
 
   // Adiciona Par em Bi-Set
@@ -1389,7 +1390,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(blockExs[0].id);
-    toast.success("🔗 Bi-Set (1A Composto + 1B Isolador) adicionado!", { icon: "🔗" });
+    toast.success("Bi-Set (1A Composto + 1B Isolador) adicionado!", { icon: "🔗" });
   };
 
   // Adiciona Par em Super-Set (Antagonista)
@@ -1433,7 +1434,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(blockExs[0].id);
-    toast.success("⚔️ Super-Set Antagonista (Bíceps + Tríceps) adicionado!", { icon: "⚔️" });
+    toast.success("Super-Set Antagonista (Bíceps + Tríceps) adicionado!", { icon: "⚔️" });
   };
 
   // Adiciona Trio em Tri-Set
@@ -1493,7 +1494,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, ...blockExs].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(blockExs[0].id);
-    toast.success("🔱 Tri-Set (3 Exercícios Sequenciais) adicionado!", { icon: "🔱" });
+    toast.success("Tri-Set (3 Exercícios Sequenciais) adicionado!", { icon: "🔱" });
   };
 
   // Adiciona GVT (German Volume Training 10x10)
@@ -1514,7 +1515,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, gvtEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(gvtEx.id);
-    toast.success("🇩🇪 GVT 10x10 (Volume Alemão) adicionado!", { icon: "🇩🇪" });
+    toast.success("GVT 10x10 (Volume Alemão) adicionado!", { icon: undefined });
   };
 
   // Adiciona Myo-Reps
@@ -1535,7 +1536,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, myoEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(myoEx.id);
-    toast.success("🧬 Myo-Reps (Ativação + 4 Mini-sets) adicionado!", { icon: "🧬" });
+    toast.success("Myo-Reps (Ativação + 4 Mini-sets) adicionado!", { icon: "🧬" });
   };
 
   // Adiciona Wave Loading (Ondulatório)
@@ -1556,7 +1557,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, waveEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(waveEx.id);
-    toast.success("🌊 Wave Loading Ondulatório (7-5-3 / 7-5-3) adicionado!", { icon: "🌊" });
+    toast.success("Wave Loading Ondulatório (7-5-3 / 7-5-3) adicionado!", { icon: "🌊" });
   };
 
   // Adiciona Tiros / RSA (Campo & Velocidade)
@@ -1583,7 +1584,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, rsaEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(rsaEx.id);
-    toast.success("🏃‍♂️ Tiros / RSA (2 Blocos • 5x 20m) adicionado! Você pode alternar entre Metros (m) e Segundos (s), Campo, Esteira ou Bike.", { icon: "🏃‍♂️" });
+    toast.success("Tiros / RSA (2 Blocos • 5x 20m) adicionado! Você pode alternar entre Metros (m) e Segundos (s), Campo, Esteira ou Bike.", { icon: "🏃‍♂️" });
   };
 
   // Adiciona Tiros Antiglicolíticos por Segundos (Esteira ou Bike)
@@ -1646,7 +1647,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, pyrEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(pyrEx.id);
-    toast.success("🔺 Pirâmide de Campo (10-40-10m) adicionada!", { icon: "🔺" });
+    toast.success("Pirâmide de Campo (10-40-10m) adicionada!", { icon: "🔺" });
   };
 
   // Adiciona Fartlek / Intermitente
@@ -1672,7 +1673,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, fartlekEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(fartlekEx.id);
-    toast.success("⏱️ Fartlek Intermitente 15s:15s adicionado!", { icon: "⏱️" });
+    toast.success("Fartlek Intermitente 15s:15s adicionado!", { icon: "⏱️" });
   };
 
   // Adiciona Shuttle Run / Agilidade COD
@@ -1698,7 +1699,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const reindexed = [...current, shuttleEx].map((e, i) => ({ ...e, order_index: i }));
     setEdited({ ...edited, exercises: reindexed });
     setExpandedExerciseId(shuttleEx.id);
-    toast.success("⚡ Shuttle Run / COD 5-10-5m adicionado!", { icon: "⚡" });
+    toast.success("Shuttle Run / COD 5-10-5m adicionado!", { icon: "⚡" });
   };
 
   // Advanced filtration
@@ -2487,9 +2488,9 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         addExFromLib(item, "complex_contrast");
                       }}
                       className="px-2 py-1 rounded-md bg-cyan-500/15 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 transition-all cursor-pointer shadow-sm shadow-cyan-500/10 active:scale-95"
-                      title="Prescrever direto no Treino Complexo / Contraste Francês 🇫🇷"
+                      title="Prescrever direto no Treino Complexo / Contraste Francês "
                     >
-                      <span className="text-[11px] leading-none">🇫🇷</span>
+                      <span className="text-[10px] font-black">PAP</span>
                       <span className="text-[8px] font-black uppercase hidden xl:inline">Complex</span>
                     </button>
                     {/* Standard Add */}
@@ -3474,212 +3475,29 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             </div>
           )}
 
-          {/* CARD MÉTODOS AVANÇADOS: TODOS OS MÉTODOS DE FORÇA, POTÊNCIA, HIPERTROFIA E CAMPO */}
-          <div className="advanced-methods-master-card p-4 sm:p-5 rounded-2xl border transition-all shadow-lg bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-amber-500/30 text-white">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-400/15 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0 shadow-inner">
-                  <Zap className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h5 className="text-xs sm:text-sm font-black uppercase text-slate-100 tracking-wider flex items-center gap-2">
-                    <span>MÉTODOS AVANÇADOS</span>
-                    <span className="text-[8px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30 font-bold">15 MÉTODOS</span>
-                  </h5>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    Adicione blocos com micro-pausas intra-série, pareamentos biomecânicos e tiros de campo
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Grid dos Métodos Avançados divididos em Força/Potência/Hipertrofia e Campo/Velocidade */}
-            <div className="mt-3.5 space-y-3">
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Musculação, Força & Hipertrofia (S&C)
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button
-                    type="button"
-                    onClick={addFrenchContrastBlock}
-                    className="px-2.5 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Complexo Francês de 4 Estágios (1A PAP Pesado ➔ 1B Pliometria com Carga ➔ 1C Balístico ➔ 1D Pliometria Reativa RSI)"
-                  >
-                    <span>🇫🇷</span>
-                    <span className="group-hover:text-white">Contraste Francês (4 Estágios)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addClassicPapBlock}
-                    className="px-2.5 py-1.5 bg-indigo-950/40 hover:bg-indigo-900/50 border border-indigo-500/40 hover:border-indigo-400 text-indigo-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Par Contrastado PAP (1A Pesado + 1B Salto Explosivo)"
-                  >
-                    <span>⚡</span>
-                    <span className="group-hover:text-white">Complex PAP (1A + 1B)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addClusterSetTemplate}
-                    className="px-2.5 py-1.5 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/40 hover:border-purple-400 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Série em Cluster (2+2+2 com micro-pausa de 20s)"
-                  >
-                    <span>🎯</span>
-                    <span className="group-hover:text-white">Cluster Set</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addRestPauseTemplate}
-                    className="px-2.5 py-1.5 bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 hover:border-rose-400 text-rose-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Série em Rest-Pause (8+3+2 com micro-pausa de 15s)"
-                  >
-                    <span>🔥</span>
-                    <span className="group-hover:text-white">Rest-Pause</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addDropSetTemplate}
-                    className="px-2.5 py-1.5 bg-pink-950/40 hover:bg-pink-900/50 border border-pink-500/40 hover:border-pink-400 text-pink-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Drop-Set Triplo (8+8+8 com reduções imediatas de carga)"
-                  >
-                    <span>📉</span>
-                    <span className="group-hover:text-white">Drop-Set Triplo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addBiSetTemplate}
-                    className="px-2.5 py-1.5 bg-sky-950/40 hover:bg-sky-900/50 border border-sky-500/40 hover:border-sky-400 text-sky-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Par em Bi-Set (1A Composto + 1B Isolador)"
-                  >
-                    <span>🔗</span>
-                    <span className="group-hover:text-white">Bi-Set</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addSuperSetTemplate}
-                    className="px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/50 border border-red-500/40 hover:border-red-400 text-red-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Super-Set Antagonista (ex: Bíceps + Tríceps)"
-                  >
-                    <span>⚔️</span>
-                    <span className="group-hover:text-white">Super-Set</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addTriSetTemplate}
-                    className="px-2.5 py-1.5 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 hover:border-amber-400 text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Tri-Set (3 Exercícios Consecutivos)"
-                  >
-                    <span>🔱</span>
-                    <span className="group-hover:text-white">Tri-Set</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addGvtTemplate}
-                    className="px-2.5 py-1.5 bg-slate-900/80 hover:bg-slate-800 border border-slate-700 hover:border-slate-500 text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar German Volume Training (10 séries x 10 reps @ 60s descanso)"
-                  >
-                    <span>🇩🇪</span>
-                    <span className="group-hover:text-white">GVT (10x10)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addMyoRepsTemplate}
-                    className="px-2.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Myo-Reps (Série de ativação + 4 mini-sets com 15s de pausa)"
-                  >
-                    <span>🧬</span>
-                    <span className="group-hover:text-white">Myo-Reps</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addWaveLoadingTemplate}
-                    className="px-2.5 py-1.5 bg-blue-950/40 hover:bg-blue-900/50 border border-blue-500/40 hover:border-blue-400 text-blue-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Wave Loading Ondulatório (7-5-3 / 7-5-3)"
-                  >
-                    <span>🌊</span>
-                    <span className="group-hover:text-white">Wave Loading</span>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-wider text-emerald-400 block mb-1.5">
-                  Velocidade, Pista, Campo, Esteira & Bike (Tiros em Metros ou Segundos & Antiglicolítico)
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                  <button
-                    type="button"
-                    onClick={addSprintRsaTemplate}
-                    className="px-2.5 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Tiros / RSA (Prescrição em Metros ou Segundos)"
-                  >
-                    <span>🏃‍♂️</span>
-                    <span className="group-hover:text-white">Tiros / RSA (m ou s)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => addAntiGlycolyticSprintsTemplate("esteira")}
-                    className="px-2.5 py-1.5 bg-teal-950/40 hover:bg-teal-900/50 border border-teal-500/40 hover:border-teal-400 text-teal-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Tiros Antiglicolíticos na Esteira por Segundos (5x 10s / 45s pausa)"
-                  >
-                    <span>🏃⚡</span>
-                    <span className="group-hover:text-white">Tiros Esteira (Segs / Antiglicolítico)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => addAntiGlycolyticSprintsTemplate("bike")}
-                    className="px-2.5 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Tiros Antiglicolíticos na Bike por Segundos (6x 8s / 45s pausa)"
-                  >
-                    <span>🚴‍♂️⚡</span>
-                    <span className="group-hover:text-white">Tiros Bike (Segs / Antiglicolítico)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addPyramidFieldTemplate}
-                    className="px-2.5 py-1.5 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-500/40 hover:border-amber-400 text-amber-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Pirâmide de Campo (10-20-30-40-30-20-10m)"
-                  >
-                    <span>🔺</span>
-                    <span className="group-hover:text-white">Pirâmide de Campo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addFartlekTemplate}
-                    className="px-2.5 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/50 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Fartlek Intermitente 15s:15s"
-                  >
-                    <span>⏱️</span>
-                    <span className="group-hover:text-white">Fartlek (15s:15s)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={addShuttleRunTemplate}
-                    className="px-2.5 py-1.5 bg-purple-950/40 hover:bg-purple-900/50 border border-purple-500/40 hover:border-purple-400 text-purple-300 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-sm group active:scale-95"
-                    title="Adicionar Shuttle Run Pro Agility 5-10-5m"
-                  >
-                    <span>⚡</span>
-                    <span className="group-hover:text-white">Shuttle Run / COD</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdvancedMethodsCard groups={[
+            { title: "Musculação, força e hipertrofia", methods: [
+              { label: "Contraste Francês (4 Estágios)", description: "Adicionar Complexo Francês de 4 Estágios (1A PAP Pesado ➔ 1B Pliometria com Carga ➔ 1C Balístico ➔ 1D Pliometria Reativa RSI)", onClick: addFrenchContrastBlock },
+              { label: "Complex PAP (1A + 1B)", description: "Adicionar Par Contrastado PAP (1A Pesado + 1B Salto Explosivo)", onClick: addClassicPapBlock },
+              { label: "Cluster Set", description: "Adicionar Série em Cluster (2+2+2 com micro-pausa de 20s)", onClick: addClusterSetTemplate },
+              { label: "Rest-Pause", description: "Adicionar Série em Rest-Pause (8+3+2 com micro-pausa de 15s)", onClick: addRestPauseTemplate },
+              { label: "Drop-Set Triplo", description: "Adicionar Drop-Set Triplo (8+8+8 com reduções imediatas de carga)", onClick: addDropSetTemplate },
+              { label: "Bi-Set", description: "Adicionar Par em Bi-Set (1A Composto + 1B Isolador)", onClick: addBiSetTemplate },
+              { label: "Super-Set", description: "Adicionar Super-Set Antagonista (ex: Bíceps + Tríceps)", onClick: addSuperSetTemplate },
+              { label: "Tri-Set", description: "Adicionar Tri-Set (3 Exercícios Consecutivos)", onClick: addTriSetTemplate },
+              { label: "GVT (10x10)", description: "Adicionar German Volume Training (10 séries x 10 reps @ 60s descanso)", onClick: addGvtTemplate },
+              { label: "Myo-Reps", description: "Adicionar Myo-Reps (Série de ativação + 4 mini-sets com 15s de pausa)", onClick: addMyoRepsTemplate },
+              { label: "Wave Loading", description: "Adicionar Wave Loading Ondulatório (7-5-3 / 7-5-3)", onClick: addWaveLoadingTemplate },
+            ] },
+            { title: "Velocidade, campo, esteira e bike", methods: [
+              { label: "Tiros / RSA (m ou s)", description: "Adicionar Tiros / RSA (Prescrição em Metros ou Segundos)", onClick: addSprintRsaTemplate },
+              { label: "Tiros Esteira (Segs / Antiglicolítico)", description: "Adicionar Tiros Antiglicolíticos na Esteira por Segundos (5x 10s / 45s pausa)", onClick: () => addAntiGlycolyticSprintsTemplate("esteira") },
+              { label: "Tiros Bike (Segs / Antiglicolítico)", description: "Adicionar Tiros Antiglicolíticos na Bike por Segundos (6x 8s / 45s pausa)", onClick: () => addAntiGlycolyticSprintsTemplate("bike") },
+              { label: "Pirâmide de Campo", description: "Adicionar Pirâmide de Campo (10-20-30-40-30-20-10m)", onClick: addPyramidFieldTemplate },
+              { label: "Fartlek (15s:15s)", description: "Adicionar Fartlek Intermitente 15s:15s", onClick: addFartlekTemplate },
+              { label: "Shuttle Run / COD", description: "Adicionar Shuttle Run Pro Agility 5-10-5m", onClick: addShuttleRunTemplate },
+            ] },
+          ]} />
 
           {/* ACTIVE EXERCISES LIST */}
           <div className="space-y-4">
@@ -3811,7 +3629,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                 ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
                                 : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
                             }`}>
-                              🇫🇷 {ex.blockTag || "1A"} • {ex.blockRole?.split(":")[1]?.trim() || "PAP / Contraste"}
+                               {ex.blockTag || "1A"} • {ex.blockRole?.split(":")[1]?.trim() || "PAP / Contraste"}
                             </span>
                           )}
                           {ex.executionMethod === "cluster" && (
@@ -4036,7 +3854,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
 
                         {/* ADVANCED S&C EXECUTION METHOD CONFIGURATOR */}
-                        <div className="md:col-span-12 mt-3 pt-3 border-t border-slate-800/80 bg-slate-950/70 p-4 rounded-2xl border border-slate-900">
+                        <div className="md:col-span-12 mt-3 pt-3 border-t border-slate-800/80 lb-method-panel p-4 rounded-2xl border">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
                             <div className="flex items-center gap-2">
                               <Zap className="w-4 h-4 text-amber-400" />
@@ -4046,25 +3864,24 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             </div>
                             <div className="flex flex-wrap items-center gap-1.5">
                               {[
-                                { id: "standard", label: "Padrão", icon: "🏋️‍♂️", group: "strength" },
-                                { id: "complex_contrast", label: "🇫🇷 Contraste Francês", icon: "🇫🇷", group: "strength" },
-                                { id: "cluster", label: "🎯 Cluster Set", icon: "🎯", group: "strength" },
-                                { id: "rest_pause", label: "🔥 Rest-Pause", icon: "🔥", group: "strength" },
-                                { id: "drop_set", label: "📉 Drop-Set", icon: "📉", group: "strength" },
-                                { id: "bi_set", label: "⚡ Bi-Set", icon: "⚡", group: "strength" },
-                                { id: "tri_set", label: "🔱 Tri-Set", icon: "🔱", group: "strength" },
-                                { id: "super_set", label: "⚔️ Super-Set", icon: "⚔️", group: "strength" },
-                                { id: "gvt", label: "🇩🇪 GVT (10x10)", icon: "🇩🇪", group: "strength" },
-                                { id: "myo_reps", label: "🧬 Myo-Reps", icon: "🧬", group: "strength" },
-                                { id: "wave_loading", label: "🌊 Wave Loading", icon: "🌊", group: "strength" },
+                                { id: "standard", label: "Padrão", group: "strength" },
+                                { id: "complex_contrast", label: "Contraste Francês", group: "strength" },
+                                { id: "cluster", label: "Cluster Set", group: "strength" },
+                                { id: "rest_pause", label: "Rest-Pause", group: "strength" },
+                                { id: "drop_set", label: "Drop-Set", group: "strength" },
+                                { id: "bi_set", label: "Bi-Set", group: "strength" },
+                                { id: "tri_set", label: "Tri-Set", group: "strength" },
+                                { id: "super_set", label: "Super-Set", group: "strength" },
+                                { id: "gvt", label: "GVT (10x10)", group: "strength" },
+                                { id: "myo_reps", label: "Myo-Reps", group: "strength" },
+                                { id: "wave_loading", label: "Wave Loading", group: "strength" },
                                 // Métodos de Campo & Quadra
-                                { id: "sprint_rsa", label: "🏃‍♂️ Tiros / RSA", icon: "🏃‍♂️", group: "field" },
-                                { id: "pyramid_field", label: "🔺 Pirâmide Campo", icon: "🔺", group: "field" },
-                                { id: "fartlek", label: "⏱️ Fartlek", icon: "⏱️", group: "field" },
-                                { id: "shuttle_run", label: "⚡ Shuttle Run / COD", icon: "⚡", group: "field" },
+                                { id: "sprint_rsa", label: "Tiros / RSA", group: "field" },
+                                { id: "pyramid_field", label: "Pirâmide Campo", group: "field" },
+                                { id: "fartlek", label: "Fartlek", group: "field" },
+                                { id: "shuttle_run", label: "Shuttle Run / COD", group: "field" },
                               ].map((m) => {
                                 const isCurrent = (ex.executionMethod || "standard") === m.id;
-                                const isField = m.group === "field";
                                 return (
                                   <button
                                     key={m.id}
@@ -4084,15 +3901,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                         duration: 4000
                                       });
                                     }}
-                                    className={`px-3 py-1.5 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-sm active:scale-95 ${
-                                      isCurrent
-                                        ? isField 
-                                          ? "bg-emerald-400 text-slate-950 shadow-md font-black ring-2 ring-emerald-400/50"
-                                          : "bg-amber-400 text-slate-950 shadow-md font-black ring-2 ring-amber-400/50"
-                                        : isField
-                                        ? "bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 hover:text-white border border-emerald-500/30"
-                                        : "bg-slate-900 hover:bg-slate-850 text-slate-400 hover:text-white border border-slate-800"
-                                    }`}
+                                    className="lb-method-button"
+                                    aria-pressed={isCurrent}
                                     title={`Estruturar exercício para o método ${m.label}`}
                                   >
                                     <span>{m.label}</span>
@@ -4152,7 +3962,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                                   rest: newRest,
                                                   weight: newWeight,
                                                   reps: newReps,
-                                                  notes: `[CONTRASTE FRANCÊS 🇫🇷] Estágio ${tag}: ${newRole}`
+                                                  notes: `[CONTRASTE FRANCÊS] Estágio ${tag}: ${newRole}`
                                                 });
                                               }}
                                               className={`flex-1 py-1.5 text-[10px] font-black rounded-lg border transition-all cursor-pointer ${
@@ -4173,7 +3983,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                         </label>
                                         <select
                                           value={ex.blockRole || "1A: Carga Pesada (PAP 80-85% 1RM)"}
-                                          onChange={(e) => updateExFields(ex.id, { blockRole: e.target.value, notes: `[CONTRASTE FRANCÊS 🇫🇷] Estágio ${ex.blockTag || '1A'}: ${e.target.value}` })}
+                                          onChange={(e) => updateExFields(ex.id, { blockRole: e.target.value, notes: `[CONTRASTE FRANCÊS] Estágio ${ex.blockTag || '1A'}: ${e.target.value}` })}
                                           className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white font-bold outline-none focus:border-cyan-400"
                                         >
                                           <option value="1A: Carga Pesada (PAP 80-85% 1RM)">1A: Carga Pesada / Força Máxima (PAP - 80-85% 1RM)</option>
@@ -4344,7 +4154,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                                               const updatedList = [...current.slice(0, index + 1), newEx, ...current.slice(index + 1)].map((e, i) => ({ ...e, order_index: i }));
                                               setEdited(prev => ({ ...prev, exercises: updatedList }));
                                               setExpandedExerciseId(newEx.id);
-                                              toast.success(`Estágio ${nextTag} adicionado ao Bloco Francês!`, { icon: "🇫🇷" });
+                                              toast.success(`Estágio ${nextTag} adicionado ao Bloco Francês!`, { icon: undefined });
                                             }}
                                             className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer shadow flex items-center gap-1"
                                           >
@@ -5784,7 +5594,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                     className="px-4 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-cyan-500/20 cursor-pointer flex items-center gap-1.5"
                     title="Prescrever direto no Contraste Francês / Complex"
                   >
-                    <span>🇫🇷</span>
+                    <span className="text-[10px] font-black">PAP</span>
                     <span>Contraste Francês (Complex)</span>
                   </button>
 
@@ -5868,7 +5678,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                       </span>
                       {exerciseToSwap.executionMethod === "complex_contrast" && (
                         <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-500/30 rounded-md flex items-center gap-1">
-                          <span>🇫🇷 Contraste Francês</span>
+                          <span> Contraste Francês</span>
                           <span>•</span>
                           <span>Estágio {exerciseToSwap.blockTag || "1A"}</span>
                         </span>

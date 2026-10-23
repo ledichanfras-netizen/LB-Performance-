@@ -79,7 +79,6 @@ const SpecialMethodInteractiveGuide: FC<{
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-cyan-500/15 text-cyan-900 dark:text-cyan-300 border border-cyan-400/30 flex items-center gap-1.5">
-              <span>🇫🇷</span>
               <span>CONTRASTE FRANCÊS • ESTÁGIO {exercise.blockTag || "1A"}</span>
             </span>
             <span className="text-xs font-bold text-cyan-900/80 dark:text-cyan-200/80 bg-cyan-500/10 border border-cyan-300/30 px-2.5 py-0.5 rounded-lg">
@@ -135,7 +134,6 @@ const SpecialMethodInteractiveGuide: FC<{
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-purple-500/15 text-purple-900 dark:text-purple-300 border border-purple-400/30 flex items-center gap-1.5">
-              <span>🎯</span>
               <span>MÉTODO CLUSTER SET ({clusterPattern})</span>
             </span>
             <span className="text-xs font-bold text-purple-900/80 dark:text-purple-200/80 bg-purple-500/10 border border-purple-300/30 px-2.5 py-0.5 rounded-lg">
@@ -210,7 +208,6 @@ const SpecialMethodInteractiveGuide: FC<{
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-rose-500/15 text-rose-900 dark:text-rose-300 border border-rose-400/30 flex items-center gap-1.5">
-              <span>🔥</span>
               <span>MÉTODO REST-PAUSE</span>
             </span>
             <span className="text-xs font-bold text-rose-900/80 dark:text-rose-200/80 bg-rose-500/10 border border-rose-300/30 px-2.5 py-0.5 rounded-lg">
@@ -266,7 +263,6 @@ const SpecialMethodInteractiveGuide: FC<{
       <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-950/25 border border-amber-300/40 dark:border-amber-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-900 dark:text-amber-300 border border-amber-400/30 flex items-center gap-1.5">
-            <span>📉</span>
             <span>MÉTODO DROP-SET</span>
           </span>
           <span className="text-xs font-bold text-amber-900/80 dark:text-amber-200/80 bg-amber-500/10 border border-amber-300/30 px-2.5 py-0.5 rounded-lg">
@@ -304,7 +300,6 @@ const SpecialMethodInteractiveGuide: FC<{
       <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-950/25 border border-blue-300/40 dark:border-blue-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-blue-500/15 text-blue-900 dark:text-blue-300 border border-blue-400/30 flex items-center gap-1.5">
-            <span>{meta.icon}</span>
             <span>MÉTODO {meta.name.toUpperCase()}</span>
           </span>
           <span className="text-xs font-bold text-blue-900/80 dark:text-blue-200/80 bg-blue-500/10 border border-blue-300/30 px-2.5 py-0.5 rounded-lg">
@@ -323,7 +318,6 @@ const SpecialMethodInteractiveGuide: FC<{
       <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-yellow-500/10 dark:bg-yellow-950/25 border border-yellow-300/40 dark:border-yellow-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-yellow-500/15 text-yellow-900 dark:text-yellow-300 border border-yellow-400/30 flex items-center gap-1.5">
-            <span>🇩🇪</span>
             <span>GERMAN VOLUME TRAINING (GVT 10x10)</span>
           </span>
           <span className="text-xs font-bold text-yellow-900/80 dark:text-yellow-200/80 bg-yellow-500/10 border border-yellow-300/30 px-2.5 py-0.5 rounded-lg">
@@ -343,7 +337,6 @@ const SpecialMethodInteractiveGuide: FC<{
       <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-teal-500/10 dark:bg-teal-950/25 border border-teal-300/40 dark:border-teal-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-teal-500/15 text-teal-900 dark:text-teal-300 border border-teal-400/30 flex items-center gap-1.5">
-            <span>🧬</span>
             <span>MÉTODO MYO-REPS</span>
           </span>
           <button
@@ -367,7 +360,6 @@ const SpecialMethodInteractiveGuide: FC<{
       <div className="mt-3 p-3.5 sm:p-4 rounded-2xl bg-violet-500/10 dark:bg-violet-950/25 border border-violet-300/40 dark:border-violet-800/40 text-xs space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider bg-violet-500/15 text-violet-900 dark:text-violet-300 border border-violet-400/30 flex items-center gap-1.5">
-            <span>🌊</span>
             <span>MÉTODO WAVE LOADING (ONDULATÓRIA)</span>
           </span>
           <span className="text-xs font-bold text-violet-900/80 dark:text-violet-200/80 bg-violet-500/10 border border-violet-300/30 px-2.5 py-0.5 rounded-lg">
@@ -741,7 +733,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           const microRest = targetEx.intraSetRest ?? 20;
           startRestTimer(microRest, `⚡ Transição Rápida (${targetEx.blockTag || "PAP"})`);
           toast.success(`⚡ Transição de ${microRest}s! Mude rapidamente para o próximo exercício do complexo.`, {
-            icon: "🇫🇷",
+            icon: undefined,
             duration: 3500
           });
 
@@ -769,9 +761,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         } else {
           // Completed full round of the complex -> Deep neuromuscular recovery
           const roundRestSecs = parseRestStringToSeconds(targetEx.blockRest || targetEx.rest, 210);
-          startRestTimer(roundRestSecs, `🇫🇷 Descanso do Round (${targetEx.blockTag || "Complex"})`);
+          startRestTimer(roundRestSecs, ` Descanso do Round (${targetEx.blockTag || "Complex"})`);
           toast.success(`🏆 Round Concluído! Descanso profundo (${Math.round(roundRestSecs / 60)}min) para total restauração neuromuscular.`, {
-            icon: "🇫🇷",
+            icon: undefined,
             duration: 4500
           });
 
@@ -1365,7 +1357,6 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                         const meta = getSpecialMethodMeta(ex.executionMethod);
                         return (
                           <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center gap-1">
-                            <span>{meta.icon}</span>
                             <span>{meta.name} {ex.executionMethod === "cluster" ? (ex.clusterReps || ex.reps) : ""}</span>
                           </span>
                         );
@@ -2056,7 +2047,6 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     <div className="p-4 rounded-2xl bg-cyan-500/10 dark:bg-cyan-950/25 border border-cyan-300/40 dark:border-cyan-800/40 shadow-xs">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">🇫🇷</span>
                           <div>
                             <h4 className="text-xs sm:text-sm font-black text-cyan-900 dark:text-cyan-300 uppercase tracking-wider">
                               BLOCO DE CONTRASTE FRANCÊS (COMPLEX TRAINING)
@@ -2128,7 +2118,6 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                               ? "bg-amber-500/15 text-amber-900 dark:text-amber-300 border-amber-400/30"
                               : "bg-emerald-500/15 text-emerald-900 dark:text-emerald-300 border-emerald-400/30"
                           }`}>
-                            <span>🇫🇷</span>
                             <span>ESTÁGIO {ex.blockTag || "1A"}</span>
                           </span>
                           {ex.blockRole && (

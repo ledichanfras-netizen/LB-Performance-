@@ -848,34 +848,6 @@ body.light-theme [class*="via-[#210c14]"] {
 /* ==========================================================================
    MASTER CARD: MÉTODOS AVANÇADOS (HIGH CONTRAST IN DARK & LIGHT THEMES)
    ========================================================================== */
-.advanced-methods-master-card {
-  background: linear-gradient(135deg, #090e1a 0%, #101828 50%, #0b1220 100%);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.7), 0 0 20px -5px rgba(245, 158, 11, 0.12);
-}
-
-body.light-theme .advanced-methods-master-card {
-  background: linear-gradient(135deg, #ffffff 0%, #fffdfa 50%, #f8fafc 100%) !important;
-  border: 1.5px solid #f59e0b !important;
-  color: #0f172a !important;
-  box-shadow: 0 10px 30px -5px rgba(245, 158, 11, 0.15), 0 4px 12px rgba(15, 23, 42, 0.05) !important;
-}
-
-body.light-theme .advanced-methods-master-card h5,
-body.light-theme .advanced-methods-master-card .text-slate-100 {
-  color: #0f172a !important;
-}
-
-body.light-theme .advanced-methods-master-card p,
-body.light-theme .advanced-methods-master-card .text-slate-400 {
-  color: #475569 !important;
-}
-
-body.light-theme .advanced-methods-master-card button {
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
-  border-width: 1.5px !important;
-}
-
 /* ==========================================================================
    RUNNING BLOCK TRACKER (FIELD / CORRIDA / TIROS) CONTRAST RULES
    ========================================================================== */
@@ -2249,3 +2221,27 @@ body.light-theme .lb-guide-hub { --guide-bg:#fff; --guide-hero:#eaf7ef; --guide-
 .lb-system-guide .lsg-module li { padding:5px 0 5px 3px; }
 @media(max-width:800px) { .lb-system-guide .lsg-routine { grid-template-columns:1fr; gap:10px; } }
 @media(max-width:450px) { .lb-guide-hub .lb-guide-tabs button { flex:1 1 100%; justify-content:flex-start; } .lb-system-guide .lsg-hero { padding:22px 18px; } .lb-system-guide .lsg-module summary { padding:14px; gap:10px; } .lb-system-guide .lsg-module-title strong { font-size:14px; } }
+
+
+/* One LB palette for every training method. */
+:root { --method-panel:#111e26; --method-bg:#142b20; --method-text:#cce9d9; --method-title:#edf5f0; --method-muted:#b5c7bc; --method-line:#3c604b; --method-hover:#214532; --method-selected:#95e8bb; --method-selected-text:#123322; }
+body.light-theme { --method-panel:#fff; --method-bg:#f0f7f3; --method-text:#185539; --method-title:#172e24; --method-muted:#4b6255; --method-line:#b9d0c1; --method-hover:#dfefe5; --method-selected:#0b6d45; --method-selected-text:#fff; }
+.advanced-methods-master-card { background:var(--method-panel); border:1px solid var(--method-line); border-top:3px solid var(--method-line); border-radius:20px; padding:20px; }
+.advanced-methods-master-card .lb-methods-header { display:flex; align-items:flex-start; gap:13px; padding-bottom:17px; border-bottom:1px solid var(--method-line); }
+.advanced-methods-master-card .lb-methods-icon { display:flex; align-items:center; justify-content:center; width:40px; height:40px; flex-shrink:0; background:var(--method-bg); color:var(--method-text); border-radius:12px; }
+.advanced-methods-master-card .lb-methods-heading { display:flex; align-items:center; flex-wrap:wrap; gap:9px; }
+.advanced-methods-master-card h5 { color:var(--method-title); font-size:15px; font-weight:850; letter-spacing:.3px; text-transform:uppercase; }
+.advanced-methods-master-card .lb-methods-count { color:var(--method-text); background:var(--method-bg); padding:4px 8px; border-radius:8px; font-size:11px; font-weight:750; white-space:nowrap; }
+.advanced-methods-master-card .lb-methods-header p { color:var(--method-muted); font-size:13px; line-height:1.5; margin-top:7px; }
+.advanced-methods-master-card .lb-methods-groups { display:flex; flex-direction:column; gap:21px; margin-top:19px; }
+.advanced-methods-master-card h6 { color:var(--method-muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.6px; margin-bottom:10px; }
+.advanced-methods-master-card .lb-methods-actions { display:flex; flex-wrap:wrap; align-items:stretch; gap:8px; }
+button.lb-method-button { background:var(--method-bg)!important; color:var(--method-text)!important; border:1px solid var(--method-line)!important; border-radius:11px; padding:10px 13px; min-height:44px; max-width:100%; font-size:12px; line-height:1.45; font-weight:800; text-align:left; cursor:pointer; transition:background-color .15s; overflow-wrap:anywhere; }
+button.lb-method-button:hover { background:var(--method-hover)!important; }
+button.lb-method-button[aria-pressed="true"] { background:var(--method-selected)!important; color:var(--method-selected-text)!important; border-color:var(--method-selected)!important; }
+.lb-method-badge { background:var(--method-bg)!important; color:var(--method-text)!important; border-color:var(--method-line)!important; }
+.lb-method-panel { background:var(--method-panel)!important; color:var(--method-text)!important; border:1px solid var(--method-line)!important; }
+.lb-method-accent { color:var(--method-text)!important; }
+.lb-method-ring { --tw-ring-color:var(--method-line); border-color:var(--method-line)!important; }
+.lb-method-primary { background:var(--method-selected)!important; color:var(--method-selected-text)!important; }
+@media(max-width:450px) { .advanced-methods-master-card { padding:16px; } .advanced-methods-master-card h5 { font-size:14px; } button.lb-method-button { padding:10px 12px; } }
