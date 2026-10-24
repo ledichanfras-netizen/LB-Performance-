@@ -2249,3 +2249,33 @@ button.lb-method-button[aria-pressed="true"] { background:var(--method-selected)
 /* Athlete profile level uses the LB green in each theme. */
 .lb-athlete-level { color:#6ee7b7!important; }
 body.light-theme .lb-athlete-level { color:#08754c!important; }
+/* Per-side prescription and execution: shared, readable surfaces in both themes. */
+.lb-unilateral-panel { margin-top: 16px; padding: 16px; border: 1px solid #c4dfcf; border-radius: 16px; background: #f1f9f4; color: #152d20; }
+body:not(.light-theme) .lb-unilateral-panel { border-color: #385846; background: #15291d; color: #eefaf2; }
+.lb-unilateral-panel h4 { font-size: 14px; font-weight: 800; color: #08754c; margin: 0 0 10px; }
+body:not(.light-theme) .lb-unilateral-panel h4 { color: #8aefb8; }
+.lb-unilateral-toggle { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; font-weight: 700; }
+.lb-unilateral-panel input[type=checkbox] { width: 20px; height: 20px; accent-color: #0b8b53; flex-shrink: 0; }
+body .lb-unilateral-panel input:not([type=checkbox]), body .lb-unilateral-panel select { display: block; width: 100%; min-width: 0; min-height: 44px; margin-top: 5px; border: 1px solid #b6cfbf; border-radius: 9px; padding: 9px; background: #fff !important; color: #162d21 !important; -webkit-text-fill-color: #162d21; color-scheme: light; font-size: 16px; font-weight: 650; }
+body:not(.light-theme) .lb-unilateral-panel input:not([type=checkbox]), body:not(.light-theme) .lb-unilateral-panel select { background: #0e1e14 !important; border-color: #4c6855; color: #edf9f1 !important; -webkit-text-fill-color: #edf9f1; color-scheme: dark; }
+.lb-unilateral-panel input:disabled { opacity: .65; }
+.lb-unilateral-start { display: block; max-width: 260px; font-size: 13px; margin: 10px 0 16px; }
+.lb-unilateral-sides { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+.lb-unilateral-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.lb-unilateral-fields label:last-child { grid-column: 1 / -1; }
+.lb-unilateral-panel label { font-size: 13px; }
+.lb-unilateral-panel .lb-unilateral-summary { margin-top: 12px; font-size: 13px; line-height: 1.6; color: #385645; overflow-wrap: anywhere; }
+body:not(.light-theme) .lb-unilateral-panel .lb-unilateral-summary { color: #c1dbca; }
+.lb-unilateral-execution-side + .lb-unilateral-execution-side { border-top: 1px solid #b6cfbf; margin-top: 18px; padding-top: 18px; }
+body:not(.light-theme) .lb-unilateral-execution-side + .lb-unilateral-execution-side { border-color: #4c6855; }
+.lb-unilateral-set { display: grid; grid-template-columns: 52px minmax(0,1fr) minmax(0,1fr) 44px; gap: 10px; align-items: center; padding: 10px 0; }
+.lb-unilateral-set > span { font-size: 13px; font-weight: 700; }
+.lb-unilateral-confirm { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; min-height: 44px; }
+.lb-unilateral-confirm span { font-size: 11px; }
+.lb-unilateral-set.is-complete { background: #dff3e7; }
+body:not(.light-theme) .lb-unilateral-set.is-complete { background: #214632; }
+@media (max-width: 540px) { .lb-unilateral-sides { grid-template-columns: 1fr; } .lb-unilateral-panel { padding: 12px; } .lb-unilateral-set { grid-template-columns: 42px minmax(0,1fr) minmax(0,1fr) 36px; gap: 6px; } .lb-unilateral-set label { font-size: 11px; } }
+
+[data-side-prescription="true"] > div:nth-child(1),
+[data-side-prescription="true"] > div:nth-child(3),
+[data-side-prescription="true"] > div:nth-child(4) { display: none; }

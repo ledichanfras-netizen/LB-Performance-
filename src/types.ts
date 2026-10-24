@@ -200,6 +200,7 @@ export interface ExternalSession {
 
 export interface ExerciseSet {
   id: string;
+  side?: 'left' | 'right';
   reps: number;
   weight: number;
   rpe: number; 
@@ -230,6 +231,12 @@ export type AdvancedExecutionMethod =
 
 export interface PrescribedExercise {
   id: string;
+  lateralType?: 'Unilateral' | 'Bilateral' | 'N/A';
+  sidePrescriptions?: {
+    left: { sets: number; reps: string; weight: string };
+    right: { sets: number; reps: string; weight: string };
+  };
+  startingSide?: 'left' | 'right';
   name: string;
   muscleGroup: string;
   sets: number;

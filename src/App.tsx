@@ -1,3 +1,5 @@
+import { UnilateralSetTracker } from "./components/UnilateralSetTracker";
+import { getSetSide, prescriptionSummary } from "./utils/unilateral";
 import { reconcilePrescriptionSets } from "./utils/prescriptionSets";
 import LoadMonitoringChart from './components/LoadMonitoringChart';
 import PortalThemeToggle from './components/PortalThemeToggle';
@@ -1250,7 +1252,7 @@ const EliteHubApp: FC<{
                       : targetReps;
                     return {
                       ...s,
-                      id: `s-clone-${Date.now()}-${sIdx}-${Math.random().toString(36).substring(2, 6)}`,
+                      id: `s-clone-${Date.now()}-${sIdx}-${Math.random().toString(36).substring(2, 6)}${getSetSide(s) ? `:lb-${getSetSide(s)}:${Number(s.id.match(/:(\d+)$/)?.[1]) || sIdx+1}` : ""}`,
                       reps: setReps,
                       weight: setWeight,
                       rpe: 0,
@@ -3893,7 +3895,7 @@ const EliteHubApp: FC<{
                                             </span>
                                           </div>
                                           <span className="text-[9px] font-black text-slate-400 shrink-0 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                                            {ex.sets}x{ex.reps}
+                                            {ex.sidePrescriptions ? prescriptionSummary(ex) : `${ex.sets}x${ex.reps}`}
                                           </span>
                                         </div>
                                       ));
@@ -6667,8 +6669,8 @@ const SessionTracker: FC<{
         const initialSets = ex.performedSets && ex.performedSets.length > 0
           ? ex.performedSets.map((s, sIdx) => ({
               ...s,
-              reps: workout.status === 'completed' || workout.status === 'in_progress' || s.isCompleted ? (s.reps ?? targetReps) : (s.reps || targetReps),
-              weight: workout.status === 'completed' || workout.status === 'in_progress' || s.isCompleted ? (s.weight ?? 0) : (s.weight || perSetWeights[sIdx] || targetWeight || 0),
+              reps: !!ex.sidePrescriptions || workout.status === 'completed' || workout.status === 'in_progress' || s.isCompleted ? (s.reps ?? targetReps) : (s.reps || targetReps),
+              weight: !!ex.sidePrescriptions || workout.status === 'completed' || workout.status === 'in_progress' || s.isCompleted ? (s.weight ?? 0) : (s.weight || perSetWeights[sIdx] || targetWeight || 0),
             }))
           : Array.from({ length: setsCount }).map((_, i) => ({
               id: `s-${Date.now()}-${i}`,
@@ -7013,13 +7015,13 @@ const SessionTracker: FC<{
                       Prescrito
                     </label>
                     <span className="text-xs font-black text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-5 py-3 rounded-2xl uppercase tracking-tighter italic">
-                      {ex.sets}x{ex.repsType?.toLowerCase() === "time" ? `${ex.reps}s` : ex.reps} @ {ex.weight}
+                      {prescriptionSummary(ex)}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {ex.isSimpleEntry ? (
+              {ex.sidePrescriptions ? <UnilateralSetTracker exercise={ex} onUpdate={(id,field,value)=>setSession(prev=>({...prev,exercises:prev.exercises.map(e=>e.id===ex.id?{...e,performedSets:e.performedSets?.map(s=>s.id===id?{...s,[field]:value}:s)}:e)}))} onToggle={id=>setSession(prev=>({...prev,exercises:prev.exercises.map(e=>e.id===ex.id?{...e,performedSets:e.performedSets?.map(s=>s.id===id?{...s,isCompleted:!s.isCompleted}:s)}:e)}))} /> : ex.isSimpleEntry ? (
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-6 mt-6 relative z-10">
                   <div className="bg-slate-900/50 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-800/50 hover:border-slate-700 transition-colors">
                     <label className="text-[10px] font-black text-slate-500 uppercase block mb-4 tracking-widest text-center px-1">

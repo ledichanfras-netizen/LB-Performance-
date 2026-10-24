@@ -1,3 +1,4 @@
+import { classifyLaterality } from "../utils/exerciseLaterality";
 import { MMII_EXERCISES } from "./exercises_mmii";
 import { MMSS_EXERCISES } from "./exercises_mmss";
 import { POTENCIA_EXERCISES } from "./exercises_potencia";
@@ -929,34 +930,7 @@ export function determineMovementPattern(exercise: EnrichedExercise): string {
 }
 
 export function determineLateralType(exercise: EnrichedExercise): "Unilateral" | "Bilateral" | "N/A" {
-  if (exercise.lateralType === "Unilateral" || exercise.lateralType === "Bilateral" || exercise.lateralType === "N/A") {
-    return exercise.lateralType;
-  }
-
-  const name = (exercise.name || "").toLowerCase();
-  const subcat = (exercise.subcategory || "").toLowerCase();
-  const cat = (exercise.category || "").toLowerCase();
-
-  // If upper body/core/preventive that doesn't usually emphasize uni/bi split:
-  if (cat.includes("core") || cat.includes("preventivo") || cat.includes("mobilidade")) {
-    if (name.includes("unilateral") || name.includes("single leg") || name.includes("suitcase") || name.includes("one arm") || name.includes("unilateralmente") || name.includes("serrote")) {
-      return "Unilateral";
-    }
-    return "Bilateral";
-  }
-
-  // Unilateral keywords
-  if (
-    name.includes("unilateral") || name.includes("single leg") || name.includes("one leg") || name.includes("revezado") ||
-    name.includes("búlgaro") || name.includes("bulgarian") || name.includes("split") || name.includes("lunge") ||
-    name.includes("afundo") || name.includes("avanço") || name.includes("serrote") || name.includes("lado") ||
-    name.includes("each leg") || name.includes("/lado") || name.includes("rear foot") || name.includes("step-up") ||
-    name.includes("step down") || name.includes("copenhague") || name.includes("copenhagen") || name.includes("skater")
-  ) {
-    return "Unilateral";
-  }
-
-  return "Bilateral";
+  return classifyLaterality(exercise);
 }
 
 export interface BiomechanicalDetails {

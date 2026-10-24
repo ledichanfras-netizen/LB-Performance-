@@ -1,6 +1,11 @@
 const fields=['trainingMode','metricType','distanceMeters','targetIntensity','recoverySeconds','defaultExecutionTime','fieldUnit','workRestRatio','totalDistanceMeters','executionMethod','clusterReps','intraSetRest','blockGroupId','blockTag','blockType','blockRole','blockRest','isStructuredRunning','runningBlocks','conditioningProtocol'];
 export function exerciseMetadata(ex:any){
  const result:Record<string,unknown>={};
+ for(const key of ['lateralType','sidePrescriptions','startingSide'])if(ex[key]!==undefined)result[key]=ex[key];
+ if(ex.sidePrescriptions){
+  for(const side of ['left','right']){const p=ex.sidePrescriptions[side];if(!p || !Number.isInteger(p.sets)||p.sets<1||p.sets>25||typeof p.reps!=='string'||p.reps.length>100||typeof p.weight!=='string'||p.weight.length>100)throw Error('Prescrição por lado inválida.');}
+ }
+ if(ex.startingSide!==undefined&&!['left','right'].includes(ex.startingSide))throw Error('Lado inicial inválido.');
  for(const key of fields)if(ex[key]!==undefined)result[key]=ex[key];
  const json=JSON.stringify(result);if(json.length>50000)throw Error('Protocolo muito grande.');
  if(ex.conditioningProtocol){const p=ex.conditioningProtocol;

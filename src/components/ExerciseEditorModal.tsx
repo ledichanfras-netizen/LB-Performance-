@@ -1,3 +1,4 @@
+import { normalizeExerciseLaterality } from "../utils/exerciseLaterality";
 import React, { FC, useState, useEffect } from "react";
 import { X, Save, Sparkles, Layers, Clock, Hash, Timer } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -31,7 +32,7 @@ export const ExerciseEditorModal: FC<ExerciseEditorModalProps> = ({
         (exercise.defaultReps && (exercise.defaultReps.toLowerCase().includes("s") || exercise.defaultReps.toLowerCase().includes("min") || exercise.defaultReps.toLowerCase().includes("seg")));
 
       setFormData({
-        ...exercise,
+        ...normalizeExerciseLaterality(exercise),
         defaultSets: exercise.defaultSets ?? 3,
         defaultRepsType: isTimeBased ? "time" : "reps",
         defaultReps: isTimeBased ? (exercise.defaultReps && !exercise.defaultReps.toLowerCase().includes("s") ? exercise.defaultReps : "10") : (exercise.defaultReps || "10"),
@@ -134,7 +135,7 @@ export const ExerciseEditorModal: FC<ExerciseEditorModalProps> = ({
       tags: parseTags(tagsText),
     };
 
-    onSave(finalExercise);
+    onSave(normalizeExerciseLaterality(finalExercise));
   };
 
   return (

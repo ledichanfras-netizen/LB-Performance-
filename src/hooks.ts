@@ -1,4 +1,5 @@
 import { FollowUpType } from './utils/followUp';
+import { normalizeExerciseLibrary } from "./utils/exerciseLaterality";
 import { persistPeriodization } from './utils/periodizationSave';
 import { orderedExercises } from "./utils/exerciseOrder";
 
@@ -609,6 +610,7 @@ export const useAthletes = (token?: string | null) => {
     try {
       const originalSetItem = localStorage.setItem;
       localStorage.setItem = function(key, value) {
+        if(key === "LB_CUSTOM_LIBRARY_EXERCISES") { try { value = JSON.stringify(normalizeExerciseLibrary(JSON.parse(value))); } catch {} }
         try {
           originalSetItem.apply(this, [key, value]);
         } catch (e) {
@@ -658,6 +660,8 @@ export const useAthletes = (token?: string | null) => {
         }
       };
 
+      const storedLibrary = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
+      if(storedLibrary) { const repaired = JSON.stringify(normalizeExerciseLibrary(JSON.parse(storedLibrary))); if(repaired !== storedLibrary) localStorage.setItem("LB_CUSTOM_LIBRARY_EXERCISES", repaired); }
       return () => {
         localStorage.setItem = originalSetItem;
       };

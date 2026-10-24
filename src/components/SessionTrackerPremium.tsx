@@ -1,3 +1,5 @@
+import { UnilateralSetTracker } from "./UnilateralSetTracker";
+import { prescriptionSummary } from "../utils/unilateral";
 import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
 import { protocolSummary } from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
@@ -414,7 +416,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               ? perSetWeights[sIdx]
               : targetWeight;
             const hasValidSetWeight = s.weight !== undefined && s.weight !== null && Number(s.weight) > 0;
-            const recorded = isEditingCompleted || s.isCompleted === true || workout.status === 'in_progress';
+            const recorded = !!ex.sidePrescriptions || isEditingCompleted || s.isCompleted === true || workout.status === 'in_progress';
             const finalSetWeight = recorded ? (s.weight ?? prescribedWeightForSet) : hasValidSetWeight ? Number(s.weight) : prescribedWeightForSet;
 
             const hasValidSetReps = s.reps !== undefined && s.reps !== null && Number(s.reps) > 0;
@@ -1368,7 +1370,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     </div>
 
                     <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {isPerf 
+                      Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {ex.sidePrescriptions ? prescriptionSummary(ex) : isPerf
                         ? `${ex.sets}x ${ex.distanceMeters ? `${ex.distanceMeters}m` : ex.reps} • ${ex.targetIntensity || "--"}%` 
                         : `${prescribedSets}x${isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ ${prescribedWeight}`}
                     </span>
@@ -1393,7 +1395,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 </div>
 
                 {/* Individual performed sets */}
-                <div className="space-y-1.5">
+                {ex.sidePrescriptions ? <UnilateralSetTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} /> : <div className="space-y-1.5">
                   <div className="grid grid-cols-12 gap-2 text-center text-[8.5px] font-black text-slate-500 uppercase tracking-wider px-1 select-none">
                     <div className="col-span-2 sm:col-span-1 text-left">Série</div>
                     <div className="col-span-3 sm:col-span-3">{isPerf ? "Distância (m)" : "Carga (kg)"}</div>
@@ -1514,10 +1516,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       </div>
                     </div>
                   ))}
-                </div>
+                </div>}
 
                 {/* Exercise Set Actions Footer */}
-                <div className="pt-2 border-t border-slate-900/80 flex flex-wrap items-center justify-between gap-2">
+                <div className="pt-2 border-t border-slate-900/80 flex flex-wrap items-center justify-between gap-2" style={ex.sidePrescriptions ? {display:'none'} : undefined}>
                   <button
                     type="button"
                     onClick={() => addSetToExercise(ex.id)}
@@ -2145,7 +2147,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       <div className="flex flex-col items-end mr-1">
                         <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-widest block">PRESCRIÇÃO</span>
                         <span className="text-xs sm:text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-3 py-1 rounded-xl font-mono">
-                          {ex.trainingMode && ex.trainingMode !== "strength"
+                          {ex.sidePrescriptions ? prescriptionSummary(ex) : ex.trainingMode && ex.trainingMode !== "strength"
                             ? `${ex.sets} repetições • ${ex.distanceMeters ? `${ex.distanceMeters} m` : ex.reps} • ${ex.targetIntensity || "--"}%`
                             : `${ex.sets}x${isTime ? `${String(ex.reps).replace(/s/gi, "")}s` : ex.reps} @ ${ex.weight}`}
                         </span>
@@ -2197,7 +2199,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   </div>
 
                   {/* Treino Estruturado por Blocos (Corrida / Campo / Intervalados) vs. Musculação */}
-                  {isFieldOrRunningExercise(ex) ? (
+                  {ex.sidePrescriptions ? (
+                    <UnilateralSetTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} />
+                  ) : isFieldOrRunningExercise(ex) ? (
                     <RunningBlockTracker
                       exercise={ex}
                       onUpdateExercise={updateExerciseInSession}

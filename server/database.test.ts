@@ -165,7 +165,7 @@ test('student writes execution without changing prescription or another athlete'
  try{await db.exec(`CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
  CREATE TABLE wellness(id text PRIMARY KEY,athlete_id text,date text,fatigue integer,sleep integer,stress integer,soreness integer,mood integer);
  CREATE TABLE external_sessions(id text PRIMARY KEY,athlete_id text,date text);
- CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz DEFAULT CURRENT_TIMESTAMP);INSERT INTO athletes(id) VALUES('a'),('b');
+ CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,injury_history text);INSERT INTO athletes(id) VALUES('a'),('b');
  CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,name text,status text,rpe real,duration_minutes real,total_load real,feedback text,archived_at timestamptz);
  CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,weight real);
  CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);

@@ -41,10 +41,12 @@ export function SystemGuide({ role }: { role: 'coach' | 'athlete' }) {
       steps: coach ? [
         'Escolha o atleta e a data. Organize os exercícios na ordem em que devem ser executados.',
         'Ao trocar um exercício ou alterar séries, repetições, carga e pausa, salve a planilha. Os campos de execução do treino pendente acompanham a prescrição atual.',
+        'Em exercícios unilaterais, ative Personalizar por lado para definir séries, repetições ou tempo e carga de cada lado. Escolha o lado inicial e salve a planilha.',
         'Consulte o que foi realizado e a PSE após a finalização. Registros já executados compõem o histórico do atleta.',
       ] : [
         'Abra o treino da data correta e confira exercício, séries, repetições, carga e pausa.',
         'Preencha as séries com o que você realmente realizou. Após uma alteração feita pelo treinador, atualize e reabra o treino antes de iniciar.',
+        'Quando houver prescrição por lado, preencha e confirme as séries do lado esquerdo e do direito separadamente, seguindo a ordem indicada.',
         'Ao concluir, informe a duração e a PSE de 0 a 10. A PSE representa o esforço que você sentiu na sessão inteira.',
       ],
     },

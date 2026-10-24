@@ -1,3 +1,4 @@
+import { normalizeExerciseLibrary, normalizeExerciseLaterality } from "../utils/exerciseLaterality";
 import React, { FC, useState, useMemo, useEffect } from 'react';
 import { Dumbbell, Sparkles, BookOpen, Search, ChevronDown, ChevronUp, Heart, Filter, CheckCircle2, AlertCircle, Sliders, Edit3, Trash2, Copy, Plus, Video, Play, VideoOff, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -32,7 +33,7 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
   const [customLibraryExercises, setCustomLibraryExercises] = useState<EnrichedExercise[]>(() => {
     try {
       const stored = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
-      return stored ? JSON.parse(stored) : [];
+      return stored ? normalizeExerciseLibrary(JSON.parse(stored)) : [];
     } catch (e) {
       console.error("Erro ao carregar exercícios customizados:", e);
       return [];
@@ -54,7 +55,7 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
     const handleStorageChange = () => {
       try {
         const storedCustom = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
-        if (storedCustom) setCustomLibraryExercises(JSON.parse(storedCustom));
+        if (storedCustom) setCustomLibraryExercises(normalizeExerciseLibrary(JSON.parse(storedCustom)));
         const storedDeleted = localStorage.getItem("LB_DELETED_LIBRARY_EXERCISES");
         if (storedDeleted) setDeletedExerciseIds(JSON.parse(storedDeleted));
       } catch (e) {
@@ -105,6 +106,7 @@ export const AthleteGuide: FC<AthleteGuideProps> = ({ role = "coach" }) => {
   const [exerciseToClone, setExerciseToClone] = useState<EnrichedExercise | null>(null);
 
   const handleSaveExercise = (updated: EnrichedExercise) => {
+    updated = normalizeExerciseLaterality(updated);
     let updatedList = [...customLibraryExercises];
     const index = updatedList.findIndex(x => x.id === updated.id);
     if (index >= 0) {

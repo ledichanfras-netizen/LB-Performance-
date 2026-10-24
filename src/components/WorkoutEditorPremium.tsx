@@ -1,4 +1,6 @@
+import { normalizeExerciseLibrary, normalizeExerciseLaterality } from "../utils/exerciseLaterality";
 import { AdvancedMethodsCard } from "./AdvancedMethodsCard";
+import { UnilateralPrescriptionEditor } from "./UnilateralPrescriptionEditor";
 import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
 import ConditioningProtocolEditor from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
@@ -19,7 +21,7 @@ import { Workout, PrescribedExercise, AdvancedExecutionMethod } from "../types";
 import { ENRICHED_LIBRARY, EnrichedExercise, getBiomechanicalDetails, BiomechanicalDetails } from "../data/exercises";
 import { searchExercisesWithAi, prescribeWorkoutWithAi } from "../services/aiPerformanceService";
 import { ExerciseEditorModal } from "./ExerciseEditorModal";
-import { isTimeExercise, structureExerciseForMethod, getSpecialMethodMeta, calculateFieldCourtMetrics } from "../utils";
+import { parseRepetitions, parseWeightValue, isTimeExercise, structureExerciseForMethod, getSpecialMethodMeta, calculateFieldCourtMetrics } from "../utils";
 import { isFieldOrRunningExercise } from "../utils/runningBlockUtils";
 
 interface WorkoutEditorPremiumProps {
@@ -451,7 +453,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [customLibraryExercises, setCustomLibraryExercises] = useState<EnrichedExercise[]>(() => {
     try {
       const stored = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
-      return stored ? JSON.parse(stored) : [];
+      return stored ? normalizeExerciseLibrary(JSON.parse(stored)) : [];
     } catch (e) {
       console.error("Erro ao carregar exercícios customizados:", e);
       return [];
@@ -473,7 +475,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const handleStorageChange = () => {
       try {
         const storedCustom = localStorage.getItem("LB_CUSTOM_LIBRARY_EXERCISES");
-        if (storedCustom) setCustomLibraryExercises(JSON.parse(storedCustom));
+        if (storedCustom) setCustomLibraryExercises(normalizeExerciseLibrary(JSON.parse(storedCustom)));
         const storedDeleted = localStorage.getItem("LB_DELETED_LIBRARY_EXERCISES");
         if (storedDeleted) setDeletedExerciseIds(JSON.parse(storedDeleted));
       } catch (e) {
@@ -524,6 +526,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   const [exerciseToClone, setExerciseToClone] = useState<EnrichedExercise | null>(null);
 
   const handleSaveExercise = (updated: EnrichedExercise) => {
+    updated = normalizeExerciseLaterality(updated);
     let updatedList = [...customLibraryExercises];
     const index = updatedList.findIndex(x => x.id === updated.id);
     if (index >= 0) {
@@ -711,6 +714,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     let sum = 0;
     (edited.exercises || []).forEach(ex => {
       const s = Number(ex.sets) || 0;
+      if (ex.sidePrescriptions) { for (const p of Object.values(ex.sidePrescriptions)) sum += p.sets * (parseRepetitions(p.reps) || 0) * (parseWeightValue(p.weight) || 1); return; }
       const r = parseInt(ex.reps) || 0;
       const wMatch = ex.weight.match(/\d+/);
       const w = wMatch ? parseInt(wMatch[0]) : 0;
@@ -835,6 +839,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const newEx: PrescribedExercise = {
       id: `ex-lib-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       name: libEx.name,
+      lateralType: normalizeExerciseLaterality(libEx).lateralType as PrescribedExercise["lateralType"],
       muscleGroup: libEx.muscleGroup,
       sets: setsVal,
       reps: repVal,
@@ -920,7 +925,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
     const updatedEx: PrescribedExercise = {
       ...oldEx,
+      sidePrescriptions: normalizeExerciseLaterality(libEx).lateralType === "Unilateral" ? oldEx.sidePrescriptions : undefined,
+      startingSide: normalizeExerciseLaterality(libEx).lateralType === "Unilateral" ? oldEx.startingSide : undefined,
+      sets: normalizeExerciseLaterality(libEx).lateralType !== "Unilateral" && oldEx.sidePrescriptions ? oldEx.sidePrescriptions.left.sets : oldEx.sets,
       name: libEx.name,
+      lateralType: normalizeExerciseLaterality(libEx).lateralType as PrescribedExercise["lateralType"],
       muscleGroup: libEx.muscleGroup,
       videoUrl: libEx.videoUrl || "",
       imageUrl: libEx.imageUrl || "",
@@ -1043,6 +1052,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       const newEx: PrescribedExercise = {
         id: `ex-deficit-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
         name: libEx.name,
+        lateralType: normalizeExerciseLaterality(libEx).lateralType as PrescribedExercise["lateralType"],
         muscleGroup: libEx.muscleGroup,
         sets: prescribedSets,
         reps: repVal,
@@ -1106,7 +1116,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const duplicated: PrescribedExercise = {
       ...ex,
       id: `ex-dup-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: `${ex.name} (Cópia)`
+      name: `${ex.name} (Cópia)`,
+      performedSets: undefined
     };
     const current = edited.exercises || [];
     const reindexed = [...current, duplicated].map((e, i) => ({ ...e, order_index: i }));
@@ -1126,7 +1137,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     const current = edited.exercises || [];
     const duplicatedExercises = current.map(ex => ({
       ...ex,
-      id: `ex-dup-wk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
+      id: `ex-dup-wk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      performedSets: undefined
     }));
     const reindexed = [...current, ...duplicatedExercises].map((e, i) => ({ ...e, order_index: i }));
     setEdited({
@@ -2097,6 +2109,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
       return {
         id: `ex-ai-${Date.now()}-${index}`,
         name: libEx.name,
+        lateralType: normalizeExerciseLaterality(libEx).lateralType as PrescribedExercise["lateralType"],
         muscleGroup: libEx.muscleGroup,
         sets: prescribedSets,
         reps: repVal,
@@ -3672,22 +3685,22 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
                               {isFieldOrRunningExercise(ex) ? "Blocos" : "Séries"}
                             </span>
-                            <span className="text-[#39FF14] text-xs font-extrabold">{ex.sets}</span>
+                            <span className="text-[#39FF14] text-xs font-extrabold">{ex.sidePrescriptions ? `${ex.sidePrescriptions.left.sets} E / ${ex.sidePrescriptions.right.sets} D` : ex.sets}</span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
                               {isFieldOrRunningExercise(ex) ? "Tiros" : "Volume"}
                             </span>
                             <span className="text-slate-200 text-xs font-extrabold">
-                              {ex.clusterReps || ex.reps}
-                              {ex.repsType === "time" && !String(ex.clusterReps || ex.reps || "").toLowerCase().includes("s") ? "s" : ""}
+                              {ex.sidePrescriptions ? `${ex.sidePrescriptions.left.reps} E / ${ex.sidePrescriptions.right.reps} D` : ex.clusterReps || ex.reps}
+                              {!ex.sidePrescriptions && ex.repsType === "time" && !String(ex.clusterReps || ex.reps || "").toLowerCase().includes("s") ? "s" : ""}
                             </span>
                           </div>
                           <div className="flex items-center gap-1 bg-slate-950 border border-slate-900/80 px-2.5 py-1 rounded-xl">
                             <span className="text-[8px] font-black uppercase tracking-wider text-slate-500">
                               {isFieldOrRunningExercise(ex) ? "Intensidade" : "Carga"}
                             </span>
-                            <span className="text-slate-200 text-xs font-extrabold">{ex.weight || "BW"}</span>
+                            <span className="text-slate-200 text-xs font-extrabold">{ex.sidePrescriptions ? `${ex.sidePrescriptions.left.weight} E / ${ex.sidePrescriptions.right.weight} D` : ex.weight || "BW"}</span>
                           </div>
                           <div 
                             onClick={(e) => e.stopPropagation()}
@@ -3754,7 +3767,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
 
                         {/* Numeric Prescriptions */}
-                        <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3">
+                        <div className="md:col-span-12"><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
+                        <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3" data-side-prescription={!!ex.sidePrescriptions}>
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
                               {isFieldOrRunningExercise(ex) ? "Blocos" : "Séries"}

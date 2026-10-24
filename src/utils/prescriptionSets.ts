@@ -1,9 +1,11 @@
 import type { ExerciseSet, PrescribedExercise, Workout } from '../types';
+import { reconcileUnilateralSets } from './unilateral';
 import { detectSpecialMethod, parsePerSetWeights, parseRepetitions, parseWeightValue } from '../utils';
 
 /** Pending execution rows follow the latest prescription; recorded results stay intact. */
 export function reconcilePrescriptionSets(exercise: PrescribedExercise, status: Workout['status'] = 'planned'): PrescribedExercise {
   if (status === 'completed') return exercise;
+  if (exercise.sidePrescriptions) return reconcileUnilateralSets(exercise, status);
   const previous = exercise.performedSets || [];
   const requested = Number(exercise.sets);
   const count = Number.isFinite(requested) && requested > 0 ? Math.max(1, Math.floor(requested)) : previous.length || 3;
