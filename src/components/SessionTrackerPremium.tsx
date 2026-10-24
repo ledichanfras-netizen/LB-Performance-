@@ -427,7 +427,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               reps: finalSetReps,
               weight: finalSetWeight,
               distance: s.distance ?? targetDistance,
-              timeSeconds: s.timeSeconds ?? targetTime,
+              timeSeconds: ex.sidePrescriptions && ex.repsType === 'time' ? (s.timeSeconds ?? s.reps ?? targetTime) : s.timeSeconds ?? targetTime,
               intensity: s.intensity ?? ex.targetIntensity ?? 0,
               isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
             };
