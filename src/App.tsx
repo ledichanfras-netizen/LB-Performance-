@@ -758,6 +758,7 @@ const EliteHubApp: FC<{
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSidebarAthletes, setShowSidebarAthletes] = useState(false);
+  const [profileGuidanceOpen, setProfileGuidanceOpen] = useState(() => window.matchMedia("(max-width: 767px)").matches);
   const [isPeriodizationExpanded, setIsPeriodizationExpanded] = useState(false);
 
   const performanceAthletes = useMemo(()=>athletes.filter(a=>!isAssessmentOnly(a)),[athletes]);
@@ -1348,6 +1349,10 @@ const EliteHubApp: FC<{
     return undefined;
   }, [athletes, selectedId, user]);
 
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 768px)").matches) window.scrollTo({top:0,behavior:"auto"});
+  }, [activeTab, dashboardSubTab, selected?.id]);
+
   useEffect(()=>{
     if(selected && isAssessmentOnly(selected) && activeTab!=="assessment" && activeTab!=="info" && !(activeTab === "competitions" && user?.role === "coach")){
       setActiveTab("assessment");setIsAiChatOpen(false);setAiModelingResult(null);
@@ -1571,7 +1576,7 @@ const EliteHubApp: FC<{
   }
 
   return (
-    <div className="min-h-screen bg-brand-dark text-slate-100 font-sans flex flex-col md:flex-row overflow-x-hidden relative no-scrollbar">
+    <div className="lb-app-shell min-h-screen bg-brand-dark text-slate-100 font-sans flex flex-col md:flex-row overflow-x-hidden relative no-scrollbar">
         <>
           {/* Mobile Bottom Navigation Bar (Fixed modern layout in requested order) */}
           <div className="coach-mobile-nav flex md:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#070b14]/95 backdrop-blur-3xl border-t border-slate-850/90 z-[1010] items-center px-4 shadow-[0_-12px_36px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar select-none">
@@ -1803,11 +1808,11 @@ const EliteHubApp: FC<{
           </div>
 
           {/* Sidebar / Bottom Nav */}
-          <aside className="hidden md:flex md:flex-col md:relative md:bottom-auto left-0 md:w-72 lg:w-80 md:h-screen bg-[#0B0F19]/95 border-r border-slate-800/60 p-4 lg:p-6 z-[1000] justify-between items-stretch">
+          <aside className="lb-desktop-sidebar hidden md:flex md:flex-col md:relative md:bottom-auto left-0 md:w-72 lg:w-80 md:h-screen bg-[#0B0F19]/95 border-r border-slate-800/60 p-4 lg:p-6 z-[1000] justify-between items-stretch">
             <div className="flex flex-col items-stretch justify-start w-full gap-4 px-0">
 
               {/* Premium Performance Pro Logo Bracket & Theme Toggle */}
-              <div className="hidden md:flex items-center justify-between mb-10 mt-2 px-2">
+              <div className="lb-sidebar-brand hidden md:flex items-center justify-between mb-10 mt-2 px-2">
                 <div className="flex items-center gap-3.5">
                   <div className="w-10 h-10 rounded-xl bg-slate-900/80 flex items-center justify-center border border-slate-800 shadow-[0_0_20px_rgba(16,185,129,0.25)] shrink-0 overflow-hidden">
                     <img src="/pwa-192x192.svg" className="app-logo" alt="LB Logo" />
@@ -2264,8 +2269,8 @@ const EliteHubApp: FC<{
             </div>
           </aside>
 
-          <div className="flex-grow flex flex-col min-h-screen min-h-[100dvh] pb-24 md:pb-16 md:h-[100dvh] md:overflow-y-scroll no-scrollbar bg-brand-dark">
-            <main className="w-full max-w-[1600px] mx-auto px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 relative z-[10] flex-grow no-scrollbar auto-rows-min">
+          <div className="lb-app-content flex-grow flex flex-col min-h-screen min-h-[100dvh] pb-24 md:pb-16 md:h-[100dvh] md:overflow-y-scroll no-scrollbar bg-brand-dark">
+            <main className="lb-app-main w-full max-w-[1600px] mx-auto px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 relative z-[10] flex-grow no-scrollbar auto-rows-min">
               {iframeCookieWarning && (
                 <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -2277,12 +2282,12 @@ const EliteHubApp: FC<{
                 </div>
               )}
               {/* Dashboard Contextual Header / Hero Area */}
-              <section className="mb-8 md:mb-10">
-                <div className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center gap-6 p-6 sm:p-8 md:p-9 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-slate-900/80 to-slate-900/40 border border-slate-800/50 backdrop-blur-3xl relative group overflow-hidden">
+              <section className="lb-context-header mb-8 md:mb-10">
+                <div className="lb-context-panel flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center gap-6 p-6 sm:p-8 md:p-9 rounded-[2rem] sm:rounded-[2.5rem] bg-gradient-to-br from-slate-900/80 to-slate-900/40 border border-slate-800/50 backdrop-blur-3xl relative group overflow-hidden">
                   {/* Abstract decorative elements */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-brand-primary/10 transition-all duration-700 pointer-events-none"></div>
 
-                  <div className="relative z-10 min-w-0">
+                  <div className="lb-context-identity relative z-10 min-w-0">
                     <div className="flex items-center gap-3 sm:gap-4">
                       <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-xl sm:rounded-2xl bg-slate-900 flex items-center justify-center border border-brand-primary/30 shrink-0 shadow-lg overflow-hidden">
                         <img
@@ -2311,10 +2316,10 @@ const EliteHubApp: FC<{
                   </div>
 
                   {/* Action Center */}
-                  <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-[30] w-full xl:w-auto shrink-0 justify-start sm:justify-end">
+                  <div className="lb-context-actions flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-[30] w-full xl:w-auto shrink-0 justify-start sm:justify-end">
                     {user.role === "coach" && (
                       <>
-                        <div className="relative group w-full sm:w-60 lg:w-64">
+                        <div className="lb-context-search relative group w-full sm:w-60 lg:w-64">
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-primary/50 group-focus-within:text-brand-primary transition-colors">
                             <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                           </div>
@@ -2956,7 +2961,7 @@ const EliteHubApp: FC<{
                   fallbackTitle={`Painel de Performance de ${selected?.name || "Atleta"}`}
                   onReset={() => { void syncData(); }}
                 >
-                  <div className="space-y-8 md:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                  <div className="lb-selected-workspace space-y-8 md:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                     {user.role === "coach" && (
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <button
@@ -3236,9 +3241,9 @@ const EliteHubApp: FC<{
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
-                      <Card className={`${activeTab === "training" ? "lg:col-span-3" : "lg:col-span-4"} premium-card p-1`}>
-                        <div className="grid grid-cols-1 md:grid-cols-12 items-stretch overflow-hidden rounded-[2.4rem] min-h-[450px]">
+                    <div className="lb-coach-athlete-overview grid grid-cols-1 lg:grid-cols-4 gap-6 md:gap-8">
+                      <Card className={`lb-coach-profile ${activeTab === "training" ? "lg:col-span-3" : "lg:col-span-4"} premium-card p-1`}>
+                        <div className="lb-coach-profile-frame grid grid-cols-1 md:grid-cols-12 items-stretch overflow-hidden rounded-[2.4rem] min-h-[450px]">
                           <div className="flex flex-col p-6 sm:p-8 md:p-10 md:col-span-12 lg:col-span-12 xl:col-span-12 flex-grow">
                             <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8">
                               <button
@@ -3349,7 +3354,7 @@ const EliteHubApp: FC<{
 
                         return (
                           <Card
-                            className={`flex flex-col justify-between items-center text-center p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:scale-[1.01] ${theme.cardClasses}`}
+                            className={`lb-coach-readiness flex flex-col justify-between items-center text-center p-6 sm:p-7 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group cursor-pointer rounded-[2.5rem] transition-all duration-500 hover:scale-[1.01] ${theme.cardClasses}`}
                             onClick={() => setModalState({ type: "wellness" })}
                           >
                             {/* Background ambient glow element */}
@@ -3385,7 +3390,7 @@ const EliteHubApp: FC<{
                               </div>
 
                               {/* ORIENTAÇÃO DE TREINO AO TREINADOR */}
-                              <div className={`w-full p-4 rounded-2xl border ${theme.insightBoxClasses} relative z-10 my-4 text-left backdrop-blur-sm shadow-inner`}>
+                              <details open={profileGuidanceOpen} onToggle={e=>setProfileGuidanceOpen(e.currentTarget.open)} className={`lb-coach-guidance w-full p-4 rounded-2xl border ${theme.insightBoxClasses} relative z-10 my-4 text-left backdrop-blur-sm shadow-inner`}><summary className="text-xs font-bold cursor-pointer">Ver orientação do treino</summary>
                                 <div className={`flex items-center gap-2 mb-1.5 pb-1 ${theme.dividerColor}`}>
                                   <ShieldAlert className={`w-4 h-4 ${theme.insightTitleClasses} shrink-0`} />
                                   <span className={`text-[10px] font-black uppercase tracking-widest ${theme.insightTitleClasses}`}>
@@ -3395,7 +3400,7 @@ const EliteHubApp: FC<{
                                 <p className={`text-[11px] leading-relaxed font-semibold ${theme.insightTextClasses}`}>
                                   {theme.coachGuidance}
                                 </p>
-                              </div>
+                              </details>
 
                               {/* Action Button */}
                               <button
@@ -5845,7 +5850,7 @@ const DashboardView: FC<{
 
       {/* ================== TAB 2: PORTED ORIGINAL CLASSIC VIEW ================= */}
       {dashboardSubTab === "classic" && (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="lb-readiness-view space-y-8 animate-in fade-in duration-500">
 
           {/* Welcome Header */}
           <section className="mb-0">
@@ -14339,9 +14344,9 @@ const AssessmentView: FC<{
   }, [currentAssessments, filterType]);
 
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-right-8">
-      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
-        <div className="flex gap-1 md:gap-2 overflow-x-auto pb-2 md:pb-0 w-full no-scrollbar">
+    <div className="lb-assessment-view space-y-6 md:space-y-8 animate-in fade-in slide-in-from-right-8">
+      <div className="lb-assessment-toolbar flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+        <div className="lb-assessment-types flex gap-1 md:gap-2 overflow-x-auto pb-2 md:pb-0 w-full no-scrollbar">
           {types.map((t) => (
             <button
               key={t.id}
@@ -14444,7 +14449,7 @@ const AssessmentView: FC<{
         <>
           <PerformanceChart data={sortedItems} type={filterType} />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="lb-assessment-cards grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {sortedItems.map((item: any, index: number) => {
               const prevItem = sortedItems[index + 1] as any;
           let report = null;

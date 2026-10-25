@@ -24,7 +24,7 @@ export default function AthleteDashboardPanel({ athlete, role, today, lbx, onAdd
       <div><p className="text-xs font-black uppercase tracking-widest text-brand-primary">LB Performance · {isAthlete ? 'Meu dia' : 'Painel do atleta'}</p><h2 className="text-xl sm:text-2xl font-black text-white mt-2 break-words">{isAthlete ? `Olá, ${(athlete.name || 'Atleta').split(' ')[0]}` : athlete.name}</h2><p className="text-xs text-slate-400 mt-1">{athlete.modality || 'Modalidade não informada'}</p></div>
       <span className="text-xs font-bold text-slate-400 inline-flex gap-2 items-center"><CalendarDays className="w-4 h-4" />{metricDateLabel(metricDay(today)!, true)}</span>
     </header>
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+    <div className="lb-day-cards grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
       <section data-tone="readiness" className={`${section} ${isAthlete ? 'order-2' : ''}`}>
         <div className="flex flex-wrap justify-between items-center gap-2 mb-4"><h3 className="text-sm font-black text-white uppercase inline-flex gap-2 items-center"><Activity className="w-4 h-4 text-brand-primary" />{isAthlete ? 'Como você está hoje?' : 'Prontidão de hoje'}</h3><span className="text-xs font-bold text-slate-400">{wellness ? 'Respondida hoje' : 'Sem registro hoje'}</span></div>
         {wellness ? <>

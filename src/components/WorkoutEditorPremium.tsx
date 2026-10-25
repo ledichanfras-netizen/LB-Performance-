@@ -392,6 +392,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   // Collapse & Expand States for spacious layout optimization
   const [isHeaderExpanded, setIsHeaderExpanded] = useState<boolean>(false);
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+  const [methodsOpen, setMethodsOpen] = useState(() => window.matchMedia("(max-width: 1023px)").matches);
 
   // AI Generator Panel States
   const [aiLoading, setAiLoading] = useState(false);
@@ -2443,7 +2444,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                 <div
                   key={item.id}
                   onClick={() => addExFromLib(item)}
-                  className="p-3 bg-[#111622] hover:bg-[#151c2c] border border-slate-900 rounded-xl flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.01] hover:border-slate-850"
+                  className="lb-library-item p-3 bg-[#111622] hover:bg-[#151c2c] border border-slate-900 rounded-xl flex items-center justify-between group cursor-pointer transition-all hover:scale-[1.01] hover:border-slate-850"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-slate-800/40 flex items-center justify-center text-slate-400 group-hover:text-[#39FF14] group-hover:bg-[#39FF14]/5 transition-all">
@@ -3460,7 +3461,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         )}
 
         {/* WORKOUT LIST WITH SMART BENTO METRICS FOR BALANCING */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 no-scrollbar">
+        <div className="lb-workout-scroll flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6 no-scrollbar">
           
           {/* Realtime muscular loading bars */}
           {muscleDistribution.distribution.length > 0 && (
@@ -3488,6 +3489,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
             </div>
           )}
 
+          <details className="lb-editor-methods" open={methodsOpen} onToggle={e=>setMethodsOpen(e.currentTarget.open)}><summary>Métodos avançados · adicionar bloco</summary>
           <AdvancedMethodsCard groups={[
             { title: "Musculação, força e hipertrofia", methods: [
               { label: "Contraste Francês (4 Estágios)", description: "Adicionar Complexo Francês de 4 Estágios (1A PAP Pesado ➔ 1B Pliometria com Carga ➔ 1C Balístico ➔ 1D Pliometria Reativa RSI)", onClick: addFrenchContrastBlock },
@@ -3511,6 +3513,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               { label: "Shuttle Run / COD", description: "Adicionar Shuttle Run Pro Agility 5-10-5m", onClick: addShuttleRunTemplate },
             ] },
           ]} />
+          </details>
 
           {/* ACTIVE EXERCISES LIST */}
           <div className="space-y-4">
@@ -3725,10 +3728,10 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                       </div>
                     ) : (
                       /* FULL EDITABLE FORM (EXPANDED) */
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                      <div className="lb-exercise-form grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
                         
                         {/* Index & Name */}
-                        <div className="md:col-span-4 space-y-1">
+                        <div className="lb-exercise-identity md:col-span-4 space-y-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-black text-[#39FF14] italic">#{index + 1}</span>
                             <input
@@ -3767,8 +3770,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
 
                         {/* Numeric Prescriptions */}
-                        <div className="md:col-span-12"><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
-                        <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3" data-side-prescription={!!ex.sidePrescriptions}>
+                        <div className="lb-exercise-unilateral md:col-span-12"><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
+                        <div className="lb-exercise-dose md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3" data-side-prescription={!!ex.sidePrescriptions}>
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
                               {isFieldOrRunningExercise(ex) ? "Blocos" : "Séries"}
