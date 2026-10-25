@@ -1344,12 +1344,8 @@ const EliteHubApp: FC<{
       const found = athletes.find((a) => a.id === selectedId);
       if (found) return found;
     }
-    // Para o Treinador: quando nenhum atleta está selecionado (selectedId === null),
-    // deve retornar undefined para exibir o Dashboard Geral (com métricas, treinos do dia e lista de atletas)
-    if (user?.role === "coach") {
-      return undefined;
-    }
-    return athletes.length > 0 ? athletes[0] : undefined;
+    // Individual data always requires an explicit selection (or the athlete's own account).
+    return undefined;
   }, [athletes, selectedId, user]);
 
   useEffect(()=>{
@@ -1605,9 +1601,6 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
-                  if (!selectedId && athletes.length > 0) {
-                    setSelectedId(athletes[0].id);
-                  }
                   setActiveTab("assessment");
                   setAiModelingResult(null);
                 }}
@@ -1625,9 +1618,6 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
-                  if (!selectedId && athletes.length > 0) {
-                    setSelectedId(athletes[0].id);
-                  }
                   setActiveTab("training");
                   setAiModelingResult(null);
                 }}
@@ -1645,9 +1635,6 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
-                  if (!selectedId && athletes.length > 0) {
-                    setSelectedId(athletes[0].id);
-                  }
                   setActiveTab("dash");
                   setDashboardSubTab("elite-monitoring");
                   setAiModelingResult(null);
@@ -1666,9 +1653,6 @@ const EliteHubApp: FC<{
               <button
                 onClick={() => {
                   setIsAiChatOpen(false);
-                  if (!selectedId && athletes.length > 0) {
-                    setSelectedId(athletes[0].id);
-                  }
                   setActiveTab("dash");
                   setDashboardSubTab("classic");
                   setAiModelingResult(null);
@@ -1927,9 +1911,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("assessment");
                     setAiModelingResult(null);
                   }}
@@ -1947,9 +1928,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("training");
                     setAiModelingResult(null);
                   }}
@@ -1967,9 +1945,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("dash");
                     setDashboardSubTab("elite-monitoring");
                     setAiModelingResult(null);
@@ -1988,9 +1963,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("dash");
                     setDashboardSubTab("classic");
                     setAiModelingResult(null);
@@ -2010,9 +1982,6 @@ const EliteHubApp: FC<{
                   <button
                     onClick={() => {
                       setIsAiChatOpen(false);
-                      if (!selectedId && athletes.length > 0) {
-                        setSelectedId(athletes[0].id);
-                      }
                       setActiveTab("dash");
                       setDashboardSubTab("decision-matrix");
                       setAiModelingResult(null);
@@ -2032,9 +2001,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("dash");
                     setDashboardSubTab("nutrition");
                     setAiModelingResult(null);
@@ -2053,9 +2019,6 @@ const EliteHubApp: FC<{
                 <button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("injuries");
                     setAiModelingResult(null);
                   }}
@@ -2095,9 +2058,6 @@ const EliteHubApp: FC<{
                 <AiOnly><button
                   onClick={() => {
                     setIsAiChatOpen(false);
-                    if (!selectedId && athletes.length > 0) {
-                      setSelectedId(athletes[0].id);
-                    }
                     setActiveTab("ai-modeling");
                   }}
                   className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl text-left text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
@@ -2360,6 +2320,7 @@ const EliteHubApp: FC<{
                           </div>
                           <input
                             type="text"
+                            id="athlete-picker-search"
                             placeholder="BUSCAR ATLETA OU ALUNO..."
                             className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl py-3.5 pl-11 pr-10 text-[10px] sm:text-[11px] font-black text-white hover:border-slate-700 focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 outline-none transition-all shadow-xl uppercase tracking-widest placeholder:text-slate-600"
                             value={searchTerm}
@@ -2514,6 +2475,13 @@ const EliteHubApp: FC<{
                 <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 py-4">
                   <CompetitionsCalendarView athlete={selected} allAthletes={athletes} onUpdateAthlete={data => { if (selected) updateAthlete(selected.id, data); }} onUpdateAthleteById={(id, data) => updateAthlete(id, data)} role="coach" />
                 </div>
+              ) : !selected && user.role === "coach" && !(activeTab === "dash" && dashboardSubTab === "pro") ? (
+                <section data-testid="athlete-selection-required" className="lb-surface-card max-w-2xl mx-auto w-full p-6 sm:p-8 rounded-3xl border border-emerald-500/25 text-center">
+                  <Users className="w-9 h-9 text-brand-primary mx-auto mb-4" aria-hidden="true" />
+                  <h3 className="text-xl font-black text-white">Selecione um atleta</h3>
+                  <p className="text-sm text-slate-400 mt-3 leading-relaxed">Escolha um atleta na busca acima para consultar os dados desta seção.</p>
+                  <button type="button" onClick={() => { setShowDropdown(true); const input = document.getElementById("athlete-picker-search"); input?.scrollIntoView({ block: "center", behavior: "smooth" }); input?.focus({ preventScroll: true }); }} className="mt-5 px-5 py-3 rounded-xl font-bold bg-brand-primary text-brand-dark">Selecionar atleta</button>
+                </section>
               ) : !selected && user.role === "coach" ? (
                 <div className="flex flex-col items-center px-4 max-w-7xl mx-auto w-full">
                   {/* Banner de Aniversariantes do Dia no Dashboard do Treinador */}
@@ -4978,9 +4946,7 @@ const EliteHubApp: FC<{
                 if (clean.length === 0) throw new Error("Nenhum atleta válido para importar.");
                 setAthletes(clean);
                 await save(clean);
-                if (clean.length > 0) {
-                  setSelectedId(clean[0].id);
-                }
+                setSelectedId(current => clean.some(a => a.id === current) ? current : null);
               }}
               onSync={syncData}
               theme={theme}
