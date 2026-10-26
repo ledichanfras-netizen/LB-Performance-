@@ -4,7 +4,7 @@ import { hasAIAccess } from './aiPolicy';
 import jwt from 'jsonwebtoken';
 import { hasSportsAccess } from './entitlement';
 
-export const supervisorTables:Record<string,string>={wellness:'wellness',workouts:'workouts',sessions:'external_sessions',isometricStrength:'isometric_strength',generalStrength:'general_strength',cmj:'cmj',dropJump:'drop_jump',imtp:'imtp',vo2max:'vo2max',speed:'speed',bioimpedance:'bioimpedance'};
+export const supervisorTables:Record<string,string>={wellness:'wellness',workouts:'workouts',sessions:'external_sessions',isometricStrength:'isometric_strength',generalStrength:'general_strength',cmj:'cmj',abalakov:'abalakov',dropJump:'drop_jump',imtp:'imtp',vo2max:'vo2max',speed:'speed',bioimpedance:'bioimpedance'};
 export async function canSupervise(pool:Pick<Pool,'query'>,userId:string,organizationId:string){
  const {rows}=await pool.query(`SELECT 1 FROM lb_accounts.supervisor_links l
  JOIN lb_accounts.memberships m ON m.user_id=l.supervisor_id

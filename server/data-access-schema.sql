@@ -9,6 +9,8 @@ ALTER TABLE public.bioimpedance ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.bioimpedance FROM PUBLIC, anon, authenticated;
 ALTER TABLE public.cmj ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.cmj FROM PUBLIC, anon, authenticated;
+ALTER TABLE public.abalakov ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.abalakov FROM PUBLIC, anon, authenticated;
 ALTER TABLE public.drop_jump ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.drop_jump FROM PUBLIC, anon, authenticated;
 ALTER TABLE public.external_sessions ENABLE ROW LEVEL SECURITY;

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { mayAccessAthlete, ScopeDenied } from './scope';
 import { assessmentLabels, readReassessmentPlan } from '../src/utils/reassessment';
 import { normalizeBirthDate } from '../src/utils/birthDate';
-const tables:Record<string,string>={imtp:'imtp',isometricStrength:'isometric_strength',cmj:'cmj',dropJump:'drop_jump',speed:'speed',vo2max:'vo2max',bioimpedance:'bioimpedance',postural:''};
+const tables:Record<string,string>={imtp:'imtp',isometricStrength:'isometric_strength',cmj:'cmj',abalakov:'abalakov',dropJump:'drop_jump',speed:'speed',vo2max:'vo2max',bioimpedance:'bioimpedance',postural:''};
 export async function saveReassessmentPlan(pool:any,account:any,athleteId:string,input:any,now=new Date()) {
   if(account?.role!=='coach' || account.supervision)throw new ScopeDenied();
   const c=await pool.connect();
@@ -14,7 +14,7 @@ export async function saveReassessmentPlan(pool:any,account:any,athleteId:string
     let plan:any=null;
     if(input!==null){
       if(readFollowUpType(owned.rows[0])==='assessment-only')throw new Error('Alunos de somente avaliações não possuem agendamento automático de reavaliação.');
-      if(!input || !normalizeBirthDate(input.dueDate) || !Array.isArray(input.tests) || !input.tests.length || input.tests.length>8 || input.tests.some((t:any)=>typeof t!=='string' || !Object.hasOwn(assessmentLabels,t)))throw new Error('Selecione uma data válida e pelo menos uma avaliação.');
+      if(!input || !normalizeBirthDate(input.dueDate) || !Array.isArray(input.tests) || !input.tests.length || input.tests.length>Object.keys(assessmentLabels).length || input.tests.some((t:any)=>typeof t!=='string' || !Object.hasOwn(assessmentLabels,t)))throw new Error('Selecione uma data válida e pelo menos uma avaliação.');
       const createdOn=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
       const baseline:any={};
       for(const type of [...new Set<string>(input.tests)]){

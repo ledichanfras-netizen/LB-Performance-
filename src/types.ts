@@ -154,6 +154,7 @@ export interface Athlete {
     imtp: Imtp[];
     cmj: Cmj[];
     dropJump: DropJump[];
+    abalakov?: Cmj[];
     vo2max: Vo2max[];
     speed: Speed[];
     postural?: PosturalAssessment[];
@@ -525,7 +526,7 @@ export interface Speed extends Assessment {
   speed30m?: number;
 }
 
-export type AssessmentType = 'bioimpedance' | 'isometricStrength' | 'imtp' | 'cmj' | 'dropJump' | 'vo2max' | 'speed' | 'postural';
+export type AssessmentType = 'bioimpedance' | 'isometricStrength' | 'imtp' | 'cmj' | 'dropJump' | 'abalakov' | 'vo2max' | 'speed' | 'postural';
 
 export interface PosturalDeviation {
   regiao: string;

@@ -1,6 +1,6 @@
 import type { PoolClient } from 'pg';
 import { AccountScope, ScopeDenied } from './scope';
-const assessments:Record<string,string>={bioimpedance:'bioimpedance',isometricStrength:'isometric_strength',cmj:'cmj',dropJump:'drop_jump',vo2max:'vo2max',speed:'speed',imtp:'imtp',generalStrength:'general_strength'};
+const assessments:Record<string,string>={bioimpedance:'bioimpedance',isometricStrength:'isometric_strength',cmj:'cmj',abalakov:'abalakov',dropJump:'drop_jump',vo2max:'vo2max',speed:'speed',imtp:'imtp',generalStrength:'general_strength'};
 /** Must run inside the SAME transaction that writes the payload. */
 export async function validateScopedSave(client:Pick<PoolClient,'query'>,scope:AccountScope,athletes:any[]){
  if(scope.role!=='coach' || !Array.isArray(athletes) || !athletes.length || athletes.length>100)throw new ScopeDenied();

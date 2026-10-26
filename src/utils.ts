@@ -2400,6 +2400,8 @@ export function mergeAthletesWithLocalCache(
           .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
         cmj: mergeArrayById(lAsm.cmj || [], rAsm.cmj || [], deletedIds)
           .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
+        abalakov: mergeArrayById(lAsm.abalakov || [], rAsm.abalakov || [], deletedIds)
+          .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
         dropJump: mergeArrayById(lAsm.dropJump || [], rAsm.dropJump || [], deletedIds)
           .sort((a, b) => getSafeDateTime(b.date) - getSafeDateTime(a.date)),
         vo2max: mergeArrayById(lAsm.vo2max || [], rAsm.vo2max || [], deletedIds)

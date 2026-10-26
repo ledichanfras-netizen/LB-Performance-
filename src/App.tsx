@@ -7659,7 +7659,7 @@ const PerformanceChart: FC<{ data: any[]; type: AssessmentType }> = ({
 }) => {
   const getKeysForType = (t: AssessmentType) => {
     if (t === "bioimpedance") return ["Gordura %", "Massa Muscular"];
-    if (t === "cmj") return ["Altura Salto (cm)", "Tempo de Voo (ms)", "Força Média (N)", "Potência (W)"];
+    if (t === "cmj" || t === "abalakov") return ["Altura Salto (cm)", "Tempo de Voo (ms)", "Força Média (N)", "Potência (W)"];
     if (t === "dropJump") return ["Altura Salto (cm)", "Índice RSI"];
     if (t === "vo2max") return ["VO2 Máx", "VAM"];
     if (t === "speed") return ["5m (m/s)", "10m (m/s)", "20m (m/s)", "30m (m/s)"];
@@ -7681,8 +7681,8 @@ const PerformanceChart: FC<{ data: any[]; type: AssessmentType }> = ({
       if (type === "bioimpedance") {
         if (item.fatPercentage > 0) base["Gordura %"] = item.fatPercentage;
         if (item.muscleMass > 0) base["Massa Muscular"] = item.muscleMass;
-      } else if (type === "cmj") {
-        if (item.height > 0) base["Altura Salto (cm)"] = item.height > 0 && item.height < 15 ? Number((item.height * 10).toFixed(1)) : Number((item.height).toFixed(1));
+      } else if (type === "cmj" || type === "abalakov") {
+        if (item.height > 0) base["Altura Salto (cm)"] = type === "cmj" && item.height > 0 && item.height < 15 ? Number((item.height * 10).toFixed(1)) : Number((item.height).toFixed(1));
         if (item.flightTime > 0) base["Tempo de Voo (ms)"] = item.flightTime;
         if (item.averageForce > 0) base["Força Média (N)"] = item.averageForce;
         if (item.power > 0) base["Potência (W)"] = item.power;
@@ -7713,24 +7713,6 @@ const PerformanceChart: FC<{ data: any[]; type: AssessmentType }> = ({
       return itemKeys.some((k) => item[k] !== undefined && item[k] > 0);
     });
 
-  if (!chartData || chartData.length < 2) {
-    return (
-      <div className="h-40 w-full mt-6 mb-10 bg-slate-900/30 rounded-3xl border border-dashed border-slate-800 flex items-center justify-center">
-        <p className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] italic text-center p-4">
-          Dados insuficientes para gráfico histórico (mín. 2 registros com valores acima de zero)
-        </p>
-      </div>
-    );
-  }
-
-  const colors = ["#39FF14", "#3b82f6", "#ea580c", "#ec4899"];
-
-  const getsRightAxis = (key: string) => {
-    return ["Potência (W)", "Massa Muscular", "VAM", "Força Média (N)"].includes(key);
-  };
-  const hasRightAxis = keys.some(getsRightAxis);
-
-  // Calculate real-time stats for each performance dimension
   const stats = useMemo(() => {
     const res: Record<string, { current: number; max: number; diff: string; trendUp: boolean }> = {};
     keys.forEach((key) => {
@@ -7751,6 +7733,26 @@ const PerformanceChart: FC<{ data: any[]; type: AssessmentType }> = ({
     });
     return res;
   }, [chartData, keys]);
+
+  if (!chartData || chartData.length < 2) {
+    return (
+      <div className="h-40 w-full mt-6 mb-10 bg-slate-900/30 rounded-3xl border border-dashed border-slate-800 flex items-center justify-center">
+        <p className="text-[10px] md:text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] italic text-center p-4">
+          Dados insuficientes para gráfico histórico (mín. 2 registros com valores acima de zero)
+        </p>
+      </div>
+    );
+  }
+
+  const colors = ["#39FF14", "#3b82f6", "#ea580c", "#ec4899"];
+
+  const getsRightAxis = (key: string) => {
+    return ["Potência (W)", "Massa Muscular", "VAM", "Força Média (N)"].includes(key);
+  };
+  const hasRightAxis = keys.some(getsRightAxis);
+
+  // Calculate real-time stats for each performance dimension
+
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -9809,15 +9811,19 @@ const CmjReport: FC<{
   data: Cmj;
   onClose: () => void;
   history: Cmj[];
-}> = ({ athlete, data, onClose, history }) => {
+  protocol?: "cmj" | "abalakov";
+}> = ({ athlete, data, onClose, history, protocol = "cmj" }) => {
+  const isAbalakov = protocol === "abalakov";
+  const jumpName = isAbalakov ? "Salto Abalakov" : "CMJ";
+  const reportTitle = isAbalakov ? "RELATÓRIO DE SALTO ABALAKOV" : "RELATÓRIO DE SALTO VERTICAL";
   const reportRef = useRef<HTMLDivElement>(null);
   const previousData = getPreviousAssessment(data, history);
 
   // CMJ Sport Science Calculations:
   const rawHeight = data.height || 0;
-  const cmjHeight = rawHeight > 0 && rawHeight < 15 ? Number((rawHeight * 10).toFixed(1)) : rawHeight;
+  const cmjHeight = !isAbalakov && rawHeight > 0 && rawHeight < 15 ? Number((rawHeight * 10).toFixed(1)) : rawHeight;
   const rawPrevHeight = previousData?.height || 0;
-  const prevHeight = rawPrevHeight > 0 && rawPrevHeight < 15 ? Number((rawPrevHeight * 10).toFixed(1)) : rawPrevHeight;
+  const prevHeight = !isAbalakov && rawPrevHeight > 0 && rawPrevHeight < 15 ? Number((rawPrevHeight * 10).toFixed(1)) : rawPrevHeight;
   const cmjWeight = data.weight || 1;
   const cmjPower = data.power || 0;
   const cmjPowerRel = cmjPower / cmjWeight;
@@ -9846,7 +9852,7 @@ const CmjReport: FC<{
           pixelRatio: 3,
         });
         const link = document.createElement("a");
-        link.download = `relatorio-potencia-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
+        link.download = `relatorio-${protocol}-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
         link.href = dataUrl;
         link.click();
         await new Promise((r) => setTimeout(r, 400));
@@ -9865,7 +9871,7 @@ const CmjReport: FC<{
   const sortedHistory = [...history]
     .map(item => ({
       ...item,
-      height: item.height && item.height > 0 && item.height < 15 ? Number((item.height * 10).toFixed(1)) : item.height
+      height: !isAbalakov && item.height && item.height > 0 && item.height < 15 ? Number((item.height * 10).toFixed(1)) : item.height
     }))
     .filter(item => (item.height && item.height > 0) || (item.power && item.power > 0))
     .sort((a, b) => getSafeDateTime(a.date) - getSafeDateTime(b.date));
@@ -9951,8 +9957,8 @@ const CmjReport: FC<{
           {/* Page 1 */}
           <ReportPage pageNumber={1} totalPages={3}>
             <ReportHeader
-              title="RELATÓRIO DE SALTO VERTICAL"
-              subTitle="MENSURAÇÃO DE POTÊNCIA E ALTURA DO SALTO"
+              title={reportTitle}
+              subTitle={isAbalakov ? "CONTRAMOVIMENTO COM AUXÍLIO DOS BRAÇOS" : "MENSURAÇÃO DE POTÊNCIA E ALTURA DO SALTO"}
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[
@@ -10095,7 +10101,7 @@ const CmjReport: FC<{
           {/* Page 2 */}
           <ReportPage pageNumber={2} totalPages={3}>
             <ReportHeader
-              title="RELATÓRIO DE SALTO VERTICAL"
+              title={reportTitle}
               subTitle="HISTÓRICO E COMPOSIÇÃO DE FORÇA EXPLOSIVA"
               athlete={athlete}
               date={formatDate(data.date)}
@@ -10348,7 +10354,7 @@ const CmjReport: FC<{
           {/* Page 3: Síntese e aplicação prática, sem repetir os resultados */}
           <ReportPage pageNumber={3} totalPages={3}>
             <ReportHeader
-              title="RELATÓRIO DE SALTO VERTICAL"
+              title={reportTitle}
               subTitle="SÍNTESE E ORIENTAÇÕES DE TREINO"
               athlete={athlete}
               date={formatDate(data.date)}
@@ -10365,7 +10371,7 @@ const CmjReport: FC<{
                 <h4 className="text-sm font-black uppercase tracking-wide text-slate-900 mb-4">Prioridades para o treinamento</h4>
                 <div className="space-y-4">
                   {[
-                    { title: "Força e potência", text: "Cruzar o CMJ com as avaliações de força e o histórico de treinamento para selecionar os estímulos e acompanhar a resposta individual." },
+                    { title: "Força e potência", text: `Cruzar o ${jumpName} com as avaliações de força e o histórico de treinamento para selecionar os estímulos e acompanhar a resposta individual.` },
                     { title: "Execução do salto", text: "Manter o padrão de contramovimento, uso dos braços e aterrissagem. Registrar mudanças de técnica que possam alterar a comparação." },
                     { title: "Aplicação no esporte", text: "Integrar o trabalho de impulsão às demandas da modalidade. Confirmar a transferência nas ações de treino, campo ou quadra." },
                   ].map((item,index)=>(
@@ -10379,10 +10385,10 @@ const CmjReport: FC<{
 
               <section className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
                 <h4 className="text-xs font-black uppercase tracking-wide text-slate-800 mb-2">Como acompanhar a evolução</h4>
-                <p className="text-xs text-slate-600 leading-relaxed">Comparar com o próprio histórico, mantendo equipamento, aquecimento e protocolo. Interpretar as diferenças considerando a variação habitual do teste, a carga recente e a recuperação. As metas e o momento da reavaliação devem ser definidos pelo treinador.</p>
+                <p className="text-xs text-slate-600 leading-relaxed">Comparar com o próprio histórico de {jumpName}, mantendo equipamento, aquecimento e protocolo.{isAbalakov && " Executar com auxílio dos braços e comparar apenas com outras avaliações Abalakov."} Interpretar as diferenças considerando a variação habitual do teste, a carga recente e a recuperação. As metas e o momento da reavaliação devem ser definidos pelo treinador.</p>
               </section>
 
-              <p className="text-[10px] text-slate-500 leading-relaxed">O CMJ descreve o desempenho no salto. Altura, potência e tempo de voo, isoladamente, não permitem concluir sobre recrutamento muscular, rigidez tendínea, risco de lesão ou causa de uma mudança no resultado.</p>
+              <p className="text-[10px] text-slate-500 leading-relaxed">O {jumpName} descreve o desempenho no salto. Altura, potência e tempo de voo, isoladamente, não permitem concluir sobre recrutamento muscular, rigidez tendínea, risco de lesão ou causa de uma mudança no resultado.</p>
             </div>
           </ReportPage>
 
@@ -14292,6 +14298,7 @@ const AssessmentView: FC<{
     useState<IsometricStrength | null>(null);
   const [showImtpReport, setShowImtpReport] = useState<Imtp | null>(null);
   const [showCmjReport, setShowCmjReport] = useState<Cmj | null>(null);
+  const [showAbalakovReport, setShowAbalakovReport] = useState<Cmj | null>(null);
   const [showDropJumpReport, setShowDropJumpReport] = useState<DropJump | null>(null);
   const [showVo2Report, setShowVo2Report] = useState<Vo2max | null>(null);
   const [showSpeedReport, setShowSpeedReport] = useState<Speed | null>(null);
@@ -14301,6 +14308,7 @@ const AssessmentView: FC<{
     { id: "imtp", label: "Meio Agachamento (IMTP)" },
     { id: "cmj", label: "Salto CMJ" },
     { id: "dropJump", label: "Salto Drop Jump" },
+    { id: "abalakov", label: "Salto Abalakov" },
     { id: "vo2max", label: "VO2 Máx" },
     { id: "speed", label: "Velocidade" },
     { id: "postural", label: "Avaliação Postural (IA)" },
@@ -14313,6 +14321,7 @@ const AssessmentView: FC<{
       "Assimetrias acima de 10% nos extensores/flexores de joelho aumentam significativamente o risco de lesão bilateral de LCA.",
     imtp:
       "A Puxada Isométrica no Meio Agachamento (IMTP) mensura a Capacidade de Produção de Força Máxima Absoluta e Relativa, além da Taxa de Desenvolvimento de Força (RFD) e Impulso em intervalos milissegundos críticos para a performance de elite.",
+    abalakov: "Salto vertical com contramovimento e auxílio dos braços. Mantenha o mesmo padrão de balanço dos braços, aquecimento e equipamento nas reavaliações. O histórico é exclusivo do Abalakov.",
     cmj: "A potência e altura do salto refletem a força explosiva concêntrica do atleta. Avalie a profundidade para mensurar a eficiência do ciclo alongamento-encurtamento lento.",
     dropJump:
       "O Drop Jump quantifica a capacidade do atleta de tolerar forças de impacto e convertê-las em energia elástica útil com tempos mínimos de contato (RSI).",
@@ -14522,6 +14531,7 @@ const AssessmentView: FC<{
                         if (filterType === "isometricStrength") setShowStrengthReport(item);
                         if (filterType === "imtp") setShowImtpReport(item);
                         if (filterType === "cmj") setShowCmjReport(item);
+                        if (filterType === "abalakov") setShowAbalakovReport(item);
                         if (filterType === "dropJump") setShowDropJumpReport(item);
                         if (filterType === "vo2max") setShowVo2Report(item);
                         if (filterType === "speed") setShowSpeedReport(item);
@@ -14640,20 +14650,20 @@ const AssessmentView: FC<{
 
                   </>
                 )}
-                {filterType === "cmj" && (
+                {(filterType === "cmj" || filterType === "abalakov") && (
                   <>
                     <DataRow label="Peso" value={`${item.weight || 0} kg`} />
                     <DataRow
                       label="Altura do Salto"
                       value={(() => {
-                        const h = item.height > 0 && item.height < 15 ? item.height * 10 : (item.height || 0);
+                        const h = filterType === "cmj" && item.height > 0 && item.height < 15 ? item.height * 10 : (item.height || 0);
                         const hFormatted = Number.isInteger(h) ? h.toString() : h.toFixed(1);
                         const mmFormatted = Number.isInteger(h * 10) ? (h * 10).toString() : (h * 10).toFixed(1);
                         return `${hFormatted} cm (${mmFormatted} mm)`;
                       })()}
                       diff={renderDiff(
-                        item.height > 0 && item.height < 15 ? item.height * 10 : item.height,
-                        prevItem?.height > 0 && prevItem?.height < 15 ? prevItem?.height * 10 : prevItem?.height
+                        filterType === "cmj" && item.height > 0 && item.height < 15 ? item.height * 10 : item.height,
+                        filterType === "cmj" && prevItem?.height > 0 && prevItem?.height < 15 ? prevItem?.height * 10 : prevItem?.height
                       )}
                     />
                     <DataRow
@@ -14867,6 +14877,15 @@ const AssessmentView: FC<{
             data={showCmjReport}
             onClose={() => setShowCmjReport(null)}
             history={currentAssessments.cmj}
+          />
+        )}
+        {showAbalakovReport && (
+          <CmjReport
+            athlete={athlete}
+            data={showAbalakovReport}
+            onClose={() => setShowAbalakovReport(null)}
+            history={currentAssessments.abalakov || []}
+            protocol="abalakov"
           />
         )}
         {showDropJumpReport && (
@@ -15407,6 +15426,7 @@ const AssessmentForm: FC<{
       case "imtp":
         return { observations: "" };
       case "cmj":
+      case "abalakov":
         return {
           weight: getResolvedAthleteWeight(athlete),
           height: 0,
@@ -15474,7 +15494,7 @@ const AssessmentForm: FC<{
   const updateField = (field: string, val: any) => {
     setFormData((prev: any) => {
       let updated = { ...prev, [field]: val };
-      if (type === "cmj") {
+      if (type === "cmj" || type === "abalakov") {
         // No automatic calculation for any parameters to prevent differences with the professional assessment app
       }
       if (type === "dropJump") {
@@ -15554,7 +15574,7 @@ const AssessmentForm: FC<{
       }
       finalData.relativePeakForce = mass !== null && force !== null ? Number((force / mass).toFixed(2)) : null;
     }
-    if (type === "cmj") {
+    if (type === "cmj" || type === "abalakov") {
       const latestBio = athlete?.assessments?.bioimpedance?.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       )?.[0];
@@ -15572,6 +15592,7 @@ const AssessmentForm: FC<{
         type === "isometricStrength" ? "Força Isométrica" :
         type === "imtp" ? "Meio Agachamento (IMTP)" :
         type === "cmj" ? "Salto CMJ" :
+        type === "abalakov" ? "Salto Abalakov · com auxílio dos braços" :
         type === "speed" ? "Velocidade" :
         type === "dropJump" ? "Salto Drop Jump" :
         type === "vo2max" ? "VO2 Máx" :
@@ -16001,7 +16022,7 @@ const AssessmentForm: FC<{
               />
             </>
           )}
-           {type === "cmj" && (
+           {(type === "cmj" || type === "abalakov") && (
             <>
               <div className="col-span-2">
                 <Field

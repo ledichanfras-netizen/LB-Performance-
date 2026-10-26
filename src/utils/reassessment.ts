@@ -3,11 +3,11 @@ import type { Athlete, AssessmentType, DecisionCategory, DecisionMatrixRow } fro
 import { generateAthleteDecisionMatrix } from './decisionMatrixEngine';
 import { normalizeBirthDate as dateOnly } from './birthDate';
 
-export const assessmentLabels: Record<AssessmentType,string> = {imtp:'IMTP',isometricStrength:'Força de quadríceps e isquiotibiais',cmj:'CMJ',dropJump:'Drop Jump',speed:'Velocidade',vo2max:'VO₂máx',bioimpedance:'Bioimpedância',postural:'Avaliação postural'};
+export const assessmentLabels: Record<AssessmentType,string> = {imtp:'IMTP',isometricStrength:'Força de quadríceps e isquiotibiais',cmj:'CMJ',dropJump:'Drop Jump',abalakov:'Salto Abalakov',speed:'Velocidade',vo2max:'VO₂máx',bioimpedance:'Bioimpedância',postural:'Avaliação postural'};
 export const matrixTests: AssessmentType[] = ['imtp','isometricStrength','cmj','dropJump','speed','vo2max'];
 export type ReassessmentPlan = {dueDate:string;tests:AssessmentType[];createdOn:string;baseline:Partial<Record<AssessmentType,{id:string;date:string}>>};
 const categoryTest:Partial<Record<DecisionCategory,AssessmentType>>={forca_maxima:'imtp',taxa_desenvolvimento_forca:'imtp',potencia_cmj:'cmj',forca_reativa_dj:'dropJump',assimetria_prevencao:'isometricStrength',velocidade_sprint:'speed',capacidade_aerobica:'vo2max'};
-const fields:Record<string,string[]>={imtp:['peakForce','relativePeakForce'],isometricStrength:['quadricepsR','quadricepsL','hamstringsR','hamstringsL'],cmj:['height'],dropJump:['rsi','contactTime','jumpHeight'],speed:['speed5m','speed10m','speed20m','speed30m','time5m','time10m','time20m','time30m'],vo2max:['vo2max','vam']};
+const fields:Record<string,string[]>={imtp:['peakForce','relativePeakForce'],isometricStrength:['quadricepsR','quadricepsL','hamstringsR','hamstringsL'],cmj:['height'],abalakov:['height'],dropJump:['rsi','contactTime','jumpHeight'],speed:['speed5m','speed10m','speed20m','speed30m','time5m','time10m','time20m','time30m'],vo2max:['vo2max','vam']};
 export const daysBetween=(from:string,to:string)=>Math.round((Date.parse(`${to}T12:00:00Z`)-Date.parse(`${from}T12:00:00Z`))/86400000);
 const addDays=(date:string,days:number)=>new Date(Date.parse(`${date}T12:00:00Z`)+days*86400000).toISOString().slice(0,10);
 export function timelineDays(text?:string):number|null {

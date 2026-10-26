@@ -14,7 +14,7 @@ export async function mayAccessAthlete(db:Pick<Pool,'query'>, account:AccountSco
  return result.rows.length===1;
 }
 
-const mutableTables:Record<string,string>={workouts:'workouts',wellness:'wellness',sessions:'external_sessions',bioimpedance:'bioimpedance',isometricStrength:'isometric_strength',generalStrength:'general_strength',cmj:'cmj',dropJump:'drop_jump',vo2max:'vo2max',speed:'speed',imtp:'imtp'};
+const mutableTables:Record<string,string>={workouts:'workouts',wellness:'wellness',sessions:'external_sessions',bioimpedance:'bioimpedance',isometricStrength:'isometric_strength',generalStrength:'general_strength',cmj:'cmj',abalakov:'abalakov',dropJump:'drop_jump',vo2max:'vo2max',speed:'speed',imtp:'imtp'};
 export class ScopeDenied extends Error {}
 export async function scopedDelete(pool:Pool,account:AccountScope,type:string,id:string){
  const table=mutableTables[type];if(!table) throw new ScopeDenied('Tipo inválido.');

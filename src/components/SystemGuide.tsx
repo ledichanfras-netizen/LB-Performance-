@@ -75,6 +75,7 @@ export function SystemGuide({ role }: { role: 'coach' | 'athlete' }) {
       steps: coach ? [
         'Selecione o atleta para registrar e consultar os testes disponíveis, com a data correta de cada avaliação.',
         'Confira as unidades e o protocolo utilizado antes de comparar os resultados. Cada métrica tem sua própria escala no histórico.',
+        'Salto Abalakov: registre o salto com auxílio dos braços. A evolução temporal e o relatório seguem o padrão do CMJ, com histórico próprio.',
         'Use os resultados junto às demandas da modalidade e ao objetivo do atleta para orientar a prescrição.',
       ] : [
         'Consulte os resultados registrados pelo treinador e as datas das avaliações.',

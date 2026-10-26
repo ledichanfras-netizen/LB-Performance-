@@ -279,6 +279,7 @@ export const supabaseService = {
         bioimpedanceData,
         isometricStrengthData,
         cmjData,
+        abalakovData,
         dropJumpData,
         vo2maxData,
         speedData,
@@ -287,6 +288,7 @@ export const supabaseService = {
         fetchTableSafely('bioimpedance'),
         fetchTableSafely('isometric_strength'),
         fetchTableSafely('cmj'),
+        fetchTableSafely('abalakov'),
         fetchTableSafely('drop_jump'),
         fetchTableSafely('vo2max'),
         fetchTableSafely('speed'),
@@ -318,6 +320,15 @@ export const supabaseService = {
           const arr = cmjMap.get(item.athlete_id) || [];
           arr.push(item);
           cmjMap.set(item.athlete_id, arr);
+        }
+      });
+
+      const abalakovMap = new Map<string, any[]>();
+      abalakovData.forEach(item => {
+        if (item.athlete_id) {
+          const arr = abalakovMap.get(item.athlete_id) || [];
+          arr.push(item);
+          abalakovMap.set(item.athlete_id, arr);
         }
       });
 
@@ -365,6 +376,7 @@ export const supabaseService = {
         const athleteBio = bioMap.get(a.id) || [];
         const athleteIsometric = strengthMap.get(a.id) || [];
         const athleteCmj = cmjMap.get(a.id) || [];
+        const athleteAbalakov = abalakovMap.get(a.id) || [];
         const athleteDropJump = dropJumpMap.get(a.id) || [];
         const athleteVo2 = vo2maxMap.get(a.id) || [];
         const athleteSpeed = speedMap.get(a.id) || [];
@@ -482,7 +494,15 @@ export const supabaseService = {
                 observations: s.observations
             })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
             cmj: athleteCmj.map((c: any) => ({
-                ...c, 
+                ...c,
+                flightTime: c.flight_time,
+                rsi: c.rsi,
+                weight: c.weight,
+                averageForce: c.average_force,
+                observations: c.observations
+            })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
+            abalakov: athleteAbalakov.map((c: any) => ({
+                ...c,
                 flightTime: c.flight_time,
                 rsi: c.rsi,
                 weight: c.weight,
@@ -891,11 +911,12 @@ export const supabaseService = {
 
     // Assessments
     if (athlete.assessments) {
-      const { bioimpedance, isometricStrength, cmj, dropJump, vo2max, speed, imtp } = athlete.assessments;
+      const { bioimpedance, isometricStrength, cmj, abalakov, dropJump, vo2max, speed, imtp } = athlete.assessments;
       const assessmentTables = [
         { table: 'bioimpedance', items: bioimpedance, type: 'bioimpedance' as AssessmentType },
         { table: 'isometric_strength', items: isometricStrength, type: 'isometricStrength' as AssessmentType },
         { table: 'cmj', items: cmj, type: 'cmj' as AssessmentType },
+        { table: 'abalakov', items: abalakov, type: 'abalakov' as AssessmentType },
         { table: 'drop_jump', items: dropJump, type: 'dropJump' as AssessmentType },
         { table: 'vo2max', items: vo2max, type: 'vo2max' as AssessmentType },
         { table: 'speed', items: speed, type: 'speed' as AssessmentType },
@@ -991,6 +1012,26 @@ export const supabaseService = {
             const { error: fallbackError } = await supabase.from('cmj').upsert(fallbackPayload);
             if (fallbackError) throw fallbackError;
           }
+        })());
+      }
+
+      if (abalakov && abalakov.length > 0) {
+        assessmentPromises.push((async () => {
+          const payload = abalakov.map(c => ({
+            id: c.id || `abalakov-${Date.now()}-${Math.random()}`,
+            athlete_id: athlete.id,
+            date: c.date,
+            height: c.height ?? 0,
+            power: c.power ?? 0,
+            depth: c.depth ?? 0,
+            rsi: c.rsi ?? 0,
+            flight_time: c.flightTime ?? 0,
+            weight: c.weight ?? 0,
+            average_force: c.averageForce ?? 0,
+            observations: c.observations || ''
+          }));
+          const { error } = await supabase.from('abalakov').upsert(payload);
+          if (error) throw error;
         })());
       }
 
@@ -1139,6 +1180,7 @@ export const supabaseService = {
       await safeDelete('bioimpedance');
       await safeDelete('isometric_strength');
       await safeDelete('cmj');
+      await safeDelete('abalakov');
       await safeDelete('drop_jump');
       await safeDelete('vo2max');
       await safeDelete('speed');
@@ -1189,6 +1231,7 @@ export const supabaseService = {
         'bioimpedance': 'bioimpedance',
         'isometricStrength': 'isometric_strength',
         'cmj': 'cmj',
+        'abalakov': 'abalakov',
         'dropJump': 'drop_jump',
         'vo2max': 'vo2max',
         'speed': 'speed'

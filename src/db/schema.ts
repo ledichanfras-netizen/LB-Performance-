@@ -151,6 +151,21 @@ export const cmj = pgTable('cmj', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const abalakov = pgTable('abalakov', {
+  id: text('id').primaryKey(),
+  athleteId: text('athlete_id').references(() => athletes.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),
+  height: real('height'),
+  power: real('power'),
+  depth: real('depth'),
+  rsi: real('rsi'),
+  flightTime: real('flight_time'),
+  weight: real('weight'),
+  averageForce: real('average_force'),
+  observations: text('observations'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const vo2max = pgTable('vo2max', {
   id: text('id').primaryKey(),
   athleteId: text('athlete_id').references(() => athletes.id, { onDelete: 'cascade' }),
@@ -270,6 +285,7 @@ export const athletesRelations = relations(athletes, ({ many }) => ({
   externalSessions: many(externalSessions),
   isometricStrength: many(isometricStrength),
   cmj: many(cmj),
+  abalakov: many(abalakov),
   vo2max: many(vo2max),
   bioimpedance: many(bioimpedance),
   speed: many(speed),

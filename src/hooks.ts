@@ -134,6 +134,7 @@ const ensureImtpAndMigrate = (a: any): Athlete => {
         return copy;
       }),
       cmj: currentAssessments.cmj || [],
+      abalakov: currentAssessments.abalakov || [],
       dropJump: currentAssessments.dropJump || [],
       vo2max: currentAssessments.vo2max || [],
       speed: currentAssessments.speed || [],

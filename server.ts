@@ -1,3 +1,4 @@
+import { ensureAbalakovTable, saveAbalakovAssessments } from './server/abalakov';
 import { readFollowUpType, followUpType } from './src/utils/followUp';
 import { reassessmentRouter } from './server/reassessment';
 import { readReassessmentPlan } from './src/utils/reassessment';
@@ -953,6 +954,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
           bioimpedanceData,
           isometricStrengthData,
           cmjData,
+          abalakovData,
           dropJumpData,
           vo2maxData,
           speedData,
@@ -961,6 +963,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
           fetchTableSafely('bioimpedance'),
           fetchTableSafely('isometric_strength'),
           fetchTableSafely('cmj'),
+          fetchTableSafely('abalakov'),
           fetchTableSafely('drop_jump'),
           fetchTableSafely('vo2max'),
           fetchTableSafely('speed'),
@@ -982,6 +985,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         const bioMap = mapByAthleteId(bioimpedanceData);
         const strengthMap = mapByAthleteId(isometricStrengthData);
         const cmjMap = mapByAthleteId(cmjData);
+        const abalakovMap = mapByAthleteId(abalakovData);
         const dropJumpMap = mapByAthleteId(dropJumpData);
         const vo2maxMap = mapByAthleteId(vo2maxData);
         const speedMap = mapByAthleteId(speedData);
@@ -1068,6 +1072,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
               isometricStrength: (strengthMap.get(a.id) || []).map((s: any) => ({ ...s, halfSquatKgf: s.half_squat_kgf, quadricepsR: s.quadriceps_r, quadricepsL: s.quadriceps_l, hamstringsR: s.hamstrings_r, hamstringsL: s.hamstrings_l, iqRatioR: s.iq_ratio_r, iqRatioL: s.iq_ratio_l }))
                 .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
               cmj: (cmjMap.get(a.id) || []).map((c: any) => ({ ...c, rsi: c.rsi, flightTime: c.flight_time, weight: c.weight, averageForce: c.average_force ?? c.averageForce ?? 0 }))
+                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
+              abalakov: (abalakovMap.get(a.id) || []).map((c: any) => ({ ...c, rsi: c.rsi, flightTime: c.flight_time, weight: c.weight, averageForce: c.average_force ?? c.averageForce ?? 0 }))
                 .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
               dropJump: (() => {
                 const dbDj = (dropJumpMap.get(a.id) || []).map((dj: any) => ({
@@ -1165,7 +1171,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     const params = scoped ? (isAthlete ? [scoped.organization_id,athleteId] : [scoped.organization_id]) : isAthlete && athleteId ? [athleteId] : [];
 
     let athletesRes, wellnessRes, workoutsRes, exercisesRes, performedSetsRes, 
-        strengthRes, cmjRes, vo2Res, bioRes, speedRes, externalRes, dropJumpRes, imtpRes;
+        strengthRes, cmjRes, abalakovRes, vo2Res, bioRes, speedRes, externalRes, dropJumpRes, imtpRes;
 
     try {
       const dbQueries = await Promise.all([
@@ -1181,7 +1187,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         pool.query(`SELECT * FROM speed ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM external_sessions ${whereClause} ORDER BY date DESC`, params),
         pool.query(`SELECT * FROM drop_jump ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM imtp ${whereClause} ORDER BY date DESC`, params)
+        pool.query(`SELECT * FROM imtp ${whereClause} ORDER BY date DESC`, params),
+        pool.query(`SELECT * FROM abalakov ${whereClause} ORDER BY date DESC`, params)
       ]);
       
       athletesRes = dbQueries[0];
@@ -1197,6 +1204,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       externalRes = dbQueries[10];
       dropJumpRes = dbQueries[11];
       imtpRes = dbQueries[12];
+      abalakovRes = dbQueries[13];
     } catch (dbError: any) {
       console.warn("[SERVIÇO] Falha ao ler dados de Postgres local (Acionando Fallback para Supabase / Cache):", dbError.message);
       let formatted = await loadFromSupabase();
@@ -1245,6 +1253,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     const workoutsByAth = groupById(workoutsRes.rows.filter((w:any) => !w.archived_at));
     const strengthByAth = groupById(strengthRes.rows);
     const cmjByAth = groupById(cmjRes.rows);
+    const abalakovByAth = groupById(abalakovRes.rows);
     const vo2ByAth = groupById(vo2Res.rows);
     const bioByAth = groupById(bioRes.rows);
     const speedByAth = groupById(speedRes.rows);
@@ -1365,7 +1374,14 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
             halfSquatKgf: s.half_squat_kgf
         })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
         cmj: (cmjByAth[a.id] || []).map((c: any) => ({
-            ...c, 
+            ...c,
+            flightTime: c.flight_time,
+            rsi: c.rsi,
+            weight: c.weight,
+            averageForce: c.average_force ?? c.averageForce ?? 0
+        })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
+        abalakov: (abalakovByAth[a.id] || []).map((c: any) => ({
+            ...c,
             flightTime: c.flight_time,
             rsi: c.rsi,
             weight: c.weight,
@@ -1785,11 +1801,12 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
 
          // Upsert Assessments
          if (athlete.assessments) {
-          const { bioimpedance, isometricStrength, cmj, dropJump, vo2max, speed, imtp } = athlete.assessments;
+          const { bioimpedance, isometricStrength, cmj, abalakov, dropJump, vo2max, speed, imtp } = athlete.assessments;
           const assessmentTables = [
             { table: 'bioimpedance', items: bioimpedance },
             { table: 'isometric_strength', items: isometricStrength },
             { table: 'cmj', items: cmj },
+            { table: 'abalakov', items: abalakov },
             { table: 'drop_jump', items: dropJump },
             { table: 'vo2max', items: vo2max },
             { table: 'speed', items: speed },
@@ -1881,6 +1898,23 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
               const { error: fallbackErr } = await supabase.from('cmj').upsert(fallbackPayload);
               if (fallbackErr) throw fallbackErr;
             }
+          }
+          if (abalakov?.length > 0) {
+            const abalakovPayload = abalakov.map((c: any) => ({
+              id: c.id || `abalakov-${Date.now()}-${Math.random()}`,
+              date: c.date,
+              height: c.height ?? 0,
+              power: c.power ?? 0,
+              depth: c.depth ?? 0,
+              rsi: c.rsi ?? 0,
+              flight_time: c.flightTime ?? 0,
+              weight: c.weight ?? 0,
+              average_force: c.averageForce ?? 0,
+              observations: c.observations || '',
+              athlete_id: athlete.id
+            }));
+            const { error: abalakovUpErr } = await supabase.from('abalakov').upsert(abalakovPayload);
+            if (abalakovUpErr) throw abalakovUpErr;
           }
           if (vo2max?.length > 0) {
             const { error: vo2UpErr } = await supabase.from('vo2max').upsert(vo2max.map((v: any) => ({
@@ -2156,6 +2190,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
           );
         }
 
+        await saveAbalakovAssessments(writes, athlete);
+
         const vo2 = athlete.assessments.vo2max || [];
         console.log(`[API] ${vo2.length} testes de VO2max.`);
         for (const asm of vo2) {
@@ -2287,6 +2323,7 @@ apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
       await pool.query('DELETE FROM bioimpedance WHERE athlete_id = $1', [id]).catch(() => {});
       await pool.query('DELETE FROM isometric_strength WHERE athlete_id = $1', [id]).catch(() => {});
       await pool.query('DELETE FROM cmj WHERE athlete_id = $1', [id]).catch(() => {});
+      await pool.query('DELETE FROM abalakov WHERE athlete_id = $1', [id]);
       await pool.query('DELETE FROM drop_jump WHERE athlete_id = $1', [id]).catch(() => {});
       await pool.query('DELETE FROM vo2max WHERE athlete_id = $1', [id]).catch(() => {});
       await pool.query('DELETE FROM speed WHERE athlete_id = $1', [id]).catch(() => {});
@@ -2376,6 +2413,7 @@ apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
     'isometricStrength': 'isometric_strength',
     'generalStrength': 'general_strength',
     'cmj': 'cmj',
+    'abalakov': 'abalakov',
     'dropJump': 'drop_jump',
     'vo2max': 'vo2max',
     'speed': 'speed',
@@ -3150,6 +3188,8 @@ async function runSetup(retries = 1) {
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS weight REAL;`);
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS average_force REAL;`);
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+
+    await ensureAbalakovTable(client);
 
     await client.query(`CREATE TABLE IF NOT EXISTS vo2max (
         id TEXT PRIMARY KEY, 
