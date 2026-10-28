@@ -62,10 +62,12 @@ export function SystemGuide({ role }: { role: 'coach' | 'athlete' }) {
       icon: CalendarDays, title: 'Competições', summary: coach ? 'Jogos e provas de todos os seus atletas.' : 'Seus jogos, provas e torneios.',
       steps: coach ? [
         'Abra Competições para ver o calendário geral, sem precisar selecionar um atleta antes.',
+        'Em Conquistas LB, filtre os resultados confirmados e gere o relatório. Revise relatos de atletas e sugestões de registros antigos antes de contabilizar.',
         'Use Mês ou Agenda e filtre por atleta e modalidade. Em Mais filtros, escolha prioridade e situação. No celular, a Agenda é a visualização inicial.',
         'Ao cadastrar, escolha o atleta. Em Detalhes / pré e pós, consulte ou edite os dados. Ao concluir com duração e PSE, a carga da competição entra no acompanhamento.',
       ] : [
         'Cadastre seus jogos e provas com data, horário, modalidade e local. Seu calendário mostra somente os seus eventos.',
+        'Na coleta pós-jogo, registre sua conquista e a medalha recebida, se houver. O treinador confirma a inclusão nos totais e no histórico de Minhas Conquistas.',
         'Alterne entre Mês e Agenda para consultar as competições. Seu treinador acompanha esses registros no calendário geral.',
         'Abra Detalhes / pré e pós para preencher as informações solicitadas. Ao concluir com duração e PSE, a carga da competição entra no acompanhamento.',
       ],

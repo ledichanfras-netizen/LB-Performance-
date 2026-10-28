@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import type { Athlete, Workout, WellnessEntry } from '../types';
 import { dashboardSummary, sessionLoad, validNumber } from '../utils/dashboardSummary';
 import { metricDateLabel, metricDay } from '../utils/metricTimeline';
+import {AthleteAchievementsCard} from './AchievementsPanel';
 import MetricEvolution from './MetricEvolution';
 
 type Props = { athlete: Athlete; role: 'coach' | 'athlete'; today: string; lbx: React.ReactNode; onAddWellness?: () => void; onEditWellness?: (entry: WellnessEntry) => void; onStartWorkout: (w: Workout) => void; onOpenWorkouts?: () => void; onOpenReadiness: () => void; onOpenLoad: () => void };
@@ -50,6 +51,7 @@ export default function AthleteDashboardPanel({ athlete, role, today, lbx, onAdd
       <details className="mt-5 pt-4 border-t border-slate-800"><summary className="text-xs font-black text-brand-primary cursor-pointer py-2">Ver carga diária</summary>{data.load === null ? <p className="text-xs text-slate-400 py-4">Registre PSE e duração nas sessões concluídas para acompanhar a carga.</p> : <div className="h-48 mt-4 w-full min-w-0"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.dailyLoads} margin={{ left: 0, right: 12, top: 8, bottom: 6 }}><CartesianGrid vertical={false} stroke="#64748b" opacity={0.2} /><XAxis dataKey="time" tickFormatter={t => metricDateLabel(Number(t))} fontSize={11} stroke="#94a3b8" minTickGap={15} /><YAxis width={46} fontSize={11} stroke="#94a3b8" /><Tooltip labelFormatter={t => metricDateLabel(Number(t), true)} formatter={v => [`${number(Number(v))} UA`, 'Carga interna']} contentStyle={{ background: '#0f172a', borderColor: '#334155', borderRadius: 12 }} /><Bar dataKey="load" fill="#10b981" radius={[4,4,0,0]} /></BarChart></ResponsiveContainer></div>}</details>
       <button className={`${action} mt-4`} onClick={onOpenLoad}>{isAthlete ? 'Ver minhas cargas' : 'Monitoramento de carga'}</button>
     </section>
+    <AthleteAchievementsCard athlete={athlete} role={role}/>
     <section data-tone="goal" className={section}><h3 className="text-sm font-black text-white uppercase inline-flex gap-2 items-center mb-3"><Target className="w-4 h-4 text-brand-primary" />{isAthlete ? 'Meu objetivo' : 'Objetivo do atleta'}</h3><p className="text-sm text-slate-300 whitespace-pre-wrap break-words">{athlete.goal || 'Objetivo ainda não registrado no perfil.'}</p></section>
   </div>;
 }

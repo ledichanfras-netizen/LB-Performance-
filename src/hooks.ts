@@ -241,6 +241,10 @@ export const useAthletes = (token?: string | null) => {
 
   const acceptSaveReceipt = async (res: Response, saved: Athlete[]) => {
     const receipt = await res.json();
+    if (receipt.matchesByAthlete) {
+      for (const a of saved) if (receipt.matchesByAthlete[a.id]) a.matches=receipt.matchesByAthlete[a.id];
+      setAthletes(prev=>prev.map(a=>receipt.matchesByAthlete[a.id]?{...a,matches:receipt.matchesByAthlete[a.id]}:a));
+    }
     if (receipt.syncRevisions) {
       for (const a of saved) if (receipt.syncRevisions[a.id]) a.syncRevision=receipt.syncRevisions[a.id];
       setAthletes(prev=>prev.map(a=>receipt.syncRevisions[a.id] ? {...a,syncRevision:receipt.syncRevisions[a.id]} : a));

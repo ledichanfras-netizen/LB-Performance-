@@ -1,3 +1,4 @@
+import {saveStudentCompetitions} from './competitionAchievements';
 import { lockAthleteSnapshots, readSavedRevisions } from './workoutSync';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -54,8 +55,9 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
    }
   }
  }
+ const savedMatches=await saveStudentCompetitions(c,athlete);
  await c.query('UPDATE athletes SET updated_at=CURRENT_TIMESTAMP WHERE id=$1',[athlete.id]);
  const syncRevisions=await readSavedRevisions(c,[athlete]);
- await c.query('COMMIT');return {syncRevisions,message:'Prontidão, sessões e execução sincronizadas. Prescrição preservada.'};
+ await c.query('COMMIT');return {syncRevisions,...(savedMatches?{matchesByAthlete:{[athlete.id]:savedMatches}}:{}),message:'Prontidão, sessões e execução sincronizadas. Prescrição preservada.'};
  }catch(e){discardClient=true;try{await c.query('ROLLBACK');}catch{}throw e;}finally{c.release(discardClient);}
 }

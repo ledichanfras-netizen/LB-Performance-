@@ -106,6 +106,8 @@ export interface MatchEvent {
   preGameCheckinDone?: boolean;
   preGameNotes?: string;
 
+  achievement?: import('./utils/achievements').Achievement;
+  achievementReview?: 'dismissed';
   // Coleta Pós-Jogo / Pós-Prova
   result?: MatchResultOption;
   scoreOrTime?: string; // e.g. "3x1", "2h45min", "6-3 / 6-4"

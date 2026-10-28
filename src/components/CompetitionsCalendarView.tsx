@@ -1,3 +1,6 @@
+import AchievementsPanel from './AchievementsPanel';
+import AchievementFields from './AchievementFields';
+import {readAchievement,emptyAchievement,type Achievement} from '../utils/achievements';
 import React, { FC, useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Trophy, Calendar as CalendarIcon, Plus, Trash2, MapPin, ChevronLeft, ChevronRight, Filter, Check, X, Edit2, Layers } from "lucide-react";
@@ -50,6 +53,8 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   role
 }) => {
   const modalViewportRef = useRef<HTMLDivElement>(null);
+  const [sectionView,setSectionView] = useState<"calendar"|"achievements">("calendar");
+  const [formAchievement,setFormAchievement] = useState<Achievement|undefined>();
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>("todos");
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("todas");
   const [viewMode, setViewMode] = useState<"calendar" | "list">(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches ? 'list' : 'calendar');
@@ -188,6 +193,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
     if (!owner) return;
     setFormAthleteId(owner.id);
     setSelectedMatch(null);
+    setFormAchievement(undefined);
     setModalTab("info");
     setFormTitle("");
     setFormSport((owner.modality as SportOption) || "Futebol");
@@ -228,6 +234,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   const handleOpenEditModal = (match: MatchEvent) => {
     setFormAthleteId(match.athleteId);
     setSelectedMatch(match);
+    setFormAchievement(readAchievement(match.achievement));
     setModalTab("info");
     setFormTitle(match.title);
     setFormSport(match.sport);
@@ -298,7 +305,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
     };
 
     const calculatedLoad = (formDurationMinutes || 0) * (formPostRpe || 0);
-    const isCompleted = formResult !== "Pendente";
+    const isCompleted = formResult !== "Pendente" || !!formAchievement;
 
     const matchToSave: MatchEvent = {
       id: selectedMatch ? selectedMatch.id : `match-${Date.now()}`,
@@ -317,7 +324,9 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
       preGameReadinessScore: formPreReadinessScore > 0 ? formPreReadinessScore : undefined,
       preGameCheckinDone: formPreReadinessScore > 0,
       preGameNotes: formPreNotes,
-      result: formResult,
+      result: formAchievement && formResult === "Pendente" ? "Concluído" : formResult,
+      achievement: formAchievement ? {...formAchievement,...(role==='coach' && modalTab==='post'?{status:'confirmed' as const,confirmedAt:new Date().toISOString()}:role==='athlete'?{status:'pending' as const,confirmedAt:undefined}:{})} : undefined,
+      achievementReview: selectedMatch?.achievementReview,
       scoreOrTime: formScoreOrTime,
       durationMinutes: formDurationMinutes,
       postRpe: formPostRpe,
@@ -388,7 +397,8 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
         <div className="lc-hero-row"><div><h2>Competições<br />no seu radar.</h2><p>{role === 'coach' ? 'Todos os seus atletas. Uma visão para planejar.' : 'Seus jogos, provas e torneios em um só lugar.'}</p></div><button className="lc-primary" onClick={() => handleOpenCreateModal()} disabled={!owners.length}><Plus size={17} /> Novo jogo / prova</button></div>
         <div className="lc-hero-bottom"><span><span className="lc-dot" />{role === 'coach' ? 'Calendário geral' : 'Meu calendário'}</span><span>Jogos · Provas · Torneios</span></div>
       </header>
-      <div className="lc-body">
+      <div className="lc-segment" aria-label="Área de competições"><button type="button" aria-pressed={sectionView==='calendar'} onClick={()=>setSectionView('calendar')}><CalendarIcon size={16}/>Calendário</button><button type="button" aria-pressed={sectionView==='achievements'} onClick={()=>setSectionView('achievements')}><Trophy size={16}/>{role==='coach'?'Conquistas LB':'Minhas conquistas'}</button></div>
+      {sectionView==='achievements' ? <AchievementsPanel athletes={owners} role={role} onEdit={m=>{handleOpenEditModal(m);setModalTab('post');if(!m.achievement)setFormAchievement({...emptyAchievement(),notes:m.postGameNotes || m.sportSpecificData?.rankPosition || ''});}} onDismiss={m=>{const owner=owners.find(a=>a.id===m.athleteId);if(owner)persist(owner,{matches:(owner.matches || []).map(e=>e.id===m.id?{...e,achievementReview:'dismissed'}:e)});}}/> : <div className="lc-body">
         <div className="lc-filters">
           {role === 'coach' && <label>Atleta<select aria-label="Filtrar por atleta" value={athleteFilter} onChange={e => setAthleteFilter(e.target.value)}><option value="all">Todos os atletas</option>{owners.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
           <label>Modalidade<select aria-label="Filtrar por modalidade" value={selectedSportFilter} onChange={e => setSelectedSportFilter(e.target.value)}><option value="todos">Todas as modalidades</option>{SPORTS_LIST.map(s => <option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}</select></label>
@@ -409,6 +419,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
           </article>)}</div>}
         </section>
       </div>
+      }
       {/* CREATE / EDIT & COLLECTION MODAL */}
       {createPortal(<AnimatePresence>
         {isModalOpen && (
@@ -906,6 +917,8 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                         </div>
                       )}
                     </div>
+
+                    <AchievementFields value={formAchievement} onChange={setFormAchievement} role={role}/>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
