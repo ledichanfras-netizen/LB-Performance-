@@ -1,4 +1,5 @@
-import React, { FC, useState, useMemo } from "react";
+import React, { FC, useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Trophy, Calendar as CalendarIcon, Plus, Trash2, MapPin, ChevronLeft, ChevronRight, Filter, Check, X, Edit2, Layers } from "lucide-react";
 import {
   Athlete,
@@ -48,6 +49,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   onUpdateAthleteById,
   role
 }) => {
+  const modalViewportRef = useRef<HTMLDivElement>(null);
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>("todos");
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("todas");
   const [viewMode, setViewMode] = useState<"calendar" | "list">(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches ? 'list' : 'calendar');
@@ -68,6 +70,29 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   // Modal for Create/Edit Match
   const [selectedMatch, setSelectedMatch] = useState<MatchEvent | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const viewport = window.visualViewport;
+    const fitViewport = () => {
+      const overlay = modalViewportRef.current;
+      if (!overlay) return;
+      overlay.style.height = `${viewport?.height || window.innerHeight}px`;
+      overlay.style.top = `${viewport?.offsetTop || 0}px`;
+    };
+    fitViewport();
+    viewport?.addEventListener('resize', fitViewport);
+    viewport?.addEventListener('scroll', fitViewport);
+    window.addEventListener('resize', fitViewport);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      viewport?.removeEventListener('resize', fitViewport);
+      viewport?.removeEventListener('scroll', fitViewport);
+      window.removeEventListener('resize', fitViewport);
+    };
+  }, [isModalOpen]);
+
   const [modalTab, setModalTab] = useState<"info" | "pre" | "post">("info");
 
   // Form State
@@ -385,22 +410,26 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
         </section>
       </div>
       {/* CREATE / EDIT & COLLECTION MODAL */}
-      <AnimatePresence>
+      {createPortal(<AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+          <div ref={modalViewportRef} className="lb-competitions lc-modal-overlay bg-slate-950/85 backdrop-blur-md">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="lc-modal bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 md:p-8 max-w-2xl w-full my-auto max-h-[calc(100dvh-16px)] sm:max-h-[calc(100dvh-32px)] overflow-y-auto shadow-2xl space-y-5 relative no-scrollbar"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="competition-modal-title"
+              className="lc-modal bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl relative"
             >
+              <div className="lc-modal-scroll space-y-5 p-4 sm:p-6 md:p-8">
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                 <div>
                   <div className="text-[9px] font-black text-brand-primary uppercase tracking-widest">
                     GERENCIADOR DE COMPETIÇÕES & COLETA
                   </div>
-                  <h3 className="text-xl font-black text-white italic uppercase tracking-tight">
+                  <h3 id="competition-modal-title" className="text-xl font-black text-white italic uppercase tracking-tight">
                     {selectedMatch ? "EDITAR / COLETAR DADOS DO JOGO" : "NOVO JOGO OU PROVA DE COMPETIÇÃO"}
                   </h3>
                 </div>
@@ -452,7 +481,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                 </button>
               </div>
 
-              <form onSubmit={handleSaveMatch} className="space-y-6">
+              <form id="competition-collection-form" onSubmit={handleSaveMatch} className="space-y-6">
                 <label className="lc-owner-label">Atleta
                   <select aria-label="Atleta da competição" value={formAthleteId} disabled={Boolean(selectedMatch) || role !== 'coach'} onChange={e => { setFormAthleteId(e.target.value); const owner = owners.find(a => a.id === e.target.value); setFormSport((owner?.modality as SportOption) || 'Futebol'); }}>
                     {owners.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -892,8 +921,10 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                   </div>
                 )}
 
-                {/* MODAL ACTIONS */}
-                <div className="sticky bottom-0 z-20 -mx-2 px-2 py-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center gap-3 pt-3">
+              </form>
+              </div>
+                {/* Actions stay outside the scrolling fields, above app navigation. */}
+                <div className="lc-modal-actions border-t border-slate-800 flex items-center gap-3 p-4 sm:px-6 md:px-8">
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
@@ -903,17 +934,17 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
                   </button>
                   <button
                     type="submit"
+                    form="competition-collection-form"
                     className="w-2/3 py-3 bg-brand-primary hover:bg-lime-400 text-slate-950 font-black text-xs uppercase rounded-xl tracking-wider shadow-lg shadow-brand-primary/20 transition-all active:scale-95 cursor-pointer"
                   >
                     Salvar Evento & Coleta
                   </button>
                 </div>
 
-              </form>
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
     </div>
   );

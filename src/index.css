@@ -2176,6 +2176,23 @@ body.light-theme .lb-competitions { --lc-scheme:light; --lc-bg:#f5f8f6; --lc-pan
 .lb-competitions .lc-delete:hover { background:var(--lc-amber-soft); color:var(--lc-amber); }
 .lb-competitions .lc-empty { display:flex; flex-direction:column; align-items:center; gap:15px; color:var(--lc-muted); text-align:center; padding:30px 0; font-size:14px; }
 .lb-competitions .lc-modal { background:var(--lc-panel)!important; color:var(--lc-text); border-color:var(--lc-line)!important; }
+/* Competition dialog escapes animated page layers and the fixed mobile menu. */
+.lb-competitions.lc-modal-overlay {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 2200;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  overflow: hidden;
+  isolation: isolate;
+}
+.lc-modal-overlay .lc-modal { display:flex; flex-direction:column; max-height:100%; min-height:0; overflow:hidden; }
+.lc-modal-overlay .lc-modal-scroll { min-height:0; overflow-y:auto; overscroll-behavior-y:contain; -webkit-overflow-scrolling:touch; scroll-padding-block:16px; }
+.lc-modal-overlay .lc-modal-actions { flex-shrink:0; background:var(--lc-panel); }
+.lc-modal-overlay .lc-modal-actions button { min-height:48px; min-width:0; white-space:normal; }
 @media(max-width:500px) {
   .lb-competitions .lc-hero { padding:21px 17px; }
   .lb-competitions .lc-body { padding:17px 12px; }
