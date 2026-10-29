@@ -314,7 +314,12 @@ test('student invites are organization-scoped, revocable, and usable with an 8-c
  assert.equal((await request('/accept','coach','POST',{token:next.token,password:'Pass1234'})).status,400);
  const logged=await request('/login','coach','POST',{username:'ana.new',password:'Pass1234'});assert.equal(logged.status,200);const pupil=await logged.json();assert.equal(pupil.organizationId,org);assert.equal(pupil.role,'athlete');
  const onlyOwn=await fetch(base+'/athletes',{headers:{Authorization:`Bearer ${pupil.token}`}});assert.deepEqual((await onlyOwn.json()).map((a:any)=>a.id),['a']);
- assert.equal((await request('/invites','coach','POST',invite('Existing'))).status,201);
+ const reinvite=await request('/invites','coach','POST',invite('Existing'));assert.equal(reinvite.status,201);const reinviteData=await reinvite.json();
+ await db.query("UPDATE lb_accounts.memberships SET active=false,session_version=session_version+1 WHERE user_id='student'");
+ assert.equal((await request('/login','coach','POST',{username:'Existing',password:'Pass1234'})).status,401);
+ assert.equal((await request('/accept','coach','POST',{token:reinviteData.token,password:'NewPass1234'})).status,201);
+ const restored=await request('/login','coach','POST',{username:'Existing',password:'NewPass1234'});assert.equal(restored.status,200);assert.equal((await restored.json()).role,'athlete');
+ assert.equal((await request('/me','student')).status,401);
  await db.query('INSERT INTO lb_accounts.supervisor_links(supervisor_id,organization_id,granted_by) VALUES($1,$2,$1)',['admin',org]);
  assert.equal((await request('/invites','admin','POST',invite('trainer.two',org,'','coach'))).status,201);
  const filtered=await request(`/access/invites?organizationId=${org}`);assert.ok((await filtered.json()).items.every((i:any)=>i.role==='athlete'));

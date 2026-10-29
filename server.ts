@@ -1,3 +1,4 @@
+import {secureLogin} from './server/secureLogin';
 import { ensureAbalakovTable, saveAbalakovAssessments } from './server/abalakov';
 import { readFollowUpType, followUpType } from './src/utils/followUp';
 import { reassessmentRouter } from './server/reassessment';
@@ -14,7 +15,6 @@ import { liveMembership } from './server/liveMembership';
 import { accountRouter } from './server/accounts';
 import { saveStudentData } from './server/studentSave';
 import { hasSportsAccess } from './server/entitlement';
-import { allowAccountAttempt } from './server/accountRate';
 import { validateScopedSave, attachSavedAthletes } from './server/saveScope';
 import { scopedDelete, mayAccessAthlete, ScopeDenied } from './server/scope';
 import compression from 'compression';
@@ -25,7 +25,6 @@ import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 import { createClient } from '@supabase/supabase-js';
@@ -504,15 +503,14 @@ const authMiddleware = async (req: any, res: any, next: any) => {
       }catch{return res.status(403).json({error:'Supervisão somente leitura: vínculo ou sessão indisponível.'});}
     }
     const claims = decoded as any;
-    if(process.env.ACCOUNTS_ENABLED==='true' && claims.accountMode!=='scoped')return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
-    if(claims.accountMode==='scoped' && isDbConnected && process.env.ACCOUNTS_ENABLED==='true' && process.env.SCOPED_SPORTS_ENABLED==='true'){
-      try {
-        const account=await liveMembership(pool,claims);
-        if(process.env.BILLING_ENFORCE==='true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account))return res.status(402).json({error:'Assinatura vencida ou não liberada.'});
-        req.account=account;claims.role=account.role;claims.athleteId=account.athlete_id;claims.organizationId=account.organization_id;
-      } catch (e) {
-        // Fallback for direct coach/athlete sessions when scoped membership is not initialized
-      }
+    if(claims.accountMode!=='scoped' || typeof claims.organizationId!=='string')return res.status(401).json({error:'Faça login novamente pelo acesso seguro.'});
+    try {
+      // A missing, inactive or revoked membership always invalidates the session.
+      const account=await liveMembership(pool,claims);
+      if(process.env.BILLING_ENFORCE==='true' && !req.originalUrl.startsWith('/api/billing/') && !await hasSportsAccess(pool,account))return res.status(402).json({error:'Assinatura vencida ou não liberada.'});
+      req.account=account;claims.role=account.role;claims.athleteId=account.athlete_id;claims.organizationId=account.organization_id;claims.platformAdmin=account.platform_admin;
+    } catch (e:any) {
+      return res.status(e.message==='INVALID_SESSION'?401:503).json({error:e.message==='INVALID_SESSION'?'Sessão desativada ou atualizada. Entre novamente pelo convite de acesso.':'Não foi possível verificar a sessão. Tente novamente.'});
     }
     req.user = decoded;
     next();
@@ -562,334 +560,7 @@ apiRouter.get('/test', (req, res) => {
 });
 
 // Auth Routes
-apiRouter.post('/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  const trimmedUsername = (username || '').trim();
-  const trimmedPassword = (password || '').trim();
-
-  if (!trimmedUsername || !trimmedPassword) {
-    return res.status(400).json({ error: 'Informe login e senha.' });
-  }
-
-  const normalizeStr = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-  const normUser = normalizeStr(trimmedUsername);
-  console.log(`[LOGIN] Tentativa de acesso: usuário=[${trimmedUsername}]`);
-
-  try {
-    // 1. Scoped Account check (if PostgreSQL is online)
-    if (process.env.ACCOUNTS_ENABLED === 'true' && isDbConnected) {
-      try {
-        const allowed = await allowAccountAttempt(pool, 'login', trimmedUsername.toLowerCase());
-        if (allowed) {
-          const { rows } = await pool.query(
-            'SELECT u.*, m.organization_id, m.platform_admin, m.session_version FROM public.users u JOIN lb_accounts.memberships m ON m.user_id=u.id WHERE lower(u.username)=lower($1) AND m.active',
-            [trimmedUsername]
-          );
-          const u = rows[0];
-          if (u && /^\$2[aby]\$/.test(u.password || '') && await bcrypt.compare(trimmedPassword, u.password)) {
-            const token = jwt.sign(
-              { id: u.id, role: u.role, athleteId: u.athlete_id, organizationId: u.organization_id, accountMode: 'scoped', sessionVersion: u.session_version, platformAdmin: u.platform_admin },
-              JWT_SECRET,
-              { expiresIn: '24h' }
-            );
-            const licensed = process.env.BILLING_ENABLED === 'true' && await hasSportsAccess(pool, { user_id: u.id, organization_id: u.organization_id, role: u.role, athlete_id: u.athlete_id, platform_admin: u.platform_admin } as any);
-            console.log(`[LOGIN] SUCESSO: [${trimmedUsername}] (Scoped Account)`);
-            return res.json({ token, plan: u.platform_admin || licensed ? 'pro' : 'free', id: u.id, role: u.role, athleteId: u.athlete_id, organizationId: u.organization_id, platformAdmin: u.platform_admin, accountMode: 'scoped' });
-          }
-        }
-      } catch (scopedErr: any) {
-        console.warn("[LOGIN] Aviso verificação Scoped Account:", scopedErr.message);
-      }
-    }
-
-    // 2. Check Coach identity first (if credentials match Coach)
-    const lowerUser = trimmedUsername.toLowerCase();
-    const isCoachUser = 
-      lowerUser === 'leandro' || 
-      lowerUser === 'prof. leandro' || 
-      lowerUser === 'prof. leandro barbosa' || 
-      lowerUser === 'coach' || 
-      lowerUser === 'admin' ||
-      lowerUser === 'treinador' ||
-      lowerUser === 'professor' ||
-      lowerUser === 'lb';
-
-    const isCoachPassword = 
-      trimmedPassword === 'techno10' ||
-      trimmedPassword === '1234' ||
-      trimmedPassword === 'admin' ||
-      trimmedPassword === 'pro';
-
-    if (isCoachUser && isCoachPassword) {
-      console.log(`[LOGIN] SUCESSO COACH: [${trimmedUsername}] autenticado como Treinador.`);
-      
-      // Auto-save/persist coach into Cloud SQL users table if connected
-      if (isDbConnected) {
-        try {
-          const hashed = await bcrypt.hash(trimmedPassword, 10);
-          await pool.query(
-            `INSERT INTO users (id, username, password, role, plan)
-             VALUES ($1, $2, $3, 'coach', 'pro')
-             ON CONFLICT (username) DO UPDATE SET password = $3, plan = 'pro'`,
-            ['coach-' + Date.now(), trimmedUsername, hashed]
-          ).catch(() => {});
-        } catch (e) {}
-      }
-
-      const token = jwt.sign(
-        {
-          id: 'coach-1',
-          username: trimmedUsername,
-          role: 'coach',
-          athleteId: null,
-          plan: 'pro',
-          platformAdmin: true,
-          accountMode: 'scoped',
-          sessionVersion: 1,
-          organizationId: '11111111-1111-4111-8111-111111111111'
-        },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      return res.json({
-        role: 'coach',
-        athleteId: null,
-        token,
-        plan: 'pro',
-        platformAdmin: true,
-        accountMode: 'scoped'
-      });
-    }
-
-    // 3. Local Database (Users and Athletes)
-    if ((process.env.SQL_HOST || process.env.DATABASE_URL) && isDbConnected) {
-      try {
-        // Check users table
-        const userRes = await pool.query('SELECT * FROM users WHERE LOWER(username) = LOWER($1)', [trimmedUsername]);
-        if (userRes.rows.length > 0) {
-          const user = userRes.rows[0];
-          let isMatch = false;
-          if (user.password && user.password.startsWith('$2a$')) {
-            isMatch = await bcrypt.compare(trimmedPassword, user.password);
-          } else if (user.password) {
-            isMatch = user.password === trimmedPassword;
-            if (isMatch) {
-              const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
-              await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedPassword, user.id]).catch(() => {});
-            }
-          }
-
-          if (isMatch) {
-            console.log(`[LOGIN] SUCESSO: [${trimmedUsername}] (Banco Local)`);
-            const isCoach = user.role === 'coach';
-            const token = jwt.sign(
-              { id: user.id, username: user.username, role: user.role, athleteId: user.athlete_id, plan: user.plan || (isCoach ? 'pro' : 'free'), accountMode: 'scoped', platformAdmin: isCoach, sessionVersion: 1 },
-              JWT_SECRET,
-              { expiresIn: '24h' }
-            );
-            return res.json({ role: user.role, athleteId: user.athlete_id, token, plan: user.plan || (isCoach ? 'pro' : 'free'), platformAdmin: isCoach, accountMode: 'scoped' });
-          }
-        }
-
-        // Check athletes table (for student / aluno login)
-        const athletesRes = await pool.query(
-          `SELECT * FROM athletes 
-           WHERE LOWER(TRIM(name)) = LOWER($1)
-              OR LOWER(REPLACE(TRIM(name), ' ', '.')) = LOWER($1)
-              OR LOWER(SPLIT_PART(TRIM(name), ' ', 1)) = LOWER($1)
-              OR LOWER(name) LIKE LOWER($2)
-              OR id = $1`,
-          [trimmedUsername, `%${trimmedUsername}%`]
-        );
-        let athlete = athletesRes.rows[0];
-
-        // Accent-insensitive fallback in DB
-        if (!athlete) {
-          const allAth = await pool.query('SELECT id, name, dob FROM athletes LIMIT 200');
-          athlete = allAth.rows.find(a => {
-            const na = normalizeStr(a.name);
-            return na === normUser || na.includes(normUser) || normUser.includes(na);
-          });
-        }
-
-        if (athlete) {
-          let athleteMatch = false;
-          if (athlete.dob) {
-            const dobStr = typeof athlete.dob === 'string' ? athlete.dob : athlete.dob.toISOString().split('T')[0];
-            const dobParts = dobStr.split('-');
-            if (dobParts.length === 3) {
-              const dobDDMMYYYY = `${dobParts[2]}${dobParts[1]}${dobParts[0]}`;
-              const dobYYYYMMDD = `${dobParts[0]}${dobParts[1]}${dobParts[2]}`;
-              const cleanDigits = trimmedPassword.replace(/\D/g, '');
-              if (cleanDigits === dobDDMMYYYY || cleanDigits === dobYYYYMMDD || cleanDigits === `${dobParts[2]}${dobParts[1]}`) {
-                athleteMatch = true;
-              }
-            }
-          }
-          if (trimmedPassword === '1234' || trimmedPassword === '123456' || trimmedPassword === 'aluno' || trimmedPassword === 'atleta' || !athlete.dob || trimmedPassword.length >= 3) {
-            athleteMatch = true;
-          }
-
-          if (athleteMatch) {
-            console.log(`[LOGIN] SUCESSO ALUNO: [${trimmedUsername}] -> ${athlete.name} (ID: ${athlete.id})`);
-            const token = jwt.sign(
-              { id: `user-${athlete.id}`, username: athlete.name, role: 'athlete', athleteId: athlete.id, plan: 'free', accountMode: 'scoped', sessionVersion: 1 },
-              JWT_SECRET,
-              { expiresIn: '24h' }
-            );
-            return res.json({ role: 'athlete', athleteId: athlete.id, token, plan: 'free', accountMode: 'scoped' });
-          }
-        }
-      } catch (localDbErr: any) {
-        console.error("[LOGIN] Erro no Banco Local:", localDbErr.message);
-      }
-    }
-
-    // 4. Supabase Fallback
-    try {
-      const { data: sbUser } = await supabase
-        .from('users')
-        .select('*')
-        .ilike('username', trimmedUsername)
-        .maybeSingle();
-
-      if (sbUser) {
-        let isMatch = false;
-        if (sbUser.password && sbUser.password.startsWith('$2a$')) {
-          isMatch = await bcrypt.compare(trimmedPassword, sbUser.password);
-        } else if (sbUser.password) {
-          isMatch = sbUser.password === trimmedPassword;
-        }
-
-        if (isMatch) {
-          console.log(`[LOGIN] SUCESSO: [${trimmedUsername}] (Supabase Users)`);
-          const isCoach = sbUser.role === 'coach';
-          const token = jwt.sign(
-            { id: sbUser.id, username: sbUser.username, role: sbUser.role, athleteId: sbUser.athlete_id, plan: sbUser.plan || (isCoach ? 'pro' : 'free'), accountMode: 'scoped', platformAdmin: isCoach, sessionVersion: 1 },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-          );
-          return res.json({ role: sbUser.role, athleteId: sbUser.athlete_id, token, plan: sbUser.plan || (isCoach ? 'pro' : 'free'), platformAdmin: isCoach, accountMode: 'scoped' });
-        }
-      }
-
-      let sbAthlete: any = null;
-      const { data: directAth } = await supabase
-        .from('athletes')
-        .select('*')
-        .ilike('name', trimmedUsername)
-        .maybeSingle();
-
-      if (directAth) {
-        sbAthlete = directAth;
-      } else {
-        const { data: listAth } = await supabase
-          .from('athletes')
-          .select('*')
-          .ilike('name', `%${trimmedUsername}%`);
-        if (listAth && listAth.length > 0) {
-          sbAthlete = listAth.find(a => (a.name || '').trim().toLowerCase() === trimmedUsername.toLowerCase()) || listAth[0];
-        }
-      }
-
-      if (sbAthlete) {
-        let sbMatch = false;
-        if (sbAthlete.dob) {
-          const dobStr = typeof sbAthlete.dob === 'string' ? sbAthlete.dob : sbAthlete.dob.toISOString().split('T')[0];
-          const dobParts = dobStr.split('-');
-          if (dobParts.length === 3) {
-            const dobDDMMYYYY = `${dobParts[2]}${dobParts[1]}${dobParts[0]}`;
-            const cleanDigits = trimmedPassword.replace(/\D/g, '');
-            if (cleanDigits === dobDDMMYYYY) {
-              sbMatch = true;
-            }
-          }
-        }
-        if (trimmedPassword === '1234' || trimmedPassword === '123456' || trimmedPassword === 'aluno' || trimmedPassword === 'atleta' || !sbAthlete.dob || trimmedPassword.length >= 3) {
-          sbMatch = true;
-        }
-
-        if (sbMatch) {
-          console.log(`[LOGIN] SUCESSO ALUNO (Supabase): [${trimmedUsername}] -> ${sbAthlete.name}`);
-          const token = jwt.sign(
-            { id: `user-${sbAthlete.id}`, username: sbAthlete.name, role: 'athlete', athleteId: sbAthlete.id, plan: 'free', accountMode: 'scoped', sessionVersion: 1 },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-          );
-          return res.json({ role: 'athlete', athleteId: sbAthlete.id, token, plan: 'free', accountMode: 'scoped' });
-        }
-      }
-    } catch (sbErr: any) {
-      console.warn("[LOGIN] Supabase Fallback indisponível:", sbErr.message);
-    }
-
-    // 5. Featured / Cached Athletes Fallback (for students)
-    const FEATURED_ATHLETES_FALLBACK = [
-      { id: "featured-lucas-silva", name: "Lucas Silva", dob: "1998-05-15" },
-      { id: "featured-gustavo-mendes", name: "Gustavo Mendes", dob: "2001-08-22" },
-      { id: "featured-rafael-santos", name: "Rafael Santos", dob: "1995-03-10" },
-      { id: "featured-bruno-almeida", name: "Bruno Almeida", dob: "1992-11-05" },
-    ];
-
-    try {
-      const cachedAthletes = await getCachedAthletes();
-      const allCandidates = [...cachedAthletes, ...FEATURED_ATHLETES_FALLBACK];
-      const matchedAthlete = allCandidates.find(a => {
-        const na = normalizeStr(a.name);
-        return na === normUser || na.includes(normUser) || normUser.includes(na) || (a.id || '').toLowerCase() === trimmedUsername.toLowerCase();
-      });
-
-      if (matchedAthlete) {
-        let isPassOk = false;
-        if (matchedAthlete.dob) {
-          const dobStr = typeof matchedAthlete.dob === 'string' ? matchedAthlete.dob : matchedAthlete.dob.toISOString().split('T')[0];
-          const dobParts = dobStr.split('-');
-          if (dobParts.length === 3) {
-            const dobDDMMYYYY = `${dobParts[2]}${dobParts[1]}${dobParts[0]}`;
-            const cleanDigits = trimmedPassword.replace(/\D/g, '');
-            if (cleanDigits === dobDDMMYYYY || cleanDigits === `${dobParts[2]}${dobParts[1]}`) {
-              isPassOk = true;
-            }
-          }
-        }
-        if (trimmedPassword === '1234' || trimmedPassword === '123456' || trimmedPassword === 'aluno' || trimmedPassword === 'atleta' || !matchedAthlete.dob || trimmedPassword.length >= 3) {
-          isPassOk = true;
-        }
-
-        if (isPassOk) {
-          console.log(`[LOGIN] SUCESSO ALUNO (Candidato/Cache): [${trimmedUsername}] -> ${matchedAthlete.name}`);
-          
-          // Seed athlete into Cloud SQL athletes table if connected so /api/ler can return them
-          if (isDbConnected) {
-            try {
-              await pool.query(
-                `INSERT INTO athletes (id, name, dob, gender, modality, competitive_level)
-                 VALUES ($1, $2, $3, 'M', 'Performance', 'elite')
-                 ON CONFLICT (id) DO NOTHING`,
-                [matchedAthlete.id, matchedAthlete.name, matchedAthlete.dob || '1998-05-15']
-              ).catch(() => {});
-            } catch (e) {}
-          }
-
-          const token = jwt.sign(
-            { id: `user-${matchedAthlete.id}`, username: matchedAthlete.name, role: 'athlete', athleteId: matchedAthlete.id, plan: 'free', accountMode: 'scoped', sessionVersion: 1 },
-            JWT_SECRET,
-            { expiresIn: '24h' }
-          );
-          return res.json({ role: 'athlete', athleteId: matchedAthlete.id, token, plan: 'free', accountMode: 'scoped' });
-        }
-      }
-    } catch (cacheErr: any) {
-      console.warn("[LOGIN] Falha ao verificar cache de atletas:", cacheErr.message);
-    }
-
-    console.warn(`[LOGIN] FALHA: Credenciais inválidas para [${trimmedUsername}]`);
-    res.status(401).json({ error: 'Credenciais inválidas. Verifique seu login e senha.' });
-  } catch (error: any) {
-    console.error(`[LOGIN] ERRO FATAL:`, error.message);
-    res.status(500).json({ error: "Erro de processamento no servidor. Tente novamente." });
-  }
-});
+apiRouter.post('/auth/login', secureLogin(pool, JWT_SECRET));
 
 // API Routes - PROTECTED
 apiRouter.get('/ler', authMiddleware, async (req, res) => {
