@@ -119,6 +119,10 @@ export const externalSessions = pgTable('external_sessions', {
   notes: text('notes'),
   load: real('load'),
   createdAt: timestamp('created_at').defaultNow(),
+  activity: text('activity'),
+  sessionTime: text('session_time'),
+  distanceKm: real('distance_km'),
+  competitionId: text('competition_id'),
 });
 
 export const isometricStrength = pgTable('isometric_strength', {

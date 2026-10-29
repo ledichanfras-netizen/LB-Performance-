@@ -1,3 +1,5 @@
+import {externalSessionDetailsSQL,saveExternalSession} from './server/externalSessionDetails';
+import {externalSessionFromRow,externalSessionColumns} from './src/utils/externalSessions';
 import {secureLogin} from './server/secureLogin';
 import { ensureAbalakovTable, saveAbalakovAssessments } from './server/abalakov';
 import { readFollowUpType, followUpType } from './src/utils/followUp';
@@ -708,8 +710,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
               psychologyNotes: w.psychology_notes || w.psychologyNotes
             })),
             externalSessions: (a.external_sessions || []).map((es: any) => ({
-              ...es,
-              durationMinutes: es.duration_minutes
+              ...externalSessionFromRow(es)
             })),
             workouts: (a.workouts || []).filter((wk: any) => !wk.archived_at).map((wk: any) => ({
               ...wk,
@@ -981,8 +982,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         psychologyNotes: w.psychology_notes || w.psychologyNotes
       })),
       externalSessions: (externalByAth[a.id] || []).map((es: any) => ({
-        ...es,
-        durationMinutes: es.duration_minutes
+        ...externalSessionFromRow(es)
       })),
       workouts: (workoutsByAth[a.id] || []).map((wk: any) => ({
         ...wk,
@@ -1362,7 +1362,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
                  duration_minutes: dur,
                  rpe: rpeVal,
                  notes: es.notes || '',
-                 load: calculatedLoad
+                 load: calculatedLoad,
+                 ...externalSessionColumns(es)
                };
              }));
              if (upErr) throw upErr;
@@ -1778,13 +1779,7 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       }
       for (const es of (athlete.externalSessions || [])) {
         if (!es.id) es.id = `es-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const dur = es.durationMinutes ?? es.duration_minutes ?? 0;
-        const rpeVal = es.rpe ?? 0;
-        const calculatedLoad = es.load ?? (dur * rpeVal);
-        await writes.query(
-          'INSERT INTO external_sessions (id, athlete_id, date, type, duration_minutes, rpe, notes, load) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET date = $3, type = $4, duration_minutes = $5, rpe = $6, notes = $7, load = $8',
-          [es.id, athlete.id, es.date, es.type || 'tecnico', dur, rpeVal, es.notes || '', calculatedLoad]
-        );
+        await saveExternalSession(writes,athlete.id,es);
       }
 
       console.log(`Salvando treinos para ${athlete.name}...`);
@@ -3143,6 +3138,8 @@ async function runSetup(retries = 1) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
     
+    await client.query(externalSessionDetailsSQL);
+
     // Administrative accounts are provisioned explicitly; never reset passwords on startup.
 
     // Create performance indexes

@@ -70,6 +70,7 @@ export function SystemGuide({ role }: { role: 'coach' | 'athlete' }) {
         'Na coleta pós-jogo, registre sua conquista e a medalha recebida, se houver. O treinador confirma a inclusão nos totais e no histórico de Minhas Conquistas.',
         'Alterne entre Mês e Agenda para consultar as competições. Seu treinador acompanha esses registros no calendário geral.',
         'Abra Detalhes / pré e pós para preencher as informações solicitadas. Ao concluir com duração e PSE, a carga da competição entra no acompanhamento.',
+        'Em Treinos → Sessões externas, registre a atividade, duração e PSE reais. Horário e distância são opcionais. Competições vinculadas já entram na carga e devem ser ajustadas no evento de origem.',
       ],
     },
     {

@@ -130,7 +130,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
   const [formGoals, setFormGoals] = useState<number>(0);
   const [formAssists, setFormAssists] = useState<number>(0);
   const [formSets, setFormSets] = useState<number>(0);
-  const [formDistanceKm, setFormDistanceKm] = useState<number>(10);
+  const [formDistanceKm, setFormDistanceKm] = useState<number>(0);
   const [formPaceAvg, setFormPaceAvg] = useState("04:30");
   const [formElevation, setFormElevation] = useState<number>(0);
   const [formRankPos, setFormRankPos] = useState("");
@@ -222,7 +222,7 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
     setFormGoals(0);
     setFormAssists(0);
     setFormSets(0);
-    setFormDistanceKm(10);
+    setFormDistanceKm(0);
     setFormPaceAvg("04:30");
     setFormElevation(0);
     setFormRankPos("");
@@ -350,6 +350,10 @@ export const CompetitionsCalendarView: FC<CompetitionsCalendarViewProps> = ({
       const existingExtIndex = updatedExternal.findIndex((e) => e.id === `ext-${matchToSave.id}`);
       const extSessionData = {
         id: `ext-${matchToSave.id}`,
+        competitionId: matchToSave.id,
+        activity: formSport,
+        time: formTime,
+        distanceKm: /corrida|ciclismo|nata|triat/i.test(formSport)&&formDistanceKm>0?formDistanceKm:null,
         date: formDate,
         type: "jogo" as const,
         durationMinutes: formDurationMinutes,

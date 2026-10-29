@@ -1,10 +1,11 @@
+import {externalSessionColumns} from '../src/utils/externalSessions';
 import {saveStudentCompetitions} from './competitionAchievements';
 import { lockAthleteSnapshots, readSavedRevisions } from './workoutSync';
 import type { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { AccountScope, ScopeDenied } from './scope';
 const wellnessFields:Record<string,string>={date:'date',fatigue:'fatigue',sleep:'sleep',stress:'stress',soreness:'soreness',mood:'mood',cognitive_load:'cognitiveLoad',readiness_score:'readinessScore',travel_fatigue:'travelFatigue',sleep_quality:'sleepQuality',menstrual_phase:'menstrualPhase',menstrual_symptoms:'menstrualSymptoms',hrv:'hrv',sleep_hours_formatted:'sleepHoursFormatted',sleep_start_time:'sleepStartTime',wake_up_time:'wakeUpTime',calculated_sleep_hours:'calculatedSleepHours',is_match_day:'isMatchDay',emotional_readiness:'emotionalReadiness',psychological_readiness:'psychologicalReadiness',psychology_notes:'psychologyNotes'};
-const sessionFields:Record<string,string>={date:'date',type:'type',duration_minutes:'durationMinutes',rpe:'rpe',notes:'notes',load:'load'};
+const sessionFields:Record<string,string>={date:'date',type:'type',duration_minutes:'durationMinutes',rpe:'rpe',notes:'notes',load:'load',activity:'activity',session_time:'time',distance_km:'distanceKm',competition_id:'competitionId'};
 export async function saveStudentData(pool:Pool,account:AccountScope,payload:any[]){
  if(account.role!=='athlete' || !account.athlete_id || !Array.isArray(payload) || payload.length!==1 || payload[0]?.id!==account.athlete_id)throw new ScopeDenied();
  const athlete=payload[0];const c=await pool.connect();let discardClient=false;
@@ -13,8 +14,9 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
  await lockAthleteSnapshots(c,[athlete]);
  const upsert=async(table:'wellness'|'external_sessions',item:any,fields:Record<string,string>)=>{
   if(!item || typeof item!=='object' || (item.id!==undefined && (typeof item.id!=='string' || !item.id || item.id.length>200)))throw new ScopeDenied();
+  if(table==='external_sessions'){externalSessionColumns(item);if(typeof item.durationMinutes==='number'&&typeof item.rpe==='number'&&Number.isFinite(item.durationMinutes)&&Number.isFinite(item.rpe))item={...item,load:item.durationMinutes*item.rpe};}
   const id=item.id || randomUUID();const columns=['id','athlete_id'];const values:any[]=[id,account.athlete_id];
-  for(const [column,key] of Object.entries(fields))if(Object.hasOwn(item,key)){
+  for(const [column,key] of Object.entries(fields))if(Object.hasOwn(item,key) && item[key]!==undefined){
    let value=item[key];if(value!==null && !['string','number','boolean'].includes(typeof value) && !(column==='menstrual_symptoms' && Array.isArray(value)))throw new ScopeDenied();
    if(typeof value==='number' && !Number.isFinite(value))throw new ScopeDenied();
    if(column==='menstrual_symptoms')value=JSON.stringify(value);

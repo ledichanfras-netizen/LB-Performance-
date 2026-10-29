@@ -193,6 +193,10 @@ export interface WellnessEntry {
 
 export interface ExternalSession {
   id: string;
+  activity?: string;
+  time?: string;
+  distanceKm?: number | null;
+  competitionId?: string;
   date: string;
   type: 'tecnico' | 'tatico' | 'jogo' | 'amistoso' | 'recuperacao';
   durationMinutes: number;

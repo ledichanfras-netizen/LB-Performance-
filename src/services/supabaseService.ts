@@ -1,3 +1,4 @@
+import {externalSessionFromRow,externalSessionColumns} from '../utils/externalSessions';
 import { readFollowUpType, followUpType } from '../utils/followUp';
 import { readReassessmentPlan } from '../utils/reassessment';
 import { syncRevision } from '../../server/workoutSync';
@@ -428,8 +429,7 @@ export const supabaseService = {
             };
           }).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           externalSessions: (a.external_sessions || []).map((es: any) => ({
-            ...es,
-            durationMinutes: es.duration_minutes
+            ...externalSessionFromRow(es)
           })).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
           workouts: (a.workouts || []).filter((wk:any)=>!wk.archived_at).map((wk: any) => ({
             ...wk,
@@ -785,7 +785,8 @@ export const supabaseService = {
           duration_minutes: es.durationMinutes ?? (es as any).duration_minutes ?? 0,
           rpe: es.rpe ?? 0,
           notes: es.notes || '',
-          load: es.load ?? ((es.durationMinutes || 0) * (es.rpe || 0))
+          load: es.load ?? ((es.durationMinutes || 0) * (es.rpe || 0)),
+          ...externalSessionColumns(es)
         })));
         if (esError) {
           logError('[Supabase] Erro ao salvar sessões externas:', esError);

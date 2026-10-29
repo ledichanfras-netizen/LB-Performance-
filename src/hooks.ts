@@ -1592,17 +1592,17 @@ export const useAthletes = (token?: string | null) => {
     }
   };
 
-  const addExternalSession = async (athleteId: string, session: Omit<ExternalSession, 'id' | 'load'>) => {
+  const addExternalSession = async (athleteId: string, session: Omit<ExternalSession, 'id' | 'load'> & {id?:string}) => {
     const load = (session.durationMinutes || 0) * (session.rpe || 0);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
         const history = Array.isArray(a.externalSessions) ? a.externalSessions : [];
         const newSession = {
           ...session,
-          id: `ext-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          id: session.id || `ext-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           load
         };
-        const newHistory = [newSession, ...history].sort((x, y) => {
+        const newHistory = [newSession, ...history.filter(s=>s.id!==newSession.id)].sort((x, y) => {
           const dateX = getSafeDateTime(x.date);
           const dateY = getSafeDateTime(y.date);
           if (dateY !== dateX) return dateY - dateX;
@@ -1614,8 +1614,9 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    if(!await save(updated, athleteId)) return;
-    toast.success("Treino de quadra registrado!");
+    if(!await save(updated, athleteId)) return false;
+    toast.success("Sessão externa registrada!");
+    return true;
   };
 
   const updateExternalSession = async (athleteId: string, sessionId: string, data: Partial<ExternalSession>) => {
@@ -1641,8 +1642,9 @@ export const useAthletes = (token?: string | null) => {
     });
 
     setAthletes(updated);
-    if(!await save(updated, athleteId)) return;
-    toast.success("Treino de quadra atualizado!");
+    if(!await save(updated, athleteId)) return false;
+    toast.success("Sessão externa atualizada!");
+    return true;
   };
 
   const deleteExternalSession = async (athleteId: string, sessionId: string) => {
