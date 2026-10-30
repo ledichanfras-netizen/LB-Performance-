@@ -1,3 +1,4 @@
+import LBMethodIcon from './components/LBMethodIcon';
 import ExternalSessionManager from './components/ExternalSessionManager';
 import { UnilateralSetTracker } from "./components/UnilateralSetTracker";
 import { getSetSide, prescriptionSummary } from "./utils/unilateral";
@@ -1688,7 +1689,7 @@ const EliteHubApp: FC<{
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  <Sparkles className="w-4 h-4 shrink-0" />
+                  <LBMethodIcon className="w-4 h-4 shrink-0" />
                   <span>MATRIZ LB</span>
                 </button>
               )}
@@ -1998,7 +1999,7 @@ const EliteHubApp: FC<{
                         : "text-slate-400 hover:text-white hover:bg-slate-900/40 border border-transparent"
                     }`}
                   >
-                    <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
+                    <LBMethodIcon className={`w-4 h-4 shrink-0 ${activeTab === "dash" && dashboardSubTab === "decision-matrix" && !aiModelingResult ? "text-brand-primary" : "text-slate-500"}`} />
                     <span>Matriz de Decisão LB</span>
                   </button>
                 )}
@@ -5377,7 +5378,7 @@ const DashboardView: FC<{
                 : "lb-pill-inactive"
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <LBMethodIcon className="w-3.5 h-3.5" />
             <span>Matriz LB</span>
           </button>
         )}
