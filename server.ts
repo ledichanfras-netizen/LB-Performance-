@@ -1,3 +1,4 @@
+import {gymPrinciples} from './src/utils/periodizationIntelligence';
 import {externalSessionDetailsSQL,saveExternalSession} from './server/externalSessionDetails';
 import {externalSessionFromRow,externalSessionColumns} from './src/utils/externalSessions';
 import {secureLogin} from './server/secureLogin';
@@ -2131,9 +2132,9 @@ apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGua
     const response = await generateContentWithRetry({ 
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { 
-        systemInstruction: "Você é o IA Co-Pilot de Periodização Esportiva de Alto Rendimento da LB Sports. Sua tarefa é criar um programa de periodização estritamente alinhado com o cronograma de datas e as diretrizes do treinador fornecidas. REGRAS CRÍTICAS: 1) O campo 'date' de cada sessão DEVE ser EXATAMENTE uma das datas (YYYY-MM-DD) listadas no cronograma fornecido. NUNCA gere datas antigas, do passado ou fora do cronograma. 2) Incorpore integralmente e com prioridade máxima a DESCRIÇÃO DO TREINADOR na escolha dos exercícios, métodos e nomes das sessões. 3) Responda com linguagem profissional de Head Coach de performance esportiva, sem menção a IA ou algoritmos.",
+        systemInstruction: gymPrinciples+" Você é o IA Co-Pilot de Periodização Esportiva de Alto Rendimento da LB Sports. Sua tarefa é criar um programa de periodização estritamente alinhado com o cronograma de datas e as diretrizes do treinador fornecidas. REGRAS CRÍTICAS: 1) O campo 'date' de cada sessão DEVE ser EXATAMENTE uma das datas (YYYY-MM-DD) listadas no cronograma fornecido. NUNCA gere datas antigas, do passado ou fora do cronograma. 2) Incorpore integralmente e com prioridade máxima a DESCRIÇÃO DO TREINADOR na escolha dos exercícios, métodos e nomes das sessões. 3) Responda com linguagem profissional de Head Coach de performance esportiva, sem menção a IA ou algoritmos.",
         responseMimeType: "application/json",
-        maxOutputTokens: 8192,
+        maxOutputTokens: 32768,
         responseSchema: {
           type: Type.ARRAY,
           items: {
@@ -2141,23 +2142,31 @@ apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGua
             properties: {
               date: { type: Type.STRING, description: "A data correspondente do cronograma fornecido (formato YYYY-MM-DD)" },
               name: { type: Type.STRING, description: "Nome técnico estruturado do treino" },
+              objective: {type:Type.STRING},
+              rationale: {type:Type.STRING},
+              estimatedDurationMinutes: {type:Type.NUMBER},
               phase: { type: Type.STRING, description: "Fase de treinamento (Preparação Geral, Preparação Específica, ou Polimento / Tapering)" },
               exercises: {
                 type: Type.ARRAY,
                 items: {
                   type: Type.OBJECT,
                   properties: {
+                    capacity: {type:Type.STRING},
+                    method: {type:Type.STRING},
+                    role: {type:Type.STRING,enum:["Dose principal","Complemento","Microdose","Preparação"]},
+                    recoverySeconds: {type:Type.NUMBER},
+                    notes: {type:Type.STRING},
                     name: { type: Type.STRING, description: "Nome do exercício" },
                     muscleGroup: { type: Type.STRING, description: "Grupo muscular ou valência física trabalhada" },
                     sets: { type: Type.INTEGER, description: "Número de séries" },
                     reps: { type: Type.STRING, description: "Repetições (Ex: '8-10', 'Até a falha', '20s')" },
                     weight: { type: Type.STRING, description: "Sugestão de Carga/Intensidade (Ex: '70% 1RM', 'Carga Moderada', 'Peso do corpo', '35kg')" }
                   },
-                  required: ["name", "muscleGroup", "sets", "reps", "weight"]
+                  required: ["name", "muscleGroup", "sets", "reps", "weight", "capacity", "method", "role", "recoverySeconds", "notes"]
                 }
               }
             },
-            required: ["date", "name", "phase", "exercises"]
+            required: ["date", "name", "phase", "exercises", "objective", "rationale", "estimatedDurationMinutes"]
           }
         }
       }
@@ -2596,7 +2605,7 @@ ATENÇÃO: Você PODE criar e prescrever novos exercícios específicos que NÃO
 - "Deslocamento Lateral com Cones" (ID: lib-20) - Agilidade lateral e COD.`;
   }
 
-  const prompt = `Gere uma prescrição de treino técnico de altíssima performance para a LB Sports, baseada estritamente em evidências científicas biomecânicas de elite e na metodologia de Treinamento Baseado em Velocidade (VBT).
+  const prompt = `${gymPrinciples}\nGere uma prescrição de treino técnico de altíssima performance para a LB Sports, baseada estritamente em evidências científicas biomecânicas de elite e na metodologia de Treinamento Baseado em Velocidade (VBT).
 
 Fatores Atuais do Atleta:
 - Perfil/Nível: ${athleteData || 'Atleta geral de rendimento'}
@@ -2609,8 +2618,8 @@ Fatores Atuais do Atleta:
 ${libraryPromptPart}
 
 Critérios Científicos Exigidos:
-1. Ordem do Treino: Potência e Pliometria sempre primeiro (ex: CMJ, Drop Jumps), seguidos de Força Máxima (ex: Back Squat), seguidos por exercícios unilaterais ou isolados, e finalizando com preventivos/core (ex: Flexão Nórdica, Copenhagen, Pallof Press).
-2. Velocidade Alvo (VBT): Para exercícios de força principal (como Back Squat ou Supino), forneça a faixa de velocidade recomendada (ex: "0.45 - 0.60 m/s" para Força Máxima, "0.80 - 1.00 m/s" para Força-Velocidade).
+1. Ordem do treino: preserve a ordem indicada pelo treinador; sem ordem indicada, organize pela prioridade, técnica e fadiga da modalidade. Potência/pliometria não são obrigatórias nem sempre vêm primeiro.
+2. VBT: use alvos numéricos apenas quando houver medição e referência válida para o exercício. Sem isso, use intenção de movimento e critérios técnicos. Não invente velocidade ou 1RM.
 3. Notas de Execução: Forneça avisos de feedback biomecânico de elite (ex: contraindicar valgo dinâmico, focar na fase excêntrica controlada, aplicar máxima velocidade intencional).
 
 Retorne o plano de treino estritamente em formato JSON estruturado com uma análise científica explicativa de cada decisão de prescrição. Do NOT mention artificial intelligence, LLMs, or algorithms. Expose the results as a human Head Coach of elite performance.`;

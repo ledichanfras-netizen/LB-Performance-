@@ -1958,15 +1958,6 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     setIaWorkoutsLoading(true);
     try {
       const unionTrainingDays = Array.from(new Set([...localAcademyDays, ...localCourtDays])).sort();
-      if (updateAthlete) {
-        await updateAthlete(athlete.id, {
-          periodizationStart: localPeriodizationStart,
-          periodizationEnd: localPeriodizationEnd,
-          academyDays: localAcademyDays,
-          courtDays: localCourtDays,
-          trainingDays: unionTrainingDays
-        });
-      }
       const generatedWorkouts = await generateAIWorkouts(athlete, iaInstructions, {
         periodizationStart: localPeriodizationStart,
         periodizationEnd: localPeriodizationEnd,
@@ -1986,7 +1977,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
         setShowScheduleModal(true);
         setIsHeaderExpanded(false);
       }
-      setIaInstructions(""); // Clear after successful generation
+      if(generatedWorkouts?.length)setIaInstructions(""); // Keep instructions when the proposal is cancelled.
     } catch (error) {
       console.error("Erro ao gerar periodização completa:", error);
       toast.error("Erro ao processar periodização completa com IA.");

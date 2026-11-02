@@ -1,4 +1,4 @@
-const fields=['trainingMode','metricType','distanceMeters','targetIntensity','recoverySeconds','defaultExecutionTime','fieldUnit','workRestRatio','totalDistanceMeters','executionMethod','clusterReps','intraSetRest','blockGroupId','blockTag','blockType','blockRole','blockRest','isStructuredRunning','runningBlocks','conditioningProtocol'];
+const fields=['capacity','method','prescriptionRole','trainingMode','metricType','distanceMeters','targetIntensity','recoverySeconds','defaultExecutionTime','fieldUnit','workRestRatio','totalDistanceMeters','executionMethod','clusterReps','intraSetRest','blockGroupId','blockTag','blockType','blockRole','blockRest','isStructuredRunning','runningBlocks','conditioningProtocol'];
 export function exerciseMetadata(ex:any){
  const result:Record<string,unknown>={};
  for(const key of ['lateralType','sidePrescriptions','startingSide'])if(ex[key]!==undefined)result[key]=ex[key];

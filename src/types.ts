@@ -237,6 +237,9 @@ export type AdvancedExecutionMethod =
   | 'shuttle_run';
 
 export interface PrescribedExercise {
+  capacity?: string;
+  method?: string;
+  prescriptionRole?: string;
   id: string;
   lateralType?: 'Unilateral' | 'Bilateral' | 'N/A';
   sidePrescriptions?: {
@@ -312,6 +315,9 @@ export interface RunningBlock {
 }
 
 export interface Workout {
+  prescriptionObjective?: string;
+  prescriptionRationale?: string;
+  estimatedDurationMinutes?: number;
   id: string;
   date: string;
   name: string;

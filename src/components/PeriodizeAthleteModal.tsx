@@ -95,16 +95,6 @@ export const PeriodizeAthleteModal: React.FC<PeriodizeAthleteModalProps> = ({
     setIsLoading(true);
     try {
       const unionDays = Array.from(new Set([...academyDays, ...courtDays])).sort();
-      if (updateAthlete) {
-        await updateAthlete(athlete.id, {
-          periodizationStart: startDate,
-          periodizationEnd: endDate,
-          academyDays,
-          courtDays,
-          trainingDays: unionDays,
-        });
-      }
-
       const results = await generateAIWorkouts(athlete, instructions, {
         periodizationStart: startDate,
         periodizationEnd: endDate,
@@ -116,8 +106,6 @@ export const PeriodizeAthleteModal: React.FC<PeriodizeAthleteModalProps> = ({
 
       if (Array.isArray(results) && results.length > 0) {
         setGeneratedWorkouts(results);
-      } else {
-        toast.error("Nenhum treino gerado pela IA. Tente novamente.");
       }
     } catch (err: any) {
       console.error("Erro na periodização:", err);

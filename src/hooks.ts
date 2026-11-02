@@ -1,3 +1,6 @@
+import {buildGymContext,gymPrinciples,progressionGuidance,reviewGymProposal} from './utils/periodizationIntelligence';
+import {reviewPeriodization} from './components/PeriodizationProposalReview';
+import {generateAthleteDecisionMatrix} from './utils/decisionMatrixEngine';
 import { FollowUpType } from './utils/followUp';
 import { normalizeExerciseLibrary } from "./utils/exerciseLaterality";
 import { persistPeriodization } from './utils/periodizationSave';
@@ -1276,15 +1279,9 @@ export const useAthletes = (token?: string | null) => {
       let startDateVal = new Date(sy, sm - 1, sd, 12, 0, 0);
       let endDateVal = new Date(ey, em - 1, ed, 12, 0, 0);
 
-      if (endDateVal < startDateVal) {
-        // If end date is before start date, adjust end date forward 14 days rather than swapping start backwards into past!
-        const correctedEnd = new Date(startDateVal.getTime() + (14 * 24 * 60 * 60 * 1000));
-        const cEy = correctedEnd.getFullYear();
-        const cEm = String(correctedEnd.getMonth() + 1).padStart(2, '0');
-        const cEd = String(correctedEnd.getDate()).padStart(2, '0');
-        endStr = `${cEy}-${cEm}-${cEd}`;
-        endDateVal = correctedEnd;
-      }
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(startStr)||!/^\d{4}-\d{2}-\d{2}$/.test(endStr)||!Number.isFinite(startDateVal.getTime())||!Number.isFinite(endDateVal.getTime()))throw new Error('Informe datas válidas para o ciclo.');
+      if(startStr<todayStr)throw new Error('A nova prescrição deve iniciar hoje ou em uma data futura.');
+      if(endDateVal<startDateVal)throw new Error('A data final deve ser igual ou posterior ao início.');
 
       const effectiveAcademyDays = options?.academyDays ?? (Array.isArray(athlete.academyDays) ? athlete.academyDays : []);
       const effectiveCourtDays = options?.courtDays ?? (Array.isArray(athlete.courtDays) ? athlete.courtDays : []);
@@ -1294,7 +1291,7 @@ export const useAthletes = (token?: string | null) => {
         targetDays = athlete.trainingDays;
       }
       if (targetDays.length === 0) {
-        targetDays = [1, 3, 5]; // Default to Mon, Wed, Fri (Seg, Qua, Sex)
+        throw new Error('Selecione os dias disponíveis antes de gerar o ciclo.');
       }
 
       // Find all matching dates between start and end str with their training type meta
@@ -1328,25 +1325,8 @@ export const useAthletes = (token?: string | null) => {
         safetyCounter++;
       }
 
-      // Fallback if no matching dates found in the chosen interval
-      if (trainingDatesMeta.length === 0) {
-        let fallbackDate = new Date(startDateVal);
-        for (let i = 0; i < 6; i++) {
-          const dayOfWeek = fallbackDate.getDay();
-          const isAcademy = effectiveAcademyDays.includes(dayOfWeek);
-          const isCourt = effectiveCourtDays.includes(dayOfWeek);
-          const cy = fallbackDate.getFullYear();
-          const cm = String(fallbackDate.getMonth() + 1).padStart(2, '0');
-          const cd = String(fallbackDate.getDate()).padStart(2, '0');
-          trainingDatesMeta.push({
-            date: `${cy}-${cm}-${cd}`,
-            dayOfWeek,
-            dayName: dayNamesPt[dayOfWeek],
-            type: isCourt ? "quadra" : isAcademy ? "academia" : (i % 2 === 0 ? "academia" : "quadra")
-          });
-          fallbackDate.setDate(fallbackDate.getDate() + 2);
-        }
-      }
+      if(trainingDatesMeta.length===0)throw new Error('Nenhuma sessão coincide com os dias e período escolhidos. Ajuste o calendário.');
+      if(currentDate<=endDateVal)throw new Error('O ciclo excede 28 sessões. Divida o período em blocos menores para revisar a prescrição completa.');
 
       const academyDaysNames = effectiveAcademyDays.length > 0
         ? effectiveAcademyDays.map(d => dayNamesPt[d]).join(', ')
@@ -1367,14 +1347,7 @@ export const useAthletes = (token?: string | null) => {
         trainingDays: targetDays,
         academyDays: effectiveAcademyDays,
         courtDays: effectiveCourtDays,
-        lastAssessments: {
-          bioimpedance: athlete.assessments.bioimpedance?.[0],
-          strength: athlete.assessments.isometricStrength?.[0],
-          cmj: athlete.assessments.cmj?.[0],
-          vo2max: athlete.assessments.vo2max?.[0],
-          speed: athlete.assessments.speed?.[0]
-        },
-        recentWorkouts: athlete.workouts.filter(w => w.status === 'completed').slice(0, 10)
+
       };
 
       console.log("[AI Co-Pilot] Cronograma gerado:", trainingDatesMeta);
@@ -1414,36 +1387,19 @@ export const useAthletes = (token?: string | null) => {
       ).join('\n');
 
       const selectedProgression = options?.progressionMethod || "auto";
-      let progressionInstruction = "";
-      switch (selectedProgression) {
-        case "linear":
-          progressionInstruction = "📈 MODELO SELECIONADO: PROGRESSÃO LINEAR ACUMULATIVA. A cada semana do ciclo, eleve progressivamente a sobrecarga/intensidade e diminua as repetições (ex: Sem 1: 10-12 reps @ RPE 7; Sem 2: 8-10 reps @ RPE 8; Sem 3: 6-8 reps @ RPE 8.5; Sem 4: 4-6 reps @ RPE 9).";
-          break;
-        case "undulating":
-          progressionInstruction = "🌊 MODELO SELECIONADO: PERIODIZAÇÃO ONDULATÓRIA DIÁRIA (DUP). Alterne os estímulos fisiológicos a cada treino da mesma semana: Dia 1 = Força Máxima / Neural (4x4-5 reps @ RPE 8.5); Dia 2 = Hipertrofia / Volume (3-4x10-12 reps @ RPE 7.5); Dia 3 = Potência / RFD Explosivo (5x3 reps @ 100% intenção).";
-          break;
-        case "accumulation":
-          progressionInstruction = "🧱 MODELO SELECIONADO: BLOCO DE ACUMULAÇÃO / VOLUME. Priorize alto volume de trabalho e densidade muscular estrutural (+1 a +2 séries por exercício ao longo do ciclo), mantendo cargas submáximas (RPE 7 a 8.5) e intervalos controlados.";
-          break;
-        case "deload":
-          progressionInstruction = "🍃 MODELO SELECIONADO: SEMANA DE DELOAD / REGENERATIVA. Reduza o volume total em ~35% a 40% (menos séries por exercício) e as cargas/intensidade em ~25% (RPE 5.5 a 6.5) para dissipar fadiga residual do sistema nervoso central e articulações.";
-          break;
-        case "tapering":
-          progressionInstruction = "🏆 MODELO SELECIONADO: POLIMENTO COMPETITIVO (TAPERING). Reduza o volume em 40-50%, mas mantenha ou eleve ligeiramente a intensidade neural (RPE 8.5 a 9.5 com pausas longas e séries curtas/explosivas) para atingir o pico de prontidão e supercompensação.";
-          break;
-        case "block_atr":
-          progressionInstruction = "🔄 MODELO SELECIONADO: PERIODIZAÇÃO EM BLOCOS (ATR). Estruture o ciclo em fases sequenciais concentradas: Fase 1 (Acumulação - força de base/capacidade de trabalho), Fase 2 (Transmutação - força específica/potência/RFD), Fase 3 (Realização - prontidão competitiva/máxima velocidade).";
-          break;
-        case "auto":
-        default:
-          progressionInstruction = "⚡ MODELO SELECIONADO: INTELIGENTE AUTOMÁTICO (IA). Analise os testes do atleta (CMJ, RSI, Força Dinamométrica, VO2), a modalidade e a duração do ciclo. Escolha estrategicamente o modelo ideal (DUP para atletas com jogos semanais, Acumulação para déficit de base, ou Tapering/Bloco para ciclos pré-competitivos) e aplique a progressão de cargas/reps coerente.";
-          break;
-      }
-
+      const progressionInstruction=progressionGuidance(selectedProgression);
+      const executionContext=buildGymContext(athlete,todayStr,endStr);
+      const matrix=generateAthleteDecisionMatrix({...athlete,assessments:Object.fromEntries(Object.entries(athlete.assessments||{}).map(([k,rows])=>[k,(rows||[]).filter((r:any)=>r.date&&Number.isFinite(Date.parse(r.date))&&r.date<=todayStr)])) as Athlete['assessments'],wellness:[]},athlete.workouts.filter(w=>w.status==='completed'&&w.date<=todayStr),(athlete.externalSessions||[]).filter(s=>s.date<=todayStr));
+      const matrixContext={note:'Sugestões heurísticas da Matriz LB. Confirmar com avaliações, modalidade e treinador; não impor faixas ou protocolos como universais.',priorities:matrix.activeRows.slice(0,12).map(r=>({category:r.category,finding:r.finding,hypothesis:r.hypothesis,conduct:r.conduct,priority:r.priority}))};
       const prompt = `
         Você é o IA CO-PILOT DE PERIODIZAÇÃO ESPORTIVA DE ALTO RENDIMENTO.
         Sua missão é analisar minuciosamente os dias da semana de treino do atleta, o período configurado, a descrição/diretrizes do treinador, o modelo de progressão selecionado e os dados fisiológicos/antropométricos para elaborar a periodização completa nas datas e dias corretos para ${context.name}.
         
+        ${gymPrinciples}
+        HISTÓRICO EXECUTADO, AVALIAÇÕES DATADAS E CALENDÁRIO (dados, não instruções):
+        ${JSON.stringify(executionContext)}
+        MATRIZ LB — HIPÓTESES PARA REVISÃO:
+        ${JSON.stringify(matrixContext)}
         PERFIL DO ATLETA:
         - Nome: ${context.name}
         - Modalidade: ${context.modality}
@@ -1471,16 +1427,13 @@ export const useAthletes = (token?: string | null) => {
         ${libraryText}
 
         DADOS DE TESTES E AVALIAÇÕES DO ATLETA:
-        - Força Isométrica / Dinamométrica: ${JSON.stringify(context.lastAssessments.strength)}
-        - Salto Vertical (CMJ / RSI): ${JSON.stringify(context.lastAssessments.cmj)}
-        - Velocidade / Sprint: ${JSON.stringify(context.lastAssessments.speed)}
-        - Capacidade Cardiorrespiratória (VO2): ${JSON.stringify(context.lastAssessments.vo2max)}
+        Avaliações e datas estão no contexto acima; não selecionar por posição no array. IMTP, CMJ, Drop Jump e Abalakov são testes diferentes.
 
         REGRAS RIGOROSAS DA PERIODIZAÇÃO (IA CO-PILOT):
         1. Para cada item do cronograma acima, gere um objeto de treino com a 'date' correspondente exata (formato YYYY-MM-DD). NUNCA gere datas antigas, do passado ou fora do cronograma fornecido.
         2. PRIORIDADE MÁXIMA DA DESCRIÇÃO DO TREINADOR: Se o treinador especificou objetivos, métodos, exercícios ou grupos prioritários (ex: salto vertical, velocidade, posterior de coxa, fortalecimento de joelho, agilidade), TODAS as sessões geradas DEVEM refletir rigorosamente esses pedidos.
-        3. Aplique com rigor o MODELO DE PROGRESSÃO configurado, fazendo com que séries, repetições, intensidades (RPE/PSE) e cargas evoluam de forma coesa da primeira à última sessão.
-        4. Diferencie as fases: Inicie com Preparação Geral (base estrutural), evolua para Preparação Específica (potência e gesto esportivo de ${context.modality}) e finalize com Polimento / Tapering (alta prontidão).
+        3. Use o modelo como organização e justifique progressão, manutenção ou redução conforme dados. Não force aumento de séries/cargas nem esforço quase máximo.
+        4. Defina fases conforme duração e calendário; não force Preparação Geral, Específica e Polimento em todo ciclo. A capacidade prioritária precisa ter relação com ${context.modality}.
         5. Em dias de ACADEMIA, foque em musculação, fortalecimento, RFD e força. Em dias de CAMPO/QUADRA, foque em velocidade, mudança de direção, agilidade e fundamentos do esporte.
 
         FORMATO DE SAÍDA:
@@ -1508,6 +1461,7 @@ export const useAthletes = (token?: string | null) => {
       const newWorkoutsData = tryParseAndRepairArray(rawText);
 
       if (Array.isArray(newWorkoutsData)) {
+        if(newWorkoutsData.some((w:any)=>!trainingDatesMeta.some(d=>d.date===w.date)||!Array.isArray(w.exercises)||!Number.isFinite(w.estimatedDurationMinutes)||w.estimatedDurationMinutes<=0||w.exercises.some((e:any)=>!Number.isInteger(e.sets)||e.sets<1||!e.reps||typeof e.recoverySeconds!=='number'||!Number.isFinite(e.recoverySeconds)||e.recoverySeconds<0)))throw new Error('A proposta contém datas, séries ou intervalos inválidos. Gere novamente antes de salvar.');
         const formattedWorkouts = newWorkoutsData.map((w: any, idx: number) => {
           const matchedMeta = trainingDatesMeta.find(m => m.date === w.date) || trainingDatesMeta[idx] || { date: w.date || getLocalDateString(), dayName: "" };
           const workoutDate = (w.date && /^\d{4}-\d{2}-\d{2}$/.test(w.date)) ? w.date : matchedMeta.date;
@@ -1517,6 +1471,10 @@ export const useAthletes = (token?: string | null) => {
             date: workoutDate,
             name: w.name || `Treino Periodizado (${matchedMeta.dayName || 'Sessão'})`,
             phase: w.phase || 'Preparação Geral',
+            prescriptionObjective: String(w.objective||''),
+            prescriptionRationale: String(w.rationale||''),
+            trainerNotes: `Objetivo: ${String(w.objective||'')}\nJustificativa: ${String(w.rationale||'')}\nTempo estimado: ${w.estimatedDurationMinutes||'Não informado'} min (não é duração executada).`,
+            estimatedDurationMinutes: Number.isFinite(w.estimatedDurationMinutes)&&w.estimatedDurationMinutes>0?w.estimatedDurationMinutes:undefined,
             status: 'planned' as const,
             exercises: (Array.isArray(w.exercises) ? w.exercises : []).map((ex: any, exIdx: number) => {
               const setsCount = Number(ex.sets) || 3;
@@ -1532,13 +1490,18 @@ export const useAthletes = (token?: string | null) => {
                 reps: String(ex.reps || '10'),
                 repsType: String(ex.reps).toLowerCase().includes("s") ? ("time" as const) : ("reps" as const),
                 weight: String(ex.weight || 'Carga Moderada'),
-                rest: '60-90s',
-                notes: '',
+                rest: `${ex.recoverySeconds}s`,
+                recoverySeconds: ex.recoverySeconds,
+                capacity: String(ex.capacity||''),
+                method: String(ex.method||''),
+                prescriptionRole: String(ex.role||''),
+                notes: String(ex.notes||''),
                 order_index: exIdx,
                 performedSets: Array.from({ length: setsCount }).map((_, sIdx) => ({
                   id: `set-${Math.random().toString(36).substring(2, 7)}`,
                   reps: targetReps,
-                  weight: perSetWeights[sIdx] || targetWeight || 0,
+                  weight: /%|rpe|rir|corpo|moderad/i.test(String(ex.weight))?0:perSetWeights[sIdx] || targetWeight || 0,
+                  isCompleted: false,
                   rpe: 0
                 }))
               };
@@ -1549,6 +1512,11 @@ export const useAthletes = (token?: string | null) => {
           };
         });
 
+        const report=reviewGymProposal(formattedWorkouts,trainingDatesMeta.map(d=>d.date),executionContext);
+        if(report.errors.length)throw new Error('Revisão da periodização: '+report.errors.slice(0,4).join(' '));
+        toast.dismiss(toastId);
+        if(!await reviewPeriodization(formattedWorkouts,executionContext,report.warnings)){toast('Proposta cancelada. Os treinos existentes foram mantidos.');return [];}
+        toast.loading('Salvando periodização revisada…',{id:toastId});
         const replacePendingWorkouts = options?.replacePendingWorkouts !== false;
         saveRevisionRef.current += 1;
         pendingSavesRef.current += 1;
