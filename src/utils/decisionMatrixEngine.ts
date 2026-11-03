@@ -1,3 +1,4 @@
+import { normalizeAssessmentNumbers } from "./assessmentNumbers";
 import {
   Athlete,
   Workout,
@@ -344,9 +345,10 @@ export function generateAthleteDecisionMatrix(
   const attentionSignals: AttentionSignal[] = [];
   const gender = athlete.gender || "M";
   // The API/cache can return newest-first arrays. The engine reads the last row.
+  // API NUMERIC columns can be strings; normalize before comparisons and toFixed.
   // Normalize chronological order without mutating the athlete's stored history.
   const assessments = Object.fromEntries(Object.entries(athlete.assessments || {}).map(([key,rows])=>[
-    key, [...(Array.isArray(rows)?rows:[])].sort((a,b)=>(Date.parse(a.date)||0)-(Date.parse(b.date)||0) || String(a.id).localeCompare(String(b.id)))
+    key, (Array.isArray(rows)?rows:[]).map(row=>normalizeAssessmentNumbers(row, {omitInvalid:true})).sort((a,b)=>(Date.parse(a.date)||0)-(Date.parse(b.date)||0) || String(a.id).localeCompare(String(b.id)))
   ])) as Athlete['assessments'];
 
   // 1. ANÁLISE DE IMTP (FORÇA MÁXIMA & TDF)

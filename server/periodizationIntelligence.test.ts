@@ -13,3 +13,25 @@ test('missing execution is reported, not treated as zero load or filled from pre
 test('capacity, method and role round-trip in existing exercise metadata without new columns',()=>{const ex=proposal().exercises[0];const restored=JSON.parse(exerciseMetadata(ex));assert.equal(restored.capacity,'Força');assert.equal(restored.method,'Tradicional');assert.equal(restored.prescriptionRole,'Dose principal');assert.equal(restored.recoverySeconds,180);});
 test('save rebases generated IDs on fresh data and preserves completed and ongoing sessions after a conflict',async()=>{let saves=0;const completed={...proposal(),id:'done',status:'completed'} as Workout;const running={...proposal(),id:'running',status:'in_progress'} as Workout;const pending={...proposal(),id:'pending'} as Workout;let saved:Athlete|undefined;await persistPeriodization('a',[proposal()],{},true,{load:async()=>[{...athlete,workouts:[completed,running,pending]}],save:async a=>{if(++saves===1)throw {status:409};saved=a;}});assert.equal(saves,2);assert.deepEqual(saved?.workouts.map(w=>w.id).sort(),['done','new','running']);assert.equal(saved?.workouts.find(w=>w.id==='done')?.status,'completed');});
 test('progression guidance has no mandatory weekly percentages or fixed deload prescription',()=>{for(const m of ['linear','undulating','accumulation','deload','tapering','block_atr','auto'])assert.ok(!/\d+%|35|40-50|8\.5/.test(progressionGuidance(m)));});
+
+test('periodization matrix accepts raw API numeric strings without changing findings or stored assessments', async()=>{
+ const {generateAthleteDecisionMatrix}=await import('../src/utils/decisionMatrixEngine');
+ const numeric={...athlete,weight:75,gender:'M',assessments:{
+  imtp:[{id:'imtp',date:'2026-10-30',peakForce:180,relativePeakForce:2.4,weight:75}],
+  cmj:[{id:'cmj',date:'2026-10-30',height:38.1,power:3000,weight:75}],
+  dropJump:[{id:'dj',date:'2026-10-30',rsi:2.26,contactTime:200}],
+  vo2max:[{id:'vo2',date:'2026-10-30',vo2max:48,vam:15.5}],
+  speed:[{id:'speed',date:'2026-10-30',speed10m:5.5,speed30m:8}],
+  isometricStrength:[{id:'iso',date:'2026-10-30',quadricepsL:90,quadricepsR:100,hamstringsL:45,hamstringsR:50}]
+ }} as unknown as Athlete;
+ const raw=JSON.parse(JSON.stringify(numeric,(_,v)=>typeof v==='number'?String(v):v));
+ raw.assessments.cmj[0].height='38,1';raw.assessments.dropJump[0].rsi='2,26';
+ const before=JSON.stringify(raw);const actual=generateAthleteDecisionMatrix(raw);const expected=generateAthleteDecisionMatrix(numeric);
+ assert.deepEqual(actual.activeRows,expected.activeRows);assert.deepEqual(actual.attentionSignals,expected.attentionSignals);
+ assert.equal(JSON.stringify(raw),before);assert.ok(!JSON.stringify(actual).includes('NaN'));
+});
+test('matrix omits malformed assessment numbers instead of throwing or emitting NaN',async()=>{
+ const {generateAthleteDecisionMatrix}=await import('../src/utils/decisionMatrixEngine');
+ const a={...athlete,assessments:{imtp:[{date:'2026-10-30',relativePeakForce:'infinito'}],cmj:[{date:'2026-10-30',height:'não informado',power:Infinity}],dropJump:[{date:'2026-10-30',rsi:{},contactTime:'200'}],vo2max:[{date:'2026-10-30',vo2max:'--',vam:[]}]}} as unknown as Athlete;
+ const result=generateAthleteDecisionMatrix(a);assert.ok(!/NaN|Infinity|\[object Object\]/.test(JSON.stringify(result)));assert.equal((a.assessments.cmj[0] as any).height,'não informado');
+});
