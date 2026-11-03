@@ -2148,6 +2148,7 @@ apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGua
               phase: { type: Type.STRING, description: "Fase de treinamento (Preparação Geral, Preparação Específica, ou Polimento / Tapering)" },
               exercises: {
                 type: Type.ARRAY,
+                minItems: 1,
                 items: {
                   type: Type.OBJECT,
                   properties: {
@@ -2173,7 +2174,9 @@ apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGua
     });
 
     const resultText = response.text || "";
-    res.json({ result: resultText });
+    const finishReason = response.candidates?.[0]?.finishReason;
+    console.log('[AI Workouts] Resposta gerada', {finishReason, characters: resultText.length});
+    res.json({ result: resultText, finishReason });
   } catch (error: any) {
     console.error("[AI Workouts] Erro chamando Gemini no backend:", error);
     res.status(500).json({ error: error.message || "Falha ao gerar treinos por IA no servidor." });

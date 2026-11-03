@@ -1,3 +1,4 @@
+import { generateCompletePeriodization, periodizationBatchPrompt } from './utils/periodizationGeneration';
 import {buildGymContext,gymPrinciples,progressionGuidance,reviewGymProposal} from './utils/periodizationIntelligence';
 import {reviewPeriodization} from './components/PeriodizationProposalReview';
 import {generateAthleteDecisionMatrix} from './utils/decisionMatrixEngine';
@@ -1155,76 +1156,6 @@ export const useAthletes = (token?: string | null) => {
     }
   };
 
-  const tryParseAndRepairArray = (str: string): any[] => {
-    let cleaned = str.trim();
-    
-    // Remove enclosing markdown block if present
-    if (cleaned.startsWith("```")) {
-      const parts = cleaned.split("```");
-      if (parts.length >= 3) {
-        cleaned = parts[1].replace(/^(json|JSON)/, "").trim();
-      } else {
-        cleaned = cleaned.replace(/^```(json|JSON)?/, "").replace(/```$/, "").trim();
-      }
-    } else if (cleaned.includes("```")) {
-      cleaned = cleaned.split("```")[1].replace(/^(json|JSON)/, "").trim();
-    }
-    
-    // 1. Try standard JSON.parse
-    try {
-      const parsed = JSON.parse(cleaned);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {
-      // Direct parse failed, proceed to try repairing truncated JSON
-      console.warn("[JSON Repair] Direct parsing failed. Trying to recover partial JSON...", e);
-    }
-
-    const suffixes = [
-      "]",
-      "}]",
-      " ]}",
-      " ]}]",
-      "}]}]",
-      "}]}]}]"
-    ];
-
-    // Find all occurrences of '}' from right to left to locate last fully closed workout or exercise node
-    const indices: number[] = [];
-    for (let i = cleaned.length - 1; i >= 0; i--) {
-      if (cleaned[i] === '}') {
-        indices.push(i);
-      }
-    }
-
-    for (const idx of indices) {
-      const sub = cleaned.substring(0, idx + 1);
-      for (const suffix of suffixes) {
-        try {
-          const candidate = sub + suffix;
-          const parsed = JSON.parse(candidate);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            console.warn(`[JSON Repair] Recovered truncated JSON! Substring index: ${idx}, Suffix: "${suffix}", Items recovered: ${parsed.length}`);
-            return parsed;
-          }
-        } catch (err) {
-          // Keep looking for a matching candidate
-        }
-      }
-    }
-
-    // Try finding the last array bracket open '[' and close it
-    try {
-      const lastOpenBracket = cleaned.lastIndexOf('[');
-      if (lastOpenBracket !== -1) {
-        const sub = cleaned.substring(0, lastOpenBracket);
-        const parsed = JSON.parse(sub + "]");
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {}
-
-    throw new Error("Não foi possível processar a periodização devido a uma instabilidade no servidor do Gemini. Por favor, tente novamente com um intervalo de datas menor.");
-  };
-
   const generateAIWorkouts = async (
     athlete: Athlete, 
     coachInstructions?: string,
@@ -1440,31 +1371,32 @@ export const useAthletes = (token?: string | null) => {
         Retorne APENAS um array JSON de objetos de treino para as datas do cronograma fornecido.
       `;
 
-      const res = await fetch("/api/generate-workouts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      const newWorkoutsData = await generateCompletePeriodization(
+        trainingDatesMeta.map(d => d.date),
+        async (dates, accepted) => {
+          const res = await fetch("/api/generate-workouts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+            body: JSON.stringify({ prompt: periodizationBatchPrompt(prompt, dates, accepted), athleteId: athlete.id })
+          });
+          if (!res.ok) {
+            const body = await res.text();
+            let message = `Servidor respondeu com status ${res.status}`;
+            try { message = JSON.parse(body).error || message; } catch {}
+            throw new Error(message);
+          }
+          return res.json();
         },
-        body: JSON.stringify({ prompt, athleteId: athlete.id })
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText || `Servidor respondeu com status ${res.status}`);
-      }
-
-      const responseData = await res.json();
-      const rawText = responseData.result || "";
-      if (!rawText) throw new Error("Resposta da IA está vazia.");
-      
-      const newWorkoutsData = tryParseAndRepairArray(rawText);
+        ({completed, total, retrying}) => toast.loading(
+          `${retrying ? 'Completando sessões pendentes' : 'Elaborando periodização'}: ${completed}/${total} sessões validadas…`, {id: toastId}
+        )
+      );
 
       if (Array.isArray(newWorkoutsData)) {
         if(newWorkoutsData.some((w:any)=>!trainingDatesMeta.some(d=>d.date===w.date)||!Array.isArray(w.exercises)||!Number.isFinite(w.estimatedDurationMinutes)||w.estimatedDurationMinutes<=0||w.exercises.some((e:any)=>!Number.isInteger(e.sets)||e.sets<1||!e.reps||typeof e.recoverySeconds!=='number'||!Number.isFinite(e.recoverySeconds)||e.recoverySeconds<0)))throw new Error('A proposta contém datas, séries ou intervalos inválidos. Gere novamente antes de salvar.');
         const formattedWorkouts = newWorkoutsData.map((w: any, idx: number) => {
-          const matchedMeta = trainingDatesMeta.find(m => m.date === w.date) || trainingDatesMeta[idx] || { date: w.date || getLocalDateString(), dayName: "" };
-          const workoutDate = (w.date && /^\d{4}-\d{2}-\d{2}$/.test(w.date)) ? w.date : matchedMeta.date;
+          const matchedMeta = trainingDatesMeta.find(m => m.date === w.date)!;
+          const workoutDate = matchedMeta.date;
           
           return {
             id: `wk-ai-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
