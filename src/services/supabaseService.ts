@@ -2,7 +2,7 @@ import {externalSessionFromRow,externalSessionColumns} from '../utils/externalSe
 import { readFollowUpType, followUpType } from '../utils/followUp';
 import { readReassessmentPlan } from '../utils/reassessment';
 import { syncRevision } from '../../server/workoutSync';
-import { exerciseMetadata } from "../../server/exerciseMetadata";
+import { exerciseMetadata, restorePerformedMetrics } from "../../server/exerciseMetadata";
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Athlete, Workout, WellnessEntry, AssessmentType, ExternalSession } from '../types';
@@ -452,7 +452,7 @@ export const supabaseService = {
               recoverySeconds: ex.recovery_seconds !== null && ex.recovery_seconds !== undefined ? Number(ex.recovery_seconds) : undefined,
               videoUrl: ex.video_url || '',
               imageUrl: ex.image_url || '',
-              performedSets: (ex.performed_sets || [])
+              performedSets: restorePerformedMetrics(ex, ex.performed_sets || [])
             })).sort((x: any, y: any) => {
               const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
               const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;

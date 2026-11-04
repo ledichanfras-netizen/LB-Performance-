@@ -1,3 +1,5 @@
+import { aerobicSummary } from "../utils/aerobic";
+import { AerobicTracker } from "./AerobicTracker";
 import { UnilateralSetTracker } from "./UnilateralSetTracker";
 import { prescriptionSummary } from "../utils/unilateral";
 import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
@@ -407,8 +409,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       const perSetWeights = parsePerSetWeights(ex.weight, setsCount);
       const targetWeight = parseWeightValue(ex.weight);
       const isPerformanceExercise = ex.trainingMode && ex.trainingMode !== "strength";
-      const targetDistance = ex.distanceMeters || (isPerformanceExercise ? targetReps : 0);
-      const targetTime = ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
+      const targetDistance = ex.aerobic ? 0 : ex.distanceMeters || (isPerformanceExercise ? targetReps : 0);
+      const targetTime = ex.aerobic ? 0 : ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
 
       const initialSets = ex.performedSets && ex.performedSets.length > 0
         ? ex.performedSets.map((s, sIdx) => {
@@ -490,7 +492,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [isQuickAdjustsCollapsed, setIsQuickAdjustsCollapsed] = useState(false);
   const [isGeneralParamsCollapsed, setIsGeneralParamsCollapsed] = useState(false);
-  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
   const [viewMode, setViewMode] = useState<"full" | "guided">("full");
   const [videoModalExercise, setVideoModalExercise] = useState<{
     name: string;
@@ -905,7 +907,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           ? perSetWeights[nextSetIdx]
           : parseWeight(ex.weight);
         const targetDistance = ex.distanceMeters || (isPerformance ? targetReps : 0);
-        const targetTime = ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
+        const targetTime = ex.aerobic ? 0 : ex.defaultExecutionTime ? parseRepetitions(ex.defaultExecutionTime) : (ex.trainingMode === "conditioning" ? targetReps : 0);
 
         const newSet: any = {
           id: `s-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -1370,7 +1372,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     </div>
 
                     <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {ex.sidePrescriptions ? prescriptionSummary(ex) : isPerf
+                      Grupo: {ex.muscleGroup || "GERAL"} • Prescrição: {ex.aerobic ? aerobicSummary(ex.aerobic) : ex.sidePrescriptions ? prescriptionSummary(ex) : isPerf
                         ? `${ex.sets}x ${ex.distanceMeters ? `${ex.distanceMeters}m` : ex.reps} • ${ex.targetIntensity || "--"}%` 
                         : `${prescribedSets}x${isTimeExercise(ex) ? `${String(prescribedReps).replace(/s/gi, "")}s` : prescribedReps} @ ${prescribedWeight}`}
                     </span>
@@ -1395,7 +1397,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 </div>
 
                 {/* Individual performed sets */}
-                {ex.sidePrescriptions ? <UnilateralSetTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} /> : <div className="space-y-1.5">
+                {ex.aerobic ? <AerobicTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field as any,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} /> : ex.sidePrescriptions ? <UnilateralSetTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} /> : <div className="space-y-1.5">
                   <div className="grid grid-cols-12 gap-2 text-center text-[8.5px] font-black text-slate-500 uppercase tracking-wider px-1 select-none">
                     <div className="col-span-2 sm:col-span-1 text-left">Série</div>
                     <div className="col-span-3 sm:col-span-3">{isPerf ? "Distância (m)" : "Carga (kg)"}</div>
@@ -1596,14 +1598,14 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           </div>
           
           <div className="flex items-center gap-2 shrink-0">
-            {isEditingCompleted && (
+            {(
               <button
                 type="button"
-                onClick={triggerFinish}
+                onClick={() => { if (manualDurationMinutes === "") setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString()); setShowFinishModal(true); }}
                 className="px-3 py-1.5 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-[9px] uppercase tracking-wider rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
               >
                 <Check className="w-3.5 h-3.5" />
-                <span>Salvar</span>
+                <span>{isEditingCompleted ? "Salvar" : "Finalizar"}</span>
               </button>
             )}
             
@@ -1612,7 +1614,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               onClick={() => setIsHeaderCollapsed(false)}
               className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-slate-800 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1"
             >
-              <span>Exibir Cabeçalho</span>
+              <span>Dados</span>
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
             
@@ -2014,7 +2016,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       </AnimatePresence>
 
       {/* DETAILED WORKOUT VIEW - ALL EXERCISES CONTINUOUSLY ON MAIN SCREEN */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-6 no-scrollbar pb-6">
+      <div className="shrink-0 space-y-6 pb-6">
         {session.exercises.length === 0 ? (
           <div className="py-12 text-center text-slate-500">
             Nenhum exercício carregado neste treino.
@@ -2143,11 +2145,11 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     </div>
 
                     {/* Prescrição e Ações Rápidas */}
-                    <div className="flex flex-wrap items-center gap-2 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end">
-                      <div className="flex flex-col items-end mr-1">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0 max-w-full sm:max-w-[50%] self-stretch sm:self-auto justify-between sm:justify-end">
+                      <div className="flex flex-col min-w-0 max-w-full items-end mr-1">
                         <span className="text-[8.5px] font-black text-slate-500 uppercase tracking-widest block">PRESCRIÇÃO</span>
-                        <span className="text-xs sm:text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-3 py-1 rounded-xl font-mono">
-                          {ex.sidePrescriptions ? prescriptionSummary(ex) : ex.trainingMode && ex.trainingMode !== "strength"
+                        <span className="text-xs sm:text-sm font-black text-[#39FF14] bg-[#39FF14]/10 border border-[#39FF14]/20 px-3 py-1 rounded-xl font-mono break-words max-w-full">
+                          {ex.aerobic ? aerobicSummary(ex.aerobic) : ex.sidePrescriptions ? prescriptionSummary(ex) : ex.trainingMode && ex.trainingMode !== "strength"
                             ? `${ex.sets} repetições • ${ex.distanceMeters ? `${ex.distanceMeters} m` : ex.reps} • ${ex.targetIntensity || "--"}%`
                             : `${ex.sets}x${isTime ? `${String(ex.reps).replace(/s/gi, "")}s` : ex.reps} @ ${ex.weight}`}
                         </span>
@@ -2199,7 +2201,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   </div>
 
                   {/* Treino Estruturado por Blocos (Corrida / Campo / Intervalados) vs. Musculação */}
-                  {ex.sidePrescriptions ? (
+                  {ex.aerobic ? (<AerobicTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field as any,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} />) : ex.sidePrescriptions ? (
                     <UnilateralSetTracker exercise={ex} onUpdate={(id,field,value)=>updateSetField(ex.id,id,field,value)} onToggle={id=>toggleSetCompletion(ex.id,id)} />
                   ) : isFieldOrRunningExercise(ex) ? (
                     <RunningBlockTracker

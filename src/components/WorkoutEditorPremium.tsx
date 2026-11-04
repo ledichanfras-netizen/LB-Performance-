@@ -2,6 +2,8 @@ import { normalizeExerciseLibrary, normalizeExerciseLaterality } from "../utils/
 import { AdvancedMethodsCard } from "./AdvancedMethodsCard";
 import { UnilateralPrescriptionEditor } from "./UnilateralPrescriptionEditor";
 import { reconcilePrescriptionSets } from "../utils/prescriptionSets";
+import { AerobicEditor } from "./AerobicEditor";
+import { aerobicCandidate, aerobicFields, defaultAerobic } from "../utils/aerobic";
 import ConditioningProtocolEditor from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
 import { AiOnly, useAiAccess } from './AiAccess';
@@ -1288,6 +1290,13 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
     });
     setExpandedExerciseId(blockExs[0].id);
     toast.success("Complex PAP Clássico (1A + 1B) adicionado!", { duration: 3500, icon: "⚡" });
+  };
+
+  const addAerobicTemplate = () => {
+    const ex: PrescribedExercise = {id:`ex-aerobic-${Date.now()}`,name:'Esteira — caminhada/corrida',muscleGroup:'Aeróbio',sets:1,reps:'600s',weight:'0',...aerobicFields(defaultAerobic())};
+    setEdited(prev=>({...prev,exercises:[...(prev.exercises||[]),ex].map((e,i)=>({...e,order_index:i}))}));
+    setExpandedExerciseId(ex.id);
+    toast.success('Esteira adicionada: escolha tempo ou distância.');
   };
 
   // Adiciona Exercício em Cluster Set
@@ -3496,6 +3505,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               { label: "Wave Loading", description: "Adicionar Wave Loading Ondulatório (7-5-3 / 7-5-3)", onClick: addWaveLoadingTemplate },
             ] },
             { title: "Velocidade, campo, esteira e bike", methods: [
+              {label:"Esteira — caminhada/corrida",description:"Aquecimento, base aeróbia ou recuperação por minutos ou km",onClick:addAerobicTemplate},
               { label: "Tiros / RSA (m ou s)", description: "Adicionar Tiros / RSA (Prescrição em Metros ou Segundos)", onClick: addSprintRsaTemplate },
               { label: "Tiros Esteira (Segs / Antiglicolítico)", description: "Adicionar Tiros Antiglicolíticos na Esteira por Segundos (5x 10s / 45s pausa)", onClick: () => addAntiGlycolyticSprintsTemplate("esteira") },
               { label: "Tiros Bike (Segs / Antiglicolítico)", description: "Adicionar Tiros Antiglicolíticos na Bike por Segundos (6x 8s / 45s pausa)", onClick: () => addAntiGlycolyticSprintsTemplate("bike") },
@@ -3761,8 +3771,9 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
 
                         {/* Numeric Prescriptions */}
-                        <div className="lb-exercise-unilateral md:col-span-12"><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
-                        <div className="lb-exercise-dose md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3" data-side-prescription={!!ex.sidePrescriptions}>
+                        <div className={`lb-exercise-unilateral md:col-span-12 ${ex.aerobic ? "hidden" : ""}`}><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
+                        {aerobicCandidate(ex) && <div className="md:col-span-12"><AerobicEditor exercise={ex} onChange={values=>updateExFields(ex.id,values)} /></div>}
+                        <div className={`lb-exercise-dose md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3 ${ex.aerobic ? "hidden" : ""}`} data-side-prescription={!!ex.sidePrescriptions}>
                           <div>
                             <label className="text-[10px] text-slate-400 uppercase font-extrabold block tracking-wider mb-1">
                               {isFieldOrRunningExercise(ex) ? "Blocos" : "Séries"}
@@ -3862,7 +3873,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
 
                         {/* ADVANCED S&C EXECUTION METHOD CONFIGURATOR */}
-                        <div className="md:col-span-12 mt-3 pt-3 border-t border-slate-800/80 lb-method-panel p-4 rounded-2xl border">
+                        <div className={`md:col-span-12 mt-3 pt-3 border-t border-slate-800/80 lb-method-panel p-4 rounded-2xl border ${ex.aerobic ? "hidden" : ""}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
                             <div className="flex items-center gap-2">
                               <Zap className="w-4 h-4 text-amber-400" />

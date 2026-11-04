@@ -214,6 +214,8 @@ export interface ExerciseSet {
   isCompleted?: boolean;
   distance?: number;
   timeSeconds?: number;
+  speedKmh?: number;
+  inclinePercent?: number;
   intensity?: number;
   technicalQuality?: 'excellent' | 'good' | 'attention' | 'poor';
 }
@@ -236,7 +238,18 @@ export type AdvancedExecutionMethod =
   | 'fartlek'
   | 'shuttle_run';
 
+export interface AerobicPrescription {
+  goal: 'warmup' | 'base' | 'recovery';
+  target: 'time' | 'distance';
+  minutes: number;
+  distanceKm: number;
+  speedKmh?: number;
+  inclinePercent?: number;
+  intensity?: string;
+}
+
 export interface PrescribedExercise {
+  aerobic?: AerobicPrescription;
   capacity?: string;
   method?: string;
   prescriptionRole?: string;

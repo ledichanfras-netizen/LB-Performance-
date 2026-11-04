@@ -1,3 +1,4 @@
+import {exerciseMetadata} from './exerciseMetadata';
 import {externalSessionColumns} from '../src/utils/externalSessions';
 import {saveStudentCompetitions} from './competitionAchievements';
 import { lockAthleteSnapshots, readSavedRevisions } from './workoutSync';
@@ -51,10 +52,12 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
    const owned=await c.query('SELECT id FROM public.prescribed_exercises WHERE id=$1 AND workout_id=$2 FOR UPDATE',[e.id,w.id]);if(!owned.rows.length)throw new ScopeDenied();
    if(!Array.isArray(e.performedSets || []) || (e.performedSets || []).length>500)throw new ScopeDenied();
    for(const set of e.performedSets || []){
-    const id=set.id || randomUUID();if(typeof id!=='string' || id.length>200)throw new ScopeDenied();
+    const id=set.id || randomUUID();set.id=id;if(typeof id!=='string' || id.length>200)throw new ScopeDenied();
     const result=await c.query(`INSERT INTO public.performed_sets(id,exercise_id,reps,weight,rpe,is_completed) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(id) DO UPDATE SET reps=EXCLUDED.reps,weight=EXCLUDED.weight,rpe=EXCLUDED.rpe,is_completed=EXCLUDED.is_completed WHERE performed_sets.exercise_id=EXCLUDED.exercise_id RETURNING id`,[id,e.id,set.reps ?? null,set.weight ?? null,set.rpe ?? null,set.isCompleted ?? false]);
     if(!result.rows.length)throw new ScopeDenied();
    }
+   const metrics=JSON.parse(exerciseMetadata({performedSets:e.performedSets||[]})).performedMetrics;
+   if(metrics.some((m:Record<string,unknown>)=>Object.keys(m).length>1))await c.query("UPDATE public.prescribed_exercises SET prescription_meta=jsonb_set(COALESCE(prescription_meta,'{}'::jsonb),'{performedMetrics}',$1::jsonb) WHERE id=$2 AND workout_id=$3",[JSON.stringify(metrics),e.id,w.id]);
   }
  }
  const savedMatches=await saveStudentCompetitions(c,athlete);

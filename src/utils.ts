@@ -1384,7 +1384,7 @@ export const calculateWorkoutLoad = (workout: Workout, athleteWeight?: number): 
   if (!workout || !workout.exercises) return 0;
   
   workout.exercises.forEach(ex => {
-    if (ex.trainingMode && ex.trainingMode !== "strength") return;
+    if (ex.aerobic || (ex.trainingMode && ex.trainingMode !== "strength")) return;
     const special = detectSpecialMethod(ex);
     const defaultReps = parseRepetitions(special.clusterReps || ex.reps);
     const defaultWeight = parseWeightValue(ex.weight);

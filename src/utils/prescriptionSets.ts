@@ -7,6 +7,10 @@ export function reconcilePrescriptionSets(exercise: PrescribedExercise, status: 
   if (status === 'completed') return exercise;
   if (exercise.sidePrescriptions) return reconcileUnilateralSets(exercise, status);
   const previous = exercise.performedSets || [];
+  if(exercise.aerobic){
+   const existing=previous[0];
+   return {...exercise,sets:1,performedSets:existing?[{...existing}]:[{id:`aerobic-${globalThis.crypto.randomUUID()}`,reps:0,weight:0,rpe:0,distance:0,timeSeconds:0,isCompleted:false}]};
+  }
   const requested = Number(exercise.sets);
   const count = Number.isFinite(requested) && requested > 0 ? Math.max(1, Math.floor(requested)) : previous.length || 3;
   const special = detectSpecialMethod(exercise);

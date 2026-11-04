@@ -9,7 +9,7 @@ import { readReassessmentPlan } from './src/utils/reassessment';
 import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, syncRevision, archiveMissingWorkoutsSQL } from './server/workoutSync';
 import { normalizeBirthDate } from './src/utils/birthDate';
 import { createSaveBatch } from './server/saveBatch';
-import { exerciseMetadata } from "./server/exerciseMetadata";
+import { exerciseMetadata, restorePerformedMetrics } from "./server/exerciseMetadata";
 import express from 'express';
 import { billingRouter } from './server/billing';
 import { resolveSupervisedAccount } from './server/supervisor';
@@ -729,10 +729,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
                 order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
                 videoUrl: ex.video_url || '',
                 imageUrl: ex.image_url || '',
-                performedSets: (ex.performed_sets || []).map((s: any) => ({
-                  ...s,
-                  isCompleted: s.is_completed ?? false
-                }))
+                performedSets: restorePerformedMetrics(ex, ex.performed_sets || [])
               })).sort((x: any, y: any) => {
                 const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
                 const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
@@ -1003,10 +1000,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
           order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
           videoUrl: ex.video_url || '',
           imageUrl: ex.image_url || '',
-          performedSets: (setsByEx[ex.id] || []).map((s: any) => ({
-            ...s,
-            isCompleted: s.is_completed ?? false
-          }))
+          performedSets: restorePerformedMetrics(ex, setsByEx[ex.id] || [])
         })).sort((x: any, y: any) => {
           const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
           const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
