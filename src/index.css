@@ -2474,3 +2474,20 @@ body.light-theme .lb-external-sessions :is(input,select,textarea) {color-scheme:
 
 .lb-external-sessions button:disabled {opacity:.6;cursor:wait;}
 .lb-external-sessions .les-error {flex-basis:100%;font-size:13px;line-height:1.5;color:var(--les-text);background:var(--les-soft);padding:12px;border:1px solid var(--les-line);border-radius:12px;}
+
+/* Session completion remains dark, including when global light-theme rules apply. */
+body .coach-session-shell .lb-session-finish,
+body.light-theme .coach-session-shell .lb-session-finish {
+  background:#0c1524!important; background-image:none!important; color:#f1f5f9!important; border-color:#34445b!important; color-scheme:dark;
+}
+body .coach-session-shell .lb-session-finish :is(.lb-session-card,[class*="bg-slate-950/"],[class*="bg-slate-900/"]),
+body.light-theme .coach-session-shell .lb-session-finish :is(.lb-session-card,[class*="bg-slate-950/"],[class*="bg-slate-900/"]) {
+  background:#111e30!important; border-color:#34445b!important; color:#f1f5f9!important;
+}
+body .coach-session-shell .lb-session-finish :is(input,textarea,select),
+body.light-theme .coach-session-shell .lb-session-finish :is(input,textarea,select) {
+  background:#0a1322!important; border-color:#548365!important; color:#f1f5f9!important; -webkit-text-fill-color:#f1f5f9!important; color-scheme:dark;
+}
+body.light-theme .coach-session-shell .lb-session-finish :is(label,h3,[class*="text-slate-300"],[class*="text-slate-400"],[class*="text-slate-500"],.text-white) {color:#cbd5e1!important;}
+body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="false"] {background:#0a1322!important; color:#e2e8f0!important; border-color:#475569!important;}
+body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="true"] {background:#55391c!important; color:#ffcf76!important; border-color:#f59e0b!important;}

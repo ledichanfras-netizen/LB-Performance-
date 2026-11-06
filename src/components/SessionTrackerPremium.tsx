@@ -407,6 +407,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const draftConflictRef=useRef(draftConflict);draftConflictRef.current=draftConflict;
   const dialogRef=useRef<HTMLDivElement>(null);
   const finalizing=useRef(false);
+  const [isSavingSession,setIsSavingSession]=useState(false);
   const closeRef=useRef(onCancel);closeRef.current=onCancel;
   const dialogClose=React.useCallback(()=>closeRef.current(),[]);
   useAccessibleDialog(dialogRef,dialogClose);
@@ -601,9 +602,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   // Drafts are account/athlete/workout scoped and written after every state change.
   const draftRef=useRef<any>(null);
   const draftWriteRef=useRef<{session:Workout|null;time:number;rpe:number;date:string;duration:string;feedback:string}>({session:null,time:0,rpe:-1,date:"",duration:"",feedback:""});
-  draftRef.current={version:1,baseUpdatedAt:workout.updatedAt,session,elapsedSeconds:totalElapsedTime,savedAt:Date.now(),date:sessionDate,rpe:overallRpe,rpeAnswered:hasRpe,duration:manualDurationMinutes,feedback:feedbackNotes};
+  draftRef.current={version:1,editingCompleted:isEditingCompleted,baseUpdatedAt:workout.updatedAt,session,elapsedSeconds:totalElapsedTime,savedAt:Date.now(),date:sessionDate,rpe:overallRpe,rpeAnswered:hasRpe,duration:manualDurationMinutes,feedback:feedbackNotes};
   useEffect(()=>{
-   if(isEditingCompleted||draftConflict||finalizing.current)return;
+   if(draftConflict||finalizing.current)return;
    const prev=draftWriteRef.current;
    const changed=prev.session!==session||prev.rpe!==overallRpe||prev.date!==sessionDate||prev.duration!==manualDurationMinutes||prev.feedback!==feedbackNotes;
    if(!changed&&Date.now()-prev.time<15000)return;
@@ -1132,6 +1133,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
   // Finishing the entire session
   const triggerFinish = async (shareSocial?: boolean | React.SyntheticEvent) => {
+    if(finalizing.current)return;
     if(draftConflict){toast.error("Escolha como continuar após a atualização da prescrição.");return;}
     if(durationNeedsConfirmation){toast.error("Confira e confirme a duração realizada após a interrupção.");setShowFinishModal(true);return;}
     if(!hasRpe){toast.error("Selecione a PSE da sessão antes de finalizar.");setShowFinishModal(true);return;}
@@ -1177,9 +1179,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     };
 
     finalizing.current=true;
-    if(!isEditingCompleted)writeSessionDraft(browserDraftStorage(),storageKey,{...draftRef.current,session:completedSession,savedAt:Date.now()});
+    writeSessionDraft(browserDraftStorage(),storageKey,{...draftRef.current,session:completedSession,savedAt:Date.now()});
     // Keep the draft until the caller confirms the server receipt.
-    const confirmed=await onFinish(completedSession,isSocial);
+    setIsSavingSession(true);
+    let confirmed:boolean|void=false;
+    try{confirmed=await onFinish(completedSession,isSocial);}catch{toast.error("Não foi possível confirmar o salvamento. O rascunho foi preservado.");}
+    finally{setIsSavingSession(false);}
     if(confirmed!==true)finalizing.current=false;
     else speakText(isEditingCompleted?'Alterações salvas com sucesso.':'Treino salvo com sucesso.',isVoiceEnabled);
   };
@@ -1605,8 +1610,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   }
 
   return (
-    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Execução do treino" tabIndex={-1} className="coach-session-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-6xl bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-y-auto shadow-2xl text-slate-100 p-3 sm:p-5 md:p-6 space-y-3 md:space-y-4 flex flex-col animate-in fade-in duration-300">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-busy={isSavingSession} onKeyDownCapture={e=>{if(isSavingSession)e.preventDefault();}} style={isSavingSession?{pointerEvents:"none"}:undefined} aria-label="Execução do treino" tabIndex={-1} className="coach-session-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-6xl bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-y-auto shadow-2xl text-slate-100 p-3 sm:p-5 md:p-6 space-y-3 md:space-y-4 flex flex-col animate-in fade-in duration-300">
       
+      {isSavingSession&&<div role="status" className="fixed inset-x-4 top-4 z-[1400] rounded-2xl border border-emerald-500 bg-slate-950 p-4 text-white shadow-2xl">Conectando e salvando a sessão… Aguarde a confirmação.</div>}
       {draftConflict&&onDevice&&<div role="status" className="shrink-0 p-3 rounded-xl border border-amber-500 text-sm">
         <p>A prescrição foi atualizada. Seu rascunho anterior foi preservado.</p>
         <button type="button" className="min-h-11 p-2 underline" onClick={()=>{setSession(prev=>recoverDraftResults(prev,onDevice));setDraftConflict(false);setDurationNeedsConfirmation(true);}}>Recuperar resultados compatíveis</button>
@@ -2420,7 +2426,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               );
             })}
             {/* PAINEL DE CONCLUSÃO DO TREINO - LOCALIZADO NO FINAL DA TELA */}
-            <div className="p-6 sm:p-8 bg-gradient-to-b from-[#0e1626] to-[#080d17] border border-slate-800/90 rounded-[2.5rem] shadow-2xl space-y-6 mt-10">
+            <div className="lb-session-finish p-6 sm:p-8 bg-gradient-to-b from-[#0e1626] to-[#080d17] border border-slate-800/90 rounded-[2.5rem] shadow-2xl space-y-6 mt-10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
                 <div className="flex items-center gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14] text-xl shrink-0 shadow-lg shadow-[#39FF14]/10">
@@ -2456,7 +2462,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               {/* DADOS GERAIS: DATA, DURAÇÃO E PSE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Data */}
-                <div className="space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
+                <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     📅 DATA DE EXECUÇÃO
                   </label>
@@ -2469,7 +2475,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 </div>
 
                 {/* Duração */}
-                <div className="space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
+                <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     ⏱️ DURAÇÃO TOTAL (MINUTOS)
                   </label>
@@ -2490,7 +2496,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 </div>
 
                 {/* Resumo PSE Atual */}
-                <div className="space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900 sm:col-span-2 lg:col-span-1 flex flex-col justify-between">
+                <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900 sm:col-span-2 lg:col-span-1 flex flex-col justify-between">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     🔥 INTENSIDADE DA SESSÃO
                   </label>
@@ -2506,7 +2512,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               </div>
 
               {/* SELETOR INTERATIVO DE PSE (1 A 10) */}
-              <div className="space-y-2.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
+              <div className="lb-session-card space-y-2.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
                   ESCALA DE PERCEPÇÃO SUBJETIVA DO ESFORÇO (BORG CR10)
                 </label>
@@ -2526,8 +2532,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       <button
                         key={v}
                         type="button"
+                        aria-pressed={isSelected}
                         onClick={() => setOverallRpe(v)}
-                        className={`py-2.5 rounded-xl border text-xs sm:text-sm font-black transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${colorClasses}`}
+                        className={`lb-session-rpe py-2.5 rounded-xl border text-xs sm:text-sm font-black transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${colorClasses}`}
                       >
                         <span>{v}</span>
                         <span className="text-[8px] opacity-75">{getRpeEmojiAndInfo(v).emoji}</span>
@@ -2538,7 +2545,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               </div>
 
               {/* RELATO / BIOFEEDBACK */}
-              <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
+              <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
                   💬 RELATO DE BIOFEEDBACK E OBSERVAÇÕES (OPCIONAL)
                 </label>
@@ -2599,7 +2606,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-xl bg-[#0c111d] border border-slate-900 rounded-[2.5rem] p-6 sm:p-8 md:p-10 shadow-2xl relative space-y-6 text-left"
+              className="lb-session-finish w-full max-w-xl bg-[#0c111d] border border-slate-900 rounded-[2.5rem] p-6 sm:p-8 md:p-10 shadow-2xl relative space-y-6 text-left"
             >
               <div className="flex justify-between items-center border-b border-slate-900 pb-4">
                 <div>
@@ -2627,7 +2634,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               )}
 
               {/* EDIT DATE & TIME SECTION */}
-              <div className="bg-slate-950/50 border border-slate-900 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="lb-session-card bg-slate-950/50 border border-slate-900 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     📅 DATA DE EXECUÇÃO
@@ -2699,8 +2706,9 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       <button
                         key={v}
                         type="button"
+                        aria-pressed={isSelected}
                         onClick={() => setOverallRpe(v)}
-                        className={`py-3 rounded-xl border text-sm font-black transition-all cursor-pointer ${colorClasses} hover:scale-[1.05]`}
+                        className={`lb-session-rpe py-3 rounded-xl border text-sm font-black transition-all cursor-pointer ${colorClasses} hover:scale-[1.05]`}
                       >
                         {v}
                       </button>

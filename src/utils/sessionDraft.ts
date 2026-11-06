@@ -1,9 +1,9 @@
 import type { Workout } from '../types';
-export type SessionDraft={version:1;baseUpdatedAt?:string;session:Workout;elapsedSeconds:number;savedAt:number;date:string;rpe:number;rpeAnswered?:boolean;duration:string;feedback:string};
+export type SessionDraft={version:1;editingCompleted?:boolean;baseUpdatedAt?:string;session:Workout;elapsedSeconds:number;savedAt:number;date:string;rpe:number;rpeAnswered?:boolean;duration:string;feedback:string};
 export function browserDraftStorage():Storage|null{try{return typeof window==='undefined'?null:window.localStorage;}catch{return null;}}
 export function readAnySessionDraft(storage:Pick<Storage,'getItem'>|null,key:string|undefined,workout:Workout):SessionDraft|null{
- if(!storage||!key||workout.status==='completed')return null;
- try{const d=JSON.parse(storage.getItem(key)||'null');if(d?.version!==1||d.session?.id!==workout.id||!Array.isArray(d.session?.exercises)||!Number.isFinite(d.elapsedSeconds)||d.elapsedSeconds<0||!Number.isFinite(d.savedAt))return null;return d;}catch{return null;}
+ if(!storage||!key)return null;
+ try{const d=JSON.parse(storage.getItem(key)||'null');if(d?.version!==1||d.session?.id!==workout.id||!Array.isArray(d.session?.exercises)||!Number.isFinite(d.elapsedSeconds)||d.elapsedSeconds<0||!Number.isFinite(d.savedAt))return null;if(workout.status==='completed'&&d.editingCompleted!==true)return null;return d;}catch{return null;}
 }
 export function readSessionDraft(storage:Pick<Storage,'getItem'>|null,key:string|undefined,workout:Workout):SessionDraft|null{
  const d=readAnySessionDraft(storage,key,workout);return d&&d.baseUpdatedAt===workout.updatedAt?d:null;

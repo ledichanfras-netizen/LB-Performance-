@@ -1,3 +1,4 @@
+import {workoutExecutionRouter} from './server/workoutExecution';
 import {workoutHistoryRouter,workoutFromRows} from './server/workoutHistory';
 import {assertCompleteSnapshots} from './server/snapshotContract';
 import {loadPerformanceContext,performancePrompt} from './server/performanceContext';
@@ -533,7 +534,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
 const scopedAccountRouter = accountRouter(pool, JWT_SECRET);
 apiRouter.use('/accounts', scopedAccountRouter);
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
-apiRouter.use('/athletes', authMiddleware, workoutHistoryRouter(pool), reassessmentRouter(pool));
+apiRouter.use('/athletes', authMiddleware, workoutExecutionRouter(pool), workoutHistoryRouter(pool), reassessmentRouter(pool));
 
 // Minimal readiness check; diagnostics and credentials are never public.
 apiRouter.get('/health',async(_req,res)=>{

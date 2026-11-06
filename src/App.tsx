@@ -4184,7 +4184,7 @@ const EliteHubApp: FC<{
                   athleteWeight={getResolvedAthleteWeight(selected)}
                   onCancel={() => setModalState({ type: null })}
                   onFinish={async(updated, shareSocial) => {
-                    if(!await updateWorkout(selected!.id, updated))return false;
+                    if(!await updateWorkout(selected!.id, updated,{baseUpdatedAt:modalState.editingData.updatedAt}))return false;
                     clearSessionDraft(browserDraftStorage(),`${athleteCacheKey(user?.token)}:workout:${selected!.id}:${updated.id}`);
                     if (shareSocial) {
                       setModalState({

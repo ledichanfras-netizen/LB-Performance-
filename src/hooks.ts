@@ -1,3 +1,5 @@
+import {ensureSessionServiceReady} from './utils/sessionServiceReady';
+import {workoutExecutionPayload} from './utils/workoutExecution';
 import {loadPagedAthletes,HistoryChangedError} from './utils/pagedHistory';
 import { fetchWithDeadline } from './utils/requestDeadline';
 import { migrateLegacyImtp } from './utils/legacyImtp';
@@ -83,7 +85,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
 // Keep saves in order: retries of an older snapshot must finish before a newer edit.
 let saveRequestTail: Promise<unknown> = Promise.resolve();
 function resilientFetch(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
-  if (url !== '/api/salvar') return fetchWithRetry(url, options, retries, delayMs);
+  if (url !== '/api/salvar' && !url.endsWith('/execution')) return fetchWithRetry(url, options, retries, delayMs);
   const request = saveRequestTail.then(() => fetchWithRetry(url, options, retries, delayMs));
   saveRequestTail = request.catch(() => undefined);
   return request;
@@ -861,12 +863,12 @@ export const useAthletes = (token?: string | null) => {
     }
   };
 
-  const updateWorkout = async (athleteId: string, workout: Workout) => {
+  const updateWorkout = async (athleteId: string, workout: Workout, executionOptions?:{baseUpdatedAt?:string}) => {
     const cleanDate = workout.date ? (typeof workout.date === 'string' ? workout.date.split('T')[0] : new Date(workout.date).toISOString().split('T')[0]) : getLocalDateString();
     const updatedWorkout: Workout = {
       ...workout,
       date: cleanDate,
-      updatedAt: new Date().toISOString(),
+      updatedAt: executionOptions ? executionOptions.baseUpdatedAt : new Date().toISOString(),
       exercises: (workout.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
     };
 
@@ -887,7 +889,21 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    if(!await save(updated, athleteId)) return false;
+    if(executionOptions&&token){
+      saveRevisionRef.current+=1;pendingSavesRef.current+=1;setSyncing(true);
+      safeLocalStorage.setItem(cacheKey,JSON.stringify(updated));
+      try{
+        await ensureSessionServiceReady();
+        const res=await resilientFetch(`/api/athletes/${encodeURIComponent(athleteId)}/workouts/${encodeURIComponent(workout.id)}/execution`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(workoutExecutionPayload(updatedWorkout,executionOptions.baseUpdatedAt))});
+        if(res.status===401)window.dispatchEvent(new Event('lb:session-invalid'));
+        let receipt:any;try{receipt=await res.json();}catch{throw Error('O serviço não confirmou a sessão. O rascunho foi preservado; tente sincronizar novamente.');}
+        if(!res.ok)throw Error(receipt.error||'O servidor não confirmou a sessão.');
+        if(receipt.confirmed!==true||receipt.workout?.id!==workout.id||!receipt.syncRevisions?.[athleteId])throw Error('Confirmação incompleta. O rascunho foi preservado.');
+        setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,syncRevision:receipt.syncRevisions[athleteId],workouts:a.workouts.map(w=>w.id===workout.id?receipt.workout:w)}:a));
+        setLastSyncedAt(new Date());
+      }catch(error:any){toast.error(`Registro ainda não salvo: ${error.message}`,{id:'sync-error'});return false;}
+      finally{pendingSavesRef.current-=1;setSyncing(pendingSavesRef.current>0);}
+    }else if(!await save(updated, athleteId)) return false;
     toast.success("Treino atualizado!");
     return true;
   };
