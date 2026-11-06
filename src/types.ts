@@ -340,8 +340,8 @@ export interface Workout {
   totalLoad?: number; 
   rpe?: number; 
   durationMinutes?: number; 
-  monotony?: number; 
-  strain?: number;   
+  monotony?: number | null;
+  strain?: number | null;
   feedback?: string;
   trainerNotes?: string;
   updatedAt?: string;

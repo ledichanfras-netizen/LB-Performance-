@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lb-performance-v4.8';
+const CACHE_NAME = 'lb-performance-v4.9';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -64,7 +64,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+        .catch(async () => {const cached=await caches.match(event.request);if(cached)return cached;if(event.request.mode==='navigate')return (await caches.match('/index.html'))||Response.error();return new Response('Recurso indisponível offline',{status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});})
     );
     return;
   }

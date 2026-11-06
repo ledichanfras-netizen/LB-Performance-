@@ -1,4 +1,4 @@
-import { clearSessionDraft } from './utils/sessionDraft';
+import { browserDraftStorage, clearSessionDraft } from './utils/sessionDraft';
 import LBMethodIcon from './components/LBMethodIcon';
 import ExternalSessionManager from './components/ExternalSessionManager';
 import { UnilateralSetTracker } from "./components/UnilateralSetTracker";
@@ -801,15 +801,8 @@ const EliteHubApp: FC<{
       const chronic = Math.round(computedAcwr.chronic);
       const acwr = computedAcwr.ratio;
 
-      let status = "ZONA IDEAL";
-      let statusColor = "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-200 dark:border-emerald-500/30";
-      if (acwr < 0.85) {
-        status = "RISCO BAIXO";
-        statusColor = "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:border-amber-500/30";
-      } else if (acwr > 1.3) {
-        status = "RISCO ALTO";
-        statusColor = "bg-red-100 text-red-700 border-red-300 dark:bg-red-500/25 dark:text-red-200 dark:border-red-500/40 shadow-sm";
-      }
+      const status = computedAcwr.status.toUpperCase();
+      const statusColor = acwr === null ? "bg-slate-100 text-slate-600 border-slate-300" : acwr > 1.3 ? "bg-orange-100 text-orange-800 border-orange-300" : acwr < .8 ? "bg-amber-100 text-amber-800 border-amber-300" : "bg-emerald-100 text-emerald-800 border-emerald-300";
 
       const todayWell = (ath.wellness || []).find((w) => w.date && w.date.startsWith(today));
       const readinessDisplay = todayWell && todayWell.readinessScore !== undefined
@@ -853,7 +846,8 @@ const EliteHubApp: FC<{
       };
     });
 
-    const getRiskSeverity = (acwr: number) => {
+    const getRiskSeverity = (acwr: number | null) => {
+      if (acwr === null) return 0;
       if (acwr > 1.3) return 3; // High risk ("RISCO ALTO") first
       if (acwr < 0.85) return 2; // Under-training ("RISCO BAIXO") second
       return 1; // Good/Ideal zone ("ZONA IDEAL") last
@@ -865,7 +859,7 @@ const EliteHubApp: FC<{
       if (sevA !== sevB) {
         return sevB - sevA; // High severity first
       }
-      return b.acwr - a.acwr; // Higher ACWR of that category first
+      return (b.acwr ?? -1) - (a.acwr ?? -1); // Higher ACWR of that category first
     });
   }, [performanceAthletes, selectedId, dashboardFilter]);
 
@@ -2772,7 +2766,7 @@ const EliteHubApp: FC<{
                               Acompanhamento em Tempo Real dos Meus Atletas
                             </h3>
                             <p className="text-[11px] text-slate-400 mt-1">
-                              Monitoramento dinâmico de todos os atletas por nível de risco de lesão. Carga aguda, carga crônica, ACWR, nível de prontidão e sono. Clique em qualquer linha para abrir o painel individual completo.
+                              Monitoramento dos registros de carga e prontidão dos atletas. Carga aguda, carga crônica, ACWR, nível de prontidão e sono. Clique em qualquer linha para abrir o painel individual completo.
                             </p>
                           </div>
                           <div className="flex items-center gap-2.5 self-start md:self-center">
@@ -2888,14 +2882,14 @@ const EliteHubApp: FC<{
                                       <td className="py-4 px-4 text-xs font-mono font-black text-center">
                                         <span
                                           className={
-                                            (ath.acwr || 0) > 1.3
+                                            ath.acwr === null ? "text-slate-400" : ath.acwr > 1.3
                                               ? "text-red-400"
-                                              : (ath.acwr || 0) < 0.85
+                                              : ath.acwr !== null && ath.acwr < 0.85
                                               ? "text-amber-450"
                                               : "text-emerald-400"
                                           }
                                         >
-                                          {typeof ath.acwr === "number" && !isNaN(ath.acwr) ? ath.acwr.toFixed(2) : "1.00"}
+                                          {typeof ath.acwr === "number" && !isNaN(ath.acwr) ? ath.acwr.toFixed(2) : "—"}
                                         </span>
                                       </td>
 
@@ -4191,7 +4185,7 @@ const EliteHubApp: FC<{
                   onCancel={() => setModalState({ type: null })}
                   onFinish={async(updated, shareSocial) => {
                     if(!await updateWorkout(selected!.id, updated))return false;
-                    clearSessionDraft(localStorage,`${athleteCacheKey(user?.token)}:workout:${selected!.id}:${updated.id}`);
+                    clearSessionDraft(browserDraftStorage(),`${athleteCacheKey(user?.token)}:workout:${selected!.id}:${updated.id}`);
                     if (shareSocial) {
                       setModalState({
                         type: "strava-share",
@@ -4358,13 +4352,13 @@ const EliteHubApp: FC<{
                                       Risco de Lesão
                                     </p>
                                     <p className="text-3xl font-black text-red-650 italic">
-                                      {data.injuryRiskScore || 0}%
+                                      {typeof data.injuryRiskScore === "number" ? `${data.injuryRiskScore}%` : "Não estimado"}
                                     </p>
                                     <div className="w-full bg-slate-200 h-1 rounded-full mt-2 overflow-hidden">
                                       <div
                                         className="bg-red-500 h-full rounded-full"
                                         style={{
-                                          width: `${data.injuryRiskScore || 0}%`,
+                                          width: `${typeof data.injuryRiskScore === "number" ? `${data.injuryRiskScore}%` : "Não estimado"}`,
                                         }}
                                       ></div>
                                     </div>
@@ -5681,7 +5675,7 @@ const DashboardView: FC<{
               {acwrData ? (
                 <div className="flex items-baseline gap-2">
                   <span className={`text-3xl font-black ${acwrData.color}`}>
-                    {acwrData.ratio}
+                    {acwrData.ratio ?? "—"}
                   </span>
                   <span className={`text-[8px] font-black uppercase tracking-wider ${acwrData.color} bg-slate-900/60 px-2 py-0.5 rounded border border-slate-800`}>
                     {acwrData.status}
@@ -5690,7 +5684,7 @@ const DashboardView: FC<{
               ) : (
                 <span className="text-[10px] font-bold text-slate-500 uppercase italic">insuficiente</span>
               )}
-              <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">Zona ideal de prevenção contra DM (0.8 - 1.3)</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase mt-2">Relação descritiva de carga; não estima risco de lesão</p>
             </Card>
           </div>
 
@@ -5882,30 +5876,10 @@ const DashboardView: FC<{
           d.setDate(todayVal.getDate() - i);
           const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-          const dStartA = new Date(d);
-          dStartA.setDate(d.getDate() - 6);
-          dStartA.setHours(0, 0, 0, 0);
-
-          const dStartC = new Date(d);
-          dStartC.setDate(d.getDate() - 27);
-          dStartC.setHours(0, 0, 0, 0);
-
-          const dEnd = new Date(d);
-          dEnd.setHours(23, 59, 59, 999);
-
-          const acuteLoadSum = [
-            ...activeWorkouts.filter(w => w.status === "completed" && w.rpe && w.date && new Date(w.date) >= dStartA && new Date(w.date) <= dEnd).map(w => calculateWorkoutInternalLoad(w)),
-            ...activeExternal.filter(s => s.date && new Date(s.date) >= dStartA && new Date(s.date) <= dEnd).map(s => s.load || (s.durationMinutes * s.rpe || 0))
-          ].filter((value): value is number => value!==null).reduce((sum, val) => sum + val, 0);
-
-          const chronicLoadSum = [
-            ...activeWorkouts.filter(w => w.status === "completed" && w.rpe && w.date && new Date(w.date) >= dStartC && new Date(w.date) <= dEnd).map(w => calculateWorkoutInternalLoad(w)),
-            ...activeExternal.filter(s => s.date && new Date(s.date) >= dStartC && new Date(s.date) <= dEnd).map(s => s.load || (s.durationMinutes * s.rpe || 0))
-          ].filter((value): value is number => value!==null).reduce((sum, val) => sum + val, 0);
-
-          const acuteAvg = acuteLoadSum / 7;
-          const chronicAvg = chronicLoadSum / 28;
-          const acwrRatio = chronicAvg > 0 ? parseFloat((acuteAvg / chronicAvg).toFixed(2)) : null;
+          const historicalLoad = calculateACWR(activeWorkouts, activeExternal, dStr);
+          const acuteLoadSum = historicalLoad.acute;
+          const chronicLoadSum = historicalLoad.chronic * 4;
+          const acwrRatio = historicalLoad.ratio;
 
           const wellnessOnDate = (athlete.wellness || []).find(
             (well) => well.date && well.date.split("T")[0] === dStr
@@ -5928,6 +5902,7 @@ const DashboardView: FC<{
 
         athletes.forEach(ath => {
           const res = calculateACWR(ath.workouts || [], ath.externalSessions || []);
+          if (res.ratio === null) return;
           if (res.ratio >= 0.8 && res.ratio <= 1.30) {
             idealCount++;
           } else if (res.ratio < 0.8) {

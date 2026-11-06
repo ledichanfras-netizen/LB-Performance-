@@ -1,3 +1,4 @@
+import { weeklyLoadMetrics, acwrMetrics } from './utils/loadWindows';
 import { sessionInternalLoad, realizedTonnage } from './utils/sessionMetrics';
 import { orderedExercises } from "./utils/exerciseOrder";
 import { normalizeAssessmentNumbers } from "./utils/assessmentNumbers";
@@ -1573,108 +1574,8 @@ export const calculateFieldCourtMetrics = (workout: Workout): FieldCourtMetrics 
   };
 };
 
-export const calculateAdvancedMetrics = (workouts: Workout[] = [], externalSessions: any[] = []) => {
-  const completedWorkouts = (workouts || []).filter(w => w && w.status === 'completed' && w.rpe);
-  
-  // Combine all sessions (gym + external)
-  const allSessions = [
-    ...completedWorkouts.map(w => ({ date: w.date, load: calculateWorkoutInternalLoad(w) })),
-    ...(externalSessions || []).map(s => {
-      const dur = Math.min(1440, Math.max(0, safeParseFloat(s?.durationMinutes) || 0));
-      const rpe = Math.min(10, Math.max(0, safeParseFloat(s?.rpe) || 0));
-      const calcLoad = dur * rpe;
-      let rawLoad = safeParseFloat(s?.load);
-      if (isNaN(rawLoad) || rawLoad > 20000 || rawLoad < 0) rawLoad = calcLoad;
-      return { date: s?.date, load: rawLoad };
-    })
-  ].filter(s => s.date && Number.isFinite(s.load))
-   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  const last7Days = allSessions.slice(0, 7);
-
-  if (last7Days.length === 0) return { monotony: 0, strain: 0 };
-
-  const internalLoads = last7Days.map(s => Number(s.load) || 0);
-  const sumLoad = internalLoads.reduce((a, b) => a + b, 0);
-  const meanLoad = sumLoad / last7Days.length;
-  
-  const variance = internalLoads.reduce((a, b) => a + Math.pow(b - meanLoad, 2), 0) / last7Days.length;
-  const stdDev = Math.sqrt(variance);
-
-  const monotony = stdDev > 0 ? parseFloat((meanLoad / stdDev).toFixed(2)) : 1.0;
-  const strain = Math.round(sumLoad * monotony);
-
-  return { monotony, strain };
-};
-
-export const calculateACWR = (workouts: Workout[] = [], externalSessions: any[] = []) => {
-  const gymSessions = (workouts || [])
-    .filter(w => w && w.status === 'completed')
-    .map(w => ({
-      date: w.date,
-      load: calculateWorkoutInternalLoad(w)
-    }));
-
-  const extSessions = (externalSessions || [])
-    .filter(s => s && s.date)
-    .map(s => {
-      const dur = Math.min(1440, Math.max(0, safeParseFloat(s?.durationMinutes) || 0));
-      const rpe = Math.min(10, Math.max(0, safeParseFloat(s?.rpe) || 0));
-      const calcLoad = dur * rpe;
-      let rawLoad = safeParseFloat(s?.load);
-      if (isNaN(rawLoad) || rawLoad > 20000 || rawLoad < 0) {
-        rawLoad = calcLoad;
-      }
-      return { date: s.date, load: rawLoad };
-    });
-
-  const allSessions = [...gymSessions, ...extSessions]
-    .filter(s => s.date && Number.isFinite(s.load))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  if (allSessions.length === 0) return { ratio: 1.0, acute: 0, chronic: 0, status: 'Estável', color: 'text-emerald-400' };
-
-  const today = new Date();
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
-  
-  const twentyEightDaysAgo = new Date(today);
-  twentyEightDaysAgo.setDate(today.getDate() - 28);
-
-  const acuteSessions = allSessions.filter(s => new Date(s.date) >= sevenDaysAgo);
-  const chronicSessions = allSessions.filter(s => new Date(s.date) >= twentyEightDaysAgo);
-
-  const acuteLoadSum = acuteSessions.reduce((acc, s) => acc + (Number(s.load) || 0), 0);
-  const chronicLoadSum = chronicSessions.reduce((acc, s) => acc + (Number(s.load) || 0), 0);
-
-  const acuteAvg = acuteLoadSum / 7;
-  const chronicAvg = chronicLoadSum / 28;
-
-  const acute = Math.round(acuteLoadSum);
-  const chronic = Math.round(chronicLoadSum / 4); // 7-day normalized chronic load
-
-  const ratio = (chronicAvg > 0 && Number.isFinite(chronicAvg)) 
-    ? parseFloat((acuteAvg / chronicAvg).toFixed(2)) 
-    : 1.0;
-
-  const safeRatio = Number.isFinite(ratio) ? ratio : 1.0;
-
-  let status = 'Ideal';
-  let color = 'text-emerald-400';
-
-  if (safeRatio < 0.8) {
-    status = 'Sub-treinado';
-    color = 'text-yellow-500';
-  } else if (safeRatio > 1.3 && safeRatio <= 1.5) {
-    status = 'Atenção';
-    color = 'text-orange-500';
-  } else if (safeRatio > 1.5) {
-    status = 'Risco Alto';
-    color = 'text-red-500';
-  }
-
-  return { ratio: safeRatio, acute, chronic, status, color };
-};
+export const calculateAdvancedMetrics = (workouts:Workout[]=[],externalSessions:any[]=[],asOf?:string)=>weeklyLoadMetrics(workouts,externalSessions,asOf);
+export const calculateACWR = (workouts:Workout[]=[],externalSessions:any[]=[],asOf?:string)=>acwrMetrics(workouts,externalSessions,asOf);
 
 export const calculatePerformanceScore = (athleteOrAssessments: any) => {
   if (!athleteOrAssessments) return 0;
@@ -1796,7 +1697,8 @@ export const calculatePerformanceScore = (athleteOrAssessments: any) => {
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 };
 
-export const getInjuryRiskLevel = (acwr: number, fatigue: number, readiness: number) => {
+export const getInjuryRiskLevel = (acwr: number | null, fatigue: number, readiness: number) => {
+  if (acwr === null) return { level: "Não calculável", color: "text-slate-400", bg: "bg-slate-400", value: 0 };
   let riskPoints = 0;
   
   // ACWR Factor (The Sweet Spot is 0.8 - 1.3)

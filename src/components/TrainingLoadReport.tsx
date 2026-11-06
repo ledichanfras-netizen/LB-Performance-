@@ -24,70 +24,12 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
   const acuteLoad = Math.round(computedAcwr.acute);
   const chronicLoad = Math.round(computedAcwr.chronic);
 
-  // Set default/standard training feedback based on ACWR
-  let acwrStatus = "Sobrecarga Saudável";
-  let acwrColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
-  let feedbackText = "O atleta encontra-se na zona de equilíbrio ótimo ('Sweet Spot', ACWR entre 0.8 e 1.3). Esse índice promove a supercompensação cardiovascular e neuromuscular, maximizando o ganho físico e reduzindo drasticamente as chances de lesões de tecidos moles.";
-  let actionText = "Manter o microciclo planejado de treinamento sem restrições de volume ou intensidade. Continuar o monitoramento diário de wellness.";
-
-  let explicacoes: string[] = [
-    "Equilíbrio Fisiológico Ideal: A aptidão física desenvolvida ao longo do último mês (carga crônica) neutraliza perfeitamente a fadiga gerada nos últimos 7 dias (carga aguda).",
-    "Supercompensação Ativa: O corpo do atleta está assimilando os estímulos de treino com excelência, o que potencializa ganhos em força muscular, velocidade e resistência cardiorrespiratória.",
-    "Risco de Lesão Minimizado: Estudos científicos apontam que atletas no Sweet Spot mantêm taxas de lesões musculares inferiores a 5% em microciclos subsequentes."
-  ];
-
-  let solucoes: string[] = [
-    "Manutenção do Planejamento: Prosseguir com o microciclo planejado de treinos táticos e físicos, sem necessidade de cortes preventivos.",
-    "Estímulos de Intensidade: Excelente janela fisiológica para focar em potência e velocidade máxima, pois o sistema neuromuscular encontra-se descansado e receptivo.",
-    "Suporte Nutricional e Ergogênico: Garantir a ingestão ideal de macronutrientes e manter o protocolo padrão de hidratação pós-treino."
-  ];
-
-  if (acwr < 0.8) {
-    acwrStatus = "Subtreinamento (Under-trained)";
-    acwrColor = "text-amber-600 bg-amber-50 border-amber-100";
-    feedbackText = "Índice ACWR abaixo do Sweet Spot recomendado (< 0.8). O atleta está exposto a um destreinamento funcional e perda de robustez física. O risco de lesões aumenta indiretamente quando o atleta for exposto a picos súbitos de intensidade futura.";
-    actionText = "Programar aumentos graduais e lineares de carga mecânica e volume nas próximas sessões de campo/quadra para recalibrar a tolerância ao esforço.";
-    explicacoes = [
-      "Perda de Robustez Física: O estímulo recente de treino foi insuficiente para manter ou desenvolver a base atlética prévia, resultando em destreinamento gradual.",
-      "Vulnerabilidade a Picos de Carga: Ao treinar menos do que o habitual, o limiar de tolerância ao esforço do atleta diminui. Picos de intensidade futuros representarão um estresse excessivo.",
-      "Aptidão Físico-Motora Estagnada: A musculatura esquelética e o sistema cardiovascular não estão recebendo a sobrecarga mínima necessária para adaptações de alta performance."
-    ];
-    solucoes = [
-      "Aumento Progressivo Controlado: Elevar gradualmente a carga semanal utilizando uma taxa segura (recomenda-se um incremento de 10% a 15% na carga total).",
-      "Sessões Coadjuvantes de Força: Inserir trabalhos complementares de pliometria leve e exercícios de força reativa para reativar o tônus e a resiliência articular.",
-      "Ajuste de Volume Mínimo: Garantir que a duração mínima das sessões principais de treinamento atinja os limiares de condicionamento estipulados para a modalidade."
-    ];
-  } else if (acwr > 1.3 && acwr <= 1.5) {
-    acwrStatus = "Zona de Alerta (Danger Zone)";
-    acwrColor = "text-orange-600 bg-orange-50 border-orange-100";
-    feedbackText = "ACWR em zona de transição limítrofe (1.3 - 1.5). O acúmulo de estresse agudo está ligeiramente desequilibrado em relação à capacidade crônica desenvolvida. O sistema neuromuscular do atleta apresenta sinais latentes de fadiga.";
-    actionText = "Recomenda-se realizar treinos de intensidade moderada e corte de 15% no volume mecânico total da próxima sessão principal.";
-    explicacoes = [
-      "Sobrecarga Aguda Limítrofe: O volume ou intensidade acumulada nos últimos 7 dias cresceu rápido demais em comparação com o histórico das últimas 4 semanas.",
-      "Acúmulo de Fadiga Neuromuscular: O sistema de recrutamento muscular começa a falhar na eficiência de contração, elevando a percepção de cansaço subjetivo e dores localizadas.",
-      "Elevação Moderada de Risco: O risco relativo de lesão de tecidos moles (músculos, tendões) aumenta cerca de 1.5x a 2x devido à lentidão nos processos regenerativos celular."
-    ];
-    solucoes = [
-      "Corte Estratégico de Volume: Reduzir em 15% a 20% a duração total da próxima sessão principal de treino, priorizando gestos técnicos e táticos de menor impacto mecânico.",
-      "Manutenção Inteligente de Intensidade: Evitar treinos exaustivos de resistência, mas manter breves estímulos de alta qualidade para evitar perda de rendimento esportivo.",
-      "Protocolo Ativo de Recovery: Sessões focadas em mobilidade articular ativa, liberação miofascial suave com rolo de espuma e hidratação com isotônicos para reequilibrar eletrólitos."
-    ];
-  } else if (acwr > 1.5) {
-    acwrStatus = "Zona de Perigo Extremo (Extreme Overload)";
-    acwrColor = "text-rose-600 bg-rose-50 border-rose-100";
-    feedbackText = "O atleta ultrapassou a 'Zona de Perigo' (ACWR > 1.5). O risco relativo de ocorrência de lesões musculares por estresse mecânico, contraturas severas ou estiramentos ligamentares está multiplicado por até 4 vezes nas próximas 72 horas.";
-    actionText = "Prescrever sessão regenerativa (recovery ativo) imediata. Reduzir as demandas pliométricas e sprints de alta velocidade nas próximas duas sessões de campo.";
-    explicacoes = [
-      "Fadiga Aguda Descompensada: A carga de trabalho recente atingiu um nível crítico que ultrapassa com folga a capacidade fisiológica crônica suportada pelo corpo.",
-      "Risco Crítico de Lesão: A taxa de lesões aumenta exponencialmente (até 4x mais). É o momento mais perigoso para estiramentos isquiotibiais, estresse de tendão ou contraturas severas.",
-      "Estresse no Sistema Nervoso Central (SNC): Queda expressiva no tempo de reação de tomada de decisão e na precisão da coordenação motora fina do atleta, propiciando erros mecânicos e entorses."
-    ];
-    solucoes = [
-      "Intervenção de Deload Imediata: Redução drástica de 40% a 50% no volume de treino geral nas próximas 48 a 72 horas, suspendendo temporariamente picos agudos de esforço.",
-      "Vetar Exercícios de Impacto Máximo: Proibir temporariamente sprints de velocidade máxima e saltos de pliometria de alta intensidade até que o ACWR volte a níveis seguros (< 1.3).",
-      "Regeneração Acelerada Avançada: Aplicar crioterapia de imersão por 10-12 min a 10°C nas primeiras horas pós-sessão e priorizar a suplementação com antioxidantes e alto teor de carboidratos para reposição do glicogênio esgotado."
-    ];
-  }
+  const acwrStatus = computedAcwr.status;
+  const acwrColor = acwr === null ? "text-slate-600 bg-slate-50 border-slate-100" : "text-blue-600 bg-blue-50 border-blue-100";
+  const feedbackText = acwr === null ? "Histórico insuficiente ou carga crônica nula. Não é possível calcular a relação com confiabilidade." : "Relação entre a carga registrada nos últimos 7 dias e a média semanal dos últimos 28 dias. Não representa probabilidade de lesão nem diagnóstico de fadiga.";
+  const actionText = "Confirme duração, PSE e dias sem treino. Decisões de treino exigem avaliação individual do treinador.";
+  const explicacoes = ["Todas as sessões do mesmo dia são somadas.", "Sessões futuras não integram o cálculo.", "A ausência de registros pode subestimar a carga; confira a cobertura do histórico."];
+  const solucoes = ["Registre as sessões e os dias de descanso.", "Confirme os dados antes de ajustar a carga."];
 
   // Build wellness map for matching dates
   const wellnessMap = new Map<string, number>();
@@ -298,7 +240,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
 
               <div className="py-4 text-center">
                 <span className="text-4xl font-black text-emerald-600 font-mono italic tracking-tighter leading-none">
-                  {acwr > 0 ? acwr.toFixed(2) : "0.00"}
+                  {acwr !== null ? acwr.toFixed(2) : "—"}
                 </span>
                 <span className={`text-[8px] font-black uppercase tracking-wider block px-2.5 py-1 rounded-full border mt-2.5 font-sans ${acwrColor}`}>
                   {acwrStatus}
@@ -306,7 +248,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
               </div>
 
               <div className="border-t border-slate-100 pt-2.5 text-[8.5px] text-slate-400 font-medium leading-normal font-sans">
-                Limite Seguro: <strong className="text-slate-600 font-bold font-sans">0.80 - 1.30</strong>. Zona perigosa de risco exponencial: <strong className="text-slate-600 font-bold font-sans">&gt; 1.50</strong>.
+                Referência descritiva: <strong className="text-slate-600 font-bold font-sans">0.80 - 1.30</strong>. Relação elevada: <strong className="text-slate-600 font-bold font-sans">&gt; 1.50</strong>.
               </div>
             </div>
 
@@ -434,7 +376,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
       reportTitle="CONTROLE DE CARGA ACUMULADA & ACWR"
       reportSubTitle="MONITORAMENTO DIÁRIO DA RELAÇÃO FADIGA-APTIDÃO"
       extraStats={[
-        { label: "ACWR ATUAL", value: acwr > 0 ? acwr.toFixed(2) : "0.00" },
+        { label: "ACWR ATUAL", value: acwr !== null ? acwr.toFixed(2) : "—" },
         { label: "STATUS ACWR", value: acwrStatus.toUpperCase() }
       ]}
       blocks={blocks}

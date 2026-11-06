@@ -1,3 +1,4 @@
+import { fetchWithDeadline } from './utils/requestDeadline';
 import { migrateLegacyImtp } from './utils/legacyImtp';
 import { generateCompletePeriodization, periodizationBatchPrompt } from './utils/periodizationGeneration';
 import {buildGymContext,gymPrinciples,progressionGuidance,reviewGymProposal} from './utils/periodizationIntelligence';
@@ -45,7 +46,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
   let attempt = 1;
   while (attempt <= retries) {
     try {
-      const response = await fetch(url, { cache: 'no-store', ...options });
+      const response = await fetchWithDeadline(url, { cache: 'no-store', ...options });
       if (url === '/api/salvar' && [502, 503, 504].includes(response.status) && attempt < retries) {
         await response.text();
         await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -1003,78 +1004,6 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const analyzePerformance = async (athlete: Athlete): Promise<string> => {
-    const lastWorkout = athlete.workouts.find(w => w.status === 'completed');
-    const recentWellness = athlete.wellness.slice(0, 14); // More context for load analysis
-    const lastBio = athlete.assessments.bioimpedance[0];
-    const lastStrength = athlete.assessments.isometricStrength[0];
-    const lastCmj = athlete.assessments.cmj[0];
-    const lastVo2 = athlete.assessments.vo2max[0];
-    const lastSpeed = athlete.assessments.speed[0];
-    const age = calculateAge(athlete.dob);
-    
-    const prompt = `
-      PERSONA:
-      Você é um Treinador Elite, Analista de Performance e Especialista em Ciência de Dados aplicada ao treinamento esportivo de alto rendimento.
-      Fale diretamente com o atleta ou seu treinador utilizando uma terminologia técnica, porém encorajadora e profissional, típica de um ambiente de alta performance.
-      Utilize princípios de Platonov, Matveev, Issurin, Foster e Daniels.
-
-      PARÂMETRO CRÍTICO (I/Q):
-      Para a relação Isquios/Quadríceps (I/Q), o padrão de excelência e segurança para este sistema é de 50% a 60%. Utilize esta faixa como referência obrigatória para suas análises de equilíbrio muscular.
-
-      OBJETIVO:
-      Calcular indicadores automáticos e gerar análises avançadas de performance normalizadas (0-100).
-
-      DADOS DO ATLETA:
-      - Nome: ${athlete.name}
-      - Idade: ${age} anos
-      - Sexo: ${athlete.gender === 'M' ? 'Masculino' : 'Feminino'}
-      - Modalidade: ${athlete.modality || 'Não informada'}
-      - Nível Competitivo: ${athlete.competitiveLevel || 'Não informado'}
-      - Posição/Especialidade: ${athlete.position || 'Não informada'}
-      - Objetivo: ${athlete.goal || 'Performance'}
-      - MODO TORNEIO: ${athlete.isTournamentMode ? 'ATIVADO (Foco total em recuperação e prontidão)' : 'DESATIVADO'}
-      - Histórico de Lesões: ${athlete.injuryHistory || 'Nenhum'}
-      - Prontidão Recente (Wellness): ${JSON.stringify(recentWellness)}
-      - Composição Corporal: ${JSON.stringify(lastBio)}
-      - Força Isométrica: ${JSON.stringify(lastStrength)}
-      - Salto Vertical (CMJ): ${JSON.stringify(lastCmj)}
-      - Capacidade Aeróbica (VO2): ${JSON.stringify(lastVo2)}
-      - Velocidade/Sprints: ${JSON.stringify(lastSpeed)}
-      - Histórico de Treinos (Carga Academia): ${JSON.stringify(athlete.workouts.slice(0, 15))}
-      - Histórico de Treinos de Quadra/Competição: ${JSON.stringify(athlete.externalSessions?.slice(0, 15))}
-      
-      TAREFAS ANALÍTICAS:
-      1. NORMALIZAÇÃO: Converta dados em escala 0-100 comparando com referências de elite para a modalidade/sexo/idade.
-      2. RADAR DE CAPACIDADES: Calcule scores (0-100) para Força, Potência, Resistência Aeróbia, Resistência Anaeróbia, Velocidade, Agilidade, Mobilidade e Composição Corporal.
-      3. ÍNDICE DE PERFORMANCE GERAL (IPG): Calcule a média ponderada (Força 20%, Potência 20%, Aeróbio 20%, Anaeróbio 15%, Velocidade 10%, Composição 10%, Mobilidade 5%).
-      4. SCORE DE PRONTIDÃO: Baseado em sono, fadiga, dor, estresse e motivação. Se MODO TORNEIO estiver ATIVADO, este score é o mais importante.
-      5. SCORE DE RISCO DE LESÃO: Baseado em Monotonia, Strain, fadiga acumulada (incluindo treinos de quadra), dor e desequilíbrios.
-      6. ALERTAS: Gere alertas se Prontidão < 50, Risco > 60 ou Queda de Performance > 10%.
-      7. CONTEXTO DE TORNEIO: Se o atleta estiver em modo torneio, as recomendações DEVEM focar em estratégias de recuperação (gelo, compressão, sono, nutrição) e manutenção de prontidão, evitando treinos de alta carga na academia.
-
-      Sua resposta deve ser um JSON estritamente no seguinte formato:
-      {
-        "status": "string (ex: Elite, Moderado, Risco Crítico)",
-        "performanceScore": number (0-100),
-        "readinessScore": number (0-100),
-        "injuryRiskScore": number (0-100),
-        "radarData": [
-          {"subject": "Força", "A": number, "fullMark": 100},
-          {"subject": "Potência", "A": number, "fullMark": 100},
-          {"subject": "Aeróbio", "A": number, "fullMark": 100},
-          {"subject": "Anaeróbio", "A": number, "fullMark": 100},
-          {"subject": "Velocidade", "A": number, "fullMark": 100},
-          {"subject": "Agilidade", "A": number, "fullMark": 100},
-          {"subject": "Mobilidade", "A": number, "fullMark": 100},
-          {"subject": "Composição", "A": number, "fullMark": 100}
-        ],
-        "summary": "string (resumo executivo objetivo)",
-        "detailedAnalysis": "string (texto longo em MARKDOWN com a interpretação técnica das etapas 1 a 7)",
-        "alerts": ["string", "string"],
-        "recommendations": ["string", "string"],
-        "conclusion": "string (conclusão técnica final)"
-      }
-    `;
     try {
       const res = await fetch("/api/analyze-performance", {
         method: "POST",
@@ -1082,7 +1011,7 @@ export const useAthletes = (token?: string | null) => {
           "Content-Type": "application/json",
           ...(token ? { "Authorization": `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ prompt, athleteId: athlete.id })
+        body: JSON.stringify({ athleteId: athlete.id })
       });
 
       if (!res.ok) {

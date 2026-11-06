@@ -1,6 +1,9 @@
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema.ts';
+import {databaseConnectionOptions} from './connectionOptions.ts';
+const connectionOptions=await databaseConnectionOptions(process.env);
 
 // Add global connection pool caching to persist across hot-reloads
 declare global {
@@ -10,29 +13,7 @@ declare global {
 // Function to create or retrieve the connection pool.
 export const createPool = () => {
   if (!global._postgresPool) {
-    if (process.env.SQL_HOST) {
-      global._postgresPool = new Pool({
-        host: process.env.SQL_HOST,
-        user: process.env.SQL_USER,
-        password: process.env.SQL_PASSWORD,
-        database: process.env.SQL_DB_NAME,
-        max: 10,
-        connectionTimeoutMillis: 15000,
-      });
-    } else if (process.env.DATABASE_URL) {
-      global._postgresPool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: !process.env.DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : false,
-        max: 10,
-        connectionTimeoutMillis: 15000,
-      });
-    } else {
-      global._postgresPool = new Pool({
-        host: 'localhost',
-        max: 10,
-        connectionTimeoutMillis: 15000,
-      });
-    }
+    global._postgresPool = new Pool(connectionOptions);
 
     // Prevent unhandled pool-level errors from crashing the application
     global._postgresPool.on('error', (err) => {

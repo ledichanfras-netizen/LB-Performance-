@@ -885,7 +885,7 @@ export function generateAthleteDecisionMatrix(
   // 7. ANÁLISE DE CONTROLE DE CARGA (ACWR)
   const acwrData = calculateACWR(workouts || [], externalSessions || []);
   const acwr = typeof acwrData === "object" && acwrData !== null ? acwrData.ratio : Number(acwrData) || 0;
-  if (acwr > 1.5) {
+  if (acwr !== null && acwr > 1.5) {
     attentionSignals.push({
       id: "att-acwr-elevado",
       type: "acwr_elevado",

@@ -316,7 +316,7 @@ export function generateAthleteNutritionPlan(
   // 3. ACWR check
   const acwrData = calculateACWR(workouts || [], externalSessions || []);
   const acwr = typeof acwrData === "object" && acwrData !== null ? acwrData.ratio : Number(acwrData) || 0;
-  if (acwr > 1.45) {
+  if (acwr !== null && acwr > 1.45) {
     dailyProteinGPerKg = Math.max(dailyProteinGPerKg, 2.2);
     biomarkerAdjustments.push({
       id: "acwr-nutri",

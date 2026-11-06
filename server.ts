@@ -1,3 +1,5 @@
+import {assertCompleteSnapshots} from './server/snapshotContract';
+import {loadPerformanceContext,performancePrompt} from './server/performanceContext';
 import { realizedTonnage } from './src/utils/sessionMetrics';
 import { prepareBackupImport } from './server/backupImport';
 import { validateSportsPayload, SportsValidationError } from './server/sportsValidation';
@@ -868,7 +870,7 @@ apiRouter.post('/backup/import',authMiddleware,async(req:any,res)=>{
 
 const saveAthletesHandler = async (req:any, res:any) => {
   const athletes = req.body;
-  try{sportsReadScope(req.account);validateSportsPayload(athletes);}catch(error){return res.status(error instanceof ScopeDenied?403:400).json({error:error instanceof Error?error.message:'Dados inválidos.'});}
+  try{sportsReadScope(req.account);validateSportsPayload(athletes);if(req.account.role==='coach')assertCompleteSnapshots(athletes);}catch(error){return res.status(error instanceof ScopeDenied?403:400).json({error:error instanceof Error?error.message:'Dados inválidos.'});}
 
   if ((req as any).account?.role === 'athlete') {
     try {return res.json(await saveStudentData(pool,(req as any).account,athletes));}
@@ -1501,13 +1503,15 @@ apiRouter.post('/generate-ai-modeling', authMiddleware, requireAIAccess, aiScope
 });
 
 apiRouter.post('/analyze-performance', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
-  const { prompt } = req.body;
+  const athleteId=req.body?.athleteId;
   if (!process.env.GEMINI_API_KEY) {
     console.error("[AI Analysis] GEMINI_API_KEY not configured on the server.");
     return res.status(500).json({ error: "Chave de API do Gemini não configurada no servidor." });
   }
 
   try {
+    const context=await loadPerformanceContext(pool,(req as any).account,athleteId);
+    const prompt=performancePrompt(context);
     const response = await generateContentWithRetry({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
@@ -1518,7 +1522,7 @@ apiRouter.post('/analyze-performance', authMiddleware, requireAIAccess, aiScopeG
             status: { type: Type.STRING },
             performanceScore: { type: Type.NUMBER },
             readinessScore: { type: Type.NUMBER },
-            injuryRiskScore: { type: Type.NUMBER },
+            injuryRiskScore: { type: Type.NUMBER, nullable: true },
             radarData: {
               type: Type.ARRAY,
               items: {
@@ -1542,8 +1546,10 @@ apiRouter.post('/analyze-performance', authMiddleware, requireAIAccess, aiScopeG
       }
     });
 
-    const resultText = response.text || "{}";
-    res.json({ result: resultText });
+    const result = JSON.parse(response.text || "{}");
+    // A language model cannot produce a validated individual injury probability.
+    result.injuryRiskScore = null;
+    res.json({ result: JSON.stringify(result) });
   } catch (error: any) {
     console.error("[AI Analysis] Erro chamando Gemini no backend para análise:", error);
     res.status(500).json({ error: error.message || "Falha ao gerar análise de performance por IA no servidor." });
