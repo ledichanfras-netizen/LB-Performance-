@@ -3,10 +3,8 @@ import { metricDay } from './metricTimeline';
 import { readinessForDisplay } from './readinessDisplay';
 
 export const validNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-export function sessionLoad(session: { rpe?: number; durationMinutes?: number }): number | null {
-  return validNumber(session.rpe) && session.rpe >= 0 && session.rpe <= 10 && validNumber(session.durationMinutes) && session.durationMinutes > 0
-    ? session.rpe * session.durationMinutes : null;
-}
+export { sessionInternalLoad as sessionLoad } from './sessionMetrics';
+import { sessionInternalLoad as sessionLoad } from './sessionMetrics';
 
 export function dashboardSummary(athlete: Athlete, today: string) {
   const day = metricDay(today)!;

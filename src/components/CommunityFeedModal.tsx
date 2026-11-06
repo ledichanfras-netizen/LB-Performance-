@@ -298,7 +298,7 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
                           <span>DURAÇÃO</span>
                         </div>
                         <span className="text-sm sm:text-base font-black text-white font-mono">
-                          {post.durationMinutes} min
+                          {post.durationMinutes!==undefined?post.durationMinutes+' min':'Não informado'}
                         </span>
                       </div>
 
@@ -320,7 +320,7 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
                           <span>PSE ATLETA</span>
                         </div>
                         <span className="text-sm sm:text-base font-black text-white font-mono">
-                          {post.rpe || 7}/10
+                          {post.rpe ?? 'Não informado'}/10
                         </span>
                       </div>
 
@@ -331,7 +331,7 @@ export const CommunityFeedModal: React.FC<CommunityFeedModalProps> = ({
                           <span>CARGA INT.</span>
                         </div>
                         <span className="text-sm sm:text-base font-black text-white font-mono">
-                          {(post.durationMinutes * (post.rpe || 7)).toLocaleString()} u.a.
+                          {post.durationMinutes!==undefined&&post.durationMinutes>0&&post.rpe!==undefined?(post.durationMinutes*post.rpe).toLocaleString()+' u.a.':'Não informado'}
                         </span>
                       </div>
                     </div>

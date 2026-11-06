@@ -38,12 +38,12 @@ test('athlete persists session details in own organization and cannot overwrite 
  await db.exec(externalSessionDetailsSQL);
  const query=(sql:string,p?:any[])=>db.query(sql,p);const pool={query,connect:async()=>({query,release(){}})} as any;
  const account={user_id:'student',role:'athlete',athlete_id:'a',organization_id:'org'} as any;
- await saveStudentData(pool,account,[{id:'a',externalSessions:[session({activity:'Ciclismo',time:'19:00',distanceKm:20,load:99999})]}]);
+ await saveStudentData(pool,account,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,externalSessions:[session({activity:'Ciclismo',time:'19:00',distanceKm:20,load:99999})]}]);
  const stored=externalSessionFromRow((await db.query("SELECT * FROM external_sessions WHERE id='manual'")).rows[0]);assert.equal(stored.distanceKm,20);assert.equal(stored.time,'19:00');assert.equal(Number(stored.load),450);
- await saveStudentData(pool,account,[{id:'a',externalSessions:[{...stored,distanceKm:null,rpe:0}]}]);
+ await saveStudentData(pool,account,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,externalSessions:[{...stored,distanceKm:null,rpe:0}]}]);
  assert.equal((await db.query("SELECT distance_km,load FROM external_sessions WHERE id='manual'")).rows[0].distance_km,null);
  assert.equal(Number((await db.query("SELECT load FROM external_sessions WHERE id='manual'")).rows[0].load),0);
- await assert.rejects(()=>saveStudentData(pool,account,[{id:'a',externalSessions:[session({id:'foreign'})]}]));
+ await assert.rejects(async()=>saveStudentData(pool,account,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,externalSessions:[session({id:'foreign'})]}]));
  assert.equal((await db.query("SELECT notes FROM external_sessions WHERE id='foreign'")).rows[0].notes,'Outro atleta');
  }finally{await db.close();}
 });

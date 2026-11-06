@@ -16,8 +16,8 @@ test('Abalakov persists every CMJ metric, stays separate, validates ownership an
   await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
    CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);
    CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
-   CREATE TABLE athletes(id text PRIMARY KEY);CREATE TABLE cmj(id text PRIMARY KEY,athlete_id text,height real);
-   INSERT INTO athletes VALUES('a'),('b');INSERT INTO lb_accounts.athlete_scopes VALUES('a','org'),('b','other');
+   CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz default now());CREATE TABLE cmj(id text PRIMARY KEY,athlete_id text,height real);
+   INSERT INTO athletes(id) VALUES('a'),('b');INSERT INTO lb_accounts.athlete_scopes VALUES('a','org'),('b','other');
    INSERT INTO cmj VALUES('cmj-only','a',38);`);
   await ensureAbalakovTable(client);await ensureAbalakovTable(client);
   const assessment={id:'ab-a',date:'2026-10-26',weight:72.5,height:49.8,power:3100.4,depth:32.1,rsi:0,flightTime:637.2,averageForce:1530.6,observations:'Com auxílio dos braços'};

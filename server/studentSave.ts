@@ -1,3 +1,5 @@
+import { realizedTonnage } from '../src/utils/sessionMetrics';
+import { validateSportsPayload } from './sportsValidation';
 import {exerciseMetadata} from './exerciseMetadata';
 import {externalSessionColumns} from '../src/utils/externalSessions';
 import {saveStudentCompetitions} from './competitionAchievements';
@@ -9,6 +11,7 @@ const wellnessFields:Record<string,string>={date:'date',fatigue:'fatigue',sleep:
 const sessionFields:Record<string,string>={date:'date',type:'type',duration_minutes:'durationMinutes',rpe:'rpe',notes:'notes',load:'load',activity:'activity',session_time:'time',distance_km:'distanceKm',competition_id:'competitionId'};
 export async function saveStudentData(pool:Pool,account:AccountScope,payload:any[]){
  if(account.role!=='athlete' || !account.athlete_id || !Array.isArray(payload) || payload.length!==1 || payload[0]?.id!==account.athlete_id)throw new ScopeDenied();
+ validateSportsPayload(payload);
  const athlete=payload[0];const c=await pool.connect();let discardClient=false;
  try{await c.query('BEGIN');
  const scope=await c.query('SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE athlete_id=$1 AND organization_id=$2 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id) FOR UPDATE',[account.athlete_id,account.organization_id]);if(!scope.rows.length)throw new ScopeDenied();
@@ -39,7 +42,7 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
  for(const w of workouts){
   if(typeof w.id!=='string')throw new ScopeDenied();
   const existing=await c.query('SELECT id FROM public.workouts WHERE id=$1 AND athlete_id=$2 FOR UPDATE',[w.id,account.athlete_id]);if(!existing.rows.length)throw new ScopeDenied();
-  const allowed:Record<string,string>={status:'status',rpe:'rpe',duration_minutes:'durationMinutes',total_load:'totalLoad',feedback:'feedback'};
+  const allowed:Record<string,string>={status:'status',rpe:'rpe',duration_minutes:'durationMinutes',feedback:'feedback'};
   const columns:string[]=[],values:any[]=[];
   for(const [column,key] of Object.entries(allowed))if(Object.hasOwn(w,key)){
    const value=w[key];if(value!==null && !['number','string'].includes(typeof value))throw new ScopeDenied();
@@ -58,6 +61,11 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
    }
    const metrics=JSON.parse(exerciseMetadata({performedSets:e.performedSets||[]})).performedMetrics;
    if(metrics.some((m:Record<string,unknown>)=>Object.keys(m).length>1))await c.query("UPDATE public.prescribed_exercises SET prescription_meta=jsonb_set(COALESCE(prescription_meta,'{}'::jsonb),'{performedMetrics}',$1::jsonb) WHERE id=$2 AND workout_id=$3",[JSON.stringify(metrics),e.id,w.id]);
+  }
+  if(w.exercises!==undefined){
+   const performed=await c.query('SELECT s.reps,s.weight,s.is_completed,e.prescription_meta,e.reps_type FROM public.performed_sets s JOIN public.prescribed_exercises e ON e.id=s.exercise_id WHERE e.workout_id=$1',[w.id]);
+   const total=realizedTonnage(performed.rows.map((s:any)=>({...s.prescription_meta,repsType:s.reps_type,performedSets:[{reps:s.reps,weight:s.weight,isCompleted:s.is_completed}]})));
+   await c.query('UPDATE public.workouts SET total_load=$1 WHERE id=$2',[total,w.id]);
   }
  }
  const savedMatches=await saveStudentCompetitions(c,athlete);

@@ -1,3 +1,4 @@
+import { syncRevision } from './workoutSync';
 import type { Pool } from 'pg';
 export type AccountScope = { user_id:string; organization_id:string; role:string; athlete_id?:string | null };
 // Platform administration never implies permission to read another organization's athletes.
@@ -29,7 +30,8 @@ export async function scopedDelete(pool:Pool,account:AccountScope,type:string,id
    await c.query('UPDATE public.workouts SET archived_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=$1',[id]);
    await c.query('UPDATE public.athletes SET updated_at=CURRENT_TIMESTAMP WHERE id=$1',[row.rows[0].athlete_id]);
   } else await c.query(`DELETE FROM public.${table} WHERE id=$1`,[id]);
-  await c.query('COMMIT');return {deleted:true};
+  const revision=await c.query('UPDATE public.athletes SET updated_at=CURRENT_TIMESTAMP WHERE id=$1 RETURNING updated_at',[row.rows[0].athlete_id]);
+  await c.query('COMMIT');return {deleted:true,syncRevisions:{[row.rows[0].athlete_id]:syncRevision(revision.rows[0]?.updated_at)}};
  }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
 }
 export async function scopedAthleteProfile(pool:Pool,account:AccountScope,id:string,profile:{name:string;modality:string}){

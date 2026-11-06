@@ -1,3 +1,4 @@
+import { verifiedImtpView, legacyImtpNeedsReview } from '../utils/legacyImtp';
 import React from 'react';
 import { TrendingUp, Target, Zap } from 'lucide-react';
 import type { Athlete, Imtp } from '../types';
@@ -7,6 +8,8 @@ type Props = {athlete: Athlete; data: Imtp; history: Imtp[]; ReportPage?: React.
 const DefaultPage = ({children}: any) => <section className="report-page">{children}</section>;
 const DefaultHeader = ({title}: any) => <h1>{title}</h1>;
 export default function ImtpReportPages({athlete,data,history,ReportPage=DefaultPage,ReportHeader=DefaultHeader}: Props) {
+  const needsReview=legacyImtpNeedsReview(data);
+  data=verifiedImtpView(data);history=history.map(verifiedImtpView);
   const previousImtp = findPrevious(data,history);
   const totalPages = 2;
   const birth = athlete.dob ? new Date(athlete.dob) : null;
@@ -27,6 +30,7 @@ export default function ImtpReportPages({athlete,data,history,ReportPage=Default
     {pillar:'DIRETRIZ 3: DECISÃO DE TREINO',priority:'CRUZAR COM O CONTEXTO ESPORTIVO',methodology:'Se quedas se repetirem, investigar recuperação e carga recente antes de ajustar o treino. Se houver evolução, verificar CMJ, velocidade e desempenho no esporte antes de progredir.',kpi:'Resposta consistente no teste e no esporte'}
   ];
   return <>
+    {needsReview&&<p role="status" className="p-3 border rounded text-sm">Registro legado pendente de revisão. Valores originais preservados; métricas derivadas não confirmadas não são usadas neste relatório.</p>}
           {/* PÁGINA 1: RESULTADOS BIOMÉTRICOS & DIAGNÓSTICO NEUROMUSCULAR */}
           <ReportPage pageNumber={1} totalPages={totalPages}>
             <ReportHeader

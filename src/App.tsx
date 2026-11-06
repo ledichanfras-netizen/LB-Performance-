@@ -1,3 +1,4 @@
+import { clearSessionDraft } from './utils/sessionDraft';
 import LBMethodIcon from './components/LBMethodIcon';
 import ExternalSessionManager from './components/ExternalSessionManager';
 import { UnilateralSetTracker } from "./components/UnilateralSetTracker";
@@ -107,13 +108,13 @@ import { TrainingLoadReport } from "./components/TrainingLoadReport";
 import { HealthReport } from "./components/HealthReport";
 import { PremiumHub } from "./components/PremiumHub";
 import { AthleteGuide } from "./components/AthleteGuide";
-import { WorkoutEditorPremium } from "./components/WorkoutEditorPremium";
-import { SessionTrackerPremium } from "./components/SessionTrackerPremium";
+const WorkoutEditorPremium=React.lazy(()=>import("./components/WorkoutEditorPremium").then(m=>({default:m.WorkoutEditorPremium})));
+const SessionTrackerPremium=React.lazy(()=>import("./components/SessionTrackerPremium").then(m=>({default:m.SessionTrackerPremium})));
 import { SPORT_MODALITIES } from "./data/sportModalities";
 import { ENRICHED_LIBRARY } from "./data/exercises";
 import { InjuriesView } from "./components/InjuriesView";
 import { MenstrualCycleDashboard } from "./components/MenstrualCycleDashboard";
-import { PosturalAssessmentPremium } from "./components/PosturalAssessmentPremium";
+const PosturalAssessmentPremium=React.lazy(()=>import("./components/PosturalAssessmentPremium").then(m=>({default:m.PosturalAssessmentPremium})));
 import { CompetitionsCalendarView } from "./components/CompetitionsCalendarView";
 import { ProfilePhotoOptionsModal } from "./components/ProfilePhotoOptionsModal";
 import { AiPerformanceChatModal } from "./components/AiPerformanceChatModal";
@@ -201,7 +202,7 @@ import Supervisor from "./pages/Supervisor";
 import AccessSettings from "./pages/AccessSettings";
 import AcceptInvite from "./pages/AcceptInvite";
 import AccountSetup from "./pages/AccountSetup";
-import { clearAthleteCaches, isSupervisedToken } from "./utils/accountCache";
+import { clearAthleteCaches, isSupervisedToken, athleteCacheKey } from "./utils/accountCache";
 import Dashboard from "./pages/Dashboard";
 import Ranking from "./pages/Ranking";
 import { UserWithPlan, isPro } from "./utils/plan";
@@ -2225,7 +2226,7 @@ const EliteHubApp: FC<{
                     onClick={async () => {
                       const toastId = toast.loading("Sincronizando Banco de Dados...");
                       try {
-                        await syncData();
+                        if(!await syncData())throw new Error('A sincronização não foi confirmada. Os dados locais foram preservados.');
                         toast.success("Dados Sincronizados com Sucesso!", { id: toastId });
                       } catch (error: any) {
                         if (isPermissionDeniedError(error)) {
@@ -2410,7 +2411,7 @@ const EliteHubApp: FC<{
                         onClick={async () => {
                           const toastId = toast.loading("Sincronizando com banco de dados...");
                           try {
-                            await syncData();
+                            if(!await syncData())throw new Error('A sincronização não foi confirmada. Os dados locais foram preservados.');
                             toast.success("Dados sincronizados com sucesso!", { id: toastId });
                           } catch (error: any) {
                             toast.error(error?.message || "Falha ao sincronizar.", { id: toastId });
@@ -3080,7 +3081,7 @@ const EliteHubApp: FC<{
                             onClick={async () => {
                               const toastId = toast.loading("Sincronizando seus treinos...");
                               try {
-                                await syncData();
+                                if(!await syncData())throw new Error('A sincronização não foi confirmada. Os dados locais foram preservados.');
                                 toast.success("Dados Atualizados!", { id: toastId });
                               } catch (error: any) {
                                 if (isPermissionDeniedError(error)) {
@@ -4185,10 +4186,12 @@ const EliteHubApp: FC<{
               <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950 overflow-hidden p-0 w-full h-full">
                 <SessionTrackerPremium
                   workout={modalState.editingData}
+                  storageKey={`${athleteCacheKey(user?.token)}:workout:${selected!.id}:${modalState.editingData.id}`}
                   athleteWeight={getResolvedAthleteWeight(selected)}
                   onCancel={() => setModalState({ type: null })}
-                  onFinish={(updated, shareSocial) => {
-                    updateWorkout(selected!.id, updated);
+                  onFinish={async(updated, shareSocial) => {
+                    if(!await updateWorkout(selected!.id, updated))return false;
+                    clearSessionDraft(localStorage,`${athleteCacheKey(user?.token)}:workout:${selected!.id}:${updated.id}`);
                     if (shareSocial) {
                       setModalState({
                         type: "strava-share",
@@ -4197,6 +4200,7 @@ const EliteHubApp: FC<{
                     } else {
                       setModalState({ type: null });
                     }
+                    return true;
                   }}
                   onShareStrava={(w) => {
                     setModalState({
@@ -4949,12 +4953,14 @@ const EliteHubApp: FC<{
               user={user}
               selectedAthlete={selected}
               athletes={athletes}
-              onImportAthletes={async (importedList) => {
-                const clean = importedList.filter((a) => a && a.id && !a.id.startsWith("featured-") && !a.id.startsWith("model-"));
-                if (clean.length === 0) throw new Error("Nenhum atleta válido para importar.");
-                setAthletes(clean);
-                await save(clean);
-                setSelectedId(current => clean.some(a => a.id === current) ? current : null);
+              onImportAthletes={async(importedList)=>{
+                const headers={'Content-Type':'application/json',Authorization:`Bearer ${user?.token||''}`};
+                const previewResponse=await fetch('/api/backup/import',{method:'POST',headers,body:JSON.stringify({athletes:importedList,dryRun:true})});
+                const preview=await previewResponse.json();if(!previewResponse.ok)throw new Error(preview.error||'Não foi possível validar o backup.');
+                if(!window.confirm(`Importar ${preview.importCount} novo(s) cadastro(s)? ${preview.preservedCount} cadastro(s) existente(s) serão preservados sem substituição.`))throw new Error('Importação cancelada. Nenhum dado foi alterado.');
+                const response=await fetch('/api/backup/import',{method:'POST',headers,body:JSON.stringify({athletes:importedList})});
+                const receipt=await response.json();if(!response.ok)throw new Error(receipt.error||'Importação não confirmada.');
+                if(!await syncData())toast('Importação confirmada no servidor. Atualize a tela quando a conexão retornar.');
               }}
               onSync={syncData}
               theme={theme}
@@ -5890,12 +5896,12 @@ const DashboardView: FC<{
           const acuteLoadSum = [
             ...activeWorkouts.filter(w => w.status === "completed" && w.rpe && w.date && new Date(w.date) >= dStartA && new Date(w.date) <= dEnd).map(w => calculateWorkoutInternalLoad(w)),
             ...activeExternal.filter(s => s.date && new Date(s.date) >= dStartA && new Date(s.date) <= dEnd).map(s => s.load || (s.durationMinutes * s.rpe || 0))
-          ].reduce((sum, val) => sum + val, 0);
+          ].filter((value): value is number => value!==null).reduce((sum, val) => sum + val, 0);
 
           const chronicLoadSum = [
             ...activeWorkouts.filter(w => w.status === "completed" && w.rpe && w.date && new Date(w.date) >= dStartC && new Date(w.date) <= dEnd).map(w => calculateWorkoutInternalLoad(w)),
             ...activeExternal.filter(s => s.date && new Date(s.date) >= dStartC && new Date(s.date) <= dEnd).map(s => s.load || (s.durationMinutes * s.rpe || 0))
-          ].reduce((sum, val) => sum + val, 0);
+          ].filter((value): value is number => value!==null).reduce((sum, val) => sum + val, 0);
 
           const acuteAvg = acuteLoadSum / 7;
           const chronicAvg = chronicLoadSum / 28;
@@ -16707,6 +16713,7 @@ const App: FC = () => {
   }, []);
 
   return (
+    <React.Suspense fallback={<div role="status" className="fixed inset-0 grid place-items-center bg-slate-950 text-white">Carregando…</div>}>
     <BrowserRouter>
       <Routes>
         <Route path="/convite" element={<AcceptInvite />} />
@@ -16746,6 +16753,7 @@ const App: FC = () => {
         <Route path="*" element={<Home />} />
       </Routes>
     </BrowserRouter>
+    </React.Suspense>
   );
 };
 

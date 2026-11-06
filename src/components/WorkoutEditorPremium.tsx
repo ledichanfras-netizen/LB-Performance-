@@ -1,3 +1,4 @@
+import { useAccessibleDialog } from '../hooks/useAccessibleDialog';
 import { normalizeExerciseLibrary, normalizeExerciseLaterality } from "../utils/exerciseLaterality";
 import { AdvancedMethodsCard } from "./AdvancedMethodsCard";
 import { UnilateralPrescriptionEditor } from "./UnilateralPrescriptionEditor";
@@ -7,7 +8,7 @@ import { aerobicCandidate, aerobicFields, defaultAerobic } from "../utils/aerobi
 import ConditioningProtocolEditor from "./ConditioningProtocolEditor";
 import { orderedExercises } from "../utils/exerciseOrder";
 import { AiOnly, useAiAccess } from './AiAccess';
-import React, { FC, useState, useMemo, useEffect } from "react";
+import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { 
   Dumbbell, Search, Sparkles, Plus, Trash2, Copy, 
   ChevronDown, ChevronUp, Calendar, Zap, Clock, 
@@ -307,6 +308,11 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   updateAthlete,
   generateAIWorkouts
 }) => {
+  const editorDialogRef=useRef<HTMLDivElement>(null);
+  const cancelRef=useRef(onCancel);cancelRef.current=onCancel;
+  const closeDialog=useCallback(()=>cancelRef.current(),[]);
+  useAccessibleDialog(editorDialogRef,closeDialog);
+
   const getTodayLocalDateStr = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -2145,7 +2151,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
   }, [isFilterDrawerOpen]);
 
   return (
-    <div className="coach-editor-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-[98vw] xl:max-w-[1720px] bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
+    <div ref={editorDialogRef} role="dialog" aria-modal="true" aria-label="Prescrever treino" tabIndex={-1} className="coach-editor-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-[98vw] xl:max-w-[1720px] bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl text-slate-100 flex flex-col lg:flex-row animate-in fade-in duration-300">
       
       {/* MOBILE & TABLET HEADER & TAB SWITCHER */}
       <div className="lg:hidden shrink-0 bg-[#0c111d] border-b border-slate-900 px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 w-full">

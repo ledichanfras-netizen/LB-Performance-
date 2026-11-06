@@ -365,7 +365,7 @@ export interface SocialFeedPost {
   workoutName: string;
   phase?: string;
   date: string;
-  durationMinutes: number;
+  durationMinutes?: number;
   totalLoad: number;
   rpe?: number;
   exercisesCount: number;
@@ -484,6 +484,7 @@ export interface ImtpAiDetails {
 }
 
 export interface Imtp extends Assessment {
+  legacyReviewRequired?: boolean;
   force100?: number;
   force200?: number;
   force300?: number;

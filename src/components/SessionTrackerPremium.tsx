@@ -1,3 +1,5 @@
+import { readSessionDraft, writeSessionDraft } from '../utils/sessionDraft';
+import { useAccessibleDialog } from '../hooks/useAccessibleDialog';
 import { aerobicSummary } from "../utils/aerobic";
 import { AerobicTracker } from "./AerobicTracker";
 import { UnilateralSetTracker } from "./UnilateralSetTracker";
@@ -382,10 +384,11 @@ const SpecialMethodInteractiveGuide: FC<{
 
 interface SessionTrackerPremiumProps {
   workout: Workout;
-  onFinish: (w: Workout, shareSocial?: boolean) => void;
+  onFinish: (w: Workout, shareSocial?: boolean) => boolean|void|Promise<boolean|void>;
   onCancel: () => void;
   athleteWeight?: number;
   onShareStrava?: (w: Workout) => void;
+  storageKey?: string;
 }
 
 export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
@@ -393,11 +396,19 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   onFinish,
   onCancel,
   athleteWeight,
-  onShareStrava
+  onShareStrava,
+  storageKey
 }) => {
   const isEditingCompleted = workout.status === "completed";
+  const [recovered]=useState(()=>typeof window==='undefined'?null:readSessionDraft(window.localStorage,storageKey,workout));
+  const dialogRef=useRef<HTMLDivElement>(null);
+  const finalizing=useRef(false);
+  const closeRef=useRef(onCancel);closeRef.current=onCancel;
+  const dialogClose=React.useCallback(()=>closeRef.current(),[]);
+  useAccessibleDialog(dialogRef,dialogClose);
 
   const [session, setSession] = useState<Workout>(() => {
+    if(recovered)return recovered.session;
     const rawExercisesList = Array.isArray(workout.exercises) ? [...workout.exercises] : [];
     const rawExercises = orderedExercises(rawExercisesList);
 
@@ -431,7 +442,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               distance: s.distance ?? targetDistance,
               timeSeconds: ex.sidePrescriptions && ex.repsType === 'time' ? (s.timeSeconds ?? s.reps ?? targetTime) : s.timeSeconds ?? targetTime,
               intensity: s.intensity ?? ex.targetIntensity ?? 0,
-              isCompleted: isEditingCompleted ? true : ((s as any).isCompleted || false)
+              isCompleted: s.isCompleted === true
             };
           })
         : Array.from({ length: setsCount }).map((_, i) => ({
@@ -442,7 +453,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             timeSeconds: ex.conditioningProtocol?.blocks[i]?.unit==='seconds' ? ex.conditioningProtocol.blocks[i].stages.reduce((a,b)=>a+b,0)*ex.conditioningProtocol.blocks[i].repetitions : ex.conditioningProtocol ? 0 : targetTime,
             intensity: ex.targetIntensity || 0,
             rpe: 0,
-            isCompleted: isEditingCompleted ? true : false
+            isCompleted: false
           }));
 
       const isTime = isTimeExercise(ex);
@@ -474,12 +485,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   // UI state managers
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
-  const [totalElapsedTime, setTotalElapsedTime] = useState(workout.durationMinutes ? workout.durationMinutes * 60 : 0); // in seconds
+  const [totalElapsedTime, setTotalElapsedTime] = useState(recovered?recovered.elapsedSeconds+Math.max(0,Math.round((Date.now()-recovered.savedAt)/1000)):(isEditingCompleted&&workout.durationMinutes?workout.durationMinutes*60:0)); // in seconds
   const [sessionDate, setSessionDate] = useState<string>(
-    workout.date?.split("T")[0] || new Date().toISOString().split("T")[0]
+    recovered?.date ?? workout.date?.split("T")[0] ?? new Date().toISOString().split("T")[0]
   );
   const [manualDurationMinutes, setManualDurationMinutes] = useState<string>(
-    isEditingCompleted ? (workout.durationMinutes || 60).toString() : ""
+    recovered?.duration ?? (isEditingCompleted ? String(workout.durationMinutes ?? "") : "")
   );
   
   // Rest Timer states
@@ -487,8 +498,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [restDuration, setRestDuration] = useState(90); // default rest is 90s
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerLabel, setTimerLabel] = useState<string>("CRONÔMETRO DE DESCANSO");
-  const [feedbackNotes, setFeedbackNotes] = useState(workout.feedback || "");
-  const [overallRpe, setOverallRpe] = useState(workout.rpe || 7);
+  const [feedbackNotes, setFeedbackNotes] = useState(recovered?.feedback ?? workout.feedback ?? "");
+  const [overallRpe, setRpe] = useState(recovered?.rpe ?? workout.rpe ?? 0);
+  const [hasRpe,setHasRpe]=useState(recovered?.rpeAnswered===true||(!recovered&&workout.rpe!==undefined));
+  const setOverallRpe=(value:number)=>{setHasRpe(true);setRpe(value);};
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [isQuickAdjustsCollapsed, setIsQuickAdjustsCollapsed] = useState(false);
   const [isGeneralParamsCollapsed, setIsGeneralParamsCollapsed] = useState(false);
@@ -581,26 +594,34 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     return activeEx.performedSets.every(s => (s as any).isCompleted);
   }, [activeEx]);
 
-  // Initialize total stopwatch
-  useEffect(() => {
-    mainStopwatchRef.current = setInterval(() => {
-      setTotalElapsedTime((prev) => prev + 1);
-    }, 1000);
-
-    // Initial voice greeting
-    setTimeout(() => {
-      speakText(`Iniciando treino de alta performance. ${workout.name}. Foco e força!`, isVoiceEnabled);
-    }, 1000);
-
-    return () => {
-      if (mainStopwatchRef.current) clearInterval(mainStopwatchRef.current);
-      if (restTimerRef.current) clearInterval(restTimerRef.current);
-    };
-  }, []);
+  // Drafts are account/athlete/workout scoped and written after every state change.
+  const draftRef=useRef<any>(null);
+  const draftWriteRef=useRef<{session:Workout|null;time:number;rpe:number;date:string;duration:string;feedback:string}>({session:null,time:0,rpe:-1,date:"",duration:"",feedback:""});
+  draftRef.current={version:1,baseUpdatedAt:workout.updatedAt,session,elapsedSeconds:totalElapsedTime,savedAt:Date.now(),date:sessionDate,rpe:overallRpe,rpeAnswered:hasRpe,duration:manualDurationMinutes,feedback:feedbackNotes};
+  useEffect(()=>{
+   if(isEditingCompleted||finalizing.current)return;
+   const prev=draftWriteRef.current;
+   const changed=prev.session!==session||prev.rpe!==overallRpe||prev.date!==sessionDate||prev.duration!==manualDurationMinutes||prev.feedback!==feedbackNotes;
+   if(!changed&&Date.now()-prev.time<15000)return;
+   draftWriteRef.current={session,time:Date.now(),rpe:overallRpe,date:sessionDate,duration:manualDurationMinutes,feedback:feedbackNotes};
+   if(!writeSessionDraft(window.localStorage,storageKey,draftRef.current)){
+    if(storageKey)toast.error('Não foi possível guardar o rascunho neste dispositivo. Mantenha o treino aberto.',{id:'session-draft-storage'});
+   }
+  },[session,totalElapsedTime,overallRpe,manualDurationMinutes,sessionDate,feedbackNotes,hasRpe,storageKey,isEditingCompleted]);
+  useEffect(()=>{
+   if(isEditingCompleted)return;
+   const base=recovered?recovered.elapsedSeconds:0;
+   const start=recovered?recovered.savedAt:Date.now();
+   const tick=()=>setTotalElapsedTime(base+Math.max(0,Math.round((Date.now()-start)/1000)));
+   const id=setInterval(tick,1000);
+   const flush=()=>{tick();if(!finalizing.current)writeSessionDraft(window.localStorage,storageKey,{...draftRef.current,elapsedSeconds:base+Math.max(0,Math.round((Date.now()-start)/1000)),savedAt:Date.now()});};
+   document.addEventListener('visibilitychange',flush);window.addEventListener('pagehide',flush);
+   return()=>{clearInterval(id);document.removeEventListener('visibilitychange',flush);window.removeEventListener('pagehide',flush);};
+  },[]);
 
   // Auto sync duration to finish modal when opened if manualDurationMinutes is empty
   useEffect(() => {
-    if (showFinishModal && (!manualDurationMinutes || manualDurationMinutes === "")) {
+    if (!isEditingCompleted && showFinishModal && (!manualDurationMinutes || manualDurationMinutes === "")) {
       setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
     }
   }, [showFinishModal, totalElapsedTime]);
@@ -917,7 +938,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
           timeSeconds: lastSet ? ((lastSet as any).timeSeconds || targetTime) : ex.conditioningProtocol ? 0 : targetTime,
           intensity: lastSet ? ((lastSet as any).intensity || ex.targetIntensity || 0) : (ex.targetIntensity || 0),
           rpe: lastSet ? (lastSet.rpe || 0) : 0,
-          isCompleted: isEditingCompleted ? true : false,
+          isCompleted: false,
         };
 
         const updatedSets = [...currentSets, newSet];
@@ -1106,24 +1127,17 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   }, [session.exercises]);
 
   // Finishing the entire session
-  const triggerFinish = (shareSocial?: boolean | React.SyntheticEvent) => {
+  const triggerFinish = async (shareSocial?: boolean | React.SyntheticEvent) => {
+    if(!hasRpe){toast.error("Selecione a PSE da sessão antes de finalizar.");setShowFinishModal(true);return;}
     const isSocial = typeof shareSocial === "boolean" ? shareSocial : false;
     if (!isEditingCompleted && completedSetsCount < totalSetsCount * 0.5) {
       const confirmFinish = window.confirm("Você concluiu menos da metade das séries planejadas. Deseja finalizar mesmo assim?");
       if (!confirmFinish) return;
     }
 
-    if (isEditingCompleted) {
-      speakText("Alterações salvas com sucesso.", isVoiceEnabled);
-    } else {
-      speakText("Treino concluído com maestria. Parabéns pelo desempenho elite!", isVoiceEnabled);
-    }
-    
-    // Save state
-    const finalDuration = manualDurationMinutes !== "" 
-      ? parseInt(manualDurationMinutes) || 1 
-      : Math.max(1, Math.round(totalElapsedTime / 60));
-    
+    const finalDuration=manualDurationMinutes.trim()!==''?Number(manualDurationMinutes.replace(',','.')):isEditingCompleted?NaN:Math.max(1,Math.round(totalElapsedTime/60));
+    if(!Number.isInteger(finalDuration)||finalDuration<=0||finalDuration>1440){toast.error('Informe a duração realizada em minutos inteiros, entre 1 e 1440.');setShowFinishModal(true);return;}
+
     // Prepare updated exercises with synced sets count and completed flags
     const updatedExercises = (session.exercises || []).map((ex, idx) => {
       const currentSets = ex.performedSets && ex.performedSets.length > 0 ? ex.performedSets : [];
@@ -1133,7 +1147,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
         sets: currentSets.length > 0 ? currentSets.length : (ex.sets || 1),
         performedSets: currentSets.map((s) => ({
           ...s,
-          isCompleted: isEditingCompleted ? true : ((s as any).isCompleted ?? true),
+          isCompleted: s.isCompleted === true,
         })),
       };
     });
@@ -1156,7 +1170,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       exercises: updatedExercises
     };
 
-    onFinish(completedSession, isSocial);
+    finalizing.current=true;
+    if(!isEditingCompleted)writeSessionDraft(window.localStorage,storageKey,{...draftRef.current,session:completedSession,savedAt:Date.now()});
+    // Keep the draft until the caller confirms the server receipt.
+    const confirmed=await onFinish(completedSession,isSocial);
+    if(confirmed!==true)finalizing.current=false;
+    else speakText(isEditingCompleted?'Alterações salvas com sucesso.':'Treino salvo com sucesso.',isVoiceEnabled);
   };
 
   // Face indicator for RPE scale
@@ -1172,7 +1191,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
   if (isEditingCompleted) {
     return (
-      <div id="completed-workout-edit-modal" className="w-full max-w-4xl max-h-[100dvh] sm:max-h-[calc(100dvh-16px)] md:max-h-[calc(100dvh-24px)] bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] shadow-2xl text-slate-100 p-4 sm:p-6 flex flex-col gap-3 animate-in fade-in duration-300 relative overflow-y-auto no-scrollbar">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Editar treino concluído" tabIndex={-1} id="completed-workout-edit-modal" className="w-full max-w-4xl max-h-[100dvh] sm:max-h-[calc(100dvh-16px)] md:max-h-[calc(100dvh-24px)] bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] shadow-2xl text-slate-100 p-4 sm:p-6 flex flex-col gap-3 animate-in fade-in duration-300 relative overflow-y-auto no-scrollbar">
         {/* BACKGROUND GLOW */}
         <div id="edit-glow" className="absolute -top-12 -right-12 w-48 h-48 bg-brand-primary/5 rounded-full blur-[80px] pointer-events-none" />
         
@@ -1580,7 +1599,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   }
 
   return (
-    <div className="coach-session-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-6xl bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-y-auto shadow-2xl text-slate-100 p-3 sm:p-5 md:p-6 space-y-3 md:space-y-4 flex flex-col animate-in fade-in duration-300">
+    <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Execução do treino" tabIndex={-1} className="coach-session-shell w-full h-[100dvh] sm:h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] max-h-[100dvh] md:max-w-6xl bg-slate-950 sm:border sm:border-slate-900 sm:rounded-[1.5rem] md:rounded-[2rem] overflow-y-auto shadow-2xl text-slate-100 p-3 sm:p-5 md:p-6 space-y-3 md:space-y-4 flex flex-col animate-in fade-in duration-300">
       
       {isHeaderCollapsed ? (
         /* COMPACT FOCUS HEADER FOR MOBILE */
@@ -1620,7 +1639,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             
             <button
               onClick={() => {
-                if (window.confirm("Deseja realmente sair e descartar o andamento deste treino?")) {
+                if (window.confirm("Deseja sair do treino? O rascunho fica guardado neste dispositivo para continuar depois.")) {
                   onCancel();
                 }
               }}
@@ -1714,7 +1733,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
             <button
               onClick={() => {
-                if (window.confirm("Deseja realmente sair e descartar o andamento deste treino?")) {
+                if (window.confirm("Deseja sair do treino? O rascunho fica guardado neste dispositivo para continuar depois.")) {
                   onCancel();
                 }
               }}
@@ -1858,7 +1877,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   </label>
                   <div className="flex flex-wrap gap-1">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
-                      const isSelected = overallRpe === v;
+                      const isSelected = hasRpe && overallRpe === v;
                       return (
                         <button
                           key={v}
@@ -2480,7 +2499,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 </label>
                 <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
-                    const isSelected = overallRpe === v;
+                    const isSelected = hasRpe && overallRpe === v;
                     let colorClasses = "border-slate-800 hover:border-slate-600 bg-slate-900 text-slate-300";
                     if (isSelected) {
                       if (v <= 2) colorClasses = "bg-green-500/25 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.25)] font-black scale-105";
@@ -2653,7 +2672,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 {/* Big touch-friendly buttons for RPE 1-10 */}
                 <div className="grid grid-cols-5 gap-2">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
-                    const isSelected = overallRpe === v;
+                    const isSelected = hasRpe && overallRpe === v;
                     let colorClasses = "border-slate-800 hover:border-slate-500 text-slate-300";
                     if (isSelected) {
                       if (v <= 2) colorClasses = "bg-green-500/25 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.2)]";

@@ -13,7 +13,7 @@ test('schemas and organization scope on PostgreSQL',async()=>{
  CREATE TABLE public.users(id text PRIMARY KEY,username text UNIQUE,password text,role text,athlete_id text,plan text);
  CREATE TABLE public.athletes(id text PRIMARY KEY,name text,modality text);
  INSERT INTO users VALUES('admin','Leandro','hash','coach',NULL,'pro');
- INSERT INTO athletes VALUES('a','Ana','Tênis'),('b','Bruno','Corrida');`);
+ INSERT INTO athletes(id,name,modality) VALUES('a','Ana','Tênis'),('b','Bruno','Corrida');`);
  for(const file of ['accounts-schema.sql','billing-schema.sql'])await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
  const org1='11111111-1111-4111-8111-111111111111',org2='22222222-2222-4222-8222-222222222222';
  await db.query('INSERT INTO lb_accounts.organizations(id,name) VALUES($1,$2),($3,$4)',[org1,'LB',org2,'Outro']);
@@ -38,9 +38,9 @@ test('profile and deletion refuse cross-organization operations',async()=>{
  const adapter={query:(q:string,p:any[])=>db.query(q,p),connect:async()=>({query:(q:string,p?:any[])=>db.query(q,p),release:()=>{}})} as any;
  try{
  await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
- CREATE TABLE users(id text PRIMARY KEY);CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
+ CREATE TABLE users(id text PRIMARY KEY);CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text,updated_at timestamptz default now());
  CREATE TABLE wellness(id text PRIMARY KEY,athlete_id text REFERENCES athletes(id));
- INSERT INTO users VALUES('coach');INSERT INTO athletes VALUES('a','Ana','Tênis'),('b','Bruno','Corrida');
+ INSERT INTO users VALUES('coach');INSERT INTO athletes(id,name,modality) VALUES('a','Ana','Tênis'),('b','Bruno','Corrida');
  INSERT INTO wellness VALUES('wa','a'),('wb','b');`);
  await db.exec(await readFile(new URL('accounts-schema.sql',import.meta.url),'utf8'));
  const org1='11111111-1111-4111-8111-111111111111',org2='22222222-2222-4222-8222-222222222222';
@@ -79,7 +79,7 @@ test('invitation and manual renewal end to end with PostgreSQL',async()=>{
  const db=new PGlite();
  await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
  CREATE TABLE users(id text PRIMARY KEY,username text UNIQUE,password text,role text,athlete_id text,plan text);
- CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
+ CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text,updated_at timestamptz default now());
  INSERT INTO users VALUES('admin','Leandro','unused','coach',NULL,'pro');`);
  for(const f of ['accounts-schema.sql','billing-schema.sql','account-rate-schema.sql','commercial-controls-schema.sql','billing-management-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
  const org='11111111-1111-4111-8111-111111111111';
@@ -133,7 +133,7 @@ test('batch save refuses foreign nested IDs and ownership reassignment',async()=
  const {validateScopedSave}=await import('./saveScope');const db=new PGlite();
  try{await db.exec(`CREATE TABLE athletes(id text PRIMARY KEY);CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
  CREATE TABLE wellness(id text PRIMARY KEY,athlete_id text);CREATE TABLE external_sessions(id text PRIMARY KEY,athlete_id text);CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text);
- CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text);CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text);
+ CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,prescription_meta jsonb DEFAULT '{}'::jsonb,reps_type text);CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text);
  CREATE TABLE bioimpedance(id text PRIMARY KEY,athlete_id text);CREATE TABLE isometric_strength(id text PRIMARY KEY,athlete_id text);CREATE TABLE cmj(id text PRIMARY KEY,athlete_id text);CREATE TABLE drop_jump(id text PRIMARY KEY,athlete_id text);CREATE TABLE vo2max(id text PRIMARY KEY,athlete_id text);CREATE TABLE speed(id text PRIMARY KEY,athlete_id text);CREATE TABLE imtp(id text PRIMARY KEY,athlete_id text);CREATE TABLE general_strength(id text PRIMARY KEY,athlete_id text);
  INSERT INTO athletes VALUES('a'),('b');INSERT INTO lb_accounts.athlete_scopes VALUES('a','org1'),('b','org2');INSERT INTO wellness VALUES('foreign','b');`);
  const adapter={query:(q:string,p:any[])=>q.includes('pg_advisory_xact_lock')?Promise.resolve({rows:[]}):db.query(q,p)} as any;
@@ -167,20 +167,21 @@ test('student writes execution without changing prescription or another athlete'
  CREATE TABLE external_sessions(id text PRIMARY KEY,athlete_id text,date text);
  CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,injury_history text);INSERT INTO athletes(id) VALUES('a'),('b');
  CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,name text,status text,rpe real,duration_minutes real,total_load real,feedback text,archived_at timestamptz);
- CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,weight real);
+ CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,weight real,prescription_meta jsonb DEFAULT '{}'::jsonb,reps_type text);
  CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);
  INSERT INTO lb_accounts.athlete_scopes VALUES('a','org1'),('b','org2');
  INSERT INTO workouts(id,athlete_id,name,status) VALUES('w','a','Treino do treinador','planned'),('foreign-w','b','Outro','planned');
- INSERT INTO prescribed_exercises VALUES('e','w','Agachamento',50),('foreign-e','foreign-w','Outro',80);
+ INSERT INTO prescribed_exercises(id,workout_id,name,weight) VALUES('e','w','Agachamento',50),('foreign-e','foreign-w','Outro',80);
  INSERT INTO performed_sets VALUES('foreign-set','foreign-e',8,80,8,true);`);
  const adapter={query:(q:string,p:any[])=>db.query(q,p),connect:async()=>({query:(q:string,p?:any[])=>db.query(q,p),release:()=>{}})} as any;
  const student={user_id:'student',organization_id:'org1',role:'athlete',athlete_id:'a'};
- await saveStudentData(adapter,student,[{id:'a',name:'Malicious',wellness:[{id:'today',date:'2026-10-03',fatigue:3,sleep:8,stress:2,soreness:2,mood:4}],workouts:[{id:'w',name:'Modified',status:'completed',exercises:[{id:'e',weight:1,performedSets:[{id:'set',reps:8,weight:50,rpe:7,isCompleted:true}]}]}]}]);
+ await saveStudentData(adapter,student,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,name:'Malicious',wellness:[{id:'today',date:'2026-10-03',fatigue:3,sleep:8,stress:2,soreness:2,mood:4}],workouts:[{id:'w',name:'Modified',status:'completed',totalLoad:99999,exercises:[{id:'e',weight:1,performedSets:[{id:'set',reps:8,weight:50,rpe:7,isCompleted:true}]}]}]}]);
  assert.equal((await db.query("SELECT name FROM workouts WHERE id='w'")).rows[0].name,'Treino do treinador');
  assert.equal((await db.query("SELECT weight FROM prescribed_exercises WHERE id='e'")).rows[0].weight,50);
  assert.equal((await db.query("SELECT is_completed FROM performed_sets WHERE id='set'")).rows[0].is_completed,true);
- await assert.rejects(()=>saveStudentData(adapter,student,[{id:'b'}]));
- await assert.rejects(()=>saveStudentData(adapter,student,[{id:'a',workouts:[{id:'w',exercises:[{id:'e',performedSets:[{id:'foreign-set',reps:99}]}]}]}]));
+ assert.equal(Number((await db.query("SELECT total_load FROM workouts WHERE id='w'")).rows[0].total_load),400);
+ await assert.rejects(async()=>saveStudentData(adapter,student,[{id:'b'}]));
+ await assert.rejects(async()=>saveStudentData(adapter,student,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,workouts:[{id:'w',exercises:[{id:'e',performedSets:[{id:'foreign-set',reps:99}]}]}]}]));
  assert.equal((await db.query("SELECT reps FROM performed_sets WHERE id='foreign-set'")).rows[0].reps,8);
  }finally{await db.close();}
 });
@@ -220,12 +221,12 @@ test('supervisor HTTP reads require a live explicit link and never grant coach a
  const db=new PGlite();
  await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
  CREATE TABLE users(id text PRIMARY KEY,username text,password text,role text,athlete_id text,plan text);
- CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
+ CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text,updated_at timestamptz default now());
  INSERT INTO users VALUES('admin','Owner','','coach',NULL,'pro'),('coach','Trainer','','coach',NULL,'pro');
  INSERT INTO athletes VALUES('own','Own','Run'),('other','Other','Tennis');`);
  for(const f of ['accounts-schema.sql','supervisor-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
  for(const table of Object.values(supervisorTables))await db.exec(`CREATE TABLE ${table}(id text PRIMARY KEY,athlete_id text,date text);INSERT INTO ${table} VALUES('${table}-own','own','2026-10-01'),('${table}-other','other','2026-10-02');`);
- await db.exec(`CREATE TABLE prescribed_exercises(id text,workout_id text,name text);CREATE TABLE performed_sets(id text,exercise_id text,load real);
+ await db.exec(`CREATE TABLE prescribed_exercises(id text,workout_id text,name text,prescription_meta jsonb DEFAULT '{}'::jsonb,reps_type text);CREATE TABLE performed_sets(id text,exercise_id text,load real);
  INSERT INTO prescribed_exercises VALUES('exercise','workouts-other','Squat');INSERT INTO performed_sets VALUES('set','exercise',50);`);
  const o1='11111111-1111-4111-8111-111111111111',o2='22222222-2222-4222-8222-222222222222';
  await db.query('INSERT INTO lb_accounts.organizations(id,name) VALUES($1,$2),($3,$4)',[o1,'Owner',o2,'Trainer']);
@@ -280,7 +281,7 @@ test('student invites are organization-scoped, revocable, and usable with an 8-c
  const express=(await import('express')).default;const jwt=(await import('jsonwebtoken')).default;const {accountRouter}=await import('./accounts');
  const db=new PGlite();await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;
  CREATE TABLE users(id text PRIMARY KEY,username text UNIQUE,password text,role text,athlete_id text,plan text);
- CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text);
+ CREATE TABLE athletes(id text PRIMARY KEY,name text,modality text,updated_at timestamptz default now());
  INSERT INTO users VALUES('admin','Owner','','coach',NULL,'pro'),('coach','Trainer','','coach',NULL,'free'),('student','Existing','','athlete','a','free');
  INSERT INTO athletes VALUES('a','Ana','Tennis'),('b','Bruno','Run');`);
  for(const f of ['accounts-schema.sql','supervisor-schema.sql','account-rate-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));

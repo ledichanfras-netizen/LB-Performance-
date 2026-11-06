@@ -1,3 +1,4 @@
+import { legacyImtpNeedsReview } from '../utils/legacyImtp';
 import { formatImtpValue } from "../utils/imtpAnalysis";
 import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import { Athlete } from "../types";
@@ -39,7 +40,7 @@ function calculateAge(dobString: string): number {
 
 function getNewestThree(arr: any[]): any[] {
   if (!arr || !Array.isArray(arr)) return [];
-  return [...arr]
+  return [...arr].filter(row=>!legacyImtpNeedsReview(row))
     .sort((a, b) => {
       const timeA = a.date ? new Date(a.date).getTime() : 0;
       const timeB = b.date ? new Date(b.date).getTime() : 0;
@@ -127,6 +128,8 @@ export async function generateImtpAiAnalysis(
   history: any[]
 ): Promise<any | null> {
   const token = getSessionToken();
+  if(legacyImtpNeedsReview(imtpData))return null;
+  history=history.filter(row=>!legacyImtpNeedsReview(row));
   const age = calculateAge(athlete.dob);
 
   // Format history for context

@@ -1,3 +1,4 @@
+import { migrateLegacyImtp } from './utils/legacyImtp';
 import { generateCompletePeriodization, periodizationBatchPrompt } from './utils/periodizationGeneration';
 import {buildGymContext,gymPrinciples,progressionGuidance,reviewGymProposal} from './utils/periodizationIntelligence';
 import {reviewPeriodization} from './components/PeriodizationProposalReview';
@@ -7,7 +8,7 @@ import { normalizeExerciseLibrary } from "./utils/exerciseLaterality";
 import { persistPeriodization } from './utils/periodizationSave';
 import { orderedExercises } from "./utils/exerciseOrder";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { athleteCacheKey, isSupervisedToken, purgeFictitiousAthletes } from './utils/accountCache';
 import { Athlete, AssessmentType, WellnessEntry, Workout, PrescribedExercise, ExerciseSet, ExternalSession } from './types';
 import { calculateReadiness, calculateWorkoutLoad, calculateAdvancedMetrics, calculateAge, getSafeDateTime, getLocalDateString, mergeAthletesWithLocalCache, recordDeletedItemId, sanitizeAthleteData, parseWeightValue, parseRepetitions, parsePerSetWeights } from './utils';
@@ -84,69 +85,7 @@ function resilientFetch(url: string, options: RequestInit = {}, retries = 3, del
   return request;
 }
 
-const ensureImtpAndMigrate = (a: any): Athlete => {
-  const currentAssessments = a.assessments || { bioimpedance: [], isometricStrength: [], imtp: [], cmj: [], dropJump: [], vo2max: [], speed: [], postural: [] };
-  const imtp = currentAssessments.imtp || [];
-  const postural = currentAssessments.postural || [];
-  
-  const migratedImtp = [...imtp];
-  // If there's no imtp entry at all, let's look up isometricStrength to see if there's any halfSquatKgf
-  if (migratedImtp.length === 0 && currentAssessments.isometricStrength && currentAssessments.isometricStrength.length > 0) {
-    currentAssessments.isometricStrength.forEach((s: any) => {
-      if (s.halfSquatKgf && s.halfSquatKgf > 0) {
-        const bioWeight = (currentAssessments.bioimpedance && currentAssessments.bioimpedance.length > 0) 
-            ? currentAssessments.bioimpedance[0].weight 
-            : 70;
-        
-        const peakForce = s.halfSquatKgf;
-        const relativePeakForce = parseFloat((peakForce / bioWeight).toFixed(2));
-        const timeToPeakForce = s.timeToPeakForce || 4028; // Standard elite value from attached report
-        const meanForce = s.meanForce || parseFloat((peakForce * 0.795).toFixed(2));
-        
-        migratedImtp.push({
-          id: `imtp-mig-${s.id}-${Math.floor(Math.random() * 10000)}`,
-          date: s.date,
-          observations: s.observations || 'Migrado de Força Isométrica (Meio Agachamento)',
-          peakForce,
-          relativePeakForce,
-          timeToPeakForce,
-          meanForce,
-          rfdPeak: s.rfdPeak || 148,
-          rfd100: s.rfd100 || 631,
-          rfd200: s.rfd200 || 329,
-          rfd300: s.rfd300 || 247,
-          impulsePeak: s.impulsePeak || 1812.53,
-          impulse100: s.impulse100 || 6.39,
-          impulse200: s.impulse200 || 12.94,
-          impulse300: s.impulse300 || 19.97
-        });
-      }
-    });
-
-    // Sort by date descending
-    migratedImtp.sort((b1: any, b2: any) => getSafeDateTime(b2.date) - getSafeDateTime(b1.date));
-  }
-  
-  return {
-    ...a,
-    assessments: {
-      bioimpedance: currentAssessments.bioimpedance || [],
-      isometricStrength: (currentAssessments.isometricStrength || []).map((s: any) => {
-        const copy = { ...s };
-        // Delete halfSquatKgf to remove Meio Agachamento from Generic Isometric Strength assessment
-        delete copy.halfSquatKgf;
-        return copy;
-      }),
-      cmj: currentAssessments.cmj || [],
-      abalakov: currentAssessments.abalakov || [],
-      dropJump: currentAssessments.dropJump || [],
-      vo2max: currentAssessments.vo2max || [],
-      speed: currentAssessments.speed || [],
-      imtp: migratedImtp,
-      postural: postural
-    }
-  };
-};
+const ensureImtpAndMigrate = migrateLegacyImtp;
 
 export const useAthletes = (token?: string | null) => {
   const readOnly = isSupervisedToken(token);
@@ -194,7 +133,7 @@ export const useAthletes = (token?: string | null) => {
     };
   };
 
-  const athletes = rawAthletes.map(a => normalizeAthlete(ensureImtpAndMigrate(a)));
+  const athletes = useMemo(()=>rawAthletes.map(normalizeAthlete),[rawAthletes]);
 
   const setAthletes = (v: Athlete[] | ((prev: Athlete[]) => Athlete[])) => {
     if (typeof v === 'function') {
@@ -212,7 +151,7 @@ export const useAthletes = (token?: string | null) => {
   const [lastSyncedAt, setLastSyncedAt] = useState<Date>(new Date());
 
   // Refs for tracking synchronization state and avoiding stale closures / timer resets
-  const syncDataRef = useRef<(isSilent?: boolean) => Promise<void>>(async () => {});
+  const syncDataRef = useRef<(isSilent?: boolean) => Promise<boolean>>(async () => false);
   const syncingRef = useRef(false);
   const lastSyncTimeRef = useRef<number>(Date.now());
   const athletesRef = useRef<Athlete[]>(athletes);
@@ -416,13 +355,13 @@ export const useAthletes = (token?: string | null) => {
     }
   };
 
-  const syncData = async (isSilent = false) => {
-    if (pendingSavesRef.current > 0) return;
+  const syncData = async (isSilent = false):Promise<boolean> => {
+    if (pendingSavesRef.current > 0) return false;
     // Login must never wait for athlete data or an anonymous database request.
-    if (!token) { setRawAthletes([]); setLoading(false); return; }
+    if (!token) { setRawAthletes([]); setLoading(false); return false; }
     if (syncingRef.current) {
       console.log('[Sync] Sincronização já em andamento. Ignorando requisição concorrente.');
-      return;
+      return false;
     }
     syncingRef.current = true;
     setSyncing(true);
@@ -439,16 +378,16 @@ export const useAthletes = (token?: string | null) => {
             }
           } catch (e) {}
         }
-        return;
+        return false;
       }
 
       console.log('Buscando atletas do banco de forma resiliente...');
       const readRevision = saveRevisionRef.current;
       const data = await api.loadAthletes(isSilent);
       // A response started before an edit must not replace the newly ordered workout.
-      if (readRevision !== saveRevisionRef.current) return;
+      if (readRevision !== saveRevisionRef.current) return false;
       if (data) {
-        if(readOnly || (token && data.filter(a=>a.id!=='meta-custom-library-exercises').length===0 && athletesRef.current.filter(a=>!a.id.startsWith('featured-') && !a.id.startsWith('model-')).length===0)){setAthletes(data.filter(a=>!a.id.startsWith('model-') && a.id!=='meta-custom-library-exercises'));setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;}
+        if(readOnly || (token && data.filter(a=>a.id!=='meta-custom-library-exercises').length===0 && athletesRef.current.filter(a=>!a.id.startsWith('featured-') && !a.id.startsWith('model-')).length===0)){setAthletes(data.filter(a=>!a.id.startsWith('model-') && a.id!=='meta-custom-library-exercises'));setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return true;}
         // Extract meta custom library if present
         const metaRow = data.find(a => a.id === 'meta-custom-library-exercises');
         if (metaRow && metaRow.injuryHistory) {
@@ -474,7 +413,7 @@ export const useAthletes = (token?: string | null) => {
         if(filtered.length===0){
           setAthletes([]);
           if(!readOnly)safeLocalStorage.setItem(cacheKey,'[]');
-          setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return;
+          setLastSyncedAt(new Date());lastSyncTimeRef.current=Date.now();return true;
         }
 
         // Retrieve local athletes from cache and memory to prevent losing offline/unsynced entries
@@ -509,6 +448,7 @@ export const useAthletes = (token?: string | null) => {
         setLastSyncedAt(new Date());
         console.log('Dados dos atletas atualizados, mesclados e cacheados.');
         lastSyncTimeRef.current = Date.now();
+        return true;
 
 
       }
@@ -521,7 +461,7 @@ export const useAthletes = (token?: string | null) => {
             id: 'supabase-offline-toast'
           });
         }
-        return;
+        return false;
       }
       const isIframeErr = err.message && (err.message.includes('bloqueou') || err.message.includes('Unexpected token') || err.message.includes('cookie'));
       if (isIframeErr) {
@@ -533,7 +473,7 @@ export const useAthletes = (token?: string | null) => {
         console.error('Falha ao sincronizar com Banco de Dados:', err);
       }
       
-      if(readOnly){setAthletes([]);if(!isSilent)toast.error('Não foi possível consultar o treinador. Verifique a conexão ou reabra a supervisão.');return;}
+      if(readOnly){setAthletes([]);if(!isSilent)toast.error('Não foi possível consultar o treinador. Verifique a conexão ou reabra a supervisão.');return false;}
       // Fallback cache recovery if state is fully empty but local storage has cache
       let hasLocalCache = false;
       if (athletes.length === 0) {
@@ -556,14 +496,16 @@ export const useAthletes = (token?: string | null) => {
           toast.error('Banco de dados inacessível. Usando modo de segurança offline.', { id: 'supabase-offline-toast' });
         } else {
           console.warn('Conexão instável com o banco de dados. Utilizando dados locais/offline de forma transparente.');
-          toast.success('Dados locais sincronizados e preservados com segurança!', { id: 'supabase-offline-toast' });
+          toast('Dados disponíveis neste dispositivo. Sincronização pendente.', { id: 'supabase-offline-toast' });
         }
       }
+      return false;
     } finally {
       syncingRef.current = false;
       setSyncing(false);
       if (!isSilent) setLoading(false);
     }
+    return false;
   };
 
   useEffect(() => {
@@ -798,7 +740,6 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteWellness = async (athleteId: string, wellnessId: string) => {
-    recordDeletedItemId(wellnessId);
     setSyncing(true);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
@@ -806,7 +747,6 @@ export const useAthletes = (token?: string | null) => {
       }
       return a;
     });
-    setAthletes(updated);
 
     try {
       if (token) {
@@ -820,10 +760,13 @@ export const useAthletes = (token?: string | null) => {
         if (!res.ok) {
           throw new Error(`Erro ao deletar wellness via API. Status: ${res.status}`);
         }
+        await acceptSaveReceipt(res,updated.filter(a=>a.id===athleteId));
       } else {
         await supabaseService.deleteWellness(wellnessId);
       }
       
+      recordDeletedItemId(wellnessId);
+      setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,wellness:(a.wellness||[]).filter(x=>x.id!==wellnessId)}:a));
       safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
       toast.success("Check-in removido!");
     } catch (e) {
@@ -871,7 +814,6 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteWorkout = async (athleteId: string, workoutId: string) => {
-    recordDeletedItemId(workoutId);
     setSyncing(true);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
@@ -879,7 +821,6 @@ export const useAthletes = (token?: string | null) => {
       }
       return a;
     });
-    setAthletes(updated);
 
     try {
       if (token) {
@@ -893,10 +834,13 @@ export const useAthletes = (token?: string | null) => {
         if (!res.ok) {
           throw new Error(`Erro ao deletar treino via API. Status: ${res.status}`);
         }
+        await acceptSaveReceipt(res,updated.filter(a=>a.id===athleteId));
       } else {
         await supabaseService.deleteWorkout(workoutId);
       }
       
+      recordDeletedItemId(workoutId);
+      setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,workouts:(a.workouts||[]).filter(x=>x.id!==workoutId)}:a));
       safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
       toast.success("Treino removido!");
     } catch (e) {
@@ -933,8 +877,9 @@ export const useAthletes = (token?: string | null) => {
       return a;
     });
     setAthletes(updated);
-    if(!await save(updated, athleteId)) return;
+    if(!await save(updated, athleteId)) return false;
     toast.success("Treino atualizado!");
+    return true;
   };
 
   const addAssessment = async (athleteId: string, type: AssessmentType, data: any) => {
@@ -971,7 +916,6 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const removeAssessment = async (athleteId: string, type: AssessmentType, assessmentId: string) => {
-    recordDeletedItemId(assessmentId);
     setSyncing(true);
     const updatedAthletes = athletes.map(a => {
       if (a.id === athleteId) {
@@ -985,7 +929,6 @@ export const useAthletes = (token?: string | null) => {
       }
       return a;
     });
-    setAthletes(updatedAthletes);
 
     try {
       if (token) {
@@ -999,10 +942,13 @@ export const useAthletes = (token?: string | null) => {
         if (!res.ok) {
           throw new Error(`Erro ao deletar avaliação via API. Status: ${res.status}`);
         }
+        await acceptSaveReceipt(res,updatedAthletes.filter(a=>a.id===athleteId));
       } else {
         await supabaseService.deleteAssessment(type, assessmentId);
       }
 
+      recordDeletedItemId(assessmentId);
+      setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,assessments:{...a.assessments,[type]:(a.assessments?.[type]||[]).filter((x:any)=>x.id!==assessmentId)}}:a));
       safeLocalStorage.setItem(cacheKey, JSON.stringify(updatedAthletes));
       toast.success(`Avaliação removida!`);
     } catch (e) {
@@ -1029,7 +975,6 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteAthlete = async (athleteId: string) => {
-    recordDeletedItemId(athleteId);
     setSyncing(true);
     try {
       if (token) {
@@ -1046,6 +991,7 @@ export const useAthletes = (token?: string | null) => {
       } else {
         await supabaseService.deleteAthlete(athleteId);
       }
+      recordDeletedItemId(athleteId);
       setAthletes(prev => prev.filter(a => a.id !== athleteId));
       toast.success("Atleta removido com sucesso!");
     } catch (e) {
@@ -1548,7 +1494,6 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const deleteExternalSession = async (athleteId: string, sessionId: string) => {
-    recordDeletedItemId(sessionId);
     setSyncing(true);
     const updated = athletes.map(a => {
       if (a.id === athleteId) {
@@ -1557,7 +1502,6 @@ export const useAthletes = (token?: string | null) => {
       }
       return a;
     });
-    setAthletes(updated);
 
     try {
       if (token) {
@@ -1571,12 +1515,15 @@ export const useAthletes = (token?: string | null) => {
         if (!res.ok) {
           throw new Error(`Erro ao deletar sessão via API. Status: ${res.status}`);
         }
+        await acceptSaveReceipt(res,updated.filter(a=>a.id===athleteId));
       } else {
         await supabaseService.deleteExternalSession(sessionId);
       }
       
+      recordDeletedItemId(sessionId);
+      setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,externalSessions:(a.externalSessions||[]).filter(x=>x.id!==sessionId)}:a));
       safeLocalStorage.setItem(cacheKey, JSON.stringify(updated));
-      if(!await save(updated, athleteId)) return;
+
       toast.success("Sessão removida!");
     } catch (e) {
       logError("Erro ao deletar sessão:", e);

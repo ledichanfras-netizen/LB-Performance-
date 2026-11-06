@@ -1,13 +1,15 @@
+import { athleteCacheKey } from '../utils/accountCache';
+import { getEffectiveSessionToken } from '../utils/supervisionSession';
 import { SocialFeedPost, Workout, Athlete } from "../types";
 
-const FEED_STORAGE_KEY = "lbsports_community_feed_v1";
+const feedStorageKey=()=>`${athleteCacheKey(getEffectiveSessionToken())}:community-feed`;
 
 // O Mural Social inicia vazio, aguardando postagens reais dos atletas da equipe
 const DEFAULT_SEED_POSTS: SocialFeedPost[] = [];
 
 export const getCommunityFeed = (): SocialFeedPost[] => {
   try {
-    const raw = localStorage.getItem(FEED_STORAGE_KEY);
+    const raw = localStorage.getItem(feedStorageKey());
     if (!raw) {
       return [];
     }
@@ -29,7 +31,7 @@ export const getCommunityFeed = (): SocialFeedPost[] => {
 
     // Se houver resquícios de postagens fake no cache do usuário, limpar e persistir apenas os reais
     if (realPosts.length !== parsed.length) {
-      localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(realPosts));
+      localStorage.setItem(feedStorageKey(), JSON.stringify(realPosts));
     }
 
     return realPosts;
@@ -41,7 +43,7 @@ export const getCommunityFeed = (): SocialFeedPost[] => {
 
 export const clearCommunityFeed = (): SocialFeedPost[] => {
   try {
-    localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify([]));
+    localStorage.setItem(feedStorageKey(), JSON.stringify([]));
   } catch (err) {
     console.error("Erro ao limpar feed da comunidade:", err);
   }
@@ -50,7 +52,7 @@ export const clearCommunityFeed = (): SocialFeedPost[] => {
 
 export const saveCommunityFeed = (posts: SocialFeedPost[]): void => {
   try {
-    localStorage.setItem(FEED_STORAGE_KEY, JSON.stringify(posts));
+    localStorage.setItem(feedStorageKey(), JSON.stringify(posts));
   } catch (err) {
     console.error("Erro ao salvar feed da comunidade:", err);
   }
@@ -84,9 +86,9 @@ export const publishWorkoutToFeed = (
     workoutName: workout.name,
     phase: workout.phase,
     date: workout.date || new Date().toISOString(),
-    durationMinutes: workout.durationMinutes || 60,
+    durationMinutes: workout.durationMinutes,
     totalLoad: workout.totalLoad || 0,
-    rpe: workout.rpe || 7,
+    rpe: workout.rpe,
     exercisesCount: (workout.exercises || []).length,
     completedSetsCount: completedSets,
     photoUrl: options?.photoUrl || workout.photoUrl || undefined,

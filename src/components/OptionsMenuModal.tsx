@@ -41,7 +41,7 @@ interface OptionsMenuModalProps {
   selectedAthlete?: Athlete | null;
   athletes?: Athlete[];
   onImportAthletes?: (imported: Athlete[]) => Promise<void>;
-  onSync?: () => Promise<void>;
+  onSync?: () => Promise<boolean>;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
   onLogout?: () => void;
@@ -165,7 +165,7 @@ export default function OptionsMenuModal({
           throw new Error(rJson.error || "Falha no servidor ao importar.");
         }
       }
-      toast.success(`${athleteList.length} atletas importados com sucesso!`, { id: toastId });
+      toast.success(`Importação confirmada. Cadastros existentes preservados.`, { id: toastId });
       e.target.value = "";
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar arquivo.", { id: toastId });
@@ -200,7 +200,7 @@ export default function OptionsMenuModal({
           throw new Error(rJson.error || "Falha no servidor.");
         }
       }
-      toast.success(`${athleteList.length} atletas importados com sucesso!`, { id: toastId });
+      toast.success(`Importação confirmada. Cadastros existentes preservados.`, { id: toastId });
       setPastedJson("");
       setShowPasteArea(false);
     } catch (err: any) {

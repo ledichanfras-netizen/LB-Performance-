@@ -37,7 +37,7 @@ test('student result submission persists with pending review without modifying p
  INSERT INTO lb_accounts.athlete_scopes VALUES('a','org'),('b','other');`);
  const adapter={query:(sql:string,p?:any[])=>db.query(sql,p),connect:async()=>({query:(sql:string,p?:any[])=>db.query(sql,p),release(){}})} as any;
  const account={user_id:'student',role:'athlete',athlete_id:'a',organization_id:'org'} as any;
- const result=await saveStudentData(adapter,account,[{id:'a',injuryHistory:'overwrite',matches:[event({achievement:conquest({medal:'gold'})})]}]);
+ const result=await saveStudentData(adapter,account,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,injuryHistory:'overwrite',matches:[event({achievement:conquest({medal:'gold'})})]}]);
  const stored=JSON.parse((await db.query("SELECT injury_history FROM athletes WHERE id='a'")).rows[0].injury_history as string);
  assert.equal(stored.legacy,'Histórico preservado');assert.equal(stored.reassessmentPlan.dueDate,'2027-01-01');assert.equal(stored.matches[0].achievement.status,'pending');assert.equal(result.matchesByAthlete.a[0].achievement.status,'pending');
  await assert.rejects(()=>saveStudentData(adapter,account,[{id:'b',matches:[]} ]));

@@ -1,3 +1,4 @@
+import { sessionInternalLoad, realizedTonnage } from './utils/sessionMetrics';
 import { orderedExercises } from "./utils/exerciseOrder";
 import { normalizeAssessmentNumbers } from "./utils/assessmentNumbers";
 
@@ -1379,43 +1380,8 @@ export const getReadinessCardTheme = (score: number | null | undefined, isPendin
   }
 };
 
-export const calculateWorkoutLoad = (workout: Workout, athleteWeight?: number): number => {
-  let total = 0;
-  if (!workout || !workout.exercises) return 0;
-  
-  workout.exercises.forEach(ex => {
-    if (ex.aerobic || (ex.trainingMode && ex.trainingMode !== "strength")) return;
-    const special = detectSpecialMethod(ex);
-    const defaultReps = parseRepetitions(special.clusterReps || ex.reps);
-    const defaultWeight = parseWeightValue(ex.weight);
-
-    if (ex.performedSets && ex.performedSets.length > 0) {
-      ex.performedSets.forEach(set => {
-        // Effective reps: if set.reps is specified and > 0, use set.reps; otherwise fallback to prescribed default reps
-        const reps = (set.reps && set.reps > 0) ? set.reps : defaultReps;
-        // Effective weight: if set.weight is 0 and athleteWeight provided, use BW; otherwise set.weight or defaultWeight
-        const rawWeight = (set.weight !== undefined && set.weight !== null) ? set.weight : defaultWeight;
-        const effectiveWeight = (rawWeight === 0 && athleteWeight) ? athleteWeight : rawWeight;
-        
-        total += reps * effectiveWeight;
-      });
-    } else {
-      // Fallback for planned or unrecorded sets
-      const numSets = ex.sets || 3;
-      const effectiveWeight = (defaultWeight === 0 && athleteWeight) ? athleteWeight : defaultWeight;
-      total += numSets * defaultReps * effectiveWeight;
-    }
-  });
-  return Math.round(total);
-};
-
-export const calculateWorkoutInternalLoad = (workout: Workout): number => {
-  if (!workout) return 0;
-  const rpe = Math.min(10, Math.max(0, safeParseFloat(workout.rpe) || 0));
-  const duration = Math.min(1440, Math.max(0, safeParseFloat(workout.durationMinutes) || 60));
-  const load = rpe * duration;
-  return Number.isFinite(load) ? Math.round(load) : 0;
-};
+export const calculateWorkoutLoad = (workout: Workout, _athleteWeight?: number): number => realizedTonnage(workout?.exercises||[]);
+export const calculateWorkoutInternalLoad = (workout: Workout): number|null => sessionInternalLoad(workout||{});
 
 export const sanitizeAthleteData = (a: Athlete): Athlete => {
   if (!a) return a;
@@ -2034,6 +2000,7 @@ export const calculateWeeklyEvolution = (workouts: Workout[]) => {
     const weekKey = `Sem ${weekNum}/${d.getFullYear().toString().slice(2)}`;
     
     const load = calculateWorkoutInternalLoad(w);
+    if(load===null)return;
     weeks[weekKey] = (weeks[weekKey] || 0) + load;
   });
   

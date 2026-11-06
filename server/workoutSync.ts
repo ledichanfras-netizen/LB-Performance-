@@ -14,7 +14,7 @@ export async function lockAthleteSnapshots(client: any, athletes: any[]) {
   for (const row of rows) {
     const incoming = athletes.find(a => a.id === row.id);
     if (incoming.followUpType === undefined) incoming.followUpType=readFollowUpType(row);
-    if (incoming.syncRevision && syncRevision(incoming.syncRevision) !== syncRevision(row.updated_at)) throw new SyncConflict();
+    if (!syncRevision(incoming.syncRevision) || syncRevision(incoming.syncRevision) !== syncRevision(row.updated_at)) throw new SyncConflict();
   }
   const archived = await client.query('SELECT id,athlete_id FROM workouts WHERE athlete_id = ANY($1::text[]) AND archived_at IS NOT NULL', [ids]);
   const removed = new Set(archived.rows.map((w:any) => w.id));

@@ -38,13 +38,13 @@ test('student save retains aerobic metrics while preventing prescription changes
  await db.exec(`CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
  CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz DEFAULT CURRENT_TIMESTAMP,injury_history text);INSERT INTO athletes(id) VALUES('a');
  CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,status text,rpe real,duration_minutes real,total_load real,feedback text,archived_at timestamptz);
- CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,prescription_meta jsonb);
+ CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,prescription_meta jsonb,reps_type text);
  CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);
  INSERT INTO lb_accounts.athlete_scopes VALUES('a','org');INSERT INTO workouts(id,athlete_id,status) VALUES('w','a','planned');`);
- await db.query('INSERT INTO prescribed_exercises VALUES($1,$2,$3)',['e','w',exerciseMetadata(base)]);
+ await db.query('INSERT INTO prescribed_exercises(id,workout_id,prescription_meta) VALUES($1,$2,$3)',['e','w',exerciseMetadata(base)]);
  const ex=reconcilePrescriptionSets(base);ex.performedSets![0]={...ex.performedSets![0],timeSeconds:900,distance:1500,speedKmh:6,inclinePercent:2,rpe:3,isCompleted:true};
  const adapter={query:(q:string,p:any[])=>db.query(q,p),connect:async()=>({query:(q:string,p?:any[])=>db.query(q,p),release:()=>{}})} as any;
- await saveStudentData(adapter,{organization_id:'org',role:'athlete',athlete_id:'a'} as any,[{id:'a',workouts:[{id:'w',status:'completed',exercises:[{...ex,aerobic:{...ex.aerobic,minutes:999}}]}]}]);
+ await saveStudentData(adapter,{organization_id:'org',role:'athlete',athlete_id:'a'} as any,[{id:'a',syncRevision:(await db.query("SELECT updated_at FROM athletes WHERE id='a'")).rows[0].updated_at,workouts:[{id:'w',status:'completed',exercises:[{...ex,aerobic:{...ex.aerobic,minutes:999}}]}]}]);
  const meta=(await db.query('SELECT prescription_meta FROM prescribed_exercises')).rows[0].prescription_meta as any;
  assert.deepEqual(meta.aerobic,base.aerobic);
  const sets=(await db.query('SELECT * FROM performed_sets')).rows;

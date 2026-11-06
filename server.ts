@@ -1,3 +1,8 @@
+import { realizedTonnage } from './src/utils/sessionMetrics';
+import { prepareBackupImport } from './server/backupImport';
+import { validateSportsPayload, SportsValidationError } from './server/sportsValidation';
+import { sportsDeletionRouter } from './server/sportsDeletion';
+import { sportsReadScope } from './server/readScope';
 import {gymPrinciples} from './src/utils/periodizationIntelligence';
 import {externalSessionDetailsSQL,saveExternalSession} from './server/externalSessionDetails';
 import {externalSessionFromRow,externalSessionColumns} from './src/utils/externalSessions';
@@ -527,35 +532,11 @@ apiRouter.use('/accounts', scopedAccountRouter);
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
 apiRouter.use('/athletes', authMiddleware, reassessmentRouter(pool));
 
-// Health check
-apiRouter.get('/health', async (req, res) => {
-  const dbUrl = process.env.DATABASE_URL || '';
-  let host = process.env.SQL_HOST ? 'Cloud SQL (us-east1)' : 'NOT_SET';
-  try {
-    if (dbUrl && !process.env.SQL_HOST) host = new URL(dbUrl).host;
-  } catch (e) {}
-
-  let supabase_test = 'pending';
-  try {
-    const { data, error } = await supabase.from('athletes').select('count', { count: 'exact', head: true });
-    supabase_test = error ? `error: ${error.message}` : `ok (count: ${data || 0})`;
-  } catch (e: any) {
-    supabase_test = `exception: ${e.message}`;
-  }
-  
-  res.json({ 
-    status: 'ok', 
-    database_configured: Boolean(process.env.SQL_HOST || process.env.DATABASE_URL),
-    db_connected: isDbConnected,
-    db_host: host,
-    supabase_configured: !!(process.env.VITE_SUPABASE_URL && process.env.VITE_SUPABASE_ANON_KEY),
-    supabase_test,
-    is_stale_host: host === 'db.zycnwaqswrunzptyeaso.supabase.co',
-    env: {
-      supabase_url: (process.env.VITE_SUPABASE_URL || '').substring(0, 15) + '...',
-      node_env: process.env.NODE_ENV,
-    }
-  });
+// Minimal readiness check; diagnostics and credentials are never public.
+apiRouter.get('/health',async(_req,res)=>{
+ res.setHeader('Cache-Control','no-store');
+ try{const query={text:'SELECT 1',query_timeout:3000};await pool.query(query);return res.json({status:'ok'});}
+ catch{return res.status(503).json({status:'unavailable'});}
 });
 
 apiRouter.get('/test', (req, res) => {
@@ -577,265 +558,13 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
   const athleteId = user.athleteId;
 
   try {
-    const loadFromSupabase = async () => {
-        console.log(`[SERVIÇO] Carregando dados via Supabase Fallback... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
-
-        const fetchTableSafely = async (tableName: string) => {
-          try {
-            let q = supabase.from(tableName).select('*');
-            if (isAthlete && athleteId) {
-              q = q.eq('athlete_id', athleteId);
-            }
-            const { data, error } = await q;
-            if (error) {
-              console.warn(`[SERVIÇO] Alerta ao carregar tabela '${tableName}' do Supabase:`, error.message);
-              return [];
-            }
-            return data || [];
-          } catch (err: any) {
-            console.warn(`[SERVIÇO] Exceção ao carregar tabela '${tableName}' do Supabase:`, err.message || err);
-            return [];
-          }
-        };
-
-        let query = supabase
-          .from('athletes')
-          .select(`
-            *,
-            wellness (*),
-            external_sessions (*),
-            workouts (
-              *,
-              prescribed_exercises (
-                *,
-                performed_sets (*)
-              )
-            )
-          `);
-
-        if (isAthlete && athleteId) {
-          query = query.eq('id', athleteId);
-        }
-
-        const { data: athletes, error } = await query.order('name', { ascending: true });
-
-        if (error) {
-          console.warn("[SERVIÇO] Supabase não retornou atletas:", error.message);
-          return [];
-        }
-
-        const [
-          bioimpedanceData,
-          isometricStrengthData,
-          cmjData,
-          abalakovData,
-          dropJumpData,
-          vo2maxData,
-          speedData,
-          imtpData
-        ] = await Promise.all([
-          fetchTableSafely('bioimpedance'),
-          fetchTableSafely('isometric_strength'),
-          fetchTableSafely('cmj'),
-          fetchTableSafely('abalakov'),
-          fetchTableSafely('drop_jump'),
-          fetchTableSafely('vo2max'),
-          fetchTableSafely('speed'),
-          fetchTableSafely('imtp')
-        ]);
-
-        const mapByAthleteId = (rows: any[]) => {
-          const grouped: Map<string, any[]> = new Map();
-          rows.forEach(item => {
-            if (item && item.athlete_id) {
-              const list = grouped.get(item.athlete_id) || [];
-              list.push(item);
-              grouped.set(item.athlete_id, list);
-            }
-          });
-          return grouped;
-        };
-
-        const bioMap = mapByAthleteId(bioimpedanceData);
-        const strengthMap = mapByAthleteId(isometricStrengthData);
-        const cmjMap = mapByAthleteId(cmjData);
-        const abalakovMap = mapByAthleteId(abalakovData);
-        const dropJumpMap = mapByAthleteId(dropJumpData);
-        const vo2maxMap = mapByAthleteId(vo2maxData);
-        const speedMap = mapByAthleteId(speedData);
-        const imtpMap = mapByAthleteId(imtpData);
-
-        return (athletes || [])
-          .filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-') && a.id !== 'meta-custom-library-exercises')
-          .map((a: any) => {
-          const parsedFields = parseBackupAthleteFields(a);
-          return {
-            ...a,
-            syncRevision: syncRevision(a.updated_at),
-            reassessmentPlan: readReassessmentPlan(a.reassessment_plan),
-            photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
-            gender: a.gender || 'M',
-            weeklyFrequency: a.weekly_frequency,
-            competitiveLevel: a.competitive_level,
-            followUpType: readFollowUpType(a),
-            injuryHistory: parsedFields.injuryHistory,
-            isTournamentMode: a.is_tournament_mode,
-            periodizationStart: a.periodization_start || parsedFields.periodizationStart || undefined,
-            periodizationEnd: a.periodization_end || parsedFields.periodizationEnd || undefined,
-            trainingDays: parsedFields.trainingDays,
-            academyDays: parsedFields.academyDays,
-            courtDays: parsedFields.courtDays,
-            injuries: parsedFields.injuries,
-            matches: parsedFields.matches || [],
-            wellness: (a.wellness || []).map((w: any) => ({
-              ...w,
-              sleep: w.calculated_sleep_hours !== undefined && w.calculated_sleep_hours !== null ? Number(w.calculated_sleep_hours) : (typeof w.sleep === 'number' ? w.sleep : parseFloat(w.sleep) || 0),
-              cognitiveLoad: w.cognitive_load,
-              readinessScore: w.readiness_score,
-              travelFatigue: w.travel_fatigue,
-              sleepQuality: w.sleep_quality,
-              menstrualPhase: w.menstrual_phase || "Nenhuma",
-              menstrualSymptoms: Array.isArray(w.menstrual_symptoms)
-                ? w.menstrual_symptoms
-                : typeof w.menstrual_symptoms === 'string'
-                ? JSON.parse(w.menstrual_symptoms)
-                : [],
-              hrv: w.hrv,
-              sleepHoursFormatted: w.sleep_hours_formatted,
-              sleepStartTime: w.sleep_start_time || w.sleepStartTime,
-              wakeUpTime: w.wake_up_time || w.wakeUpTime,
-              calculatedSleepHours: w.calculated_sleep_hours ?? w.calculatedSleepHours,
-              isMatchDay: w.is_match_day ?? w.isMatchDay ?? false,
-              emotionalReadiness: w.emotional_readiness ?? w.emotionalReadiness,
-              psychologicalReadiness: w.psychological_readiness ?? w.psychologicalReadiness,
-              psychologyNotes: w.psychology_notes || w.psychologyNotes
-            })),
-            externalSessions: (a.external_sessions || []).map((es: any) => ({
-              ...externalSessionFromRow(es)
-            })),
-            workouts: (a.workouts || []).filter((wk: any) => !wk.archived_at).map((wk: any) => ({
-              ...wk,
-              date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
-              durationMinutes: wk.duration_minutes,
-              totalLoad: wk.total_load,
-              trainerNotes: wk.trainer_notes,
-              updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : wk.updatedAt,
-              createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : wk.createdAt,
-              exercises: (wk.prescribed_exercises || []).map((ex: any) => ({ 
-                ...(ex.prescription_meta || {}), ...ex,
-                muscleGroup: ex.muscle_group,
-                painLevel: ex.pain_level,
-                repsType: ex.reps_type || 'reps',
-                order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
-                videoUrl: ex.video_url || '',
-                imageUrl: ex.image_url || '',
-                performedSets: restorePerformedMetrics(ex, ex.performed_sets || [])
-              })).sort((x: any, y: any) => {
-                const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
-                const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
-                return xIdx - yIdx;
-              })
-            })),
-            assessments: {
-              bioimpedance: (bioMap.get(a.id) || []).map((b: any) => ({ ...b, fatPercentage: b.fat_percentage, muscleMass: b.muscle_mass, visceralFat: b.visceral_fat, hydration: b.hydration, basalMetabolism: b.basal_metabolism, metabolicAge: b.metabolic_age, boneMass: b.bone_mass, physiqueRating: b.physique_rating, fatArmR: b.fat_arm_r, fatArmL: b.fat_arm_l, fatLegR: b.fat_leg_r, fatLegL: b.fat_leg_l, fatTrunk: b.fat_trunk, muscleArmR: b.muscle_arm_r, muscleArmL: b.muscle_arm_l, muscleLegR: b.muscle_leg_r, muscleLegL: b.muscle_leg_l, muscleTrunk: b.muscle_trunk }))
-                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              isometricStrength: (strengthMap.get(a.id) || []).map((s: any) => ({ ...s, halfSquatKgf: s.half_squat_kgf, quadricepsR: s.quadriceps_r, quadricepsL: s.quadriceps_l, hamstringsR: s.hamstrings_r, hamstringsL: s.hamstrings_l, iqRatioR: s.iq_ratio_r, iqRatioL: s.iq_ratio_l }))
-                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              cmj: (cmjMap.get(a.id) || []).map((c: any) => ({ ...c, rsi: c.rsi, flightTime: c.flight_time, weight: c.weight, averageForce: c.average_force ?? c.averageForce ?? 0 }))
-                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              abalakov: (abalakovMap.get(a.id) || []).map((c: any) => ({ ...c, rsi: c.rsi, flightTime: c.flight_time, weight: c.weight, averageForce: c.average_force ?? c.averageForce ?? 0 }))
-                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              dropJump: (() => {
-                const dbDj = (dropJumpMap.get(a.id) || []).map((dj: any) => ({
-                  ...dj,
-                  id: dj.id,
-                  date: dj.date,
-                  weight: dj.weight ?? 0,
-                  dropHeight: dj.drop_height !== undefined ? dj.drop_height : dj.dropHeight,
-                  jumpHeight: dj.jump_height !== undefined ? dj.jump_height : dj.jumpHeight,
-                  flightTime: dj.flight_time !== undefined ? dj.flight_time : dj.flightTime,
-                  contactTime: dj.contact_time !== undefined ? dj.contact_time : dj.contactTime,
-                  meanForce: dj.mean_force !== undefined ? dj.mean_force : dj.meanForce,
-                  meanPower: dj.mean_power !== undefined ? dj.mean_power : dj.meanPower,
-                  stiffness: dj.stiffness !== undefined ? dj.stiffness : dj.stiffness,
-                  rsi: dj.rsi,
-                  observations: dj.observations
-                }));
-                const bkDj = parsedFields.dropJumpBackup || [];
-                const mergedMap = new Map();
-                for (const item of bkDj) {
-                  if (item && item.id) mergedMap.set(item.id, item);
-                }
-                for (const item of dbDj) {
-                  if (item && item.id) mergedMap.set(item.id, item);
-                }
-                return Array.from(mergedMap.values()).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date));
-              })(),
-              vo2max: (vo2maxMap.get(a.id) || []).map((v: any) => ({ ...v, vam: v.vam, maxSpeed: v.max_speed, maxHeartRate: v.max_heart_rate, thresholdHeartRate: v.threshold_heart_rate, thresholdSpeed: v.threshold_speed, rec10s: v.rec_10s, rec30s: v.rec_30s, rec60s: v.rec_60s, maxVentilation: v.max_ventilation }))
-                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              speed: (speedMap.get(a.id) || []).map((sp: any) => ({ ...sp, time5m: sp.time_5m, time10m: sp.time_10m, time20m: sp.time_20m, time30m: sp.time_30m, speed5m: sp.speed_5m, speed10m: sp.speed_10m, speed20m: sp.speed_20m, speed30m: sp.speed_30m }))
-                .sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date)),
-              imtp: (() => {
-                const dbIm = (imtpMap.get(a.id) || []).map((im: any) => ({
-                  ...im,
-                  id: im.id,
-                  date: im.date,
-                  weight: im.weight,
-                  peakForce: im.peak_force,
-                  relativePeakForce: im.relative_peak_force,
-                  timeToPeakForce: im.time_to_peak_force,
-                  meanForce: im.mean_force,
-                  rfdPeak: im.rfd_peak,
-                  force100: im.force_100, force200: im.force_200, force300: im.force_300,
-                rfd100: im.rfd_100,
-                  rfd200: im.rfd_200,
-                  rfd300: im.rfd_300,
-                  impulsePeak: im.impulse_peak,
-                  impulse100: im.impulse_100,
-                  impulse200: im.impulse_200,
-                  impulse300: im.impulse_300,
-                  aiDetails: im.ai_details ? (typeof im.ai_details === 'string' ? JSON.parse(im.ai_details) : im.ai_details) : undefined,
-                  observations: im.observations
-                }));
-                const bkIm = parsedFields.imtpBackup || [];
-                const mergedMap = new Map();
-                for (const item of bkIm) {
-                  if (item && item.id) mergedMap.set(item.id, item);
-                }
-                for (const item of dbIm) {
-                  if (item && item.id) mergedMap.set(item.id, item);
-                }
-                return Array.from(mergedMap.values()).sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date));
-              })(),
-              postural: (() => {
-                const bkPostural = parsedFields.posturalBackup || [];
-                return [...bkPostural].sort((x: any, y: any) => getSafeDateTime(y.date) - getSafeDateTime(x.date));
-              })()
-            }
-          };
-        });
-    };
-
-    if (!isDbConnected || (!process.env.SQL_HOST && !process.env.DATABASE_URL)) {
-      console.warn("[SERVIÇO] Local DB Off. Redirecionando para Supabase / Cache...");
-      let formatted = await loadFromSupabase();
-      if (!formatted || formatted.length === 0) {
-        formatted = await getCachedAthletes();
-      }
-      if (isAthlete && athleteId) {
-        const filtered = (formatted || []).filter((a: any) => a.id === athleteId || a.id === athleteId.replace('user-', '') || (a.id && a.id.includes(athleteId)));
-        return res.json(filtered.length > 0 ? filtered : (formatted || []).slice(0, 1));
-      }
-      return res.json(formatted || []);
-    }
+    sportsReadScope((req as any).account);
+    if (!isDbConnected || (!process.env.SQL_HOST && !process.env.DATABASE_URL)) return res.status(503).json({error:'Dados temporariamente indisponíveis. Seu histórico não foi substituído.'});
 
     console.log(`[SERVIÇO] Buscando atletas no banco local... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
     
     // Condições WHERE para otimização
-    const scoped = (process.env.ACCOUNTS_ENABLED === 'true' && process.env.SCOPED_SPORTS_ENABLED === 'true') ? (req as any).account : null;
-    if (scoped && scoped.organization_id) {
-      await pool.query('INSERT INTO lb_accounts.athlete_scopes(athlete_id, organization_id) SELECT a.id, $1 FROM public.athletes a WHERE NOT EXISTS (SELECT 1 FROM lb_accounts.athlete_scopes s WHERE s.athlete_id = a.id) ON CONFLICT (athlete_id) DO NOTHING', [scoped.organization_id]).catch(() => {});
-    }
+    const scoped = sportsReadScope((req as any).account);
     const scopedIds="SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id)" + (isAthlete ? " AND athlete_id=$2" : "");
     const whereClause = scoped ? `WHERE athlete_id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE athlete_id = $1' : '';
     const params = scoped ? (isAthlete ? [scoped.organization_id,athleteId] : [scoped.organization_id]) : isAthlete && athleteId ? [athleteId] : [];
@@ -876,16 +605,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       imtpRes = dbQueries[12];
       abalakovRes = dbQueries[13];
     } catch (dbError: any) {
-      console.warn("[SERVIÇO] Falha ao ler dados de Postgres local (Acionando Fallback para Supabase / Cache):", dbError.message);
-      let formatted = await loadFromSupabase();
-      if (!formatted || formatted.length === 0) {
-        formatted = await getCachedAthletes();
-      }
-      if (isAthlete && athleteId) {
-        const filtered = (formatted || []).filter((a: any) => a.id === athleteId || a.id === athleteId.replace('user-', '') || (a.id && a.id.includes(athleteId)));
-        return res.json(filtered.length > 0 ? filtered : (formatted || []).slice(0, 1));
-      }
-      return res.json(formatted || []);
+      return res.status(503).json({error:'Não foi possível consultar os dados autorizados. Tente novamente.'});
     }
 
     const cleanAthleteRows = (athletesRes.rows || []).filter(a => {
@@ -894,19 +614,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       return !a.id.startsWith('featured-') && !a.id.startsWith('model-');
     });
 
-    // SE NÃO HOUVER ATLETAS VÁLIDOS NO BANCO LOCAL, TENTAR SUPABASE OU CACHE
-    if (cleanAthleteRows.length === 0) {
-      console.warn("[SERVIÇO] Banco local conectado mas está VAZIO. Tentando Supabase ou Cache...");
-      let formatted = await loadFromSupabase();
-      if (!formatted || formatted.length === 0) {
-        formatted = await getCachedAthletes();
-      }
-      if (isAthlete && athleteId) {
-        const filtered = (formatted || []).filter((a: any) => a.id === athleteId || a.id === athleteId.replace('user-', '') || (a.id && a.id.includes(athleteId)));
-        return res.json(filtered.length > 0 ? filtered : (formatted || []).slice(0, 1));
-      }
-      return res.json(formatted || []);
-    }
+    // An empty authorized result is authoritative; never load a global fallback.
 
     const groupById = (rows: any[], key = 'athlete_id') => {
       const grouped: any = {};
@@ -1148,27 +856,23 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
   }
 });
 
-apiRouter.post('/backup/import', authMiddleware, async (req, res) => {
-  try {
-    const rawData = req.body;
-    const incoming = Array.isArray(rawData) ? rawData : (rawData?.athletes || []);
-    if (!Array.isArray(incoming) || incoming.length === 0) {
-      return res.status(400).json({ error: 'Nenhum atleta válido encontrado no arquivo de backup.' });
-    }
-    const cleanAthletes = incoming.filter((a: any) => a && a.id && !a.id.startsWith('featured-') && !a.id.startsWith('model-'));
-    await setCachedAthletes(cleanAthletes);
-    return res.json({ success: true, count: cleanAthletes.length, message: `${cleanAthletes.length} atletas importados com sucesso para o servidor!` });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message || 'Falha ao importar backup.' });
-  }
+apiRouter.post('/backup/import',authMiddleware,async(req:any,res)=>{
+ try{
+  const incoming=Array.isArray(req.body)?req.body:req.body?.athletes;
+  const preview=await prepareBackupImport(pool,req.account,incoming);
+  if(req.body?.dryRun===true||preview.importCount===0)return res.json({success:true,importCount:preview.importCount,preservedCount:preview.preservedCount,preview:req.body?.dryRun===true});
+  req.body=preview.athletes;
+  return saveAthletesHandler(req,res);
+ }catch(error){return res.status(error instanceof ScopeDenied?403:error instanceof SportsValidationError?400:503).json({error:error instanceof SportsValidationError?error.message:'Não foi possível importar os cadastros autorizados.'});}
 });
 
-apiRouter.post('/salvar', authMiddleware, async (req, res) => {
+const saveAthletesHandler = async (req:any, res:any) => {
   const athletes = req.body;
+  try{sportsReadScope(req.account);validateSportsPayload(athletes);}catch(error){return res.status(error instanceof ScopeDenied?403:400).json({error:error instanceof Error?error.message:'Dados inválidos.'});}
 
   if ((req as any).account?.role === 'athlete') {
     try {return res.json(await saveStudentData(pool,(req as any).account,athletes));}
-    catch (error:any) {if(error instanceof SyncConflict)return res.status(409).json({error:error.message,code:'SYNC_CONFLICT'});console.error('[StudentSave]',error.code || error.name);return res.status(error instanceof ScopeDenied?403:503).json({error:error instanceof ScopeDenied?'Este registro não pertence ao aluno.':'Não foi possível salvar agora. Seus registros permanecem no dispositivo; tente sincronizar novamente.'});}
+    catch (error:any) {if(error instanceof SportsValidationError)return res.status(400).json({error:error.message});if(error instanceof SyncConflict)return res.status(409).json({error:error.message,code:'SYNC_CONFLICT'});console.error('[StudentSave]',error.code || error.name);return res.status(error instanceof ScopeDenied?403:503).json({error:error instanceof ScopeDenied?'Este registro não pertence ao aluno.':'Não foi possível salvar agora. Seus registros permanecem no dispositivo; tente sincronizar novamente.'});}
   }
   
   // Tentar reconectar de forma assíncrona se não estiver conectado, sem bloquear a requisição atual
@@ -1183,512 +887,8 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
     });
   }
 
-  // Definimos o helper para encapsular a lógica de salvamento via REST Proxy
-  const doSupabaseProxyFallback = async () => {
-    if ((req as any).account) throw new Error('Fallback direto desativado para conta por organização.');
-    const maskedUrl = process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 15) + "..." : "NÃO DEFINIDA";
-    console.warn(`Express API: Utilizando o Supabase REST Proxy para sincronizar os dados (${maskedUrl})...`);
-    
-    try {
-      for (const athlete of athletes) {
-        // Helper para upsert resiliente que remove colunas que falham (caso o schema esteja desatualizado)
-        const safeUpsert = async (table: string, data: any) => {
-          const isArray = Array.isArray(data);
-          let attemptData = isArray ? data.map((item: any) => ({ ...item })) : { ...data };
-          let lastError;
-          for (let i = 0; i < 12; i++) {
-            const { error } = await supabase.from(table).upsert(attemptData);
-            if (!error) return { error: null };
-            lastError = error;
+  if ((!process.env.SQL_HOST && !process.env.DATABASE_URL) || !isDbConnected) return res.status(503).json({error:'Banco indisponível. O registro ainda não foi salvo.'});
 
-            console.warn(`[SafeSync] Tentativa ${i + 1} de salvar na tabela '${table}' falhou. Erro: ${error.message} (Código: ${error.code})`);
-
-            const isMissingCol = error.code === '42703' || error.code === 'PGRST204' ||
-                               (error.message && (error.message.includes('column') || error.message.includes('Column')) &&
-                                                 (error.message.includes('not found') || error.message.includes('cache')));
-
-            if (isMissingCol) {
-               const match = error.message.match(/find the ['"]([a-z0-9_]+)['"] column/i) ||
-                             error.message.match(/['"]([a-z0-9_]+)['"]\s+column/i) ||
-                             error.message.match(/column\s+['"]([a-z0-9_]+)['"]/i) ||
-                             error.message.match(/column\s+([a-z0-9_]+)/i);
-
-               if (match && match[1] && match[1] !== table) {
-                 const col = match[1];
-                 console.warn(`[SafeSync] Removendo coluna inexistente '${col}' da tabela '${table}' e tentando novamente.`);
-                 if (isArray) {
-                   for (const item of attemptData) {
-                     delete item[col];
-                   }
-                 } else {
-                   delete attemptData[col];
-                 }
-                 continue;
-               } else {
-                 const commonMissingCols = [
-                   'photo_url', 'photoUrl', 'injuries', 'training_days', 'is_tournament_mode',
-                   'periodization_start', 'periodization_end', 'weekly_frequency',
-                   'pain_level', 'rest', 'notes',
-                   'ai_details', 'observations', 'cognitive_load', 'travel_fatigue', 'sleep_quality',
-                   'sleep_start_time', 'wake_up_time', 'calculated_sleep_hours', 'is_match_day',
-                   'emotional_readiness', 'psychological_readiness', 'psychology_notes',
-                   'menstrual_phase', 'menstrual_symptoms', 'hrv', 'sleep_hours_formatted'
-                 ];
-                 let removed = false;
-                 for (const col of commonMissingCols) {
-                   if (error.message.includes(col)) {
-                     console.warn(`[SafeSync] Heurística: Removendo '${col}' de '${table}' por correspondência de texto.`);
-                     if (isArray) {
-                       for (const item of attemptData) {
-                         if (item[col] !== undefined) {
-                           delete item[col];
-                           removed = true;
-                         }
-                       }
-                     } else {
-                       if (attemptData[col] !== undefined) {
-                         delete attemptData[col];
-                         removed = true;
-                       }
-                     }
-                     if (removed) break;
-                   }
-                 }
-                 if (removed) continue;
-               }
-            }
-            break;
-          }
-          return { error: lastError };
-        };
-
-        // Upsert do atleta base
-        const { error: aErr } = await safeUpsert('athletes', {
-          id: athlete.id,
-          name: athlete.name,
-          photo_url: athlete.photoUrl || athlete.photo_url || null,
-          dob: athlete.dob || new Date().toISOString().split('T')[0],
-          gender: athlete.gender || 'M',
-          modality: athlete.modality || '',
-          competitive_level: athlete.competitiveLevel || 'amador',
-          position: athlete.position || '',
-          injury_history: serializeBackupAthleteFields(athlete),
-          goal: athlete.goal || 'Performance',
-          weekly_frequency: athlete.weeklyFrequency || athlete.weekly_frequency || (athlete.trainingDays?.length || 3),
-          is_tournament_mode: athlete.isTournamentMode ?? false,
-          periodization_start: athlete.periodizationStart ?? null,
-          periodization_end: athlete.periodizationEnd ?? null,
-          training_days: athlete.trainingDays || [],
-          injuries: athlete.injuries || [],
-          updated_at: new Date().toISOString()
-        });
-        if (aErr) throw aErr;
-
-        if (athlete.id === 'meta-custom-library-exercises') {
-          continue; // Meta-atleta não possui wellness, treinos ou avaliações adicionais
-        }
-
-        // Upsert Wellness
-        if (athlete.wellness) {
-           const incomingWlIds = (athlete.wellness || []).map((w: any) => w.id).filter((id: any) => id);
-           if (incomingWlIds.length > 0) {
-             const { error: delErr } = await supabase.from('wellness').delete().eq('athlete_id', athlete.id).not('id', 'in', `(${incomingWlIds.join(',')})`);
-             if (delErr) {
-               console.error(`[Supabase Proxy] Erro ao deletar wellness órfãos do atleta ${athlete.id}:`, delErr);
-               throw delErr;
-             }
-           } else {
-             const { error: delErr } = await supabase.from('wellness').delete().eq('athlete_id', athlete.id);
-             if (delErr) throw delErr;
-           }
-           if (athlete.wellness.length > 0) {
-             const { error: upErr } = await safeUpsert('wellness', athlete.wellness.map((w: any) => ({
-               id: w.id || `wl-${Date.now()}-${Math.random()}`,
-               athlete_id: athlete.id,
-               date: w.date,
-               fatigue: safeNum(w.fatigue, 0),
-               sleep: safeNum(w.sleep, 0),
-               stress: safeNum(w.stress, 0),
-               soreness: w.soreness ?? 0,
-               mood: w.mood ?? 0,
-               cognitive_load: w.cognitiveLoad ?? 0,
-               readiness_score: w.readinessScore ?? 0,
-               travel_fatigue: w.travelFatigue ?? 0,
-               sleep_quality: w.sleepQuality ?? 0,
-                menstrual_phase: w.menstrualPhase || 'Nenhuma',
-                menstrual_symptoms: w.menstrualSymptoms || [],
-                hrv: w.hrv ?? null,
-                sleep_hours_formatted: w.sleepHoursFormatted || null,
-                sleep_start_time: w.sleepStartTime || null,
-                wake_up_time: w.wakeUpTime || null,
-                calculated_sleep_hours: w.calculatedSleepHours !== undefined && w.calculatedSleepHours !== null ? safeNum(w.calculatedSleepHours, 0) : safeNum(w.sleep, 0),
-                is_match_day: w.isMatchDay ?? false,
-                emotional_readiness: w.emotionalReadiness ?? null,
-                psychological_readiness: w.psychologicalReadiness ?? null,
-                psychology_notes: w.psychologyNotes || null
-             })));
-             if (upErr) throw upErr;
-           }
-        }
-
-        // Upsert Sessions
-        if (athlete.externalSessions) {
-           const incomingSessIds = (athlete.externalSessions || []).map((es: any) => es.id).filter((id: any) => id);
-           if (incomingSessIds.length > 0) {
-             const { error: delErr } = await supabase.from('external_sessions').delete().eq('athlete_id', athlete.id).not('id', 'in', `(${incomingSessIds.join(',')})`);
-             if (delErr) {
-               console.error(`[Supabase Proxy] Erro ao deletar sessões órfãs do atleta ${athlete.id}:`, delErr);
-               throw delErr;
-             }
-           } else {
-             const { error: delErr } = await supabase.from('external_sessions').delete().eq('athlete_id', athlete.id);
-             if (delErr) throw delErr;
-           }
-           if (athlete.externalSessions.length > 0) {
-             const { error: upErr } = await safeUpsert('external_sessions', athlete.externalSessions.map((es: any) => {
-               const dur = es.durationMinutes ?? es.duration_minutes ?? 0;
-               const rpeVal = es.rpe ?? 0;
-               const calculatedLoad = es.load ?? (dur * rpeVal);
-               return {
-                 id: es.id || `es-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                 athlete_id: athlete.id,
-                 date: es.date,
-                 type: es.type || 'tecnico',
-                 duration_minutes: dur,
-                 rpe: rpeVal,
-                 notes: es.notes || '',
-                 load: calculatedLoad,
-                 ...externalSessionColumns(es)
-               };
-             }));
-             if (upErr) throw upErr;
-           }
-        }
-
-        // Upsert Workouts
-        const incomingWkIds = (athlete.workouts || []).map((wk: any) => wk.id).filter((id: any) => id);
-        const { data: existingWks, error: existingWkError } = await supabase.from('workouts').select('id,archived_at').eq('athlete_id', athlete.id);
-        if (existingWkError) throw existingWkError;
-        const archivedIds = new Set((existingWks || []).filter(w=>w.archived_at).map(w=>w.id));
-        athlete.workouts = (athlete.workouts || []).filter((w:any)=>!archivedIds.has(w.id));
-        const toDeleteWkIds = (existingWks || []).filter(w=>!w.archived_at && !incomingWkIds.includes(w.id)).map(w=>w.id);
-        if (toDeleteWkIds.length) {
-          const {error} = await supabase.from('workouts').update({archived_at:new Date().toISOString()}).eq('athlete_id',athlete.id).in('id',toDeleteWkIds);
-          if (error) throw error;
-        }
-
-        if (athlete.workouts?.length > 0) {
-           for (const wk of athlete.workouts) {
-             if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
-             const { error: wkUpErr } = await safeUpsert('workouts', {
-               id: wk.id,
-               athlete_id: athlete.id,
-               date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
-               name: wk.name || 'Treino',
-               phase: wk.phase ?? null,
-               status: wk.status ?? 'planned',
-               rpe: wk.rpe ?? 0,
-               total_load: wk.totalLoad ?? 0,
-               duration_minutes: wk.durationMinutes ?? 0,
-               monotony: wk.monotony ?? 0,
-               strain: wk.strain ?? 0,
-               feedback: wk.feedback ?? null,
-               trainer_notes: wk.trainerNotes ?? null,
-               updated_at: wk.updatedAt || new Date().toISOString()
-             });
-             if (wkUpErr) throw wkUpErr;
-
-             if (wk.exercises?.length > 0) {
-               const { data: existingEx } = await supabase.from('prescribed_exercises').select('id').eq('workout_id', wk.id);
-               const currentExIds = wk.exercises.map((e: any) => e.id);
-               const toDeleteExIds = (existingEx || []).filter(e => !currentExIds.includes(e.id)).map(e => e.id);
-               if (toDeleteExIds.length > 0) {
-                 const { error: setDelErr } = await supabase.from('performed_sets').delete().in('exercise_id', toDeleteExIds);
-                 if (setDelErr) throw setDelErr;
-                 const { error: exDelErr } = await supabase.from('prescribed_exercises').delete().in('id', toDeleteExIds);
-                 if (exDelErr) throw exDelErr;
-               }
-
-               const exercisesList = wk.exercises || [];
-               for (let idx = 0; idx < exercisesList.length; idx++) {
-                 const ex = exercisesList[idx];
-                 if (!ex.id) ex.id = `ex-${Date.now()}-${Math.random()}`;
-                 const exOrderIndex = idx;
-                 const { error: exUpErr } = await safeUpsert('prescribed_exercises', {
-                   id: ex.id,
-                   workout_id: wk.id,
-                   name: ex.name || 'Exercício',
-                   muscle_group: ex.muscleGroup ?? null,
-                   sets: parseInt(ex.sets) || 0,
-                   reps: ex.reps ?? '0',
-                   weight: ex.weight ?? '0',
-                   rest: ex.rest ?? null,
-                   notes: ex.notes ?? null,
-                   pain_level: ex.painLevel ? Math.round(Number(ex.painLevel)) : null,
-                   reps_type: ex.repsType ?? 'reps',
-                   prescription_meta: JSON.parse(exerciseMetadata(ex)),
-                   order_index: exOrderIndex,
-                   video_url: ex.videoUrl ?? null,
-                   image_url: ex.imageUrl ?? null
-                 });
-                 if (exUpErr) throw exUpErr;
-
-                 if (ex.performedSets) {
-                   const { data: existingSets } = await supabase.from('performed_sets').select('id').eq('exercise_id', ex.id);
-                   const currentSetIds = ex.performedSets.map((s: any) => s.id).filter((id: any) => id);
-                   const toDeleteSetIds = (existingSets || []).filter(s => !currentSetIds.includes(s.id)).map(s => s.id);
-                   if (toDeleteSetIds.length > 0) {
-                     const { error: setDelErr } = await supabase.from('performed_sets').delete().in('id', toDeleteSetIds);
-                     if (setDelErr) throw setDelErr;
-                   }
-                   if (ex.performedSets.length > 0) {
-                     const { error: setUpErr } = await safeUpsert('performed_sets', ex.performedSets.map((s: any) => ({
-                       id: s.id || `s-${Date.now()}-${Math.random()}`,
-                       exercise_id: ex.id,
-                       reps: s.reps ?? 0,
-                       weight: s.weight ?? 0,
-                       rpe: s.rpe ?? 0,
-                        is_completed: s.isCompleted ?? false
-                     })));
-                     if (setUpErr) throw setUpErr;
-                   }
-                 }
-               }
-             } else {
-               const { data: exercises } = await supabase.from('prescribed_exercises').select('id').eq('workout_id', wk.id);
-               if (exercises && exercises.length > 0) {
-                 const { error: setDelErr } = await supabase.from('performed_sets').delete().in('exercise_id', exercises.map(e => e.id));
-                 if (setDelErr) throw setDelErr;
-                 const { error: exDelErr } = await supabase.from('prescribed_exercises').delete().eq('workout_id', wk.id);
-                  if (exDelErr) throw exDelErr;
-                }
-              }
-            }
-         }
-
-         // Upsert Assessments
-         if (athlete.assessments) {
-          const { bioimpedance, isometricStrength, cmj, abalakov, dropJump, vo2max, speed, imtp } = athlete.assessments;
-          const assessmentTables = [
-            { table: 'bioimpedance', items: bioimpedance },
-            { table: 'isometric_strength', items: isometricStrength },
-            { table: 'cmj', items: cmj },
-            { table: 'abalakov', items: abalakov },
-            { table: 'drop_jump', items: dropJump },
-            { table: 'vo2max', items: vo2max },
-            { table: 'speed', items: speed },
-            { table: 'imtp', items: imtp }
-          ];
-
-          for (const { table, items } of assessmentTables) {
-             if (items) {
-               const incomingIds = (items || []).map(i => i.id).filter(id => id);
-                try {
-                  if (incomingIds.length > 0) {
-                    const { error: delErr } = await supabase.from(table).delete().eq('athlete_id', athlete.id).not('id', 'in', `(${incomingIds.join(',')})`);
-                    if (delErr) {
-                      console.error(`[Supabase Proxy] Erro ao deletar assessments órfãos do atleta ${athlete.id} na tabela ${table}:`, delErr);
-                      throw delErr;
-                    }
-                  } else {
-                    const { error: delErr } = await supabase.from(table).delete().eq('athlete_id', athlete.id);
-                    if (delErr) throw delErr;
-                  }
-                } catch (err: any) {
-                  console.warn(`[Supabase Proxy] Erro ao limpar ${table}. Pode ser que a tabela não exista ainda.`, err.message);
-                }
-             }
-          }
-
-          if (bioimpedance?.length > 0) {
-            const { error: bioUpErr } = await supabase.from('bioimpedance').upsert(bioimpedance.map((b: any) => ({
-              id: b.id || `bio-${Date.now()}-${Math.random()}`,
-              date: b.date,
-              weight: b.weight ?? 0,
-              fat_percentage: b.fatPercentage ?? 0,
-              muscle_mass: b.muscleMass ?? 0,
-              visceral_fat: b.visceralFat ?? 0,
-              hydration: b.hydration ?? 0,
-              basal_metabolism: b.basalMetabolism ?? 0,
-              metabolic_age: b.metabolicAge ?? 0,
-              bone_mass: b.boneMass ?? 0,
-              physique_rating: b.physiqueRating ?? 0,
-              fat_arm_r: b.fatArmR ?? 0,
-              fat_arm_l: b.fatArmL ?? 0,
-              fat_leg_r: b.fatLegR ?? 0,
-              fat_leg_l: b.fatLegL ?? 0,
-              fat_trunk: b.fatTrunk ?? 0,
-              muscle_arm_r: b.muscleArmR ?? 0,
-              muscle_arm_l: b.muscleArmL ?? 0,
-              muscle_leg_r: b.muscleLegR ?? 0,
-              muscle_leg_l: b.muscleLegL ?? 0,
-              muscle_trunk: b.muscleTrunk ?? 0,
-              observations: b.observations || '',
-              athlete_id: athlete.id
-            })));
-            if (bioUpErr) throw bioUpErr;
-          }
-          if (isometricStrength?.length > 0) {
-            const { error: strUpErr } = await supabase.from('isometric_strength').upsert(isometricStrength.map((s: any) => ({
-              id: s.id || `str-${Date.now()}-${Math.random()}`,
-              date: s.date,
-              half_squat_kgf: s.halfSquatKgf ?? 0,
-              quadriceps_r: s.quadricepsR ?? 0,
-              quadriceps_l: s.quadricepsL ?? 0,
-              hamstrings_r: s.hamstringsR ?? 0,
-              hamstrings_l: s.hamstringsL ?? 0,
-              iq_ratio_r: s.iqRatioR ?? 0,
-              iq_ratio_l: s.iqRatioL ?? 0,
-              observations: s.observations || '',
-              athlete_id: athlete.id
-            })));
-            if (strUpErr) throw strUpErr;
-          }
-          if (cmj?.length > 0) {
-            const cmjPayload = cmj.map((c: any) => ({
-              id: c.id || `cmj-${Date.now()}-${Math.random()}`,
-              date: c.date,
-              height: c.height ?? 0,
-              power: c.power ?? 0,
-              depth: c.depth ?? 0,
-              rsi: c.rsi ?? 0,
-              flight_time: c.flightTime ?? 0,
-              weight: c.weight ?? 0,
-              average_force: c.averageForce ?? 0,
-              observations: c.observations || '',
-              athlete_id: athlete.id
-            }));
-            const { error: cmjUpErr } = await supabase.from('cmj').upsert(cmjPayload);
-            if (cmjUpErr) {
-              console.warn("[API] Falha ao upsert CMJ com average_force no Supabase, tentando sem a coluna:", cmjUpErr.message);
-              const fallbackPayload = cmjPayload.map(({ average_force, ...rest }: any) => rest);
-              const { error: fallbackErr } = await supabase.from('cmj').upsert(fallbackPayload);
-              if (fallbackErr) throw fallbackErr;
-            }
-          }
-          if (abalakov?.length > 0) {
-            const abalakovPayload = abalakov.map((c: any) => ({
-              id: c.id || `abalakov-${Date.now()}-${Math.random()}`,
-              date: c.date,
-              height: c.height ?? 0,
-              power: c.power ?? 0,
-              depth: c.depth ?? 0,
-              rsi: c.rsi ?? 0,
-              flight_time: c.flightTime ?? 0,
-              weight: c.weight ?? 0,
-              average_force: c.averageForce ?? 0,
-              observations: c.observations || '',
-              athlete_id: athlete.id
-            }));
-            const { error: abalakovUpErr } = await supabase.from('abalakov').upsert(abalakovPayload);
-            if (abalakovUpErr) throw abalakovUpErr;
-          }
-          if (vo2max?.length > 0) {
-            const { error: vo2UpErr } = await supabase.from('vo2max').upsert(vo2max.map((v: any) => ({
-              id: v.id || `vo2-${Date.now()}-${Math.random()}`,
-              date: v.date,
-              vo2max: v.vo2max ?? 0,
-              max_heart_rate: v.maxHeartRate ?? 0,
-              threshold_heart_rate: v.thresholdHeartRate ?? 0,
-              max_speed: v.maxSpeed ?? 0,
-              threshold_speed: v.thresholdSpeed ?? 0,
-              vam: v.vam ?? 0,
-              rec_10s: v.rec10s ?? 0,
-              rec_30s: v.rec30s ?? 0,
-              rec_60s: v.rec60s ?? 0,
-              max_ventilation: v.maxVentilation ?? 0,
-              score: v.score ?? 0,
-              observations: v.observations || '',
-              athlete_id: athlete.id
-            })));
-            if (vo2UpErr) throw vo2UpErr;
-          }
-          if (speed?.length > 0) {
-            const { error: spdUpErr } = await supabase.from('speed').upsert(speed.map((sp: any) => ({
-              id: sp.id || `spd-${Date.now()}-${Math.random()}`,
-              date: sp.date,
-              time_5m: sp.time5m ?? 0,
-              time_10m: sp.time10m ?? 0,
-              time_20m: sp.time20m ?? 0,
-              time_30m: sp.time30m ?? 0,
-              speed_5m: sp.speed5m ?? 0,
-              speed_10m: sp.speed10m ?? 0,
-              speed_20m: sp.speed20m ?? 0,
-              speed_30m: sp.speed30m ?? 0,
-              observations: sp.observations || '',
-              athlete_id: athlete.id
-            })));
-            if (spdUpErr) throw spdUpErr;
-          }
-          if (dropJump?.length > 0) {
-            try {
-              const { error: djUpErr } = await supabase.from('drop_jump').upsert(dropJump.map((dj: any) => ({
-                id: dj.id || `dj-${Date.now()}-${Math.random()}`,
-                date: dj.date,
-                weight: dj.weight ?? 0,
-                drop_height: dj.dropHeight ?? 30,
-                jump_height: dj.jumpHeight ?? 0,
-                flight_time: dj.flightTime ?? 0,
-                contact_time: dj.contactTime ?? 0,
-                mean_force: dj.meanForce ?? 0,
-                mean_power: dj.meanPower ?? 0,
-                stiffness: dj.stiffness ?? 0,
-                rsi: dj.rsi ?? 0,
-                observations: dj.observations || '',
-                athlete_id: athlete.id
-              })));
-              if (djUpErr) throw djUpErr;
-            } catch (err: any) {
-              console.warn('[Supabase Proxy] Erro ao salvar drop_jump assessments:', err.message);
-            }
-          }
-          if (imtp?.length > 0) {
-            try {
-              const { error: imUpErr } = await supabase.from('imtp').upsert(imtp.map((im: any) => ({
-                id: im.id || `im-${Date.now()}-${Math.random()}`,
-                date: im.date,
-                weight: im.weight,
-                peak_force: im.peakForce ?? null,
-                relative_peak_force: im.relativePeakForce ?? null,
-                time_to_peak_force: im.timeToPeakForce ?? null,
-                mean_force: im.meanForce ?? null,
-                rfd_peak: im.rfdPeak ?? null,
-                force_100: im.force100 ?? null, force_200: im.force200 ?? null, force_300: im.force300 ?? null,
-              rfd_100: im.rfd100 ?? null,
-                rfd_200: im.rfd200 ?? null,
-                rfd_300: im.rfd300 ?? null,
-                impulse_peak: im.impulsePeak ?? null,
-                impulse_100: im.impulse100 ?? null,
-                impulse_200: im.impulse200 ?? null,
-                impulse_300: im.impulse300 ?? null,
-                ai_details: im.aiDetails ? JSON.stringify(im.aiDetails) : null,
-                observations: im.observations || '',
-                athlete_id: athlete.id
-              })));
-              if (imUpErr) throw imUpErr;
-            } catch (err: any) {
-              console.warn('[Supabase Proxy] Erro ao salvar imtp assessments:', err.message);
-            }
-          }
-        }
-      }
-      return res.json({ message: 'Dados sincronizados via Supabase Proxy com sucesso' });
-    } catch (err: any) {
-      console.error("Falha ao salvar via Supabase Proxy:", err.message);
-      throw err;
-    }
-  };
-
-  if ((!process.env.SQL_HOST && !process.env.DATABASE_URL) || !isDbConnected) {
-    if((req as any).account)return res.status(503).json({error:"Banco indisponível. O registro ainda não foi salvo."});
-    try {
-      return await doSupabaseProxyFallback();
-    } catch (err: any) {
-      console.warn('[SERVIÇO] Local DB Offline / Proxy Fallback:', err.message);
-      return res.json({ success: true, message: 'Dados gravados no cache persistente do servidor.', count: athletes.length });
-    }
-  }
-  
   console.log(`Recebida solicitação de salvamento para ${athletes.length} atletas.`);
   const client = await pool.connect().catch(()=>null);
   if(!client)return res.status(503).json({error:"Banco indisponível. Tente salvar novamente."});
@@ -1784,11 +984,12 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       await writes.query(archiveMissingWorkoutsSQL, [athlete.id,JSON.stringify(incomingWorkoutIds)]);
 
       for (const wk of (athlete.workouts || [])) {
+        wk.totalLoad=realizedTonnage(wk.exercises||[]);
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
         const cleanDate = wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
         await writes.query(
           'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, updated_at = CURRENT_TIMESTAMP',
-          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, wk.rpe ?? null, wk.totalLoad ?? null, wk.durationMinutes ?? null, wk.monotony ?? null, wk.strain ?? null, wk.feedback ?? null, wk.trainerNotes ?? null]
+          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, wk.rpe ?? null, realizedTonnage(wk.exercises || []), wk.durationMinutes ?? null, wk.monotony ?? null, wk.strain ?? null, wk.feedback ?? null, wk.trainerNotes ?? null]
         );
 
         // Deep sync for exercises: delete orphans
@@ -1943,164 +1144,16 @@ apiRouter.post('/salvar', authMiddleware, async (req, res) => {
       }
     }
     if (error instanceof SyncConflict) return res.status(409).json({error:error.message,code:'SYNC_CONFLICT'});
-    if ((req as any).account) return res.status(error instanceof ScopeDenied ? 403 : 503).json({error:'Não foi possível salvar os dados autorizados.'});
-    console.error('Erro ao salvar dados no banco Postgres (Acionando fallback automático para Supabase Proxy):', error);
-    
-    try {
-      return await doSupabaseProxyFallback();
-    } catch (fallbackError: any) {
-      console.error('Falha crônica tanto em Postgres quanto no fallback Supabase REST Proxy:', fallbackError);
-      res.status(500).json({ 
-        error: `Erro ao sincronizar. Postgres original: ${error.message}. Fallback Supabase REST: ${fallbackError.message}`, 
-        detail: error.detail || fallbackError.message 
-      });
-    }
+    if ((req as any).account) return res.status(error instanceof ScopeDenied ? 403 : error instanceof SportsValidationError ? 400 : 503).json({error:error instanceof SportsValidationError?error.message:'Não foi possível salvar os dados autorizados.'});
+    return res.status(503).json({error:'Não foi possível confirmar o salvamento.'});
   } finally {
     client.release(discardClient);
   }
-});
+};
+apiRouter.post('/salvar',authMiddleware,saveAthletesHandler);
 
-// Deletion endpoints
-apiRouter.delete('/atletas/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  if ((req as any).account) {
-    const scope=(req as any).account;
-    try{
-      if(scope.role==='coach' && await mayAccessAthlete(pool,scope,id)) {
-        await pool.query('INSERT INTO lb_accounts.athlete_archives(athlete_id,organization_id,archived_by) VALUES($1,$2,$3) ON CONFLICT(athlete_id) DO NOTHING',[id,scope.organization_id,scope.user_id]);
-        await removeAthleteFromCache(id);
-        return res.json({message:'Atleta arquivado. Histórico preservado.', deleted: true});
-      }
-    }catch(e){
-      console.warn('[API] Falha em arquivar atleta no banco, procedendo via cache:', e);
-    }
-  }
-
-  try {
-    if (isDbConnected) {
-      await pool.query('UPDATE users SET athlete_id = NULL WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM wellness WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM external_sessions WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM bioimpedance WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM isometric_strength WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM cmj WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM abalakov WHERE athlete_id = $1', [id]);
-      await pool.query('DELETE FROM drop_jump WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM vo2max WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM speed WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM general_strength WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM performed_sets WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))', [id]).catch(() => {});
-      await pool.query('DELETE FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)', [id]).catch(() => {});
-      await pool.query('DELETE FROM workouts WHERE athlete_id = $1', [id]).catch(() => {});
-      await pool.query('DELETE FROM athletes WHERE id = $1', [id]).catch(() => {});
-    }
-  } catch (err: any) {
-    console.warn('[API] Falha no delete em cascata do banco:', err?.message);
-  }
-
-  await removeAthleteFromCache(id);
-  res.json({ message: 'Atleta excluído com sucesso', deleted: true });
-});
-
-apiRouter.delete('/workouts/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  console.log(`[API] Solicitando exclusão do treino: ${id}`);
-  if ((req as any).account) {
-    try {
-      const resData = await scopedDelete(pool, (req as any).account, 'workouts', id);
-      await removeWorkoutFromCache(id);
-      return res.json(resData);
-    } catch (e: any) {
-      return res.status(e instanceof ScopeDenied ? 403 : 503).json({error:'Não foi possível remover o treino.'});
-    }
-  }
-
-  if (isDbConnected) {
-    try {
-      await pool.query('UPDATE workouts SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
-    } catch (dbErr: any) {
-      console.warn('[API] Falha ao deletar treino do banco:', dbErr?.message);
-    }
-  }
-
-  await removeWorkoutFromCache(id);
-  res.json({ message: 'Treino excluído com sucesso', deleted: true });
-});
-
-apiRouter.delete('/wellness/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  if ((req as any).account) {
-    try {
-      const resData = await scopedDelete(pool, (req as any).account, 'wellness', id);
-      await removeWellnessFromCache(id);
-      return res.json(resData);
-    } catch (e: any) {
-      console.warn('[API] Falha em scopedDelete wellness (procedendo via cache):', e?.message);
-    }
-  }
-
-  if (isDbConnected) {
-    await pool.query('DELETE FROM wellness WHERE id = $1', [id]).catch(() => {});
-  }
-
-  await removeWellnessFromCache(id);
-  res.json({ message: 'Check-in excluído com sucesso', deleted: true });
-});
-
-apiRouter.delete('/sessions/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  if ((req as any).account) {
-    try {
-      const resData = await scopedDelete(pool, (req as any).account, 'sessions', id);
-      await removeSessionFromCache(id);
-      return res.json(resData);
-    } catch (e: any) {
-      console.warn('[API] Falha em scopedDelete sessions (procedendo via cache):', e?.message);
-    }
-  }
-
-  if (isDbConnected) {
-    await pool.query('DELETE FROM external_sessions WHERE id = $1', [id]).catch(() => {});
-  }
-
-  await removeSessionFromCache(id);
-  res.json({ message: 'Sessão excluída com sucesso', deleted: true });
-});
-
-apiRouter.delete('/assessments/:type/:id', authMiddleware, async (req, res) => {
-  const { type, id } = req.params;
-  const tableMap: Record<string, string> = {
-    'bioimpedance': 'bioimpedance',
-    'isometricStrength': 'isometric_strength',
-    'generalStrength': 'general_strength',
-    'cmj': 'cmj',
-    'abalakov': 'abalakov',
-    'dropJump': 'drop_jump',
-    'vo2max': 'vo2max',
-    'speed': 'speed',
-    'imtp': 'imtp'
-  };
-
-  const tableName = tableMap[type];
-  if (!tableName) return res.status(400).json({ error: 'Tipo de avaliação inválido.' });
-
-  if ((req as any).account) {
-    try {
-      const resData = await scopedDelete(pool, (req as any).account, type, id);
-      await removeAssessmentFromCache(type, id);
-      return res.json(resData);
-    } catch (e: any) {
-      console.warn('[API] Falha em scopedDelete assessment (procedendo via cache):', e?.message);
-    }
-  }
-
-  if (isDbConnected) {
-    await pool.query(`DELETE FROM ${tableName} WHERE id = $1`, [id]).catch(() => {});
-  }
-
-  await removeAssessmentFromCache(type, id);
-  res.json({ message: 'Avaliação excluída com sucesso', deleted: true });
-});
+// Deletions have no unscoped fallback.
+apiRouter.use(sportsDeletionRouter(pool,authMiddleware));
 
 const aiScopeGuard = async (req:any,res:any,next:any) => {
   if(!req.account)return next();

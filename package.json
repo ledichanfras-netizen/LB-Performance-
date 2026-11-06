@@ -11,8 +11,9 @@
     "start": "tsx server.ts",
     "dev": "tsx server.ts",
     "build": "vite build",
-    "lint": "tsc --noEmit",
-    "test:accounts": "node --import tsx --test --test-concurrency=1 server/accounts.test.ts server/billing.test.ts server/cache.test.ts server/aiPolicy.test.ts server/database.test.ts server/saveBatch.test.ts server/birthDate.test.ts server/imtp.test.ts server/reassessment.test.ts server/abalakov.test.ts server/achievements.test.ts server/secureLogin.test.ts server/externalSessions.test.ts server/periodizationIntelligence.test.ts server/periodizationGeneration.test.ts"
+    "lint": "tsc --noEmit && tsc --noEmit --skipLibCheck --esModuleInterop --allowImportingTsExtensions --moduleResolution bundler --module esnext --target es2022 --jsx react-jsx server.ts",
+    "test:accounts": "npm test",
+    "test": "node --import tsx --test --test-concurrency=1 server/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.42.0",

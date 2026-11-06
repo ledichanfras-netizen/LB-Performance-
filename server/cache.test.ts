@@ -120,7 +120,8 @@ test('replacement archives old prescriptions, retains completed history, and rej
   assert.equal((await db.query('SELECT count(*) as count FROM performed_sets')).rows[0].count,1);
   assert.equal((await db.query("SELECT archived_at FROM workouts WHERE id='foreign'")).rows[0].archived_at,null);
   await assert.rejects(()=>lockAthleteSnapshots(client,[current]),SyncConflict);
-  const legacy:any={id:'a',workouts:[{id:'old'},{id:'done'},{id:'new'}]};await lockAthleteSnapshots(client,[legacy]);
+  const legacy:any={id:'a',workouts:[{id:'old'},{id:'done'},{id:'new'}]};await assert.rejects(()=>lockAthleteSnapshots(client,[legacy]),SyncConflict);
+  legacy.syncRevision='2026-10-09T13:00:00.000Z';await lockAthleteSnapshots(client,[legacy]);
   assert.equal(legacy.workouts.some((w:any)=>w.id==='old'),false);
   assert.equal((await readSavedRevisions(client,[current])).a,'2026-10-09T13:00:00.000Z');
   // Recovery only unarchives the original row: exercises and sets have not been lost.
