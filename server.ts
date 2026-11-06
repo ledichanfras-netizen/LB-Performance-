@@ -615,6 +615,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       abalakovRes = dbQueries[13];
       if(readClient)await readClient.query('COMMIT');
     } catch (dbError: any) {
+      console.error('[SportsRead]',dbError?.code||'READ_FAILED');
       if(readClient)try{await readClient.query('ROLLBACK');}catch{discardReadClient=true;}
       return res.status(503).json({error:'Não foi possível consultar os dados autorizados. Tente novamente.'});
     } finally {readClient?.release(discardReadClient);}

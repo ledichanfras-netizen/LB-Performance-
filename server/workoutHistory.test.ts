@@ -10,18 +10,18 @@ import {archiveMissingWorkoutsSQL} from './workoutSync';
 import {mergeAthletesWithLocalCache,sanitizeAthleteData,calculateACWR} from '../src/utils';
 const revision='2026-11-06T10:00:00.000Z';
 const coach={user_id:'c',role:'coach',organization_id:'org'};
-async function fixture(){
+async function fixture(dateType:'varchar(255)'|'date'='varchar(255)'){
  const db=new PGlite();
  await db.exec(`CREATE SCHEMA lb_accounts;
  CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz NOT NULL);
  CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);
  CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
- CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date varchar(255),status text,name text,phase text,rpe real,duration_minutes integer,total_load real,archived_at timestamptz,updated_at timestamptz,created_at timestamptz,trainer_notes text);
+ CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date ${dateType},status text,name text,phase text,rpe real,duration_minutes integer,total_load real,archived_at timestamptz,updated_at timestamptz,created_at timestamptz,trainer_notes text);
  CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,muscle_group text,reps_type text,order_index integer,prescription_meta jsonb);
  CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);
  INSERT INTO athletes VALUES('own','${revision}'),('foreign','${revision}');
  INSERT INTO lb_accounts.athlete_scopes VALUES('own','org'),('foreign','other');
- INSERT INTO workouts(id,athlete_id,date,status,name) SELECT 'w-'||lpad(n::text,3,'0'),'own','2026-10-'||lpad(((n%28)+1)::text,2,'0'),CASE WHEN n%3=0 THEN 'completed' WHEN n%3=1 THEN 'planned' ELSE 'in_progress' END,'Treino '||n FROM generate_series(1,61) n;
+ INSERT INTO workouts(id,athlete_id,date,status,name) SELECT 'w-'||lpad(n::text,3,'0'),'own',('2026-10-'||lpad(((n%28)+1)::text,2,'0'))::${dateType},CASE WHEN n%3=0 THEN 'completed' WHEN n%3=1 THEN 'planned' ELSE 'in_progress' END,'Treino '||n FROM generate_series(1,61) n;
  INSERT INTO workouts(id,athlete_id,date,archived_at) VALUES('archived','own','2026-11-01',CURRENT_TIMESTAMP),('foreign-w','foreign','2026-11-01',NULL);
  UPDATE workouts SET rpe=0,duration_minutes=20,total_load=200,phase='Base';
  INSERT INTO prescribed_exercises SELECT 'e-'||id,id,'Agachamento','MMII','reps',0,'{}'::jsonb FROM workouts;
@@ -30,11 +30,11 @@ async function fixture(){
  UPDATE prescribed_exercises SET prescription_meta=jsonb_build_object('aerobic',jsonb_build_object('goal','warmup','target','time','minutes',20,'distanceKm',0),'performedMetrics',jsonb_build_array(jsonb_build_object('id','z-'||id,'timeSeconds',120),jsonb_build_object('id','a-'||id,'timeSeconds',60)));
  `);
  const releases:boolean[]=[];const queries:string[]=[];
- const pool:any={connect:async()=>({query:async(q:string,p?:any[])=>{queries.push(q);return db.query(q,p);},release:(discard:boolean)=>releases.push(discard)})};
+ const pool:any={connect:async()=>({query:async(q:string,p?:any[])=>{queries.push(q);const result=await db.query(q,p);if(dateType==='date')result.rows=result.rows.map((row:any)=>row.date?{...row,date:row.date instanceof Date?row.date:new Date(String(row.date).slice(0,10)+'T00:00:00.000Z')}:row);return result;},release:(discard:boolean)=>releases.push(discard)})};
  return {db,pool,releases,queries};
 }
-test('HTTP pagination loads all 61 workouts once, preserves results/order, and never reads archived or foreign details',async()=>{
- const {db,pool,releases,queries}=await fixture();let server:any;
+for(const dateType of ['varchar(255)','date'] as const)test(`HTTP pagination with ${dateType} loads all 61 workouts once and preserves complete results`,async()=>{
+ const {db,pool,releases,queries}=await fixture(dateType);let server:any;
  try{
   const initial:any={id:'own',name:'Atleta',dob:'2000-01-01',gender:'M',modality:'Tênis',wellness:[],externalSessions:[],assessments:{},workouts:[],syncRevision:revision,historyWorkoutCount:61,historyComplete:false};
   const app=express();app.get('/api/ler',(_req,res)=>res.json([initial]));app.use('/api/athletes',(req:any,_res,next)=>{req.account=coach;next();},workoutHistoryRouter(pool));

@@ -55,7 +55,8 @@ export async function readWorkoutHistoryPage(pool:any,account:any,athleteId:stri
   if(!revision||revision!==input.revision)throw new SyncConflict();
   const values:any[]=[athleteId,input.limit+1];
   let after='';
-  if(input.cursor){values.push(input.cursor.date,input.cursor.id);after=' AND (date,id)<($3::varchar,$4::text)';}
+  // Leave parameters uncast: PostgreSQL infers DATE or VARCHAR from the actual column.
+  if(input.cursor){values.push(input.cursor.date,input.cursor.id);after=' AND (date,id)<($3,$4)';}
   const result=await c.query(`SELECT * FROM public.workouts WHERE athlete_id=$1 AND archived_at IS NULL${after} ORDER BY date DESC,id DESC LIMIT $2`,values);
   const rows=result.rows.slice(0,input.limit);
   let exercises:any[]=[],sets:any[]=[];
@@ -79,6 +80,7 @@ export function workoutHistoryRouter(pool:any){
   res.setHeader('Cache-Control','no-store');
   try{return res.json(await readWorkoutHistoryPage(pool,req.account,req.params.id,req.query));}
   catch(error){const status=error instanceof ScopeDenied?403:error instanceof SyncConflict?409:error instanceof HistoryInputError?400:503;
+   if(status===503)console.error('[WorkoutHistory]',(error as any)?.code||'READ_FAILED');
    return res.status(status).json({error:status===409?'O histórico mudou durante a leitura. Sincronize novamente.':status===400?'Página de histórico inválida.':status===403?'Atleta não autorizado.':'Histórico temporariamente indisponível. Seus dados foram preservados.',...(status===409?{code:'SYNC_CONFLICT'}:{})});}
  });return router;
 }

@@ -32,3 +32,11 @@ Outros testes cobrem escopo de treinador/aluno, cursores inválidos, alteração
 - Prontidão, avaliações e o salvamento de snapshots continuam completos. Paginar essas áreas e migrar gravações para alterações individuais são melhorias adicionais.
 - Uma página pode ser grande quando um único treino tem muitas séries; não há truncamento silencioso.
 - Não foram feitos testes em dispositivos Android/iOS físicos, nem uma medição comparativa de latência ou consumo em produção. Testes de rede móvel, teclado, suspensão do PWA e atualização offline nesses dispositivos continuam pendentes.
+
+## Correção de compatibilidade de datas
+
+O banco ativo usa `workouts.date` do tipo `DATE`; instalações antigas podem usar `VARCHAR`. A primeira versão da paginação forçava o parâmetro do cursor para VARCHAR e falhava ao comparar com DATE a partir da segunda página. O cliente recusava corretamente o histórico incompleto, mas mostrava erro genérico de sincronização.
+
+A comparação agora deixa o PostgreSQL inferir os tipos dos parâmetros a partir das colunas. Não altera a coluna, não converte dados nem desliga os controles de organização, revisão ou quantidade. O mesmo teste HTTP com 61 treinos agora roda nos dois tipos de coluna, incluindo datas retornadas como objetos Date pelo driver. O cenário DATE reproduziu o 503 antes da correção e passou depois. A suíte completa passou com 151 testes, além do TypeScript e do build de produção.
+
+A inspeção do banco de produção nesta correção foi somente leitura, limitada a metadados de tipos e contagens agregadas. Não foram alterados cadastros, treinos ou permissões. Falhas inesperadas passam a registrar apenas um código de diagnóstico no servidor, sem conteúdo dos atletas.
