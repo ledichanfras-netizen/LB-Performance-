@@ -2,6 +2,7 @@ import { verifiedImtpView, legacyImtpNeedsReview } from '../utils/legacyImtp';
 import React from 'react';
 import { TrendingUp, Target, Zap } from 'lucide-react';
 import type { Athlete, Imtp } from '../types';
+import { imtpAthleteReport } from '../utils/imtpAthleteReport';
 import { formatImtpValue, imtpChange, imtpValue, previousImtp as findPrevious } from '../utils/imtpAnalysis';
 
 type Props = {athlete: Athlete; data: Imtp; history: Imtp[]; ReportPage?: React.ComponentType<any>; ReportHeader?: React.ComponentType<any>};
@@ -24,11 +25,7 @@ export default function ImtpReportPages({athlete,data,history,ReportPage=Default
     coachInterpretation: 'Interpretar diferenças apenas entre medidas presentes em ambos os testes. Verificar se a mudança supera a variação habitual do atleta e o erro do teste. Dados ausentes são Não Informado, sem gerar quedas artificiais.',
     athleteTranslation: 'Vamos acompanhar sua evolução em relação aos seus próprios resultados e conferir como ela aparece nos treinos e no esporte.'
   };
-  const methodologicalDirectives = [
-    {pillar:'DIRETRIZ 1: COMPARABILIDADE',priority:'MESMO PROTOCOLO',methodology:'Confirmar equipamento, posição, altura da barra, duração, instruções e processamento do sinal. RFD e impulso exigem definição consistente do início da força.',kpi:'Registros comparáveis e medidas presentes'},
-    {pillar:'DIRETRIZ 2: EVOLUÇÃO INDIVIDUAL',priority:'CONFIRMAR A MUDANÇA',methodology:'Uma diferença percentual isolada não confirma adaptação ou fadiga. Confrontar com a variabilidade individual e repetir o teste quando necessário.',kpi:'Mudança acima da variação habitual'},
-    {pillar:'DIRETRIZ 3: DECISÃO DE TREINO',priority:'CRUZAR COM O CONTEXTO ESPORTIVO',methodology:'Se quedas se repetirem, investigar recuperação e carga recente antes de ajustar o treino. Se houver evolução, verificar CMJ, velocidade e desempenho no esporte antes de progredir.',kpi:'Resposta consistente no teste e no esporte'}
-  ];
+  const athleteReport = imtpAthleteReport(data, previousImtp);
   return <>
     {needsReview&&<p role="status" className="p-3 border rounded text-sm">Registro legado pendente de revisão. Valores originais preservados; métricas derivadas não confirmadas não são usadas neste relatório.</p>}
           {/* PÁGINA 1: RESULTADOS BIOMÉTRICOS & DIAGNÓSTICO NEUROMUSCULAR */}
@@ -342,106 +339,65 @@ export default function ImtpReportPages({athlete,data,history,ReportPage=Default
             </div>
           </ReportPage>
 
-          {/* PÁGINA 2: DIRETRIZES DE INTERVENÇÃO, PRIORIDADES E CAMINHO METODOLÓGICO */}
+          {/* PÁGINA 2: DEVOLUTIVA E ORIENTAÇÃO PARA O ATLETA */}
           <ReportPage pageNumber={2} totalPages={totalPages}>
             <ReportHeader
-              title="Diretrizes de Intervenção e Metodologia de Treinamento"
-              subTitle="Evolução individual, contexto de treino e acompanhamento"
+              title="Seu Resultado e Próximos Passos"
+              subTitle="Entenda sua avaliação e o foco da sua preparação"
               athlete={athlete}
               date={formatDate(data.date)}
               extraStats={[
-                { label: "DIRETRIZ 1", value: methodologicalDirectives[0].priority.slice(0, 16) },
+                { label: "ACOMPANHAMENTO", value: previousImtp ? "EVOLUÇÃO INDIVIDUAL" : "PONTO DE PARTIDA" },
                 { label: "PÁGINA", value: `02 DE ${String(totalPages).padStart(2, "0")}` }
               ]}
             />
 
-            {/* Alinhamento Estratégico: Treinador & Atleta */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4.5 select-none font-sans">
+            <div className="font-sans space-y-4">
+              <section className="bg-white border border-slate-200 rounded-2xl p-4">
+                <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-wider mb-2">O que o teste mostrou</h3>
+                <p className="text-[10px] text-slate-800 leading-relaxed">{athleteReport.showed}</p>
+                <p className="text-[9px] text-slate-600 leading-relaxed mt-2">{athleteReport.comparison}</p>
+              </section>
 
-              {/* Para a Comissão Técnica / Treinador */}
-              <div className="bg-slate-900 text-white p-4 rounded-2xl flex flex-col justify-between shadow-sm">
-                <div>
-                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-800">
-                    <Target size={14} className="text-brand-primary" />
-                    <span className="text-[8px] font-black text-brand-primary uppercase tracking-widest">
-                      PARECER TÉCNICO PARA O TREINADOR / PREPARADOR FÍSICO
-                    </span>
+              <section className="px-1">
+                <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-2">O que isso significa para você</h3>
+                <p className="text-[10px] text-slate-700 leading-relaxed">{athleteReport.meaning}</p>
+              </section>
+
+              <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target size={16} className="text-emerald-700" />
+                  <h3 className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">Seu foco agora</h3>
+                </div>
+                <p className="text-[15px] font-black text-slate-950 leading-snug mb-4">{athleteReport.focus}</p>
+                <div className="grid grid-cols-2 gap-4 border-t border-emerald-200 pt-3">
+                  <div>
+                    <h4 className="text-[9px] font-black text-emerald-800 uppercase mb-2">Manter</h4>
+                    <p className="text-[9px] text-slate-800 leading-relaxed">{athleteReport.maintain}</p>
                   </div>
-                  <p className="text-[9px] font-medium text-slate-200 uppercase leading-relaxed">
-                    {neuromuscularProfile.coachInterpretation}
-                  </p>
-                </div>
-                <div className="mt-3 pt-2 border-t border-slate-800 flex justify-between items-center text-[7.5px] font-bold uppercase text-slate-400">
-                  <span>Gestão de Carga:</span>
-                  <span className="text-brand-primary font-black">Cruzar resultados com prontidão e carga recente</span>
-                </div>
-              </div>
-
-              {/* Tradução Direta para o Atleta */}
-              <div className="bg-emerald-50/70 border border-emerald-200 text-slate-900 p-4 rounded-2xl flex flex-col justify-between shadow-sm">
-                <div>
-                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-emerald-200/60">
-                    <Zap size={14} className="text-emerald-700" />
-                    <span className="text-[8px] font-black text-emerald-800 uppercase tracking-widest">
-                      TRADUÇÃO DIRETA PARA O ATLETA (APLICAÇÃO NO JOGO)
-                    </span>
+                  <div>
+                    <h4 className="text-[9px] font-black text-emerald-800 uppercase mb-2">Desenvolver</h4>
+                    <p className="text-[9px] text-slate-800 leading-relaxed">{athleteReport.develop}</p>
                   </div>
-                  <p className="text-[9px] font-bold text-slate-800 uppercase leading-relaxed italic">
-                    "{neuromuscularProfile.athleteTranslation}"
-                  </p>
                 </div>
-                <div className="mt-3 pt-2 border-t border-emerald-200/60 flex justify-between items-center text-[7.5px] font-extrabold uppercase text-emerald-800">
-                  <span>Impacto Prático:</span>
-                  <span className="font-black">Confirmar resposta no campo ou quadra</span>
+              </section>
+
+              <section className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap size={14} className="text-emerald-700" />
+                  <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-wider">Qual é o próximo passo?</h3>
                 </div>
-              </div>
+                <p className="text-[10px] text-slate-800 leading-relaxed">{athleteReport.next}</p>
+                <div className="mt-3 pt-3 border-t border-slate-200">
+                  <h4 className="text-[9px] font-black text-emerald-800 uppercase mb-1">Como vamos acompanhar</h4>
+                  <p className="text-[9px] text-slate-700 leading-relaxed">{athleteReport.followUp}</p>
+                </div>
+              </section>
 
-            </div>
-
-            {/* Diretrizes de Intervenção Metodológica (As 3 Prioridades Práticas) */}
-            <div className="mb-4.5 select-none font-sans">
-              <div className="flex justify-between items-center mb-2.5">
-                <span className="text-[9.5px] font-black text-slate-900 uppercase tracking-widest border-l-2 border-brand-primary pl-2 italic">
-                  CAMINHO METODOLÓGICO E PRIORIDADES DE PRESCRIÇÃO
-                </span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase">
-                  Diretrizes Baseadas nos Resultados Reais
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {methodologicalDirectives.map((dir, idx) => (
-                  <div key={idx} className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[7.5px] font-black text-brand-primary uppercase tracking-wider">
-                          {dir.pillar}
-                        </span>
-                        <span className="text-[7px] font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-black uppercase">
-                          PILAR 0{idx + 1}
-                        </span>
-                      </div>
-                      <strong className="text-[10px] font-black text-slate-950 uppercase italic block mb-1.5 leading-snug">
-                        {dir.priority}
-                      </strong>
-                      <p className="text-[8.5px] font-medium text-slate-700 uppercase leading-relaxed">
-                        {dir.methodology}
-                      </p>
-                    </div>
-
-                    <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[7.5px] uppercase font-sans">
-                      <span className="font-black text-slate-500">Critério de Sucesso (KPI):</span>
-                      <strong className="text-slate-900 font-extrabold">{dir.kpi}</strong>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-slate-950 text-white rounded-2xl p-4.5 font-sans">
-              <h3 className="text-[8px] font-black tracking-widest text-[#39FF14] uppercase mb-2">Observações e próximo acompanhamento</h3>
-              <p className="text-[9px] whitespace-pre-wrap">{data.observations?.trim() || 'Não Informado'}</p>
-              <p className="text-[8px] text-slate-400 mt-3">Definir metas e momento da reavaliação a partir do histórico individual, calendário e resposta ao treino. Manter o mesmo protocolo e confirmar mudanças antes de ajustar a prescrição.</p>
+              <section className="px-1">
+                <h3 className="text-[9px] font-black text-emerald-800 uppercase tracking-wider mb-2">Orientações e observações do treinador</h3>
+                <p className="text-[9px] text-slate-700 leading-relaxed whitespace-pre-wrap break-words">{data.observations?.trim() || 'Não informado'}</p>
+              </section>
             </div>
           </ReportPage>
 
