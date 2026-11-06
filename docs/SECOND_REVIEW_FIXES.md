@@ -22,7 +22,7 @@
 
 ## Pendente e limites
 
-1. **Paginação do histórico completo:** `/api/ler` continua entregando o histórico completo. Não foi introduzido carregamento parcial nesta rodada: edição, clonagem, exportação e relatórios ainda dependem desse contrato. A mudança deve incluir leitura por páginas, hidratação de detalhes e preservação de coleções não carregadas no salvamento, com testes integrados para esses fluxos.
+1. **Paginação implementada em continuação:** o aplicativo agora usa `/api/ler?history=paged` e reúne os treinos em páginas antes de atualizar seu estado. A rota legada completa continua compatível. Detalhes e limites estão em [PAGED_HISTORY.md](PAGED_HISTORY.md).
 2. O teste automatizado do service worker verifica respostas offline, mas não equivale à validação completa em Android/iOS com atualização de versão e perda de rede.
 3. A validação TLS local usa certificados e respostas simuladas. A disponibilidade da conexão configurada deve ser confirmada na publicação. A CA pública incluída expira em abril de 2031 e precisa acompanhar eventual rotação do provedor.
 4. ACWR descreve **cargas registradas**. Ter um registro antigo não comprova cobertura de todos os dias; ausência de sessão não prova descanso. A relação não é probabilidade de lesão nem autorização automática de treino.

@@ -1,3 +1,4 @@
+import {workoutHistoryRouter,workoutFromRows} from './server/workoutHistory';
 import {assertCompleteSnapshots} from './server/snapshotContract';
 import {loadPerformanceContext,performancePrompt} from './server/performanceContext';
 import { realizedTonnage } from './src/utils/sessionMetrics';
@@ -532,7 +533,7 @@ const authMiddleware = async (req: any, res: any, next: any) => {
 const scopedAccountRouter = accountRouter(pool, JWT_SECRET);
 apiRouter.use('/accounts', scopedAccountRouter);
 apiRouter.use('/billing', billingRouter(pool, authMiddleware));
-apiRouter.use('/athletes', authMiddleware, reassessmentRouter(pool));
+apiRouter.use('/athletes', authMiddleware, workoutHistoryRouter(pool), reassessmentRouter(pool));
 
 // Minimal readiness check; diagnostics and credentials are never public.
 apiRouter.get('/health',async(_req,res)=>{
@@ -565,6 +566,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
 
     console.log(`[SERVIÇO] Buscando atletas no banco local... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
     
+    const pagedHistory=req.query.history==='paged';
     // Condições WHERE para otimização
     const scoped = sportsReadScope((req as any).account);
     const scopedIds="SELECT athlete_id FROM lb_accounts.athlete_scopes WHERE organization_id=$1 AND NOT EXISTS(SELECT 1 FROM lb_accounts.athlete_archives ar WHERE ar.athlete_id=lb_accounts.athlete_scopes.athlete_id)" + (isAthlete ? " AND athlete_id=$2" : "");
@@ -574,22 +576,26 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     let athletesRes, wellnessRes, workoutsRes, exercisesRes, performedSetsRes, 
         strengthRes, cmjRes, abalakovRes, vo2Res, bioRes, speedRes, externalRes, dropJumpRes, imtpRes;
 
+    let readClient:any=null;
+    let discardReadClient=false;
     try {
+      if(pagedHistory){readClient=await pool.connect();await readClient.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');await readClient.query("SET LOCAL statement_timeout='15000ms'");}
+      const reads=readClient||pool;
       const dbQueries = await Promise.all([
-        pool.query(`SELECT * FROM athletes ${scoped ? `WHERE id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE id = $1' : ''} ORDER BY name ASC`, params),
-        pool.query(`SELECT * FROM wellness ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM workouts ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM prescribed_exercises ${scoped ? `WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id IN (${scopedIds}))` : isAthlete && athleteId ? 'WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)' : ''} ORDER BY order_index ASC, id ASC`, params),
-        pool.query(`SELECT * FROM performed_sets ${scoped ? `WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id IN (${scopedIds})))` : isAthlete && athleteId ? 'WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))' : ''}`, params),
-        pool.query(`SELECT * FROM isometric_strength ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM cmj ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM vo2max ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM bioimpedance ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM speed ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM external_sessions ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM drop_jump ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM imtp ${whereClause} ORDER BY date DESC`, params),
-        pool.query(`SELECT * FROM abalakov ${whereClause} ORDER BY date DESC`, params)
+        reads.query(`SELECT * FROM athletes ${scoped ? `WHERE id IN (${scopedIds})` : isAthlete && athleteId ? 'WHERE id = $1' : ''} ORDER BY name ASC`, params),
+        reads.query(`SELECT * FROM wellness ${whereClause} ORDER BY date DESC`, params),
+        pagedHistory ? reads.query(`SELECT athlete_id,count(*)::integer AS history_count FROM workouts ${whereClause} AND archived_at IS NULL GROUP BY athlete_id`,params) : reads.query(`SELECT * FROM workouts ${whereClause} ORDER BY date DESC`, params),
+        pagedHistory ? Promise.resolve({rows:[]}) : reads.query(`SELECT * FROM prescribed_exercises ${scoped ? `WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id IN (${scopedIds}))` : isAthlete && athleteId ? 'WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1)' : ''} ORDER BY order_index ASC, id ASC`, params),
+        pagedHistory ? Promise.resolve({rows:[]}) : reads.query(`SELECT * FROM performed_sets ${scoped ? `WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id IN (${scopedIds})))` : isAthlete && athleteId ? 'WHERE exercise_id IN (SELECT id FROM prescribed_exercises WHERE workout_id IN (SELECT id FROM workouts WHERE athlete_id = $1))' : ''}`, params),
+        reads.query(`SELECT * FROM isometric_strength ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM cmj ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM vo2max ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM bioimpedance ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM speed ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM external_sessions ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM drop_jump ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM imtp ${whereClause} ORDER BY date DESC`, params),
+        reads.query(`SELECT * FROM abalakov ${whereClause} ORDER BY date DESC`, params)
       ]);
       
       athletesRes = dbQueries[0];
@@ -606,9 +612,11 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       dropJumpRes = dbQueries[11];
       imtpRes = dbQueries[12];
       abalakovRes = dbQueries[13];
+      if(readClient)await readClient.query('COMMIT');
     } catch (dbError: any) {
+      if(readClient)try{await readClient.query('ROLLBACK');}catch{discardReadClient=true;}
       return res.status(503).json({error:'Não foi possível consultar os dados autorizados. Tente novamente.'});
-    }
+    } finally {readClient?.release(discardReadClient);}
 
     const cleanAthleteRows = (athletesRes.rows || []).filter(a => {
       if (!a || !a.id || a.id === 'meta-custom-library-exercises') return false;
@@ -630,7 +638,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
     const setsByEx = groupById(performedSetsRes.rows, 'exercise_id');
     const exByWorkout = groupById(exercisesRes.rows, 'workout_id');
     const wellnessByAth = groupById(wellnessRes.rows);
-    const workoutsByAth = groupById(workoutsRes.rows.filter((w:any) => !w.archived_at));
+    const workoutsByAth = groupById(pagedHistory?[]:workoutsRes.rows.filter((w:any) => !w.archived_at));
+    const historyCounts=new Map(workoutsRes.rows.map((w:any)=>[w.athlete_id,Number(w.history_count)]));
     const strengthByAth = groupById(strengthRes.rows);
     const cmjByAth = groupById(cmjRes.rows);
     const abalakovByAth = groupById(abalakovRes.rows);
@@ -649,6 +658,8 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         photoUrl: a.photo_url || a.photoUrl || parsedFields.photoUrl || undefined,
         dob: normalizeBirthDate(a.dob),
             syncRevision: syncRevision(a.updated_at),
+            historyComplete: !pagedHistory,
+            historyWorkoutCount: pagedHistory?(historyCounts.get(a.id)??0):undefined,
             reassessmentPlan: readReassessmentPlan(a.reassessment_plan),
         gender: a.gender || 'M',
         modality: a.modality,
@@ -692,31 +703,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
       externalSessions: (externalByAth[a.id] || []).map((es: any) => ({
         ...externalSessionFromRow(es)
       })),
-      workouts: (workoutsByAth[a.id] || []).map((wk: any) => ({
-        ...wk,
-        date: wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : wk.date,
-        durationMinutes: wk.duration_minutes,
-        totalLoad: wk.total_load,
-        trainerNotes: wk.trainer_notes,
-        updatedAt: wk.updated_at ? new Date(wk.updated_at).toISOString() : wk.updatedAt,
-        createdAt: wk.created_at ? new Date(wk.created_at).toISOString() : wk.createdAt,
-        exercises: (exByWorkout[wk.id] || []).map((ex: any) => ({ 
-          ...(ex.prescription_meta || {}), ...ex,
-          muscleGroup: ex.muscle_group,
-          painLevel: ex.pain_level,
-          rest: ex.rest,
-          notes: ex.notes,
-          repsType: ex.reps_type || 'reps',
-          order_index: ex.order_index !== undefined && ex.order_index !== null ? Number(ex.order_index) : (ex.orderIndex !== undefined && ex.orderIndex !== null ? Number(ex.orderIndex) : 0),
-          videoUrl: ex.video_url || '',
-          imageUrl: ex.image_url || '',
-          performedSets: restorePerformedMetrics(ex, setsByEx[ex.id] || [])
-        })).sort((x: any, y: any) => {
-          const xIdx = typeof x.order_index === 'number' ? x.order_index : 9999;
-          const yIdx = typeof y.order_index === 'number' ? y.order_index : 9999;
-          return xIdx - yIdx;
-        })
-      })),
+      workouts: (workoutsByAth[a.id] || []).map((wk:any)=>workoutFromRows(wk,exByWorkout[wk.id]||[],(exByWorkout[wk.id]||[]).flatMap((ex:any)=>setsByEx[ex.id]||[]))),
       assessments: {
         bioimpedance: (bioByAth[a.id] || []).map((b: any) => ({
             ...b, 

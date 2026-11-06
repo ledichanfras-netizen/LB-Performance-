@@ -9,6 +9,7 @@ export function validateSportsPayload(athletes:any[]){
  const array=(value:any,field:string,max=5000):any[]=>{if(value===undefined)return [];if(!Array.isArray(value)||value.length>max||value.some((entry:any)=>!entry||typeof entry!=='object'||Array.isArray(entry)))invalid(field);return value;};
  const date=(value:any,field:string)=>{if(value===undefined)return;if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(value)||!Number.isFinite(Date.parse(value))||new Date(value.slice(0,10)+'T00:00:00Z').toISOString().slice(0,10)!==value.slice(0,10))invalid(field);};
  for(const a of athletes){
+  if(a?.historyComplete===false)invalid('histórico parcial; sincronize antes de salvar');
   if(!a||typeof a.id!=='string'||!a.id||a.id.length>200)invalid('identificação do atleta');
   if(a.name!==undefined&&(typeof a.name!=='string'||!a.name.trim()||a.name.length>200))invalid('nome');
   if(a.dob)date(a.dob,'nascimento');

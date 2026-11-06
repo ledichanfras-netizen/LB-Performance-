@@ -1,3 +1,4 @@
+import {loadPagedAthletes,HistoryChangedError} from './utils/pagedHistory';
 import { fetchWithDeadline } from './utils/requestDeadline';
 import { migrateLegacyImtp } from './utils/legacyImtp';
 import { generateCompletePeriodization, periodizationBatchPrompt } from './utils/periodizationGeneration';
@@ -46,6 +47,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
   let attempt = 1;
   while (attempt <= retries) {
     try {
+      if(options.signal?.aborted)throw new DOMException("Operação interrompida.","AbortError");
       const response = await fetchWithDeadline(url, { cache: 'no-store', ...options });
       if (url === '/api/salvar' && [502, 503, 504].includes(response.status) && attempt < retries) {
         await response.text();
@@ -56,6 +58,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
       }
       return response;
     } catch (error: any) {
+      if(options.signal?.aborted)throw error;
       const isNetErr = error && (
         error.name === 'TypeError' ||
         (error.message && (
@@ -197,15 +200,19 @@ export const useAthletes = (token?: string | null) => {
 
   const api = {
     async loadAthletes(isSilent = false): Promise<Athlete[]> {
-      const timeoutPromise = new Promise<Athlete[]>((_, reject) => 
-        setTimeout(() => reject(new Error('TIMEOUT_GLOBAL')), 60000)
-      );
+      const controller=new AbortController();
+      let timeout:ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<Athlete[]>((_, reject) => {
+        timeout=setTimeout(()=>{controller.abort();reject(new Error('TIMEOUT_GLOBAL'));},180000);
+      });
 
       const fetchPromise = (async (): Promise<Athlete[]> => {
         try {
           if (token) {
             console.log('Tentando carregar dados da API local (/api/ler)...');
-            const res = await resilientFetch(`/api/ler?_t=${Date.now()}`, {
+            return await loadPagedAthletes(async (url)=>{
+            const res = await resilientFetch(url, {
+              signal: controller.signal,
               headers: {
                 'Authorization': `Bearer ${token}`
               }
@@ -215,6 +222,7 @@ export const useAthletes = (token?: string | null) => {
               setIframeCookieWarning(true);
               throw new Error("O navegador bloqueou os cookies de segurança da visualização (iframe). Por favor, clique em 'Open in a new tab' (Abrir em nova aba) no canto superior direito do AI Studio para acessar o sistema normalmente.");
             }
+            if(res.status===409)throw new HistoryChangedError();
             if (!res.ok) {
               if (readOnly && (res.status === 401 || res.status === 403 || res.status === 402)) {
                 window.dispatchEvent(new Event('lb:supervision-invalid'));
@@ -227,6 +235,7 @@ export const useAthletes = (token?: string | null) => {
               throw new Error(`Erro do servidor (/api/ler): ${res.status} ${resText}`);
             }
             return JSON.parse(resText);
+            });
           }
           console.log('Tentando carregar dados do Supabase...');
           return await supabaseService.loadAthletes();
@@ -255,7 +264,7 @@ export const useAthletes = (token?: string | null) => {
         }
       })();
 
-      return Promise.race([fetchPromise, timeoutPromise]).catch(err => {
+      return Promise.race([fetchPromise, timeoutPromise]).finally(()=>{clearTimeout(timeout!);controller.abort();}).catch(err => {
         const isIframeErr = err.message && (err.message.includes('bloqueou') || err.message.includes('Unexpected token') || err.message.includes('cookie'));
         if (isIframeErr) {
           setIframeCookieWarning(true);

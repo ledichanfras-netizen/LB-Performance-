@@ -1398,31 +1398,30 @@ export const sanitizeAthleteData = (a: Athlete): Athlete => {
 
   const workouts = (a.workouts || []).map(w => {
     const rpe = Math.min(10, Math.max(0, sanitizeNum(w.rpe, 0)));
-    const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(w.durationMinutes, 60)));
-    const calculatedLoad = rpe * durationMinutes;
-    const rawTotalLoad = sanitizeNum(w.totalLoad, calculatedLoad);
-    // Cap absurd total loads to max 10000 per session
-    const totalLoad = (rawTotalLoad > 20000 || rawTotalLoad < 0) ? calculatedLoad : rawTotalLoad;
+    const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(w.durationMinutes, 0)));
+    const rawTotalLoad = sanitizeNum(w.totalLoad, realizedTonnage(w.exercises||[]));
+    // Tonnage and session internal load have different units.
+    const totalLoad = rawTotalLoad >= 0 ? rawTotalLoad : realizedTonnage(w.exercises||[]);
     
     return {
       ...w,
-      rpe,
-      durationMinutes,
-      totalLoad: Number.isFinite(totalLoad) && totalLoad >= 0 ? Math.round(totalLoad) : calculatedLoad
+      ...(w.rpe!==undefined&&w.rpe!==null?{rpe}:{}),
+      ...(w.durationMinutes!==undefined&&w.durationMinutes!==null?{durationMinutes}:{}),
+      totalLoad: Number.isFinite(totalLoad) && totalLoad >= 0 ? Math.round(totalLoad) : realizedTonnage(w.exercises||[])
     };
   });
 
   const externalSessions = (a.externalSessions || []).map(s => {
     const rpe = Math.min(10, Math.max(0, sanitizeNum(s.rpe, 0)));
-    const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(s.durationMinutes, 60)));
+    const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(s.durationMinutes, 0)));
     const calculatedLoad = rpe * durationMinutes;
     const rawLoad = sanitizeNum(s.load, calculatedLoad);
     const load = (rawLoad > 20000 || rawLoad < 0) ? calculatedLoad : rawLoad;
 
     return {
       ...s,
-      rpe,
-      durationMinutes,
+      ...(s.rpe!==undefined&&s.rpe!==null?{rpe}:{}),
+      ...(s.durationMinutes!==undefined&&s.durationMinutes!==null?{durationMinutes}:{}),
       load: Number.isFinite(load) && load >= 0 ? Math.round(load) : calculatedLoad
     };
   });
