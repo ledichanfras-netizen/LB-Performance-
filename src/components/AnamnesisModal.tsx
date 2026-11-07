@@ -416,7 +416,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                 </button>
               </div>
 
-              {existingRecords.length > 0 && role === "coach" && onConfirmHistory && (
+              {existingRecords.length > 0 && onConfirmHistory && (
                 <button type="button" disabled={isSaving} onClick={async () => {
                   setIsSaving(true);
                   try { await onConfirmHistory(); toast.success("Histórico de anamnese confirmado no banco."); }

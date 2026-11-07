@@ -51,12 +51,23 @@ test('narrow anamnesis save enforces ownership, archived state, supervisor restr
   const {db,pool}=await fixture();try{
     await assert.rejects(saveAnamnesisHistory(pool,coach,'other',{history:[],baseRevision:revision}));
     await assert.rejects(saveAnamnesisHistory(pool,{...coach,supervision:true},'a',{history:[record],baseRevision:revision}));
-    await assert.rejects(saveAnamnesisHistory(pool,{...coach,role:'athlete',athlete_id:'a'},'a',{history:[record],baseRevision:revision}));
     await assert.rejects(saveAnamnesisHistory(pool,coach,'a',{history:[{...record,athleteId:'other'}],baseRevision:revision}));
     await assert.rejects(saveAnamnesisHistory(pool,coach,'a',{history:[record],baseRevision:'2020-01-01'}),/outro dispositivo/);
     await db.query("INSERT INTO lb_accounts.athlete_archives VALUES('a')");
     await assert.rejects(saveAnamnesisHistory(pool,coach,'a',{history:[record],baseRevision:revision}));
     assert.equal(JSON.parse((await db.query("SELECT injury_history FROM athletes WHERE id='a'")).rows[0].injury_history as string).anamnesis,undefined);
+  }finally{await db.close();}
+});
+
+test('athletes can add their own answers but cannot access another athlete or alter signed history',async()=>{
+  const {db,pool}=await fixture();const student={...coach,role:'athlete',athlete_id:'a'};
+  try{
+    const first=await saveAnamnesisHistory(pool,student,'a',{history:[record],baseRevision:revision});
+    await assert.rejects(saveAnamnesisHistory(pool,student,'other',{history:[],baseRevision:revision}));
+    await assert.rejects(saveAnamnesisHistory(pool,student,'a',{history:[],baseRevision:first.syncRevisions.a}));
+    await assert.rejects(saveAnamnesisHistory(pool,student,'a',{history:[{...record,signatureName:'changed'}],baseRevision:first.syncRevisions.a}));
+    const second=await saveAnamnesisHistory(pool,student,'a',{history:[{...record,id:'history-2'},record],baseRevision:first.syncRevisions.a});
+    assert.equal(second.anamnesis!.length,2);
   }finally{await db.close();}
 });
 

@@ -9,7 +9,7 @@ import {anamnesisBackupFields, readAnamnesisBackup} from './anamnesis';
 /** Save this history only. Historical wellness/workout data is neither accepted nor rewritten. */
 export async function saveAnamnesisHistory(pool:any, account:any, athleteId:string, body:any) {
   sportsReadScope(account);
-  if(account.role!=='coach' || account.supervision) throw new ScopeDenied();
+  if(account.supervision) throw new ScopeDenied();
   if(typeof athleteId!=='string' || !athleteId || athleteId.length>200 || !body || !Array.isArray(body.history) ||
       Object.keys(body).some(key=>!['history','baseRevision'].includes(key))) throw new SportsValidationError('Histórico de anamnese inválido.');
   const {anamnesis:history} = anamnesisBackupFields({id:athleteId,anamnesis:body.history});
@@ -28,6 +28,9 @@ export async function saveAnamnesisHistory(pool:any, account:any, athleteId:stri
     if(existing!==undefined && isDeepStrictEqual(existing,history)) {
       await client.query('COMMIT'); return receipt(stored.updated_at);
     }
+    // Athletes can submit their own responses, but cannot rewrite or remove signed history.
+    if(account.role==='athlete' && (existing || []).some(record=>
+      !isDeepStrictEqual(record,history!.find(incoming=>incoming.id===record.id)))) throw new ScopeDenied();
     if(!syncRevision(body.baseRevision) || syncRevision(body.baseRevision)!==syncRevision(stored.updated_at)) throw new SyncConflict();
     let backup:any={legacy:stored.injury_history || ''};
     try { const parsed=JSON.parse(stored.injury_history); if(parsed && typeof parsed==='object' && !Array.isArray(parsed)) backup=parsed; } catch {}
