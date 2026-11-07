@@ -15029,7 +15029,7 @@ const AssessmentForm: FC<{
           weight: getResolvedAthleteWeight(athlete),
           height: 0,
           power: 0,
-          depth: 30,
+          depth: undefined,
           flightTime: 0,
           rsi: 0,
           averageForce: 0,
@@ -15622,6 +15622,7 @@ const AssessmentForm: FC<{
           )}
            {(type === "cmj" || type === "abalakov") && (
             <>
+              <p className="col-span-2 text-xs text-slate-600">Registre os dados da tentativa escolhida como melhor salto da avaliação.</p>
               <div className="col-span-2">
                 <Field
                   label="Peso (kg)"
@@ -15658,9 +15659,9 @@ const AssessmentForm: FC<{
                 onChange={(v) => updateField("flightTime", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
               />
               <Field
-                label="Profundidade do Agachamento (cm)"
-                value={formData.depth}
-                onChange={(v) => updateField("depth", isNaN(parseFloat(v)) ? 0 : parseFloat(v))}
+                label="Profundidade do Agachamento (cm) — opcional"
+                value={formData.depth || ""}
+                onChange={(v) => updateField("depth", Number.isFinite(parseFloat(v)) ? parseFloat(v) : undefined)}
               />
             </>
           )}
