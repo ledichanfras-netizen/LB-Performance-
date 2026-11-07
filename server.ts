@@ -1,3 +1,4 @@
+import { improveDescriptionHandler } from './server/periodizationDescription';
 import {anamnesisSaveRouter} from './server/anamnesisSave';
 import { readAnamnesisBackup, anamnesisBackupFields } from './server/anamnesis';
 import {workoutExecutionRouter} from './server/workoutExecution';
@@ -1163,6 +1164,9 @@ const aiScopeGuard = async (req:any,res:any,next:any) => {
 };
 
 // AI endpoints under apiRouter
+apiRouter.post('/improve-periodization-description', authMiddleware, requireAIAccess, aiScopeGuard,
+  improveDescriptionHandler(params => generateContentWithRetry(params, 1)));
+
 apiRouter.post('/generate-workouts', authMiddleware, requireAIAccess, aiScopeGuard, async (req, res) => {
   const { prompt } = req.body;
   

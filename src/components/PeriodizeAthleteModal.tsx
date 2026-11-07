@@ -1,3 +1,4 @@
+import { PeriodizationDescriptionEditor } from "./PeriodizationDescriptionEditor";
 import React, { useState } from "react";
 import { Athlete, Workout } from "../types";
 import { Brain, Sparkles, Calendar, Check, X, RefreshCw, Dumbbell, Target } from "lucide-react";
@@ -370,12 +371,8 @@ export const PeriodizeAthleteModal: React.FC<PeriodizeAthleteModalProps> = ({
               <label className="text-[8px] font-black text-slate-400 uppercase block">
                 📝 Descrição & Diretrizes da Periodização (Prioridade da IA)
               </label>
-              <textarea
-                value={instructions}
-                onChange={(e) => setInstructions(e.target.value)}
-                placeholder="Ex: Focar em potência vertical e aceleração, ênfase em posterior de coxa e isquiotibiais, exercícios de campo com foco em mudança de direção e agilidade, sem sobrecarga na coluna lombar..."
-                className="w-full bg-[#161b26] border border-slate-850 rounded-xl p-3 text-[9.5px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-20 placeholder:text-slate-600"
-              />
+              <PeriodizationDescriptionEditor value={instructions} onChange={setInstructions} disabled={isLoading}
+                context={{ athleteId: athlete.id, modality: athlete.modality, goal: athlete.goal, startDate, endDate, academyDays, courtDays, progressionMethod }} />
             </div>
 
             {/* Replace Pending Option */}

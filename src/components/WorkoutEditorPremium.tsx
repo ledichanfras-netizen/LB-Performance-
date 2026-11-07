@@ -1,3 +1,4 @@
+import { PeriodizationDescriptionEditor } from "./PeriodizationDescriptionEditor";
 import { useAccessibleDialog } from '../hooks/useAccessibleDialog';
 import { normalizeExerciseLibrary, normalizeExerciseLaterality } from "../utils/exerciseLaterality";
 import { AdvancedMethodsCard } from "./AdvancedMethodsCard";
@@ -2927,12 +2928,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                   <label className="text-[7.5px] font-black text-slate-400 uppercase block mb-1">
                     📝 Descrição & Diretrizes da Periodização
                   </label>
-                  <textarea
-                    value={iaInstructions}
-                    onChange={(e) => setIaInstructions(e.target.value)}
-                    placeholder="Ex: Focar em potência e salto vertical, ênfase em corrida de alta intensidade nos dias de campo, proteção de ligamentos..."
-                    className="w-full bg-[#161b26] border border-slate-850 rounded-lg p-2.5 text-[9px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-16 placeholder:text-slate-700"
-                  />
+                  <PeriodizationDescriptionEditor value={iaInstructions} onChange={setIaInstructions} disabled={iaWorkoutsLoading}
+                    context={{ athleteId: athlete?.id || '', modality: athlete?.modality, goal: athlete?.goal, startDate: localPeriodizationStart, endDate: localPeriodizationEnd, academyDays: localAcademyDays, courtDays: localCourtDays, progressionMethod: aiProgressionMethod }} />
                 </div>
 
                 <AiOnly><button
@@ -3285,7 +3282,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
         {/* OPTIONAL EXPANDABLE IA CO-PILOT & PERIODIZATION DRAWER (OPEN ONLY WHEN REQUESTED) */}
         {aiAllowed && isHeaderExpanded && athlete && updateAthlete && (
-          <div className="p-4 sm:p-6 border-b border-slate-900 bg-[#0c111d] flex flex-col gap-4 relative shrink-0 animate-in slide-in-from-top-3 duration-250">
+          <div className="p-4 sm:p-6 border-b border-slate-900 bg-[#0c111d] flex flex-col gap-4 relative shrink-0 max-h-[60dvh] overflow-y-auto overscroll-contain animate-in slide-in-from-top-3 duration-250">
             <div className="flex items-center justify-between pb-2 border-b border-slate-850">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-[#39FF14] animate-pulse" />
@@ -3436,12 +3433,8 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
               <label className="text-[7.5px] font-black text-slate-400 uppercase block">
                 📝 Descrição & Diretrizes da Periodização (IA Co-Pilot)
               </label>
-              <textarea
-                value={iaInstructions}
-                onChange={(e) => setIaInstructions(e.target.value)}
-                placeholder="Ex: Focar em força explosiva e saltos, reduzir carga se houver fadiga na lombar, treinos de campo com foco em agilidade e mudanças de direção..."
-                className="w-full bg-[#161b26] border border-slate-850 rounded-lg p-2.5 text-[9px] font-bold text-white outline-none focus:border-[#39FF14] resize-none h-16 placeholder:text-slate-700"
-              />
+              <PeriodizationDescriptionEditor value={iaInstructions} onChange={setIaInstructions} disabled={iaWorkoutsLoading}
+                    context={{ athleteId: athlete?.id || '', modality: athlete?.modality, goal: athlete?.goal, startDate: localPeriodizationStart, endDate: localPeriodizationEnd, academyDays: localAcademyDays, courtDays: localCourtDays, progressionMethod: aiProgressionMethod }} />
             </div>
 
             {/* Periodize Action Button */}
