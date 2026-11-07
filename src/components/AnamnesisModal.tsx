@@ -264,6 +264,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
     try {
       await onSave(newRecord);
       pendingRecordId.current = null;
+      setFormData(createForm());
       setEditingId(null);
       setActiveTab("history");
       toast.success("Anamnese confirmada no banco de dados.");
