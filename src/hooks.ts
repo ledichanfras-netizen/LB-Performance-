@@ -1,3 +1,4 @@
+import {persistAnamnesisHistory} from './utils/anamnesisSave';
 import {ensureSessionServiceReady} from './utils/sessionServiceReady';
 import {workoutExecutionPayload} from './utils/workoutExecution';
 import {loadPagedAthletes,HistoryChangedError} from './utils/pagedHistory';
@@ -85,7 +86,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
 // Keep saves in order: retries of an older snapshot must finish before a newer edit.
 let saveRequestTail: Promise<unknown> = Promise.resolve();
 function resilientFetch(url: string, options: RequestInit = {}, retries = 3, delayMs = 1200): Promise<Response> {
-  if (url !== '/api/salvar' && !url.endsWith('/execution')) return fetchWithRetry(url, options, retries, delayMs);
+  if (url !== '/api/salvar' && !url.endsWith('/execution') && !url.endsWith('/anamnesis')) return fetchWithRetry(url, options, retries, delayMs);
   const request = saveRequestTail.then(() => fetchWithRetry(url, options, retries, delayMs));
   saveRequestTail = request.catch(() => undefined);
   return request;
@@ -704,6 +705,30 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const updateAthlete = async (athleteId: string, data: Partial<Athlete>) => {
+    if (Object.keys(data).length === 1 && 'anamnesis' in data) {
+      if (readOnly || !token || !Array.isArray(data.anamnesis)) throw new Error('Não foi possível autorizar o salvamento da anamnese.');
+      const current = athletesRef.current.find(a=>a.id===athleteId);
+      if (!current) throw new Error('Atleta não encontrado.');
+      const history=data.anamnesis;
+      const draftKey=`${cacheKey}:anamnesis:${athleteId}`;
+      safeLocalStorage.setItem(draftKey,JSON.stringify({history,baseRevision:current.syncRevision}));
+      const optimistic=athletesRef.current.map(a=>a.id===athleteId?{...a,anamnesis:history}:a);
+      setAthletes(optimistic);
+      safeLocalStorage.setItem(cacheKey,JSON.stringify(optimistic));
+      saveRevisionRef.current += 1;
+      pendingSavesRef.current += 1;
+      setSyncing(true);
+      try {
+        const saved=await persistAnamnesisHistory(resilientFetch,current,history,token);
+        setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,anamnesis:saved.history,syncRevision:saved.revision}:a));
+        safeLocalStorage.removeItem(draftKey);
+        setLastSyncedAt(new Date());
+      } finally {
+        pendingSavesRef.current -= 1;
+        setSyncing(pendingSavesRef.current > 0);
+      }
+      return;
+    }
     const updated = athletes.map(a => a.id === athleteId ? { ...a, ...data } : a);
     setAthletes(updated);
     if(!await save(updated, athleteId)) {

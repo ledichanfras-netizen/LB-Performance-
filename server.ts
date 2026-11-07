@@ -1,3 +1,4 @@
+import {anamnesisSaveRouter} from './server/anamnesisSave';
 import { readAnamnesisBackup, anamnesisBackupFields } from './server/anamnesis';
 import {workoutExecutionRouter} from './server/workoutExecution';
 import {workoutHistoryRouter,workoutFromRows} from './server/workoutHistory';
@@ -1145,6 +1146,7 @@ const saveAthletesHandler = async (req:any, res:any) => {
   }
 };
 apiRouter.post('/salvar',authMiddleware,saveAthletesHandler);
+apiRouter.use('/atletas',authMiddleware,anamnesisSaveRouter(pool));
 
 // Deletions have no unscoped fallback.
 apiRouter.use(sportsDeletionRouter(pool,authMiddleware));
