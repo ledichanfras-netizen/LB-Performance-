@@ -22,7 +22,8 @@ import {
   Maximize2,
   Eye,
 } from "lucide-react";
-import { toJpeg } from "html-to-image";
+import ReportSheet from "./ReportSheet";
+import { toReportJpeg } from "../utils/reportLayout";
 import toast from "react-hot-toast";
 import { Athlete, AnamnesisRecord } from "../types";
 
@@ -1380,11 +1381,7 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
     setIsExporting(true);
     const toastId = toast.loading("Gerando imagem de alta definição da ficha...");
     try {
-      const dataUrl = await toJpeg(sheetRef.current, {
-        quality: 0.95,
-        backgroundColor: "#ffffff",
-        pixelRatio: 2,
-      });
+      const dataUrl = await toReportJpeg(sheetRef.current);
       const link = document.createElement("a");
       const athleteSlug = (data?.athleteName || athlete.name).toLowerCase().replace(/\s+/g, "-");
       const dateStr = (data?.date || new Date().toISOString().split("T")[0]).replace(/-/g, "");
@@ -1535,11 +1532,34 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
             }}
           >
             {/* The Actual A4 Printable Page */}
-            <div
-              ref={sheetRef}
-              className="report-page anamnesis-sheet-page bg-white text-slate-900 shadow-2xl p-5 sm:p-6 flex flex-col justify-between border border-slate-300 print:border-none print:shadow-none print:m-0 font-sans text-left box-border shrink-0"
-              style={{ width: "794px", minHeight: "1123px" }}
-            >
+            <ReportSheet ref={sheetRef} className="anamnesis-sheet-page" footer={
+            <div className="mt-3 pt-2.5 border-t-2 border-slate-900 flex justify-between items-center bg-white shrink-0 text-left">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 shrink-0 overflow-hidden">
+                  <img src="/pwa-192x192.svg" className="app-logo" alt="LB" />
+                </div>
+                <div>
+                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.25em] leading-none mb-1">
+                    Responsável Técnico
+                  </p>
+                  <p className="text-[9.5px] font-black text-slate-900 uppercase italic leading-none">
+                    {DEFAULT_TECHNICAL_RESPONSIBLE.name} ({DEFAULT_TECHNICAL_RESPONSIBLE.cred})
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none mb-1">
+                  Página 1 de 1
+                </p>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-[#39FF14] rounded-full"></span>
+                  <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none">
+                    LB HUB v3.0 • ELITE PERFORMANCE
+                  </p>
+                </div>
+              </div>
+            </div>
+            }>
             <div>
               {/* Header */}
               <div className="flex items-center justify-between pb-2.5 border-b-2 border-slate-900">
@@ -1794,34 +1814,7 @@ export const PrintableAnamnesisSheet: FC<PrintableAnamnesisSheetProps> = ({
               </div>
             </div>
 
-            {/* Official Standard Evaluation Footer */}
-            <div className="mt-3 pt-2.5 border-t-2 border-slate-900 flex justify-between items-center bg-white shrink-0 text-left">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center border border-slate-800 shrink-0 overflow-hidden">
-                  <img src="/pwa-192x192.svg" className="app-logo" alt="LB" />
-                </div>
-                <div>
-                  <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.25em] leading-none mb-1">
-                    Responsável Técnico
-                  </p>
-                  <p className="text-[9.5px] font-black text-slate-900 uppercase italic leading-none">
-                    {DEFAULT_TECHNICAL_RESPONSIBLE.name} ({DEFAULT_TECHNICAL_RESPONSIBLE.cred})
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[7.5px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none mb-1">
-                  Página 1 de 1
-                </p>
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="w-1.5 h-1.5 bg-[#39FF14] rounded-full"></span>
-                  <p className="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none">
-                    LB HUB v3.0 • ELITE PERFORMANCE
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            </ReportSheet>
         </div>
       </div>
     </div>

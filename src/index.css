@@ -1309,6 +1309,8 @@ html, body {
     box-shadow: none !important;
     width: 210mm !important;
     height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
     position: relative !important;
     display: flex !important;
     flex-direction: column !important;
@@ -1335,7 +1337,7 @@ html, body {
   }
 
   .report-page.anamnesis-sheet-page {
-    padding: 10mm 12mm !important;
+    padding: 20mm !important;
     height: 297mm !important;
     max-height: 297mm !important;
     overflow: hidden !important;
@@ -2491,3 +2493,14 @@ body.light-theme .coach-session-shell .lb-session-finish :is(input,textarea,sele
 body.light-theme .coach-session-shell .lb-session-finish :is(label,h3,[class*="text-slate-300"],[class*="text-slate-400"],[class*="text-slate-500"],.text-white) {color:#cbd5e1!important;}
 body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="false"] {background:#0a1322!important; color:#e2e8f0!important; border-color:#475569!important;}
 body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="true"] {background:#55391c!important; color:#ffcf76!important; border-color:#f59e0b!important;}
+
+/* A single sheet geometry for assessment, integrated and anamnesis reports. */
+.lb-a4-sheet { overflow: hidden; flex: none; }
+.lb-a4-frame { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.lb-a4-header, .lb-a4-footer { display: flow-root; flex: none; }
+.lb-a4-viewport { position: relative; flex: 1 1 0; min-height: 0; overflow: hidden; }
+.lb-a4-content { display: flow-root; width: 100%; transform-origin: top left; overflow-wrap: anywhere; }
+@media print {
+  .lb-a4-sheet { overflow: hidden !important; }
+  .lb-a4-viewport { overflow: hidden !important; }
+}

@@ -1,5 +1,6 @@
 import React, { useState, useLayoutEffect, useRef, useEffect, FC } from "react";
-import { toJpeg } from "html-to-image";
+import ReportSheet from "./ReportSheet";
+import { toReportJpeg } from "../utils/reportLayout";
 import { toast } from "react-hot-toast";
 import { Printer, Download, BookOpen, ChevronRight, X } from "lucide-react";
 import { Athlete } from "../types";
@@ -273,11 +274,7 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
 
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 0.92,
-          backgroundColor: "#ffffff",
-          pixelRatio: 2, // Optimized ratio for crisp text and smaller export size
-        });
+        const dataUrl = await toReportJpeg(page);
         const link = document.createElement("a");
         link.download = `relatorio-${athleteSlug}-pag-${i + 1}.jpg`;
         link.href = dataUrl;
@@ -314,15 +311,7 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
           
           {/* 1. AUTOMATIC INDEX PAGE (TOC) - Shown only when report has multiple sections */}
           {tocSections.length >= 2 && (
-            <div
-              className="report-page page-break bg-white text-slate-950 shadow-2xl my-10 mx-auto overflow-hidden relative text-left"
-              style={{ width: "210mm", height: "297mm", padding: "20mm", boxSizing: "border-box" }}
-            >
-              {/* Decorative top green border */}
-              <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600"></div>
-
-              <div className="flex flex-col h-full justify-between" style={{ height: "257mm" }}>
-                <div>
+            <ReportSheet header={
                   <ReportHeader
                     title={reportTitle}
                     subTitle="ÍNDICE DE SEÇÕES & ESTRUTURA METODOLÓGICA"
@@ -330,7 +319,14 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
                     date={reportDate}
                     extraStats={extraStats}
                   />
-
+            } footer={
+                <ReportFooter
+                  pageNumber={1}
+                  totalPages={totalPages}
+                  technicalResponsibleName={technicalResponsibleName}
+                  technicalResponsibleCred={technicalResponsibleCred}
+                />
+            }>
                   <div className="space-y-8 mt-12">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                       <BookOpen className="w-5 h-5 text-emerald-600" />
@@ -378,32 +374,14 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
                       </p>
                     </div>
                   </div>
-                </div>
-
-                <ReportFooter 
-                  pageNumber={1} 
-                  totalPages={totalPages} 
-                  technicalResponsibleName={technicalResponsibleName}
-                  technicalResponsibleCred={technicalResponsibleCred}
-                />
-              </div>
-            </div>
+            </ReportSheet>
           )}
 
           {/* 2. DYNAMICALLY PAGINATED PAGES */}
           {!isMeasuring && paginatedPages.map((pageBlocks, pageIndex) => {
             const pageNum = (tocSections.length >= 2 ? 2 : 1) + pageIndex;
             return (
-              <div
-                key={pageIndex}
-                className="report-page page-break bg-white text-slate-950 shadow-2xl my-10 mx-auto overflow-hidden relative text-left"
-                style={{ width: "210mm", height: "297mm", padding: "20mm", boxSizing: "border-box" }}
-              >
-                {/* Decorative top green border */}
-                <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600"></div>
-
-                <div className="flex flex-col h-full justify-between" style={{ height: "257mm" }}>
-                  <div className="flex-grow">
+              <ReportSheet key={pageIndex} header={
                     <ReportHeader
                       title={reportTitle}
                       subTitle={reportSubTitle}
@@ -411,7 +389,14 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
                       date={reportDate}
                       extraStats={extraStats}
                     />
-
+              } footer={
+                  <ReportFooter
+                    pageNumber={pageNum}
+                    totalPages={totalPages}
+                    technicalResponsibleName={technicalResponsibleName}
+                    technicalResponsibleCred={technicalResponsibleCred}
+                  />
+              }>
                     {/* Content Blocks for this specific page */}
                     <div className="space-y-6">
                       {pageBlocks.map((block) => (
@@ -420,16 +405,7 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  <ReportFooter 
-                    pageNumber={pageNum} 
-                    totalPages={totalPages} 
-                    technicalResponsibleName={technicalResponsibleName}
-                    technicalResponsibleCred={technicalResponsibleCred}
-                  />
-                </div>
-              </div>
+              </ReportSheet>
             );
           })}
         </div>

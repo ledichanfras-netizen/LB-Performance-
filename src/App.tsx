@@ -1,3 +1,5 @@
+import ReportSheet from './components/ReportSheet';
+import { toReportJpeg } from './utils/reportLayout';
 import { browserDraftStorage, clearSessionDraft } from './utils/sessionDraft';
 import LBMethodIcon from './components/LBMethodIcon';
 import ExternalSessionManager from './components/ExternalSessionManager';
@@ -559,18 +561,9 @@ const ReportPage: FC<{
   children: React.ReactNode;
   pageNumber: number;
   totalPages: number;
-}> = ({ children, pageNumber, totalPages }) => (
-  <div
-    className="report-page page-break bg-white text-slate-950 shadow-2xl my-10 mx-auto overflow-hidden relative text-left"
-    style={{ width: "210mm", minHeight: "297mm", padding: "20mm", boxSizing: "border-box" }}
-  >
-    {/* Page Borders for design */}
-    <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600"></div>
-    <div className="absolute bottom-0 left-0 w-full h-1 bg-slate-100"></div>
-
-    <div className="flex flex-col h-full min-h-[257mm] justify-between">
-      <div className="flex-grow">{children}</div>
-
+}> = ({ children, pageNumber, totalPages }) => {
+  const [header, ...body] = React.Children.toArray(children);
+  return <ReportSheet header={header} footer={
       <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center bg-white shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg border border-slate-800 shrink-0 overflow-hidden">
@@ -601,9 +594,8 @@ const ReportPage: FC<{
           </div>
         </div>
       </div>
-    </div>
-  </div>
-);
+  }>{body}</ReportSheet>;
+};
 
 const ReportHeader: FC<{
   title: string;
@@ -1315,11 +1307,7 @@ const EliteHubApp: FC<{
         // Exportar cada página individualmente para manter fidelidade A4 e alta resolução
         for (let i = 0; i < pages.length; i++) {
           const page = pages[i] as HTMLElement;
-          const dataUrl = await toJpeg(page, {
-            quality: 1.0,
-            backgroundColor: "#FFFFFF",
-            pixelRatio: 3,
-          });
+          const dataUrl = await toReportJpeg(page);
           const link = document.createElement("a");
           link.download = `analise-elite-${selected?.name || "atleta"}-pag-${i + 1}.jpg`;
           link.href = dataUrl;
@@ -7622,11 +7610,7 @@ const SpeedReport: FC<{
       const pages = reportRef.current.querySelectorAll(".report-page");
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
+        const dataUrl = await toReportJpeg(page);
         const link = document.createElement("a");
         link.download = `relatorio-velocidade-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
         link.href = dataUrl;
@@ -8451,11 +8435,7 @@ const Vo2maxReport: FC<{
 
     const tId = customToastId || toast.loading(`Renderizando Página ${pageIndex + 1} em alta resolução...`);
     try {
-      const dataUrl = await toJpeg(page, {
-        quality: 0.96,
-        backgroundColor: "#FFFFFF",
-        pixelRatio: 2.5,
-      });
+      const dataUrl = await toReportJpeg(page);
 
       const res = await fetch(dataUrl);
       const blob = await res.blob();
@@ -8498,11 +8478,7 @@ const Vo2maxReport: FC<{
       for (let i = 0; i < pages.length; i++) {
         toast.loading(`Gerando e baixando Página ${i + 1} de ${pages.length}...`, { id: toastId });
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 0.96,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 2.5,
-        });
+        const dataUrl = await toReportJpeg(page);
 
         const res = await fetch(dataUrl);
         const blob = await res.blob();
@@ -9496,11 +9472,7 @@ const CmjReport: FC<{
       const pages = reportRef.current.querySelectorAll(".report-page");
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
+        const dataUrl = await toReportJpeg(page);
         const link = document.createElement("a");
         link.download = `relatorio-${protocol}-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
         link.href = dataUrl;
@@ -10090,11 +10062,7 @@ const DropJumpReport: FC<{
 
     const tId = customToastId || toast.loading(`Renderizando Página ${pageIndex + 1} em alta resolução...`);
     try {
-      const dataUrl = await toJpeg(page, {
-        quality: 0.96,
-        backgroundColor: "#FFFFFF",
-        pixelRatio: 2.5,
-      });
+      const dataUrl = await toReportJpeg(page);
 
       const res = await fetch(dataUrl);
       const blob = await res.blob();
@@ -10137,11 +10105,7 @@ const DropJumpReport: FC<{
       for (let i = 0; i < pages.length; i++) {
         toast.loading(`Gerando e baixando Página ${i + 1} de ${pages.length}...`, { id: toastId });
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 0.96,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 2.5,
-        });
+        const dataUrl = await toReportJpeg(page);
 
         const res = await fetch(dataUrl);
         const blob = await res.blob();
@@ -11142,11 +11106,7 @@ const StrengthReport: FC<{
       const pages = reportRef.current.querySelectorAll(".report-page");
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
+        const dataUrl = await toReportJpeg(page);
         const link = document.createElement("a");
         link.download = `relatorio-forca-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
         link.href = dataUrl;
@@ -12306,11 +12266,7 @@ const ImtpReport: FC<{
 
     const tId = customToastId || toast.loading(`Renderizando Página ${pageIndex + 1} em alta resolução...`);
     try {
-      const dataUrl = await toJpeg(page, {
-        quality: 0.96,
-        backgroundColor: "#FFFFFF",
-        pixelRatio: 2.5,
-      });
+      const dataUrl = await toReportJpeg(page);
 
       // Conversão para Blob garante que navegadores como Chrome, Safari e Android não cancelem o download
       const res = await fetch(dataUrl);
@@ -12354,11 +12310,7 @@ const ImtpReport: FC<{
       for (let i = 0; i < pages.length; i++) {
         toast.loading(`Gerando e baixando Página ${i + 1} de ${pages.length}...`, { id: toastId });
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 0.96,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 2.5,
-        });
+        const dataUrl = await toReportJpeg(page);
 
         const res = await fetch(dataUrl);
         const blob = await res.blob();
@@ -13173,11 +13125,7 @@ const BioimpedanceReport: FC<{
       const pages = reportRef.current.querySelectorAll(".report-page");
       for (let i = 0; i < pages.length; i++) {
         const page = pages[i] as HTMLElement;
-        const dataUrl = await toJpeg(page, {
-          quality: 1.0,
-          backgroundColor: "#FFFFFF",
-          pixelRatio: 3,
-        });
+        const dataUrl = await toReportJpeg(page);
         const link = document.createElement("a");
         link.download = `relatorio-bioimpedancia-${athlete.name.toLowerCase().replace(/\s+/g, "-")}-pag-${i + 1}.jpg`;
         link.href = dataUrl;
