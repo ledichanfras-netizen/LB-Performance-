@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { normalizeBirthDate } from "../utils/birthDate";
 import React, { useState, FC, useEffect, useRef } from "react";
 import {
@@ -10,7 +11,6 @@ import {
   HeartPulse,
   Activity,
   Calendar,
-  Save,
   Trash2,
   ChevronRight,
   ShieldCheck,
@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   Maximize2,
   Eye,
+  Pencil,
 } from "lucide-react";
 import ReportSheet from "./ReportSheet";
 import { toReportJpeg } from "../utils/reportLayout";
@@ -32,7 +33,6 @@ interface AnamnesisModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (record: AnamnesisRecord) => Promise<void>;
-  onConfirmHistory?: () => Promise<void>;
   onDeleteRecord?: (recordId: string) => Promise<void>;
   role?: "coach" | "athlete";
 }
@@ -48,15 +48,14 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
   onClose,
   onSave,
   onDeleteRecord,
-  onConfirmHistory,
   role = "coach",
 }) => {
-  const [activeTab, setActiveTab] = useState<"form" | "history" | "preview_filled" | "preview_blank">("form");
+  const [activeTab, setActiveTab] = useState<"form" | "history" | "preview_filled" | "preview_blank">(() => athlete.anamnesis?.length ? "history" : "form");
   const [selectedRecordForView, setSelectedRecordForView] = useState<AnamnesisRecord | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const pendingRecordId = useRef<string | null>(null);
-  useEffect(() => { if (activeTab === 'form') setSaveSuccess(false); }, [activeTab]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Helper to calculate age
   const calculateAge = (dobString?: string): number => {
@@ -69,7 +68,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
   };
 
   // Form state
-  const [formData, setFormData] = useState<Partial<AnamnesisRecord>>({
+  const createForm = (): Partial<AnamnesisRecord> => ({
     date: new Date().toISOString().split("T")[0],
     athleteName: athlete.name || "",
     dob: normalizeBirthDate(athlete.dob),
@@ -137,22 +136,38 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
     technicalResponsible: DEFAULT_TECHNICAL_RESPONSIBLE,
   });
 
-  // Keep form data synchronized if athlete changes
+  const [formData, setFormData] = useState<Partial<AnamnesisRecord>>(createForm);
+
+  // A reconciliation of the same athlete must not overwrite corrections being typed.
   useEffect(() => {
-    if (athlete) {
-      setFormData((prev) => ({
-        ...prev,
-        athleteName: athlete.name || "",
-        dob: normalizeBirthDate(athlete.dob),
-        athleteAge: calculateAge(athlete.dob),
-        athleteGender: athlete.gender || "M",
-        modality: athlete.modality || "",
-        categoryOrPosition: `${athlete.category || ""} ${athlete.position ? `• ${athlete.position}` : ""}`.trim(),
-        teamOrClub: athlete.team || "",
-        signatureName: athlete.name || "",
-      }));
-    }
-  }, [athlete]);
+    setFormData(createForm());
+    setEditingId(null);
+    pendingRecordId.current = null;
+    setActiveTab(athlete.anamnesis?.length ? "history" : "form");
+  }, [athlete.id]);
+  useEffect(() => { scrollRef.current?.scrollTo({top:0}); }, [activeTab, editingId]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [isOpen]);
+
+  const startNew = () => {
+    if (isSaving) return;
+    setFormData(createForm());
+    setEditingId(null);
+    pendingRecordId.current = null;
+    setActiveTab("form");
+    scrollRef.current?.scrollTo({top:0});
+  };
+  const editRecord = (record: AnamnesisRecord) => {
+    if (isSaving) return;
+    setFormData(JSON.parse(JSON.stringify(record)));
+    setEditingId(record.id);
+    pendingRecordId.current = null;
+    setActiveTab("form");
+  };
 
   if (!isOpen) return null;
 
@@ -189,7 +204,8 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
   const handleSave = async () => {
     if (isSaving) return;
     const newRecord: AnamnesisRecord = {
-      id: pendingRecordId.current || (pendingRecordId.current = `anamnesis_${Date.now()}`),
+      ...formData,
+      id: editingId || pendingRecordId.current || (pendingRecordId.current = `anamnesis_${Date.now()}`),
       athleteId: athlete.id,
       date: formData.date || new Date().toISOString().split("T")[0],
       athleteName: formData.athleteName || athlete.name,
@@ -248,11 +264,10 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
     try {
       await onSave(newRecord);
       pendingRecordId.current = null;
-      setSaveSuccess(true);
+      setEditingId(null);
       setActiveTab("history");
       toast.success("Anamnese confirmada no banco de dados.");
     } catch {
-      setSaveSuccess(false);
       toast.error("Anamnese ainda não confirmada no banco. As respostas foram preservadas neste aparelho.");
     } finally { setIsSaving(false); }
   };
@@ -266,12 +281,12 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
 
   const isPreview = activeTab === "preview_blank" || activeTab === "preview_filled";
 
-  return (
-    <div
-      className={`report-modal fixed inset-0 z-[1200] ${
+  return createPortal((
+    <div role="dialog" aria-modal="true" aria-label="Anamnese"
+      className={`lb-anamnesis-modal report-modal fixed inset-0 z-[1200] ${
         isPreview
           ? "flex flex-col items-center justify-start bg-slate-950/95 backdrop-blur-xl overflow-y-auto overflow-x-hidden p-2 sm:p-4"
-          : "flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-2 sm:p-4 overflow-y-auto"
+          : "flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden"
       }`}
     >
       {/* Printable Sheet View (Hidden on screen unless preview active, visible in @media print) */}
@@ -286,9 +301,9 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
       </div>
 
       {/* Screen Interactive Container (Hidden during @media print) */}
-      <div className={`no-print ${isPreview ? "hidden" : "flex"} flex-col bg-[#0b101b] border border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
+      <div className={`lb-anamnesis-panel no-print ${isPreview ? "hidden" : "flex"} flex-col bg-[#0b101b] border border-slate-800 rounded-3xl w-full max-w-4xl h-full min-h-0 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
         {/* Header */}
-        <div className="p-3.5 sm:p-6 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/40">
+        <div className="shrink-0 p-3.5 sm:p-6 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/40">
           <div className="flex items-center justify-between sm:justify-start gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-2xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14] shrink-0">
@@ -361,11 +376,11 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-6 pt-3 flex items-center justify-between border-b border-slate-800/60 bg-slate-950/40">
+        <div className="shrink-0 px-4 sm:px-6 pt-3 flex items-center justify-between border-b border-slate-800/60 bg-slate-950/40">
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab("form")}
+              onClick={() => { if (!isSaving) setActiveTab("form"); }}
               className={`px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
                 activeTab === "form"
                   ? "border-[#39FF14] text-[#39FF14]"
@@ -373,7 +388,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              Responder / Preencher
+              {editingId ? "Editar ficha" : "Responder / Preencher"}
             </button>
 
             <button
@@ -400,7 +415,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-6">
+        <div ref={scrollRef} className="lb-anamnesis-scroll p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-6">
           {activeTab === "history" ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -409,23 +424,13 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setActiveTab("form")}
+                  onClick={startNew}
                   className="text-xs font-bold text-[#39FF14] hover:underline cursor-pointer flex items-center gap-1"
                 >
                   + Nova Resposta
                 </button>
               </div>
 
-              {existingRecords.length > 0 && onConfirmHistory && (
-                <button type="button" disabled={isSaving} onClick={async () => {
-                  setIsSaving(true);
-                  try { await onConfirmHistory(); toast.success("Histórico de anamnese confirmado no banco."); }
-                  catch { toast.error("Não foi possível confirmar. A cópia local foi preservada."); }
-                  finally { setIsSaving(false); }
-                }} className="px-4 py-3 rounded-xl bg-emerald-700 text-white text-xs font-bold disabled:opacity-50">
-                  {isSaving ? "Confirmando..." : "Salvar histórico no banco"}
-                </button>
-              )}
               {existingRecords.length === 0 ? (
                 <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl p-6 bg-slate-950/40">
                   <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
@@ -435,7 +440,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                   </p>
                   <button
                     type="button"
-                    onClick={() => setActiveTab("form")}
+                    onClick={startNew}
                     className="mt-4 px-4 py-2 bg-[#39FF14] hover:bg-[#32e012] text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer inline-flex items-center gap-2"
                   >
                     Preencher Agora
@@ -467,7 +472,11 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button type="button" disabled={isSaving} onClick={() => editRecord(rec)}
+                          className="px-3 py-2 bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 disabled:opacity-50">
+                          <Pencil className="w-3 h-3" /> Editar
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -504,7 +513,7 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
               )}
             </div>
           ) : (
-            <form
+            <form id="lb-anamnesis-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSave();
@@ -1253,46 +1262,23 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                     </p>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs transition-all cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    aria-busy={isSaving}
-                    className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-lg ${
-                      saveSuccess
-                        ? "bg-emerald-500 text-white shadow-emerald-500/20"
-                        : "bg-[#39FF14] hover:bg-[#32e012] text-slate-950 shadow-[#39FF14]/20"
-                    }`}
-                  >
-                    {isSaving ? "Confirmando salvamento..." : saveSuccess ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        Salvo com Sucesso!
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        Salvar Anamnese
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
             </form>
           )}
         </div>
+        {!isPreview && activeTab === "form" && (
+          <div className="lb-anamnesis-actions shrink-0 flex items-center gap-3 border-t border-slate-700 bg-slate-950 px-4 pt-3 text-white">
+            <button type="button" disabled={isSaving} onClick={onClose}
+              className="min-h-11 px-4 py-3 rounded-xl border border-slate-700 text-sm font-bold">Cancelar</button>
+            <button type="submit" form="lb-anamnesis-form" disabled={isSaving} aria-busy={isSaving}
+              className="min-h-11 flex-1 px-4 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-black disabled:opacity-50">
+              {isSaving ? "Salvando..." : editingId ? "Salvar alterações" : "Salvar anamnese"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 // Row helper for cardio questions

@@ -2504,3 +2504,11 @@ body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="true"
   .lb-a4-sheet { overflow: hidden !important; }
   .lb-a4-viewport { overflow: hidden !important; }
 }
+
+
+/* The questionnaire owns its viewport and remains above app navigation. */
+.lb-anamnesis-modal { height: 100vh; height: 100dvh; }
+.lb-anamnesis-panel { max-height: 100%; }
+.lb-anamnesis-scroll { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scroll-padding-bottom: 24px; }
+.lb-anamnesis-actions { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+@media (max-width: 639px) { .lb-anamnesis-panel { border-radius: 0; } }

@@ -14527,10 +14527,6 @@ const AssessmentView: FC<{
               throw new Error("Salvamento indisponível nesta visualização.");
             }
           }}
-          onConfirmHistory={async () => {
-            if (!updateAthlete) throw new Error("Salvamento indisponível nesta visualização.");
-            await updateAthlete(athlete.id, {anamnesis: athlete.anamnesis || []});
-          }}
           onDeleteRecord={async (recordId) => {
             const existing = athlete.anamnesis || [];
             const updated = existing.filter((r) => r.id !== recordId);

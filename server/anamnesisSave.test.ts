@@ -59,14 +59,19 @@ test('narrow anamnesis save enforces ownership, archived state, supervisor restr
   }finally{await db.close();}
 });
 
-test('athletes can add their own answers but cannot access another athlete or alter signed history',async()=>{
+test('athletes can create and correct their own answers but cannot access another athlete or remove history',async()=>{
   const {db,pool}=await fixture();const student={...coach,role:'athlete',athlete_id:'a'};
   try{
     const first=await saveAnamnesisHistory(pool,student,'a',{history:[record],baseRevision:revision});
     await assert.rejects(saveAnamnesisHistory(pool,student,'other',{history:[],baseRevision:revision}));
     await assert.rejects(saveAnamnesisHistory(pool,student,'a',{history:[],baseRevision:first.syncRevisions.a}));
-    await assert.rejects(saveAnamnesisHistory(pool,student,'a',{history:[{...record,signatureName:'changed'}],baseRevision:first.syncRevisions.a}));
-    const second=await saveAnamnesisHistory(pool,student,'a',{history:[{...record,id:'history-2'},record],baseRevision:first.syncRevisions.a});
+    const edited={...record,signatureName:'Corrected',cardio:{chestPainExercise:true}};
+    const correction=await saveAnamnesisHistory(pool,student,'a',{history:[edited],baseRevision:first.syncRevisions.a});
+    assert.equal(correction.anamnesis!.length,1);
+    assert.equal(correction.anamnesis![0].id,record.id);
+    assert.equal(correction.anamnesis![0].signatureName,'Corrected');
+    assert.equal(correction.anamnesis![0].cardio.chestPainExercise,true);
+    const second=await saveAnamnesisHistory(pool,student,'a',{history:[{...record,id:'history-2'},edited],baseRevision:correction.syncRevisions.a});
     assert.equal(second.anamnesis!.length,2);
   }finally{await db.close();}
 });

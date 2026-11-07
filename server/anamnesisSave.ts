@@ -28,9 +28,9 @@ export async function saveAnamnesisHistory(pool:any, account:any, athleteId:stri
     if(existing!==undefined && isDeepStrictEqual(existing,history)) {
       await client.query('COMMIT'); return receipt(stored.updated_at);
     }
-    // Athletes can submit their own responses, but cannot rewrite or remove signed history.
+    // Athletes can correct their own answers; removing stored records remains a coach action.
     if(account.role==='athlete' && (existing || []).some(record=>
-      !isDeepStrictEqual(record,history!.find(incoming=>incoming.id===record.id)))) throw new ScopeDenied();
+      !history!.some(incoming=>incoming.id===record.id))) throw new ScopeDenied();
     if(!syncRevision(body.baseRevision) || syncRevision(body.baseRevision)!==syncRevision(stored.updated_at)) throw new SyncConflict();
     let backup:any={legacy:stored.injury_history || ''};
     try { const parsed=JSON.parse(stored.injury_history); if(parsed && typeof parsed==='object' && !Array.isArray(parsed)) backup=parsed; } catch {}
