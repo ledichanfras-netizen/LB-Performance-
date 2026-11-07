@@ -31,8 +31,9 @@ interface AnamnesisModalProps {
   athlete: Athlete;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (record: AnamnesisRecord) => void;
-  onDeleteRecord?: (recordId: string) => void;
+  onSave: (record: AnamnesisRecord) => Promise<void>;
+  onConfirmHistory?: () => Promise<void>;
+  onDeleteRecord?: (recordId: string) => Promise<void>;
   role?: "coach" | "athlete";
 }
 
@@ -47,11 +48,15 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
   onClose,
   onSave,
   onDeleteRecord,
+  onConfirmHistory,
   role = "coach",
 }) => {
   const [activeTab, setActiveTab] = useState<"form" | "history" | "preview_filled" | "preview_blank">("form");
   const [selectedRecordForView, setSelectedRecordForView] = useState<AnamnesisRecord | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const pendingRecordId = useRef<string | null>(null);
+  useEffect(() => { if (activeTab === 'form') setSaveSuccess(false); }, [activeTab]);
 
   // Helper to calculate age
   const calculateAge = (dobString?: string): number => {
@@ -181,9 +186,10 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
     window.print();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (isSaving) return;
     const newRecord: AnamnesisRecord = {
-      id: `anamnesis_${Date.now()}`,
+      id: pendingRecordId.current || (pendingRecordId.current = `anamnesis_${Date.now()}`),
       athleteId: athlete.id,
       date: formData.date || new Date().toISOString().split("T")[0],
       athleteName: formData.athleteName || athlete.name,
@@ -238,12 +244,17 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
       technicalResponsible: DEFAULT_TECHNICAL_RESPONSIBLE,
     };
 
-    onSave(newRecord);
-    setSaveSuccess(true);
-    setTimeout(() => {
-      setSaveSuccess(false);
+    setIsSaving(true);
+    try {
+      await onSave(newRecord);
+      pendingRecordId.current = null;
+      setSaveSuccess(true);
       setActiveTab("history");
-    }, 1200);
+      toast.success("Anamnese confirmada no banco de dados.");
+    } catch {
+      setSaveSuccess(false);
+      toast.error("Anamnese ainda não confirmada no banco. As respostas foram preservadas neste aparelho.");
+    } finally { setIsSaving(false); }
   };
 
   const existingRecords: AnamnesisRecord[] = athlete.anamnesis || [];
@@ -405,6 +416,16 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                 </button>
               </div>
 
+              {existingRecords.length > 0 && role === "coach" && onConfirmHistory && (
+                <button type="button" disabled={isSaving} onClick={async () => {
+                  setIsSaving(true);
+                  try { await onConfirmHistory(); toast.success("Histórico de anamnese confirmado no banco."); }
+                  catch { toast.error("Não foi possível confirmar. A cópia local foi preservada."); }
+                  finally { setIsSaving(false); }
+                }} className="px-4 py-3 rounded-xl bg-emerald-700 text-white text-xs font-bold disabled:opacity-50">
+                  {isSaving ? "Confirmando..." : "Salvar histórico no banco"}
+                </button>
+              )}
               {existingRecords.length === 0 ? (
                 <div className="text-center py-12 border border-dashed border-slate-800 rounded-2xl p-6 bg-slate-950/40">
                   <FileText className="w-10 h-10 text-slate-600 mx-auto mb-3" />
@@ -462,10 +483,13 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
                         {role === "coach" && onDeleteRecord && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (confirm("Deseja realmente excluir este registro de anamnese?")) {
-                                onDeleteRecord(rec.id);
-                              }
+                            disabled={isSaving}
+                            onClick={async () => {
+                              if (!confirm("Deseja realmente excluir este registro de anamnese?")) return;
+                              setIsSaving(true);
+                              try { await onDeleteRecord(rec.id); }
+                              catch { toast.error("A exclusão não foi confirmada no banco."); }
+                              finally { setIsSaving(false); }
                             }}
                             className="p-1.5 text-slate-500 hover:text-red-400 transition-all cursor-pointer rounded-lg hover:bg-red-500/10"
                             title="Excluir anamnese"
@@ -1241,13 +1265,15 @@ export const AnamnesisModal: FC<AnamnesisModalProps> = ({
 
                   <button
                     type="submit"
+                    disabled={isSaving}
+                    aria-busy={isSaving}
                     className={`px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-lg ${
                       saveSuccess
                         ? "bg-emerald-500 text-white shadow-emerald-500/20"
                         : "bg-[#39FF14] hover:bg-[#32e012] text-slate-950 shadow-[#39FF14]/20"
                     }`}
                   >
-                    {saveSuccess ? (
+                    {isSaving ? "Confirmando salvamento..." : saveSuccess ? (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
                         Salvo com Sucesso!

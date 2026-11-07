@@ -1,3 +1,4 @@
+import { readAnamnesisBackup, anamnesisBackupFields } from './server/anamnesis';
 import {workoutExecutionRouter} from './server/workoutExecution';
 import {workoutHistoryRouter,workoutFromRows} from './server/workoutHistory';
 import {assertCompleteSnapshots} from './server/snapshotContract';
@@ -394,7 +395,7 @@ const parseBackupAthleteFields = (a: any) => {
     courtDays = [2, 4];
   }
 
-  return { injuryHistory, injuries, trainingDays, academyDays, courtDays, periodizationStart, periodizationEnd, dropJumpBackup, imtpBackup, posturalBackup, matches, photoUrl };
+  return { injuryHistory, injuries, trainingDays, academyDays, courtDays, periodizationStart, periodizationEnd, dropJumpBackup, imtpBackup, posturalBackup, matches, photoUrl, anamnesis: readAnamnesisBackup(a.injury_history) };
 };
 
 const serializeBackupAthleteFields = (athlete: any) => {
@@ -402,6 +403,7 @@ const serializeBackupAthleteFields = (athlete: any) => {
   const imtp = athlete.assessments?.imtp || athlete.imtpBackup || [];
   const postural = athlete.assessments?.postural || athlete.posturalBackup || [];
   return JSON.stringify({
+    ...anamnesisBackupFields(athlete),
     followUpType: followUpType(athlete.followUpType),
     legacy: athlete.injuryHistory || '',
     injuries: athlete.injuries || [],
@@ -679,6 +681,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         courtDays: parsedFields.courtDays,
         injuries: parsedFields.injuries,
         matches: parsedFields.matches || [],
+        ...(parsedFields.anamnesis !== undefined ? {anamnesis: parsedFields.anamnesis} : {}),
       wellness: (wellnessByAth[a.id] || []).map((w: any) => ({
         ...w,
         sleep: w.calculated_sleep_hours !== undefined && w.calculated_sleep_hours !== null ? Number(w.calculated_sleep_hours) : (typeof w.sleep === 'number' ? w.sleep : parseFloat(w.sleep) || 0),

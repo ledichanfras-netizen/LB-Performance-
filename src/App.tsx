@@ -14518,18 +14518,26 @@ const AssessmentView: FC<{
           isOpen={showAnamnesisModal}
           onClose={() => setShowAnamnesisModal(false)}
           role={role}
-          onSave={(newRecord) => {
+          onSave={async (newRecord) => {
             const existing = athlete.anamnesis || [];
             const updated = [newRecord, ...existing.filter((r) => r.id !== newRecord.id)];
             if (updateAthlete) {
-              updateAthlete(athlete.id, { anamnesis: updated });
+              await updateAthlete(athlete.id, { anamnesis: updated });
+            } else {
+              throw new Error("Salvamento indisponível nesta visualização.");
             }
           }}
-          onDeleteRecord={(recordId) => {
+          onConfirmHistory={async () => {
+            if (!updateAthlete) throw new Error("Salvamento indisponível nesta visualização.");
+            await updateAthlete(athlete.id, {anamnesis: athlete.anamnesis || []});
+          }}
+          onDeleteRecord={async (recordId) => {
             const existing = athlete.anamnesis || [];
             const updated = existing.filter((r) => r.id !== recordId);
             if (updateAthlete) {
-              updateAthlete(athlete.id, { anamnesis: updated });
+              await updateAthlete(athlete.id, { anamnesis: updated });
+            } else {
+              throw new Error("Salvamento indisponível nesta visualização.");
             }
           }}
         />

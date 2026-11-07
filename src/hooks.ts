@@ -706,7 +706,10 @@ export const useAthletes = (token?: string | null) => {
   const updateAthlete = async (athleteId: string, data: Partial<Athlete>) => {
     const updated = athletes.map(a => a.id === athleteId ? { ...a, ...data } : a);
     setAthletes(updated);
-    if(!await save(updated, athleteId)) return;
+    if(!await save(updated, athleteId)) {
+      if ('anamnesis' in data) throw new Error('A anamnese ainda não foi confirmada no banco. A cópia local foi preservada.');
+      return;
+    }
     toast.success("Atleta atualizado!");
   };
 
