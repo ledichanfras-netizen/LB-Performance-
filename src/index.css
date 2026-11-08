@@ -2477,22 +2477,28 @@ body.light-theme .lb-external-sessions :is(input,select,textarea) {color-scheme:
 .lb-external-sessions button:disabled {opacity:.6;cursor:wait;}
 .lb-external-sessions .les-error {flex-basis:100%;font-size:13px;line-height:1.5;color:var(--les-text);background:var(--les-soft);padding:12px;border:1px solid var(--les-line);border-radius:12px;}
 
-/* Session completion remains dark, including when global light-theme rules apply. */
-body .coach-session-shell .lb-session-finish,
-body.light-theme .coach-session-shell .lb-session-finish {
-  background:#0c1524!important; background-image:none!important; color:#f1f5f9!important; border-color:#34445b!important; color-scheme:dark;
-}
-body .coach-session-shell .lb-session-finish :is(.lb-session-card,[class*="bg-slate-950/"],[class*="bg-slate-900/"]),
-body.light-theme .coach-session-shell .lb-session-finish :is(.lb-session-card,[class*="bg-slate-950/"],[class*="bg-slate-900/"]) {
-  background:#111e30!important; border-color:#34445b!important; color:#f1f5f9!important;
-}
-body .coach-session-shell .lb-session-finish :is(input,textarea,select),
-body.light-theme .coach-session-shell .lb-session-finish :is(input,textarea,select) {
-  background:#0a1322!important; border-color:#548365!important; color:#f1f5f9!important; -webkit-text-fill-color:#f1f5f9!important; color-scheme:dark;
-}
-body.light-theme .coach-session-shell .lb-session-finish :is(label,h3,[class*="text-slate-300"],[class*="text-slate-400"],[class*="text-slate-500"],.text-white) {color:#cbd5e1!important;}
-body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="false"] {background:#0a1322!important; color:#e2e8f0!important; border-color:#475569!important;}
-body .coach-session-shell .lb-session-finish .lb-session-rpe[aria-pressed="true"] {background:#55391c!important; color:#ffcf76!important; border-color:#f59e0b!important;}
+/* Session completion follows the selected LB theme, including body-level dialogs. */
+.lb-session-finish { --sf-bg:#0c1524; --sf-panel:#111e30; --sf-input:#0a1322; --sf-text:#f1f5f9; --sf-muted:#cbd5e1; --sf-line:#34445b; --sf-green:#70e8ad; --sf-scheme:dark; }
+body.light-theme .lb-session-finish { --sf-bg:#fff; --sf-panel:#f1f8f4; --sf-input:#fff; --sf-text:#162e24; --sf-muted:#496255; --sf-line:#c7dbcf; --sf-green:#08734b; --sf-scheme:light; }
+body .lb-session-finish { background:var(--sf-bg)!important; background-image:none!important; color:var(--sf-text)!important; border-color:var(--sf-line)!important; color-scheme:var(--sf-scheme); }
+body .lb-session-finish :is(.lb-session-card,[class*="bg-slate-950/"],[class*="bg-slate-900/"]) { background:var(--sf-panel)!important; border-color:var(--sf-line)!important; color:var(--sf-text)!important; }
+body .lb-session-finish :is(input,textarea,select) { background:var(--sf-input)!important; border-color:var(--sf-line)!important; color:var(--sf-text)!important; -webkit-text-fill-color:var(--sf-text)!important; color-scheme:var(--sf-scheme); }
+body .lb-session-finish :is(label,h3,.text-white) {color:var(--sf-text)!important;}
+body .lb-session-finish :is([class*="text-slate-300"],[class*="text-slate-400"],[class*="text-slate-500"]) {color:var(--sf-muted)!important;}
+body .lb-session-finish .lb-session-rpe[aria-pressed="false"] {background:var(--sf-input)!important; color:var(--sf-text)!important; border-color:var(--sf-line)!important;}
+body .lb-session-finish .lb-session-rpe[aria-pressed="true"] {background:#08734b!important; color:#fff!important; border-color:#08734b!important; box-shadow:0 0 0 2px #65bf9133;}
+.lb-finish-overlay { height:100vh; height:100dvh; background:rgba(11,25,19,.6); backdrop-filter:blur(6px); }
+.lb-finish-header,.lb-finish-actions { border-color:var(--sf-line); background:var(--sf-bg); }
+.lb-finish-content { overscroll-behavior:contain; -webkit-overflow-scrolling:touch; scroll-padding-block:16px; }
+.lb-finish-actions { padding-bottom:max(12px,env(safe-area-inset-bottom)); }
+body .lb-finish-dialog :is(input,textarea) { font-size:16px; min-height:48px; }
+body .lb-finish-dialog .lb-session-rpe { min-height:48px; }
+body .lb-finish-dialog .lb-finish-submit { background:#08734b!important; color:#fff!important; }
+body .lb-finish-dialog .lb-finish-return { background:var(--sf-panel)!important; color:var(--sf-text)!important; border-color:var(--sf-line)!important; }
+body.light-theme .lb-finish-dialog .lb-finish-warning { background:#fff7e6!important; border-color:#efd399!important; color:#83500c!important; }
+body.light-theme .lb-finish-dialog .lb-finish-warning :is(p,strong) { color:#83500c!important; }
+body.light-theme .lb-finish-dialog [class*="text-amber-400"] { color:#83500c!important; }
+body.light-theme .lb-finish-dialog [class*="text-[#39FF14]"] { color:var(--sf-green)!important; }
 
 /* A single sheet geometry for assessment, integrated and anamnesis reports. */
 .lb-a4-sheet { overflow: hidden; flex: none; }

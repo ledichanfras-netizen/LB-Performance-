@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { resumedElapsedSeconds, resumedDurationNeedsConfirmation, readAnySessionDraft, browserDraftStorage, recoverDraftResults, writeSessionDraft } from '../utils/sessionDraft';
 import { useAccessibleDialog } from '../hooks/useAccessibleDialog';
 import { aerobicSummary } from "../utils/aerobic";
@@ -410,7 +411,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [isSavingSession,setIsSavingSession]=useState(false);
   const closeRef=useRef(onCancel);closeRef.current=onCancel;
   const dialogClose=React.useCallback(()=>closeRef.current(),[]);
-  useAccessibleDialog(dialogRef,dialogClose);
+  const finishDialogRef = useRef<HTMLDivElement>(null);
 
   const [session, setSession] = useState<Workout>(() => {
     if(recovered)return recovered.session;
@@ -508,6 +509,14 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [hasRpe,setHasRpe]=useState(recovered?.rpeAnswered===true||(!recovered&&workout.rpe!==undefined));
   const setOverallRpe=(value:number)=>{setHasRpe(true);setRpe(value);};
   const [showFinishModal, setShowFinishModal] = useState(false);
+  const closeFinishDialog = React.useCallback(() => setShowFinishModal(false), []);
+  useAccessibleDialog(showFinishModal ? finishDialogRef : dialogRef, showFinishModal ? closeFinishDialog : dialogClose);
+  useEffect(() => {
+    if (!showFinishModal) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [showFinishModal]);
   const [isQuickAdjustsCollapsed, setIsQuickAdjustsCollapsed] = useState(false);
   const [isGeneralParamsCollapsed, setIsGeneralParamsCollapsed] = useState(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
@@ -2599,30 +2608,32 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       </div>
 
       {/* FINISH/RPE VERIFICATION MODAL OVERLAY */}
-      <AnimatePresence>
+      {createPortal(<AnimatePresence>
         {showFinishModal && (
-          <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-4 sm:p-6 overflow-y-auto animate-fade-in">
-            <motion.div
+          <div className="lb-finish-overlay fixed inset-0 z-[1400] flex items-center justify-center p-0 sm:p-4 overflow-hidden">
+            <motion.div ref={finishDialogRef} role="dialog" aria-modal="true" aria-labelledby="session-finish-title" tabIndex={-1}
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="lb-session-finish w-full max-w-xl bg-[#0c111d] border border-slate-900 rounded-[2.5rem] p-6 sm:p-8 md:p-10 shadow-2xl relative space-y-6 text-left"
+              className="lb-session-finish lb-finish-dialog w-full max-w-xl h-full sm:max-h-[850px] border rounded-none sm:rounded-3xl shadow-2xl relative flex flex-col min-h-0 overflow-hidden text-left"
             >
-              <div className="flex justify-between items-center border-b border-slate-900 pb-4">
+              <div className="lb-finish-header shrink-0 flex justify-between items-center gap-3 border-b p-4 sm:p-5">
                 <div>
                   <span className="text-[10px] font-black text-[#39FF14] uppercase tracking-widest block">ETAPA FINAL</span>
-                  <h3 className="text-xl font-black uppercase italic text-white tracking-tight mt-0.5 font-sans">RESUMO & VALIDAÇÃO DE PSE</h3>
+                  <h3 id="session-finish-title" className="text-lg font-black uppercase italic text-white tracking-tight mt-0.5 font-sans">RESUMO & VALIDAÇÃO DE PSE</h3>
                 </div>
                 <button
+                  type="button" aria-label="Fechar resumo"
                   onClick={() => setShowFinishModal(false)}
-                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-900 rounded-full transition-all"
+                  className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 rounded-full transition-all"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
+              <div className="lb-finish-content flex-1 min-h-0 overflow-y-auto space-y-5 p-4 sm:p-5">
               {incompleteExercisesCount > 0 && (
-                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3.5 rounded-2xl flex items-start gap-2.5 text-xs">
+                <div className="lb-finish-warning bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3.5 rounded-2xl flex items-start gap-2.5 text-xs">
                   <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
                   <div>
                     <p className="font-black uppercase tracking-wider text-[10px]">Atenção: Exercícios Incompletos ⚠️</p>
@@ -2636,11 +2647,11 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               {/* EDIT DATE & TIME SECTION */}
               <div className="lb-session-card bg-slate-950/50 border border-slate-900 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  <label htmlFor="finish-session-date" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     📅 DATA DE EXECUÇÃO
                   </label>
                   <input
-                    type="date"
+                    id="finish-session-date" type="date"
                     value={sessionDate}
                     onChange={(e) => setSessionDate(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-900 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#39FF14] transition-all cursor-pointer"
@@ -2650,12 +2661,12 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   </p>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  <label htmlFor="finish-session-duration" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     ⏱️ TEMPO TOTAL DO TREINO
                   </label>
                   <div className="relative">
                     <input
-                      type="number"
+                      id="finish-session-duration" type="number"
                       min="1"
                       max="480"
                       value={manualDurationMinutes}
@@ -2725,10 +2736,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
               {/* FEEDBACK NOTES AREA */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-slate-300 uppercase tracking-wider block">
+                <label htmlFor="finish-session-feedback" className="text-xs font-black text-slate-300 uppercase tracking-wider block">
                   RELATO DE BIOFEEDBACK (OPCIONAL)
                 </label>
-                <textarea
+                <textarea id="finish-session-feedback"
                   value={feedbackNotes}
                   onChange={(e) => setFeedbackNotes(e.target.value)}
                   className="w-full h-24 bg-slate-950 border border-slate-900 rounded-2xl p-3 text-xs text-white outline-none focus:border-[#39FF14] transition-all font-semibold resize-none"
@@ -2736,15 +2747,16 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 />
               </div>
 
+              </div>
               {/* SAVE ACTION */}
-              <div className="pt-4 border-t border-slate-900 flex flex-col gap-2.5">
+              <div className="lb-finish-actions shrink-0 p-3 sm:p-4 border-t flex flex-col gap-2.5">
                 <button
                   type="button"
                   onClick={() => {
                     setShowFinishModal(false);
                     triggerFinish(true);
                   }}
-                  className="w-full py-3.5 bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#39FF14]/20 cursor-pointer text-center flex items-center justify-center gap-2"
+                  className="lb-finish-submit w-full min-h-11 py-3.5 bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#39FF14]/20 cursor-pointer text-center flex items-center justify-center gap-2"
                 >
                   <Share2 className="w-4 h-4" />
                   <span>CONCLUIR & POSTAR TREINO ⚡</span>
@@ -2753,7 +2765,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowFinishModal(false)}
-                    className="flex-1 py-3 border border-slate-800 hover:border-slate-500 text-slate-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
+                    className="lb-finish-return flex-1 min-h-11 py-3 border border-slate-800 hover:border-slate-500 text-slate-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
                   >
                     VOLTAR AO TREINO
                   </button>
@@ -2763,7 +2775,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                       setShowFinishModal(false);
                       triggerFinish(false);
                     }}
-                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer text-center"
+                    className="lb-finish-submit flex-1 min-h-11 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer text-center"
                   >
                     CONCLUIR SESSÃO 🏆
                   </button>
@@ -2772,7 +2784,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
 
       {/* VIDEO DEMONSTRATION & TECHNIQUE MODAL */}
       <AnimatePresence>
