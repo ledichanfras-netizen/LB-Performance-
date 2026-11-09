@@ -1,3 +1,4 @@
+import { normalizeReadinessScore } from '../src/utils/wellnessNumbers';
 export class SportsValidationError extends Error {}
 const invalid=(field:string):never=>{throw new SportsValidationError(`Valor inválido em ${field}.`);};
 export function boundedNumber(value:unknown,field:string,min:number,max:number,integer=false){
@@ -16,7 +17,10 @@ export function validateSportsPayload(athletes:any[]){
   for(const w of array(a.wellness,'prontidão',1000)){
    date(w.date,'data da prontidão');
    for(const key of ['fatigue','stress','soreness','mood','cognitiveLoad','travelFatigue','sleepQuality','emotionalReadiness','psychologicalReadiness'])boundedNumber(w[key],key,0,10);
-   boundedNumber(w.sleep,'sono',0,24);boundedNumber(w.calculatedSleepHours,'horas de sono',0,24);boundedNumber(w.readinessScore,'prontidão',0,100);
+   const normalized = normalizeReadinessScore(w);
+   boundedNumber(w.sleep,'sono',0,24);boundedNumber(w.calculatedSleepHours,'horas de sono',0,24);boundedNumber(normalized.readinessScore,'prontidão',0,100);
+   // Compatibility for already-open clients and cached snapshots with NUMERIC strings.
+   if (normalized !== w) w.readinessScore = normalized.readinessScore;
   }
   for(const e of array(a.externalSessions,'sessões externas',1000)){date(e.date,'data da sessão');boundedNumber(e.durationMinutes,'duração',0,1440,true);boundedNumber(e.rpe,'PSE',0,10,true);boundedNumber(e.distanceKm,'distância',0,500);}
   for(const w of array(a.workouts,'treinos',1000)){

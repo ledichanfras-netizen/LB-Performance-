@@ -1,3 +1,4 @@
+import { normalizeReadinessScore } from './utils/wellnessNumbers';
 import { weeklyLoadMetrics, acwrMetrics } from './utils/loadWindows';
 import { sessionInternalLoad, realizedTonnage } from './utils/sessionMetrics';
 import { orderedExercises } from "./utils/exerciseOrder";
@@ -1428,6 +1429,7 @@ export const sanitizeAthleteData = (a: Athlete): Athlete => {
 
   return {
     ...a,
+    ...(Array.isArray(a.wellness) ? { wellness: a.wellness.map(normalizeReadinessScore) } : {}),
     workouts,
     externalSessions,
     assessments: a.assessments ? Object.fromEntries(Object.entries(a.assessments).map(([key, rows]) => [key, Array.isArray(rows) ? rows.map(row => normalizeAssessmentNumbers(row)) : rows])) as unknown as Athlete["assessments"] : a.assessments

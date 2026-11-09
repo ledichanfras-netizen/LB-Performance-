@@ -1,3 +1,4 @@
+import { normalizeReadinessScore } from './src/utils/wellnessNumbers';
 import { improveDescriptionHandler } from './server/periodizationDescription';
 import {anamnesisSaveRouter} from './server/anamnesisSave';
 import { readAnamnesisBackup, anamnesisBackupFields } from './server/anamnesis';
@@ -684,7 +685,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
         injuries: parsedFields.injuries,
         matches: parsedFields.matches || [],
         ...(parsedFields.anamnesis !== undefined ? {anamnesis: parsedFields.anamnesis} : {}),
-      wellness: (wellnessByAth[a.id] || []).map((w: any) => ({
+      wellness: (wellnessByAth[a.id] || []).map((w: any) => normalizeReadinessScore({
         ...w,
         sleep: w.calculated_sleep_hours !== undefined && w.calculated_sleep_hours !== null ? Number(w.calculated_sleep_hours) : (typeof w.sleep === 'number' ? w.sleep : parseFloat(w.sleep) || 0),
         cognitiveLoad: w.cognitive_load,
@@ -942,7 +943,7 @@ const saveAthletesHandler = async (req:any, res:any) => {
             w.soreness ?? 0,
             w.mood ?? 0,
             w.cognitiveLoad ?? 0,
-            w.readinessScore ? Math.round(w.readinessScore) : 0,
+            w.readinessScore ?? 0,
             w.travelFatigue ?? 0,
             w.sleepQuality ?? 0,
             w.menstrualPhase || 'Nenhuma',
