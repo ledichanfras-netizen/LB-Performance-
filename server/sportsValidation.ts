@@ -1,4 +1,5 @@
 import { normalizeReadinessScore } from '../src/utils/wellnessNumbers';
+import { normalizePerformedSetNumbers } from '../src/utils/sportNumericStorage';
 export class SportsValidationError extends Error {}
 const invalid=(field:string):never=>{throw new SportsValidationError(`Valor inválido em ${field}.`);};
 export function boundedNumber(value:unknown,field:string,min:number,max:number,integer=false){
@@ -29,7 +30,10 @@ export function validateSportsPayload(athletes:any[]){
    for(const ex of array(w.exercises,'exercícios',300)){
     boundedNumber(ex.sets,'séries',1,500,true);boundedNumber(ex.painLevel,'dor',0,10,true);
     for(const s of array(ex.performedSets,'séries realizadas',500)){
-     if(!s||typeof s!=='object')invalid('série');boundedNumber(s.reps,'repetições',0,10000,true);boundedNumber(s.weight,'carga',0,2000);boundedNumber(s.rpe,'PSE da série',0,10,true);
+     if(!s||typeof s!=='object')invalid('série');
+     const normalized = normalizePerformedSetNumbers(s);
+     boundedNumber(s.reps,'repetições',0,10000,true);boundedNumber(normalized.weight,'carga',0,2000);boundedNumber(s.rpe,'PSE da série',0,10,true);
+     if (normalized !== s) s.weight = normalized.weight;
      boundedNumber(s.timeSeconds,'tempo realizado',0,86400);boundedNumber(s.distance,'distância realizada',0,500000);boundedNumber(s.speedKmh,'velocidade',0,100);boundedNumber(s.inclinePercent,'inclinação',0,100);
      if(s.isCompleted!==undefined&&typeof s.isCompleted!=='boolean')invalid('conclusão da série');
     }

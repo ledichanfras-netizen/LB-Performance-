@@ -16,9 +16,9 @@ async function fixture(dateType:'varchar(255)'|'date'='varchar(255)'){
  CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz NOT NULL);
  CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);
  CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
- CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date ${dateType},status text,name text,phase text,rpe real,duration_minutes integer,total_load real,archived_at timestamptz,updated_at timestamptz,created_at timestamptz,trainer_notes text);
+ CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date ${dateType},status text,name text,phase text,rpe real,duration_minutes integer,total_load numeric,archived_at timestamptz,updated_at timestamptz,created_at timestamptz,trainer_notes text);
  CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,muscle_group text,reps_type text,order_index integer,prescription_meta jsonb);
- CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);
+ CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight numeric,rpe real,is_completed boolean);
  INSERT INTO athletes VALUES('own','${revision}'),('foreign','${revision}');
  INSERT INTO lb_accounts.athlete_scopes VALUES('own','org'),('foreign','other');
  INSERT INTO workouts(id,athlete_id,date,status,name) SELECT 'w-'||lpad(n::text,3,'0'),'own',('2026-10-'||lpad(((n%28)+1)::text,2,'0'))::${dateType},CASE WHEN n%3=0 THEN 'completed' WHEN n%3=1 THEN 'planned' ELSE 'in_progress' END,'Treino '||n FROM generate_series(1,61) n;

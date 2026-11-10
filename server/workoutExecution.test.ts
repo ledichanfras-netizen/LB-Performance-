@@ -11,12 +11,12 @@ const coach={role:'coach',user_id:'c',organization_id:'org'};
 async function fixture(){
  const db=new PGlite();await db.exec(`CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
  CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz);INSERT INTO athletes VALUES('a','${revision}'),('foreign','${revision}');INSERT INTO lb_accounts.athlete_scopes VALUES('a','org'),('foreign','other');
- CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date varchar(255),status text,rpe real,duration_minutes integer,feedback text,total_load real,updated_at timestamptz,archived_at timestamptz);
+ CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date varchar(255),status text,rpe real,duration_minutes integer,feedback text,total_load numeric,updated_at timestamptz,archived_at timestamptz);
  INSERT INTO workouts VALUES('w','a','2026-11-06','planned',NULL,NULL,NULL,0,'${revision}',NULL),('old','a','2026-01-01','completed',8,30,'Histórico',900,'${revision}',NULL),('foreign-w','foreign','2026-11-01','planned',NULL,NULL,NULL,0,'${revision}',NULL);
  CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,sets integer,reps text,weight text,rest text,notes text,pain_level integer,order_index integer,reps_type text,prescription_meta jsonb);
  INSERT INTO prescribed_exercises SELECT 'e'||n,'w','Exercício '||n,3,'10','20','60s','Manter técnica',0,n,'reps','{"capacity":"Força","lateralType":"bilateral"}'::jsonb FROM generate_series(1,40)n;
  INSERT INTO prescribed_exercises VALUES('foreign-e','foreign-w','Privado',3,'8','100','60s','',0,0,'reps','{}');
- CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);
+ CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight numeric,rpe real,is_completed boolean);
  INSERT INTO performed_sets VALUES('foreign-s','foreign-e',3,100,5,true);
  CREATE TABLE wellness(id text,notes text);INSERT INTO wellness VALUES('untouched','Prontidão original');`);
  const queries:string[]=[];const pool:any={connect:async()=>({query:async(q:string,p?:any[])=>{queries.push(q);return db.query(q,p);},release(){}})};
@@ -88,4 +88,17 @@ test('unavailable service stops the readiness wait and never sends session data'
 });
 test('a stalled readiness connection is bounded before the mutation stage',async()=>{
  const started=Date.now();await assert.rejects(ensureSessionServiceReady((()=>new Promise(()=>{})) as any,{maxWaitMs:25,pollMs:1,requestTimeoutMs:8}),/rascunho/);assert.ok(Date.now()-started<1000);
+});
+
+test('already-open clients can save decimal-string weights and retry after a lost acknowledgment with NUMERIC storage',async()=>{
+ const {db,pool,queries,workout}=await fixture();try{
+  for(const ex of workout.exercises)for(const set of ex.performedSets)set.weight='20.50';
+  const receipt=await saveWorkoutExecution(pool,coach,'a','w',workoutExecutionPayload(workout,revision));
+  assert.equal(receipt.workout.totalLoad,24600);
+  assert.equal(receipt.workout.exercises[0].performedSets[0].weight,20.5);
+  const before=queries.filter(q=>/^(UPDATE|INSERT|DELETE)/.test(q)).length;
+  const retry=await saveWorkoutExecution(pool,coach,'a','w',workoutExecutionPayload(workout,revision));
+  assert.equal(retry.confirmed,true);assert.equal(retry.workout.updatedAt,receipt.workout.updatedAt);
+  assert.equal(queries.filter(q=>/^(UPDATE|INSERT|DELETE)/.test(q)).length,before);
+ }finally{await db.close();}
 });

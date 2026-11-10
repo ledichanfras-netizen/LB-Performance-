@@ -1,3 +1,4 @@
+import { normalizeExternalSessionNumbers } from './sportNumericStorage';
 import type {ExternalSession,MatchEvent} from '../types';
 import {metricDay} from './metricTimeline';
 export const externalActivities=['Futebol','Futsal','Tênis','Vôlei','Vôlei de praia','Basquete','Handebol','Corrida / Atletismo','Caminhada','Ciclismo','Natação','Triatlo','Duatlo','Musculação','Funcional','Mobilidade / recuperação','Outro'];
@@ -12,7 +13,7 @@ export function externalSessionColumns(s:any){
  if(competition!==undefined&&competition!==null&&(typeof competition!=='string'||competition.length>200))throw Error('Vínculo de competição inválido.');
  return {activity:activity??null,session_time:time??null,distance_km:distance??null,competition_id:competition??externalCompetitionId(s)??null};
 }
-export const externalSessionFromRow=(s:any):ExternalSession=>({...s,durationMinutes:s.duration_minutes??s.durationMinutes,activity:s.activity||undefined,time:s.session_time??s.time??'',distanceKm:s.distance_km??s.distanceKm??null,competitionId:s.competition_id??s.competitionId??externalCompetitionId(s)});
+export const externalSessionFromRow=(s:any):ExternalSession=>normalizeExternalSessionNumbers({...s,durationMinutes:s.duration_minutes??s.durationMinutes,activity:s.activity||undefined,time:s.session_time??s.time??'',distanceKm:s.distance_km??s.distanceKm??null,competitionId:s.competition_id??s.competitionId??externalCompetitionId(s)});
 const numeric=(v:unknown)=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))?Number(v):null;
 export function externalLoad(s:Partial<ExternalSession>){const d=numeric(s.durationMinutes),r=numeric(s.rpe);return d!==null&&d>0&&r!==null&&r>=0&&r<=10?d*r:null;}
 export function externalWeeklySummary(sessions:ExternalSession[],today:string){

@@ -1,3 +1,4 @@
+import { normalizePerformedSetNumbers } from '../src/utils/sportNumericStorage';
 const fields=['capacity','method','prescriptionRole','trainingMode','metricType','distanceMeters','targetIntensity','recoverySeconds','defaultExecutionTime','fieldUnit','workRestRatio','totalDistanceMeters','executionMethod','clusterReps','intraSetRest','blockGroupId','blockTag','blockType','blockRole','blockRest','isStructuredRunning','runningBlocks','conditioningProtocol','aerobic'];
 export function exerciseMetadata(ex:any){
  const result:Record<string,unknown>={};
@@ -21,5 +22,5 @@ export function exerciseMetadata(ex:any){
 
 export function restorePerformedMetrics(ex:any,sets:any[]){
  const metrics=ex.prescription_meta?.performedMetrics||[];
- return sets.map(s=>({...s,timeSeconds:s.timeSeconds??s.time_seconds,...(metrics.find((m:any)=>m.id===s.id)||{}),isCompleted:s.isCompleted??s.is_completed??false}));
+ return sets.map(s=>normalizePerformedSetNumbers({...s,timeSeconds:s.timeSeconds??s.time_seconds,...(metrics.find((m:any)=>m.id===s.id)||{}),isCompleted:s.isCompleted??s.is_completed??false}));
 }

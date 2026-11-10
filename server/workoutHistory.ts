@@ -1,3 +1,4 @@
+import { normalizeWorkoutNumbers } from '../src/utils/sportNumericStorage';
 import {Router} from 'express';
 import {mayAccessAthlete,ScopeDenied} from './scope';
 import {sportsReadScope} from './readScope';
@@ -26,7 +27,7 @@ function pageInput(athleteId:string,query:Record<string,unknown>){
 export function workoutFromRows(wk:any,exercises:any[],sets:any[]){
  const byExercise=new Map<string,any[]>();
  for(const s of sets){const list=byExercise.get(s.exercise_id)||[];list.push(s);byExercise.set(s.exercise_id,list);}
- return {...wk,
+ return normalizeWorkoutNumbers({...wk,
   date:wk.date?(typeof wk.date==='string'?wk.date.split('T')[0]:new Date(wk.date).toISOString().split('T')[0]):wk.date,
   durationMinutes:wk.duration_minutes,totalLoad:wk.total_load,trainerNotes:wk.trainer_notes,
   updatedAt:wk.updated_at?new Date(wk.updated_at).toISOString():wk.updatedAt,
@@ -38,7 +39,7 @@ export function workoutFromRows(wk:any,exercises:any[],sets:any[]){
    repsType:ex.reps_type||'reps',order_index:Number(ex.order_index??ex.orderIndex??0),videoUrl:ex.video_url||'',imageUrl:ex.image_url||'',
    performedSets:restorePerformedMetrics(ex,orderedSets)
   };}).sort((a,b)=>a.order_index-b.order_index||String(a.id).localeCompare(String(b.id)))
- };
+ });
 }
 
 export async function readWorkoutHistoryPage(pool:any,account:any,athleteId:string,query:Record<string,unknown>){

@@ -1,3 +1,4 @@
+import { normalizePerformedSetNumbers } from './sportNumericStorage';
 /** Realized metrics never substitute a prescription for a missing observation. */
 export function sessionInternalLoad(session:{rpe?:unknown;durationMinutes?:unknown}):number|null{
  const {rpe,durationMinutes}=session;
@@ -8,7 +9,7 @@ export function realizedTonnage(exercises:ReadonlyArray<{aerobic?:unknown;traini
  let total=0;
  for(const ex of exercises||[]){
   if(ex.aerobic||(ex.trainingMode&&ex.trainingMode!=='strength')||ex.repsType==='time')continue;
-  for(const s of ex.performedSets||[])if(s.isCompleted===true&&typeof s.reps==='number'&&Number.isFinite(s.reps)&&s.reps>=0&&typeof s.weight==='number'&&Number.isFinite(s.weight)&&s.weight>=0)total+=s.reps*s.weight;
+  for(const raw of ex.performedSets||[]){const s=normalizePerformedSetNumbers(raw);if(s.isCompleted===true&&typeof s.reps==='number'&&Number.isFinite(s.reps)&&s.reps>=0&&typeof s.weight==='number'&&Number.isFinite(s.weight)&&s.weight>=0)total+=s.reps*s.weight;}
  }
  return Math.round(total);
 }

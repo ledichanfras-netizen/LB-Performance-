@@ -1,3 +1,4 @@
+import { normalizePerformedSetNumbers, normalizeWorkoutNumbers } from './utils/sportNumericStorage';
 import { normalizeReadinessScore } from './utils/wellnessNumbers';
 import { weeklyLoadMetrics, acwrMetrics } from './utils/loadWindows';
 import { sessionInternalLoad, realizedTonnage } from './utils/sessionMetrics';
@@ -1397,7 +1398,8 @@ export const sanitizeAthleteData = (a: Athlete): Athlete => {
     return Number.isFinite(parsed) ? parsed : defaultVal;
   };
 
-  const workouts = (a.workouts || []).map(w => {
+  const workouts = (a.workouts || []).map(source => {
+    const w = normalizeWorkoutNumbers({ ...source, ...(Array.isArray(source.exercises) ? { exercises: source.exercises.map(ex => ({ ...ex, ...(Array.isArray(ex.performedSets) ? { performedSets: ex.performedSets.map(normalizePerformedSetNumbers) } : {}) })) } : {}) });
     const rpe = Math.min(10, Math.max(0, sanitizeNum(w.rpe, 0)));
     const durationMinutes = Math.min(1440, Math.max(0, sanitizeNum(w.durationMinutes, 0)));
     const rawTotalLoad = sanitizeNum(w.totalLoad, realizedTonnage(w.exercises||[]));
