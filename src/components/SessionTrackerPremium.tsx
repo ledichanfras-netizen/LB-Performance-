@@ -509,7 +509,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const [hasRpe,setHasRpe]=useState(recovered?.rpeAnswered===true||(!recovered&&workout.rpe!==undefined));
   const setOverallRpe=(value:number)=>{setHasRpe(true);setRpe(value);};
   const [showFinishModal, setShowFinishModal] = useState(false);
-  const closeFinishDialog = React.useCallback(() => setShowFinishModal(false), []);
+  const [finishSaveError, setFinishSaveError] = useState("");
+  const closeFinishDialog = React.useCallback(() => { if (!finalizing.current) setShowFinishModal(false); }, []);
   useAccessibleDialog(showFinishModal ? finishDialogRef : dialogRef, showFinishModal ? closeFinishDialog : dialogClose);
   useEffect(() => {
     if (!showFinishModal) return;
@@ -638,7 +639,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     if (!isEditingCompleted && showFinishModal && (!manualDurationMinutes || manualDurationMinutes === "")) {
       setManualDurationMinutes(Math.max(1, Math.round(totalElapsedTime / 60)).toString());
     }
-  }, [showFinishModal, totalElapsedTime]);
+  }, [showFinishModal]);
 
   // Rest Timer ticking logic
   useEffect(() => {
@@ -1144,15 +1145,15 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
   const triggerFinish = async (shareSocial?: boolean | React.SyntheticEvent) => {
     if(finalizing.current)return;
     if(draftConflict){toast.error("Escolha como continuar após a atualização da prescrição.");return;}
-    if(durationNeedsConfirmation){toast.error("Confira e confirme a duração realizada após a interrupção.");setShowFinishModal(true);return;}
+    if(durationNeedsConfirmation && !showFinishModal){toast.error("Confira e confirme a duração realizada após a interrupção.");setShowFinishModal(true);return;}
     if(!hasRpe){toast.error("Selecione a PSE da sessão antes de finalizar.");setShowFinishModal(true);return;}
     const isSocial = typeof shareSocial === "boolean" ? shareSocial : false;
-    if (!isEditingCompleted && completedSetsCount < totalSetsCount * 0.5) {
+    if (!isEditingCompleted && !showFinishModal && completedSetsCount < totalSetsCount * 0.5) {
       const confirmFinish = window.confirm("Você concluiu menos da metade das séries planejadas. Deseja finalizar mesmo assim?");
       if (!confirmFinish) return;
     }
 
-    const finalDuration=manualDurationMinutes.trim()!==''?Number(manualDurationMinutes.replace(',','.')):isEditingCompleted?NaN:Math.max(1,Math.round(totalElapsedTime/60));
+    const finalDuration=manualDurationMinutes.trim()!==''?Number(manualDurationMinutes.replace(',','.')):(isEditingCompleted || showFinishModal)?NaN:Math.max(1,Math.round(totalElapsedTime/60));
     if(!Number.isInteger(finalDuration)||finalDuration<=0||finalDuration>1440){toast.error('Informe a duração realizada em minutos inteiros, entre 1 e 1440.');setShowFinishModal(true);return;}
 
     // Prepare updated exercises with synced sets count and completed flags
@@ -1187,6 +1188,8 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
       exercises: updatedExercises
     };
 
+    setDurationNeedsConfirmation(false);
+    setFinishSaveError("");
     finalizing.current=true;
     writeSessionDraft(browserDraftStorage(),storageKey,{...draftRef.current,session:completedSession,savedAt:Date.now()});
     // Keep the draft until the caller confirms the server receipt.
@@ -1194,8 +1197,13 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
     let confirmed:boolean|void=false;
     try{confirmed=await onFinish(completedSession,isSocial);}catch{toast.error("Não foi possível confirmar o salvamento. O rascunho foi preservado.");}
     finally{setIsSavingSession(false);}
-    if(confirmed!==true)finalizing.current=false;
-    else speakText(isEditingCompleted?'Alterações salvas com sucesso.':'Treino salvo com sucesso.',isVoiceEnabled);
+    if(confirmed!==true) {
+      finalizing.current=false;
+      setFinishSaveError("O salvamento não foi confirmado. Seus dados foram mantidos nesta tela para tentar novamente.");
+    } else {
+      setShowFinishModal(false);
+      speakText(isEditingCompleted?'Alterações salvas com sucesso.':'Treino salvo com sucesso.',isVoiceEnabled);
+    }
   };
 
   // Face indicator for RPE scale
@@ -2434,49 +2442,48 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
               </React.Fragment>
               );
             })}
-            {/* PAINEL DE CONCLUSÃO DO TREINO - LOCALIZADO NO FINAL DA TELA */}
-            <div className="lb-session-finish p-6 sm:p-8 bg-gradient-to-b from-[#0e1626] to-[#080d17] border border-slate-800/90 rounded-[2.5rem] shadow-2xl space-y-6 mt-10">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-[#39FF14]/15 border border-[#39FF14]/30 flex items-center justify-center text-[#39FF14] text-xl shrink-0 shadow-lg shadow-[#39FF14]/10">
-                    🏆
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-black text-[#39FF14] uppercase tracking-widest block">
-                      FINALIZAÇÃO DA SESSÃO
-                    </span>
-                    <h3 className="text-xl sm:text-2xl font-black uppercase italic text-white tracking-tight">
-                      CONCLUIR E REGISTRAR TREINO
-                    </h3>
-                  </div>
-                </div>
+            <button type="button" onClick={() => setShowFinishModal(true)}
+              className="min-h-11 w-full mt-6 rounded-2xl bg-emerald-600 px-5 py-4 font-black text-white">
+              CONCLUIR E REGISTRAR TREINO
+            </button>
+          </div>
+        )}
+      </div>
 
-                <div className="flex flex-wrap items-center gap-3 bg-slate-950/70 px-4 py-2.5 rounded-2xl border border-slate-900 shrink-0">
-                  <div className="text-left">
-                    <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block">Progresso</span>
-                    <span className="text-xs font-black text-[#39FF14]">
-                      {completedSetsCount}/{totalSetsCount} Séries ({progressPercent}%)
-                    </span>
-                  </div>
-                  <div className="h-6 w-px bg-slate-800 mx-1" />
-                  <div className="text-left">
-                    <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block">Volume</span>
-                    <span className="text-xs font-black text-white font-mono">
-                      {currentTotalLoad.toLocaleString("pt-BR")} kg
-                    </span>
-                  </div>
+      {/* Single completion screen shared by every finish entry point. */}
+      {createPortal(<AnimatePresence>
+        {showFinishModal && (
+          <div className="lb-finish-overlay fixed inset-0 z-[1400] flex items-center justify-center p-0 sm:p-4 overflow-hidden">
+            <motion.div ref={finishDialogRef} role="dialog" aria-modal="true" aria-labelledby="session-finish-title" aria-busy={isSavingSession} tabIndex={-1}
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="lb-session-finish lb-finish-dialog w-full max-w-xl h-full sm:max-h-[850px] border rounded-none sm:rounded-3xl shadow-2xl relative flex flex-col min-h-0 overflow-hidden text-left">
+              <div className="lb-finish-header shrink-0 flex justify-between items-center gap-3 border-b p-4 sm:p-5">
+                <div>
+                  <span className="text-[10px] font-black text-[#39FF14] uppercase tracking-widest block">FINALIZAÇÃO DA SESSÃO</span>
+                  <h3 id="session-finish-title" className="text-lg font-black uppercase italic text-white">CONCLUIR E REGISTRAR TREINO</h3>
                 </div>
+                <button type="button" aria-label="Fechar conclusão" disabled={isSavingSession} onClick={closeFinishDialog}
+                  className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 rounded-full disabled:opacity-50"><X className="w-5 h-5" /></button>
               </div>
-
+              <div className="lb-finish-content flex-1 min-h-0 overflow-y-auto space-y-5 p-4 sm:p-5">
+                <div className="lb-session-card grid grid-cols-2 gap-4 rounded-2xl border p-4">
+                  <div><span className="block text-[10px] font-black uppercase text-slate-400">Progresso</span><strong>{completedSetsCount}/{totalSetsCount} Séries ({progressPercent}%)</strong></div>
+                  <div><span className="block text-[10px] font-black uppercase text-slate-400">Volume</span><strong>{currentTotalLoad.toLocaleString("pt-BR")} kg</strong></div>
+                </div>
+                {incompleteExercisesCount > 0 && <div className="lb-finish-warning rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+                  Há {incompleteExercisesCount} {incompleteExercisesCount === 1 ? "exercício incompleto" : "exercícios incompletos"}. Ao finalizar, somente as séries realizadas serão contabilizadas.
+                </div>}
+                {durationNeedsConfirmation && <p role="status" className="text-sm text-amber-500">O tempo com o aplicativo fechado não foi somado. Confira e corrija a duração abaixo antes de finalizar.</p>}
+                <fieldset disabled={isSavingSession} className="space-y-5 min-w-0">
               {/* DADOS GERAIS: DATA, DURAÇÃO E PSE */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Data */}
                 <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  <label htmlFor="finish-session-date" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     📅 DATA DE EXECUÇÃO
                   </label>
                   <input
-                    type="date"
+                    id="finish-session-date" type="date"
                     value={sessionDate}
                     onChange={(e) => setSessionDate(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 focus:border-[#39FF14] rounded-xl px-3 py-2 text-xs font-bold text-white outline-none transition-all cursor-pointer"
@@ -2485,14 +2492,14 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
                 {/* Duração */}
                 <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-900">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                  <label htmlFor="finish-session-duration" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
                     ⏱️ DURAÇÃO TOTAL (MINUTOS)
                   </label>
                   <div className="relative">
                     <input
-                      type="number"
-                      min="1"
-                      value={manualDurationMinutes || Math.max(1, Math.round(totalElapsedTime / 60)).toString()}
+                      id="finish-session-duration" type="number"
+                      min="1" max="1440"
+                      value={manualDurationMinutes}
                       onChange={(e) => setManualDurationMinutes(e.target.value)}
                       onFocus={(e) => e.target.select()}
                       onClick={(e) => (e.target as HTMLInputElement).select()}
@@ -2511,10 +2518,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                   </label>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-black text-amber-400 font-mono bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl">
-                      PSE {overallRpe} — {getRpeEmojiAndInfo(overallRpe).emoji}
+                      {hasRpe ? `PSE ${overallRpe} — ${getRpeEmojiAndInfo(overallRpe).emoji}` : "Selecione a PSE"}
                     </span>
                     <span className="text-[10px] font-bold text-slate-400 uppercase">
-                      {getRpeEmojiAndInfo(overallRpe).text}
+                      {hasRpe ? getRpeEmojiAndInfo(overallRpe).text : "Como foi o esforço deste treino?"}
                     </span>
                   </div>
                 </div>
@@ -2525,7 +2532,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
                   ESCALA DE PERCEPÇÃO SUBJETIVA DO ESFORÇO (BORG CR10)
                 </label>
-                <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
                     const isSelected = hasRpe && overallRpe === v;
                     let colorClasses = "border-slate-800 hover:border-slate-600 bg-slate-900 text-slate-300";
@@ -2540,7 +2547,7 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                     return (
                       <button
                         key={v}
-                        type="button"
+                        type="button" aria-label={`PSE ${v}`}
                         aria-pressed={isSelected}
                         onClick={() => setOverallRpe(v)}
                         className={`lb-session-rpe py-2.5 rounded-xl border text-xs sm:text-sm font-black transition-all cursor-pointer flex flex-col items-center justify-center gap-0.5 ${colorClasses}`}
@@ -2555,10 +2562,10 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
 
               {/* RELATO / BIOFEEDBACK */}
               <div className="lb-session-card space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-slate-900">
-                <label className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
+                <label htmlFor="finish-session-feedback" className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">
                   💬 RELATO DE BIOFEEDBACK E OBSERVAÇÕES (OPCIONAL)
                 </label>
-                <textarea
+                <textarea id="finish-session-feedback"
                   value={feedbackNotes}
                   onChange={(e) => setFeedbackNotes(e.target.value)}
                   className="w-full h-20 bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white outline-none focus:border-[#39FF14] transition-all font-semibold resize-none"
@@ -2566,219 +2573,21 @@ export const SessionTrackerPremium: FC<SessionTrackerPremiumProps> = ({
                 />
               </div>
 
-              {/* BOTÕES DE AÇÃO PRINCIPAIS NO FINAL DA TELA */}
-              <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm("Deseja realmente sair e descartar as alterações deste treino?")) {
-                      onCancel();
-                    }
-                  }}
-                  className="px-5 py-3.5 bg-red-950/20 hover:bg-red-900 text-red-400 hover:text-white rounded-2xl border border-red-900/30 text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center shrink-0 order-2 sm:order-1"
-                >
-                  Descartar Treino
-                </button>
 
-                <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1 sm:justify-end order-1 sm:order-2">
-                  {onShareStrava && (
-                    <button
-                      type="button"
-                      onClick={() => triggerFinish(true)}
-                      className="px-6 py-4 bg-slate-900 hover:bg-slate-850 text-[#39FF14] border border-[#39FF14]/30 hover:border-[#39FF14]/60 font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      <span>Concluir & Postar Strava</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => triggerFinish(false)}
-                    className="flex-1 sm:flex-none px-8 py-4 bg-[#39FF14] hover:bg-[#32e00f] text-slate-950 font-black text-xs sm:text-sm uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-[#39FF14]/25 cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Check className="w-5 h-5 stroke-[3]" />
-                    <span>FINALIZAR TREINO 🏆</span>
-                  </button>
-                </div>
+                </fieldset>
+                {finishSaveError && <p role="alert" className="rounded-xl border border-amber-500 p-3 text-sm">{finishSaveError}</p>}
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* FINISH/RPE VERIFICATION MODAL OVERLAY */}
-      {createPortal(<AnimatePresence>
-        {showFinishModal && (
-          <div className="lb-finish-overlay fixed inset-0 z-[1400] flex items-center justify-center p-0 sm:p-4 overflow-hidden">
-            <motion.div ref={finishDialogRef} role="dialog" aria-modal="true" aria-labelledby="session-finish-title" tabIndex={-1}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="lb-session-finish lb-finish-dialog w-full max-w-xl h-full sm:max-h-[850px] border rounded-none sm:rounded-3xl shadow-2xl relative flex flex-col min-h-0 overflow-hidden text-left"
-            >
-              <div className="lb-finish-header shrink-0 flex justify-between items-center gap-3 border-b p-4 sm:p-5">
-                <div>
-                  <span className="text-[10px] font-black text-[#39FF14] uppercase tracking-widest block">ETAPA FINAL</span>
-                  <h3 id="session-finish-title" className="text-lg font-black uppercase italic text-white tracking-tight mt-0.5 font-sans">RESUMO & VALIDAÇÃO DE PSE</h3>
-                </div>
-                <button
-                  type="button" aria-label="Fechar resumo"
-                  onClick={() => setShowFinishModal(false)}
-                  className="min-h-11 min-w-11 flex items-center justify-center text-slate-400 rounded-full transition-all"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="lb-finish-content flex-1 min-h-0 overflow-y-auto space-y-5 p-4 sm:p-5">
-              {incompleteExercisesCount > 0 && (
-                <div className="lb-finish-warning bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3.5 rounded-2xl flex items-start gap-2.5 text-xs">
-                  <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0" />
-                  <div>
-                    <p className="font-black uppercase tracking-wider text-[10px]">Atenção: Exercícios Incompletos ⚠️</p>
-                    <p className="font-semibold text-[10px] text-slate-400 mt-0.5">
-                      Você possui <strong className="text-amber-400">{incompleteExercisesCount}</strong> {incompleteExercisesCount === 1 ? "exercício incompleto" : "exercícios incompletos"} neste treino. Tem certeza de que deseja encerrar o treino agora?
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* EDIT DATE & TIME SECTION */}
-              <div className="lb-session-card bg-slate-950/50 border border-slate-900 p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label htmlFor="finish-session-date" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                    📅 DATA DE EXECUÇÃO
-                  </label>
-                  <input
-                    id="finish-session-date" type="date"
-                    value={sessionDate}
-                    onChange={(e) => setSessionDate(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-900 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none focus:border-[#39FF14] transition-all cursor-pointer"
-                  />
-                  <p className="text-[8px] text-slate-500 font-semibold leading-normal">
-                    Caso tenha treinado em outro dia ou queira corrigir a data.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor="finish-session-duration" className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                    ⏱️ TEMPO TOTAL DO TREINO
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="finish-session-duration" type="number"
-                      min="1"
-                      max="480"
-                      value={manualDurationMinutes}
-                      onChange={(e) => setManualDurationMinutes(e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                      placeholder={`${Math.max(1, Math.round(totalElapsedTime / 60))} (timer atual)`}
-                      className="w-full bg-slate-950 border border-slate-900 rounded-xl pl-3 pr-16 py-2 text-xs font-bold text-white outline-none focus:border-[#39FF14] transition-all cursor-pointer"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-500 uppercase tracking-wider select-none pointer-events-none">
-                      MINUTOS
-                    </span>
-                  </div>
-                  <p className="text-[8px] text-slate-500 font-semibold leading-normal">
-                    Edite ou digite o tempo exato para não depender do cronômetro da página.
-                  </p>
-                </div>
-              </div>
-
-              {/* PSE (RPE) SELECTOR */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <label className="text-xs font-black text-slate-300 uppercase tracking-wider block">
-                    PSE DA SESSÃO (Escala de Borg CR10)
-                  </label>
-                  <span className="text-sm font-black text-amber-400 font-mono bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl">
-                    PSE {overallRpe} — {getRpeEmojiAndInfo(overallRpe).emoji}
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 font-semibold select-none leading-relaxed">
-                  Classifique a intensidade geral deste treino considerando a percepção subjetiva do seu esforço:
-                </p>
-
-                {/* Big touch-friendly buttons for RPE 1-10 */}
-                <div className="grid grid-cols-5 gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
-                    const isSelected = hasRpe && overallRpe === v;
-                    let colorClasses = "border-slate-800 hover:border-slate-500 text-slate-300";
-                    if (isSelected) {
-                      if (v <= 2) colorClasses = "bg-green-500/25 border-green-500 text-green-400 shadow-[0_0_15px_rgba(34,197,94,0.2)]";
-                      else if (v <= 4) colorClasses = "bg-yellow-500/25 border-yellow-500 text-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.2)]";
-                      else if (v <= 6) colorClasses = "bg-orange-500/25 border-orange-500 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.2)]";
-                      else if (v <= 8) colorClasses = "bg-red-500/25 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]";
-                      else colorClasses = "bg-purple-500/25 border-purple-500 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.2)] font-black";
-                    }
-
-                    return (
-                      <button
-                        key={v}
-                        type="button"
-                        aria-pressed={isSelected}
-                        onClick={() => setOverallRpe(v)}
-                        className={`lb-session-rpe py-3 rounded-xl border text-sm font-black transition-all cursor-pointer ${colorClasses} hover:scale-[1.05]`}
-                      >
-                        {v}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="text-center p-2.5 bg-slate-950/60 rounded-xl border border-slate-900/40 select-none">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    {getRpeEmojiAndInfo(overallRpe).text}
-                  </span>
-                </div>
-              </div>
-
-              {/* FEEDBACK NOTES AREA */}
-              <div className="space-y-2">
-                <label htmlFor="finish-session-feedback" className="text-xs font-black text-slate-300 uppercase tracking-wider block">
-                  RELATO DE BIOFEEDBACK (OPCIONAL)
-                </label>
-                <textarea id="finish-session-feedback"
-                  value={feedbackNotes}
-                  onChange={(e) => setFeedbackNotes(e.target.value)}
-                  className="w-full h-24 bg-slate-950 border border-slate-900 rounded-2xl p-3 text-xs text-white outline-none focus:border-[#39FF14] transition-all font-semibold resize-none"
-                  placeholder="Ex: Senti um leve cansaço no posterior durante a 3ª série do agachamento. Prontidão excelente para o restante."
-                />
-              </div>
-
-              </div>
-              {/* SAVE ACTION */}
               <div className="lb-finish-actions shrink-0 p-3 sm:p-4 border-t flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowFinishModal(false);
-                    triggerFinish(true);
-                  }}
-                  className="lb-finish-submit w-full min-h-11 py-3.5 bg-gradient-to-r from-[#10b981] to-[#39FF14] hover:opacity-95 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-[#39FF14]/20 cursor-pointer text-center flex items-center justify-center gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>CONCLUIR & POSTAR TREINO ⚡</span>
-                </button>
+                {isSavingSession && <p role="status" className="text-sm font-bold">Salvando treino… Aguarde a confirmação.</p>}
+                {onShareStrava && <button type="button" disabled={isSavingSession} onClick={() => triggerFinish(true)}
+                  className="lb-finish-submit min-h-11 w-full rounded-xl px-4 py-3 text-xs font-black disabled:opacity-50 flex items-center justify-center gap-2">
+                  <Share2 className="w-4 h-4" /> CONCLUIR E POSTAR TREINO
+                </button>}
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowFinishModal(false)}
-                    className="lb-finish-return flex-1 min-h-11 py-3 border border-slate-800 hover:border-slate-500 text-slate-400 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer text-center"
-                  >
-                    VOLTAR AO TREINO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowFinishModal(false);
-                      triggerFinish(false);
-                    }}
-                    className="lb-finish-submit flex-1 min-h-11 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer text-center"
-                  >
-                    CONCLUIR SESSÃO 🏆
-                  </button>
+                  <button type="button" disabled={isSavingSession} onClick={closeFinishDialog}
+                    className="lb-finish-return flex-1 min-h-11 rounded-xl border px-3 py-3 text-xs font-black disabled:opacity-50">VOLTAR AO TREINO</button>
+                  <button type="button" disabled={isSavingSession} onClick={() => triggerFinish(false)}
+                    className="lb-finish-submit flex-1 min-h-11 rounded-xl px-3 py-3 text-xs font-black disabled:opacity-50">{isSavingSession ? "SALVANDO…" : "FINALIZAR TREINO"}</button>
                 </div>
               </div>
             </motion.div>
