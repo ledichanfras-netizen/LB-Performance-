@@ -1,4 +1,5 @@
 import ReportSheet from './components/ReportSheet';
+import { resetPageScroll } from './utils/navigationScroll';
 import { toReportJpeg } from './utils/reportLayout';
 import { browserDraftStorage, clearSessionDraft } from './utils/sessionDraft';
 import LBMethodIcon from './components/LBMethodIcon';
@@ -17,7 +18,7 @@ import { normalizeBirthDate } from "./utils/birthDate";
 import OptionsMenuModal from "./components/OptionsMenuModal";
 import { orderedExercises } from "./utils/exerciseOrder";
 import SettingsPage from "./pages/Settings";
-import React, { FC, useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { FC, useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -1334,9 +1335,7 @@ const EliteHubApp: FC<{
     return undefined;
   }, [athletes, selectedId, user]);
 
-  useEffect(() => {
-    if (window.matchMedia("(min-width: 768px)").matches) window.scrollTo({top:0,behavior:"auto"});
-  }, [activeTab, dashboardSubTab, selected?.id]);
+  useLayoutEffect(resetPageScroll, [activeTab, dashboardSubTab, selected?.id]);
 
   useEffect(()=>{
     if(selected && isAssessmentOnly(selected) && activeTab!=="assessment" && activeTab!=="info" && !(activeTab === "competitions" && user?.role === "coach")){
@@ -1564,7 +1563,7 @@ const EliteHubApp: FC<{
     <div className="lb-app-shell min-h-screen bg-brand-dark text-slate-100 font-sans flex flex-col md:flex-row overflow-x-hidden relative no-scrollbar">
         <>
           {/* Mobile Bottom Navigation Bar (Fixed modern layout in requested order) */}
-          <div className="coach-mobile-nav flex md:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#070b14]/95 backdrop-blur-3xl border-t border-slate-850/90 z-[1010] items-center px-4 shadow-[0_-12px_36px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar select-none">
+          <div onClickCapture={resetPageScroll} className="coach-mobile-nav flex md:hidden fixed bottom-0 left-0 right-0 h-20 bg-[#070b14]/95 backdrop-blur-3xl border-t border-slate-850/90 z-[1010] items-center px-4 shadow-[0_-12px_36px_rgba(0,0,0,0.85)] overflow-x-auto no-scrollbar select-none">
             <div className="flex flex-row items-center gap-2.5 w-max py-1.5 pr-4">
               {/* 1. PAINEL GERAL item */}
               <button
@@ -1822,7 +1821,7 @@ const EliteHubApp: FC<{
               </div>
 
               {/* Sidebar Menu - Desktop (In requested order) */}
-              <div className="hidden md:flex flex-col gap-1.5 w-full">
+              <div onClickCapture={resetPageScroll} className="hidden md:flex flex-col gap-1.5 w-full">
                 {/* 1. Painel Geral Tab */}
                 <button
                   onClick={() => {
