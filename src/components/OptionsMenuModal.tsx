@@ -1,3 +1,4 @@
+import {requireCompleteAthletes} from '../utils/progressiveAthletes';
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -42,6 +43,7 @@ interface OptionsMenuModalProps {
   athletes?: Athlete[];
   onImportAthletes?: (imported: Athlete[]) => Promise<void>;
   onSync?: () => Promise<boolean>;
+  onLoadCompleteAthletes?:()=>Promise<Athlete[]>;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
   onLogout?: () => void;
@@ -64,6 +66,7 @@ export default function OptionsMenuModal({
   athletes = [],
   onImportAthletes,
   onSync,
+  onLoadCompleteAthletes,
   theme,
   onToggleTheme,
   onLogout,
@@ -104,9 +107,15 @@ export default function OptionsMenuModal({
     }
   }, [isOpen, activeSubTab]);
 
-  const handleExportBackup = () => {
+  const [exportBusy,setExportBusy]=useState(false);
+  const handleExportBackup = async () => {
+    if(exportBusy)return;
+    setExportBusy(true);
+    const toastId=toast.loading('Carregando dados completos para o backup...');
     try {
-      const cleanAthletes = (athletes || []).filter(
+      const source=onLoadCompleteAthletes?await onLoadCompleteAthletes():athletes;
+      requireCompleteAthletes(source);
+      const cleanAthletes = (source || []).filter(
         (a) => a && a.id && !a.id.startsWith("featured-") && !a.id.startsWith("model-")
       );
       if (cleanAthletes.length === 0) {
@@ -133,7 +142,7 @@ export default function OptionsMenuModal({
       toast.success(`${cleanAthletes.length} atletas exportados com sucesso!`);
     } catch (err: any) {
       toast.error("Erro ao gerar backup: " + err.message);
-    }
+    }finally{setExportBusy(false);toast.dismiss(toastId);}
   };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -691,7 +700,7 @@ export default function OptionsMenuModal({
 
                     <button
                       onClick={handleExportBackup}
-                      disabled={athletes.length === 0}
+                      disabled={exportBusy || athletes.length === 0}
                       className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:pointer-events-none text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <Download className="w-4 h-4" />

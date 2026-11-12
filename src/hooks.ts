@@ -1,3 +1,4 @@
+import {mergeDashboardAthletes,requireCompleteAthletes} from './utils/progressiveAthletes';
 import {persistAnamnesisHistory} from './utils/anamnesisSave';
 import {ensureSessionServiceReady} from './utils/sessionServiceReady';
 import {workoutExecutionPayload} from './utils/workoutExecution';
@@ -52,7 +53,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
     try {
       if(options.signal?.aborted)throw new DOMException("Operação interrompida.","AbortError");
       const response = await fetchWithDeadline(url, { cache: 'no-store', ...options });
-      if (url === '/api/salvar' && [502, 503, 504].includes(response.status) && attempt < retries) {
+      if ((url === '/api/salvar' || (!options.method || options.method==='GET')) && [502, 503, 504].includes(response.status) && attempt < retries) {
         await response.text();
         await new Promise(resolve => setTimeout(resolve, delayMs));
         delayMs *= 2;
@@ -97,6 +98,10 @@ const ensureImtpAndMigrate = migrateLegacyImtp;
 export const useAthletes = (token?: string | null) => {
   const readOnly = isSupervisedToken(token);
   const cacheKey = athleteCacheKey(token);
+  const activeTokenRef=useRef(token);activeTokenRef.current=token;
+  const stateOwnerRef=useRef(token);
+  const detailRequests=useRef(new Map<string,Promise<Athlete>>());
+  const [loadError,setLoadError]=useState<string|null>(null);
   const [rawAthletes, setRawAthletes] = useState<Athlete[]>(() => {
     try {
       if (typeof localStorage !== 'undefined') purgeFictitiousAthletes(localStorage);
@@ -140,7 +145,7 @@ export const useAthletes = (token?: string | null) => {
     };
   };
 
-  const athletes = useMemo(()=>rawAthletes.map(normalizeAthlete),[rawAthletes]);
+  const athletes = useMemo(()=>stateOwnerRef.current===token?rawAthletes.map(normalizeAthlete):[],[rawAthletes,token]);
 
   const setAthletes = (v: Athlete[] | ((prev: Athlete[]) => Athlete[])) => {
     if (typeof v === 'function') {
@@ -174,7 +179,7 @@ export const useAthletes = (token?: string | null) => {
 
   // Update cache whenever athletes change
   useEffect(() => {
-    if (!readOnly && athletes.length > 0) {
+    if (!readOnly && stateOwnerRef.current===token && athletes.length > 0) {
       safeLocalStorage.setItem(cacheKey, JSON.stringify(athletes));
     }
   }, [athletes, cacheKey]);
@@ -202,18 +207,18 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const api = {
-    async loadAthletes(isSilent = false): Promise<Athlete[]> {
+    async loadAthletes(isSilent = false,view:'full'|'dashboard'='full',athleteId?:string): Promise<Athlete[]> {
       const controller=new AbortController();
       let timeout:ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<Athlete[]>((_, reject) => {
-        timeout=setTimeout(()=>{controller.abort();reject(new Error('TIMEOUT_GLOBAL'));},180000);
+        timeout=setTimeout(()=>{controller.abort();reject(new Error('TIMEOUT_GLOBAL'));},view==='dashboard'?30000:120000);
       });
 
       const fetchPromise = (async (): Promise<Athlete[]> => {
         try {
           if (token) {
             console.log('Tentando carregar dados da API local (/api/ler)...');
-            return await loadPagedAthletes(async (url)=>{
+            const read=async (url:string)=>{
             const res = await resilientFetch(url, {
               signal: controller.signal,
               headers: {
@@ -238,7 +243,8 @@ export const useAthletes = (token?: string | null) => {
               throw new Error(`Erro do servidor (/api/ler): ${res.status} ${resText}`);
             }
             return JSON.parse(resText);
-            });
+            };
+            return view==='dashboard'?await read('/api/ler?view=dashboard'):await loadPagedAthletes(read,athleteId);
           }
           console.log('Tentando carregar dados do Supabase...');
           return await supabaseService.loadAthletes();
@@ -396,7 +402,9 @@ export const useAthletes = (token?: string | null) => {
 
       console.log('Buscando atletas do banco de forma resiliente...');
       const readRevision = saveRevisionRef.current;
-      const data = await api.loadAthletes(isSilent);
+      const data = await api.loadAthletes(isSilent,'dashboard');
+      if(activeTokenRef.current!==token)return false;
+      setLoadError(null);
       // A response started before an edit must not replace the newly ordered workout.
       if (readRevision !== saveRevisionRef.current) return false;
       if (data) {
@@ -442,7 +450,7 @@ export const useAthletes = (token?: string | null) => {
         })();
 
         // Merge remote response safely with local cache/state
-        const mergedAthletes = mergeAthletesWithLocalCache(localCachedAthletes, filtered, {authoritativeWorkouts:true});
+        const mergedAthletes = mergeDashboardAthletes(localCachedAthletes, filtered);
 
         // Detect if new workouts or wellness items arrived from another device during silent background sync
         if (isSilent && athletesRef.current.length > 0) {
@@ -466,6 +474,8 @@ export const useAthletes = (token?: string | null) => {
 
       }
     } catch (err: any) {
+      if(activeTokenRef.current!==token)return false;
+      setLoadError('Não foi possível atualizar os dados. Verifique sua conexão e tente novamente.');
       if (!token && isPermissionDeniedError(err)) {
         console.warn('[Sync] Permissão restrita no Supabase (código 42501). Operando em modo offline persistente.');
         if (!isSilent) {
@@ -514,17 +524,23 @@ export const useAthletes = (token?: string | null) => {
       }
       return false;
     } finally {
-      syncingRef.current = false;
-      setSyncing(false);
-      if (!isSilent) setLoading(false);
+      if(activeTokenRef.current===token){
+        syncingRef.current = false;
+        setSyncing(false);
+        if (!isSilent) setLoading(false);
+      }
     }
     return false;
   };
 
   useEffect(() => {
-    // If local athletes exist in cache, perform silent background sync on startup to avoid cold-start error toasts
-    const hasInitialData = athletesRef.current.length > 0;
-    syncData(hasInitialData);
+    // Rehydrate this account immediately after login; never display another session's memory.
+    stateOwnerRef.current=token;
+    syncingRef.current=false;detailRequests.current.clear();setLoadError(null);
+    let initial:Athlete[]=[];
+    if(token&&!readOnly)try{const cached=JSON.parse(safeLocalStorage.getItem(cacheKey)||'[]');if(Array.isArray(cached))initial=cached;}catch{}
+    athletesRef.current=initial;setAthletes(initial);setLoading(!!token&&!initial.length);
+    syncData(initial.length>0);
 
     // Refresh on device return without continuously polling an inactive app.
     const handleRefocusOrOnline = () => {
@@ -634,7 +650,40 @@ export const useAthletes = (token?: string | null) => {
     }
   }, [token]);
 
+  const ensureAthleteLoaded=async(athleteId:string):Promise<Athlete>=>{
+    const current=athletesRef.current.find(a=>a.id===athleteId);
+    if(current&&current.historyComplete!==false)return current;
+    const key=`${token}:${athleteId}`;
+    if(detailRequests.current.has(key))return detailRequests.current.get(key)!;
+    const revision=saveRevisionRef.current;
+    const task=(async()=>{
+      const loaded=(await api.loadAthletes(true,'full',athleteId)).find(a=>a.id===athleteId);
+      if(activeTokenRef.current!==token)throw Error('Sessão alterada.');
+      if(!loaded)throw Error('Não foi possível encontrar o atleta autorizado. Atualize o painel.');
+      requireCompleteAthletes([loaded]);
+      if(revision!==saveRevisionRef.current)throw Error('Os dados mudaram durante a leitura. Tente novamente.');
+      const existing=athletesRef.current.find(a=>a.id===athleteId);
+      const merged=mergeAthletesWithLocalCache(existing?[existing]:[],[loaded],{authoritativeWorkouts:true})[0];
+      const next=athletesRef.current.map(a=>a.id===athleteId?merged:a);
+      athletesRef.current=next;setAthletes(next);
+      return merged;
+    })();
+    detailRequests.current.set(key,task);
+    try{return await task;}finally{detailRequests.current.delete(key);}
+  };
+  const loadAllAthletes=async():Promise<Athlete[]>=>{
+    const revision=saveRevisionRef.current;
+    const loaded=await api.loadAthletes(true);
+    if(activeTokenRef.current!==token||revision!==saveRevisionRef.current)throw Error('Os dados mudaram. Tente novamente.');
+    requireCompleteAthletes(loaded);
+    const merged=loaded.map(remote=>mergeAthletesWithLocalCache(athletesRef.current.filter(a=>a.id===remote.id),[remote],{authoritativeWorkouts:true})[0]);
+    requireCompleteAthletes(merged);
+    athletesRef.current=merged;setAthletes(merged);
+    return merged;
+  };
+
   const save = async (newAthletes: Athlete[], specificAthleteId?: string | string[]) => {
+    try{requireCompleteAthletes(specificAthleteId?newAthletes.filter(a=>Array.isArray(specificAthleteId)?specificAthleteId.includes(a.id):a.id===specificAthleteId):newAthletes);}catch(error:any){toast.error(error.message);return false;}
     let syncConflict = false;
     saveRevisionRef.current += 1;
     pendingSavesRef.current += 1;
@@ -689,7 +738,7 @@ export const useAthletes = (token?: string | null) => {
     try {
       const res=await fetch(`/api/athletes/${encodeURIComponent(athleteId)}/reassessment`,{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({plan})});
       const receipt=await res.json();if(!res.ok)throw new Error(receipt.error || 'Não foi possível salvar o agendamento.');
-      const latest=(await api.loadAthletes(true)).find(a=>a.id===athleteId);
+      const latest=(await api.loadAthletes(true,'full',athleteId)).find(a=>a.id===athleteId);
       if(!latest)throw new Error('Agendamento salvo. Atualize o aplicativo para confirmar a sincronização.');
       setAthletes(prev=>prev.map(a=>a.id===athleteId?latest:a));
     } finally {pendingSavesRef.current -= 1;}
@@ -698,13 +747,15 @@ export const useAthletes = (token?: string | null) => {
   const updateFollowUpType = async (ids: string[], type: FollowUpType) => {
     if(readOnly || !token)throw new Error('Apenas o treinador responsável pode alterar cadastros.');
     if(!ids.length)return;
-    const updated=athletes.map(a=>ids.includes(a.id)?{...a,followUpType:type}:a);
+    for(const id of ids)await ensureAthleteLoaded(id);
+    const updated=athletesRef.current.map(a=>ids.includes(a.id)?{...a,followUpType:type}:a);
     setAthletes(updated);
     if(!await save(updated,ids))throw new Error('Não foi possível confirmar o salvamento. Sincronize e tente novamente.');
     toast.success(type==='assessment-only'?'Cadastros movidos para Alunos — somente avaliações.':'Cadastros movidos para Atletas.');
   };
 
   const updateAthlete = async (athleteId: string, data: Partial<Athlete>) => {
+    await ensureAthleteLoaded(athleteId);
     if (Object.keys(data).length === 1 && 'anamnesis' in data) {
       if (readOnly || !token || !Array.isArray(data.anamnesis)) throw new Error('Não foi possível autorizar o salvamento da anamnese.');
       const current = athletesRef.current.find(a=>a.id===athleteId);
@@ -729,7 +780,7 @@ export const useAthletes = (token?: string | null) => {
       }
       return;
     }
-    const updated = athletes.map(a => a.id === athleteId ? { ...a, ...data } : a);
+    const updated = athletesRef.current.map(a => a.id === athleteId ? { ...a, ...data } : a);
     setAthletes(updated);
     if(!await save(updated, athleteId)) {
       if ('anamnesis' in data) throw new Error('A anamnese ainda não foi confirmada no banco. A cópia local foi preservada.');
@@ -837,7 +888,7 @@ export const useAthletes = (token?: string | null) => {
   };
 
   const addWorkouts = async (athleteId: string, workoutsToAdd: Omit<Workout, 'id'>[]) => {
-    const updated = athletes.map(a => {
+    const updated = athletesRef.current.map(a => {
       if (a.id === athleteId) {
         const history = Array.isArray(a.workouts) ? a.workouts : [];
         const newWorkoutsWithIds = workoutsToAdd.map((w, idx) => ({
@@ -1100,7 +1151,7 @@ export const useAthletes = (token?: string | null) => {
     console.log("Iniciando geração de treinos IA Co-Pilot para:", athlete.name, "com opções:", options);
     
     try {
-      const freshAthlete = (await api.loadAthletes(true)).find(a=>a.id===athlete.id);
+      const freshAthlete = (await api.loadAthletes(true,'full',athlete.id)).find(a=>a.id===athlete.id);
       if (!freshAthlete) throw new Error('Não foi possível carregar os dados atuais do aluno.');
       athlete = freshAthlete;
       const dayNamesPt = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
@@ -1386,7 +1437,7 @@ export const useAthletes = (token?: string | null) => {
             periodizationStart:startStr, periodizationEnd:endStr, trainingDays:targetDays,
             academyDays:effectiveAcademyDays, courtDays:effectiveCourtDays
           }, replacePendingWorkouts, {
-            load:()=>api.loadAthletes(true), save:a=>api.saveAthlete(a),
+            load:()=>api.loadAthletes(true,'full',athlete.id), save:a=>api.saveAthlete(a),
             draft:a=>updateUnsavedDrafts([a],true)
           });
           // Use current memory, not the render captured before generation started.
@@ -1539,7 +1590,7 @@ export const useAthletes = (token?: string | null) => {
 
   const guard=<T extends (...args:any[])=>any>(fn:T):T => (readOnly ? ((..._args:any[])=>{toast.error("Supervisão somente leitura: peça ao treinador para alterar o registro.");}) : fn) as T;
   return { 
-    athletes, loading, syncing, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), saveReassessmentPlan: guard(saveReassessmentPlan), updateFollowUpType: guard(updateFollowUpType), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
+    athletes, loading:loading||stateOwnerRef.current!==token, syncing, loadError, ensureAthleteLoaded, loadAllAthletes, lastSyncedAt, setAthletes: guard(setAthletes), save: guard(save), addAthlete: guard(addAthlete), updateAthlete: guard(updateAthlete), saveReassessmentPlan: guard(saveReassessmentPlan), updateFollowUpType: guard(updateFollowUpType), deleteAthlete: guard(deleteAthlete), addWellness: guard(addWellness), updateWellness: guard(updateWellness), deleteWellness: guard(deleteWellness),
     addWorkout: guard(addWorkout), addWorkouts: guard(addWorkouts), updateWorkout: guard(updateWorkout), deleteWorkout: guard(deleteWorkout), addAssessment: guard(addAssessment), updateAssessment: guard(updateAssessment),
     removeAssessment: guard(removeAssessment), analyzePerformance: guard(analyzePerformance), generateAIWorkouts: guard(generateAIWorkouts), addExternalSession: guard(addExternalSession), updateExternalSession: guard(updateExternalSession), deleteExternalSession: guard(deleteExternalSession),
     importDemoAthlete: guard(importDemoAthlete), syncData, iframeCookieWarning

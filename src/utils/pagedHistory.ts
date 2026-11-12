@@ -2,10 +2,10 @@ import type {Athlete,Workout} from '../types';
 export class HistoryChangedError extends Error {}
 type ReadJSON=(url:string)=>Promise<any>;
 /** Partial data stays private until every page of every athlete has been validated. */
-export async function loadPagedAthletes(read:ReadJSON):Promise<Athlete[]>{
+export async function loadPagedAthletes(read:ReadJSON,athleteId?:string):Promise<Athlete[]>{
  for(let attempt=0;attempt<2;attempt++){
   try{
-   const initial=await read('/api/ler?history=paged');
+   const initial=await read('/api/ler?history=paged'+(athleteId?'&athleteId='+encodeURIComponent(athleteId):''));
    if(!Array.isArray(initial))throw Error('Resposta de atletas inválida.');
    const result:Athlete[]=new Array(initial.length);let index=0;
    const worker=async()=>{

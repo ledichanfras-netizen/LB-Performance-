@@ -1,3 +1,5 @@
+import DataLoadState from './components/DataLoadState';
+import {fetchWithDeadline} from './utils/requestDeadline';
 import ReportSheet from './components/ReportSheet';
 import { resetPageScroll } from './utils/navigationScroll';
 import { toReportJpeg } from './utils/reportLayout';
@@ -386,7 +388,7 @@ const Login: FC<{
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetchWithDeadline("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -430,7 +432,7 @@ const Login: FC<{
         console.error("Erro de rede no login:", err);
       }
       setError(
-        `Erro ao conectar com o servidor: ${err.message || "Verifique sua conexão."}`,
+        err.name==='RequestTimeout'?"O servidor demorou para confirmar o acesso. Tente novamente.":`Erro ao conectar com o servidor: ${err.message || "Verifique sua conexão."}`,
       );
     } finally {
       setLoading(false);
@@ -669,6 +671,9 @@ const EliteHubApp: FC<{
     athletes,
     loading,
     syncing,
+    loadError,
+    ensureAthleteLoaded,
+    loadAllAthletes,
     setAthletes,
     save,
     addAthlete,
@@ -1206,6 +1211,7 @@ const EliteHubApp: FC<{
     const toastId = toast.loading("Sincronizando clonagem...");
 
     try {
+      await ensureAthleteLoaded(targetAthleteId);
       const newWorkoutsBatch: Omit<Workout, "id">[] = [];
       for (let i = 0; i < weeks; i++) {
         const date = new Date(start);
@@ -1335,6 +1341,23 @@ const EliteHubApp: FC<{
     return undefined;
   }, [athletes, selectedId, user]);
 
+  const [detailError,setDetailError]=useState<{id:string;message:string}|null>(null);
+  const [detailRetry,setDetailRetry]=useState(0);
+  const [allDataError,setAllDataError]=useState<string|null>(null);
+  const partialForChat=isAiChatOpen&&athletes.some(a=>a.historyComplete===false);
+  useEffect(()=>{
+    if(!selected||selected.historyComplete!==false)return;
+    let cancelled=false;setDetailError(null);
+    ensureAthleteLoaded(selected.id).catch(error=>{if(!cancelled)setDetailError({id:selected.id,message:error.message});});
+    return()=>{cancelled=true;};
+  },[selected?.id,selected?.syncRevision,selected?.historyComplete,detailRetry]);
+  useEffect(()=>{
+    if(!partialForChat)return;
+    let cancelled=false;setAllDataError(null);
+    loadAllAthletes().catch(error=>{if(!cancelled)setAllDataError(error.message);});
+    return()=>{cancelled=true;};
+  },[partialForChat,detailRetry]);
+
   useLayoutEffect(resetPageScroll, [activeTab, dashboardSubTab, selected?.id]);
 
   useEffect(()=>{
@@ -1459,34 +1482,9 @@ const EliteHubApp: FC<{
     setModalState({ type: "active-session", editingData: w });
   };
 
-  if (user && loading && athletes.length === 0)
-    return (
-      <div className="h-screen flex flex-col items-center justify-center bg-[#020617] text-[#10b981] font-black uppercase tracking-[0.3em] md:tracking-[0.5em] p-4 text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] bg-[#10b981]/5 rounded-full blur-[140px] animate-pulse"></div>
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-28 h-28 rounded-[2.5rem] bg-slate-900/90 shadow-[0_0_60px_rgba(16,185,129,0.4)] border border-brand-primary/30 flex items-center justify-center mb-8 animate-bounce overflow-hidden">
-            <img
-              src="/pwa-192x192.svg"
-              className="app-logo filter drop-shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-              alt="LB Logo"
-            />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl md:text-3xl tracking-[0.4em] font-black italic">
-              LB PERFORMANCE
-            </h1>
-            <p className="text-[10px] text-slate-500 tracking-[0.8em] font-bold">
-              BIOFEEDBACK HUB
-            </p>
-          </div>
-          <div className="mt-12 flex gap-1">
-            <div className="w-1.5 h-1.5 bg-[#10b981] rounded-full animate-[ping_1.5s_infinite_0s]"></div>
-            <div className="w-1.5 h-1.5 bg-[#10b981] rounded-full animate-[ping_1.5s_infinite_0.2s]"></div>
-            <div className="w-1.5 h-1.5 bg-[#10b981] rounded-full animate-[ping_1.5s_infinite_0.4s]"></div>
-          </div>
-        </div>
-      </div>
-    );
+  if(user && athletes.length===0 && (loading||loadError))return <DataLoadState title="Carregando painel e atletas" error={loadError} onRetry={()=>{void syncData();}}/>;
+  if(user && selected?.historyComplete===false)return <DataLoadState title={`Carregando dados de ${selected.name}`} error={detailError?.id===selected.id?detailError.message:null} onRetry={()=>setDetailRetry(n=>n+1)} onBack={user.role==='coach'?()=>{setSelectedId(null);setActiveTab('dash');setDashboardSubTab('pro');}:undefined}/>;
+  if(user && partialForChat)return <DataLoadState title="Carregando histórico para análise" error={allDataError} onRetry={()=>setDetailRetry(n=>n+1)} onBack={()=>setIsAiChatOpen(false)}/>;
 
   const SidebarItem = ({
     id,
@@ -2255,6 +2253,7 @@ const EliteHubApp: FC<{
 
           <div className="lb-app-content flex-grow flex flex-col min-h-screen min-h-[100dvh] pb-24 md:pb-16 md:h-[100dvh] md:overflow-y-scroll no-scrollbar bg-brand-dark">
             <main className="lb-app-main w-full max-w-[1600px] mx-auto px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12 relative z-[10] flex-grow no-scrollbar auto-rows-min">
+              {loadError&&<div role="status" className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 text-amber-950 p-4 text-sm">{loadError} Os dados exibidos são deste dispositivo. <button type="button" className="underline font-bold p-2" onClick={()=>{void syncData();}}>Tentar novamente</button></div>}
               {iframeCookieWarning && (
                 <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
@@ -4934,6 +4933,7 @@ const EliteHubApp: FC<{
               user={user}
               selectedAthlete={selected}
               athletes={athletes}
+              onLoadCompleteAthletes={loadAllAthletes}
               onImportAthletes={async(importedList)=>{
                 const headers={'Content-Type':'application/json',Authorization:`Bearer ${user?.token||''}`};
                 const previewResponse=await fetch('/api/backup/import',{method:'POST',headers,body:JSON.stringify({athletes:importedList,dryRun:true})});
