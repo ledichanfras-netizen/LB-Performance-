@@ -6,11 +6,12 @@ REVOKE ALL ON SCHEMA lb_billing FROM PUBLIC, anon, authenticated;
 CREATE TABLE IF NOT EXISTS lb_billing.plans (
  id uuid PRIMARY KEY, name text NOT NULL, audience text NOT NULL CHECK(audience IN ('coach','athlete')),
  price_cents integer NOT NULL CHECK(price_cents>=0), duration_days integer NOT NULL CHECK(duration_days BETWEEN 1 AND 366),
+ calendar_months integer CHECK(calendar_months IN (1,3,6,12)), by_periodization boolean NOT NULL DEFAULT false,
  grace_days integer NOT NULL DEFAULT 3 CHECK(grace_days BETWEEN 0 AND 30), athlete_limit integer CHECK(athlete_limit>0)
 );
 CREATE TABLE IF NOT EXISTS lb_billing.subscriptions (
  id uuid PRIMARY KEY, user_id text NOT NULL UNIQUE REFERENCES public.users(id), plan_id uuid NOT NULL REFERENCES lb_billing.plans(id),
- valid_until timestamptz, suspended boolean NOT NULL DEFAULT false,
+ valid_until timestamptz, payment_required boolean,complimentary_until date,access_start date, suspended boolean NOT NULL DEFAULT false,
  provider text, provider_subscription_id text UNIQUE
 );
 CREATE TABLE IF NOT EXISTS lb_billing.entries (

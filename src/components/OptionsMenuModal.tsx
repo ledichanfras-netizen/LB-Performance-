@@ -563,7 +563,7 @@ export default function OptionsMenuModal({
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-4 h-4 text-blue-400" />
                         <div>
-                          <span className="text-xs font-bold text-white block">Minha Assinatura</span>
+                          <span className="text-xs font-bold text-white block">{user?.platformAdmin?'Mensalidades e recebimentos':'Minha Assinatura'}</span>
                           <span className="text-[10px] text-slate-400">Faturamento, planos e renovação</span>
                         </div>
                       </div>
@@ -1026,7 +1026,7 @@ export default function OptionsMenuModal({
                     }}
                     className="flex items-center gap-2 text-xs font-bold text-brand-primary hover:underline"
                   >
-                    <span>Abrir Página Completa de Assinaturas</span>
+                    <span>{user?.platformAdmin?'Abrir mensalidades e recebimentos':'Abrir minha assinatura'}</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 </div>
