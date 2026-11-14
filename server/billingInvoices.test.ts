@@ -1,3 +1,5 @@
+import {billingRouter} from './billing';
+import {billingTargets,billingOwn} from './billingIdentities';
 import {hasSportsAccess} from './entitlement';
 import {shiftBillingDate} from '../src/utils/billingPeriod';
 import test from 'node:test';
@@ -11,16 +13,19 @@ import {billingInvoices} from './billingInvoices';
 const sub='11111111-1111-4111-8111-111111111111';
 async function fixture(fn:(url:string,db:PGlite)=>Promise<void>,isAdmin=true){
  const db=new PGlite();await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE SCHEMA lb_billing;
- CREATE TABLE users(id text PRIMARY KEY,username text,role text);INSERT INTO users VALUES('admin','Leandro','coach'),('other','Outro','athlete');
+ CREATE TABLE athletes(id text PRIMARY KEY,name text);INSERT INTO athletes VALUES('offline-a','Aluno sem login'),('offline-b','Outro aluno sem login'),('archived','Aluno arquivado');CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_archives(athlete_id text);INSERT INTO lb_accounts.athlete_archives VALUES('archived');
+ CREATE TABLE users(id text PRIMARY KEY,username text,role text,athlete_id text);INSERT INTO users(id,username,role) VALUES('admin','Leandro','coach'),('other','Outro','athlete');
  CREATE TABLE lb_billing.plans(id text PRIMARY KEY,name text,price_cents integer,duration_days integer,audience text,grace_days integer,archived boolean DEFAULT false,athlete_limit integer,deliveries text,resources text);INSERT INTO lb_billing.plans(id,name,price_cents,duration_days) VALUES('p','Mensal',10000,30);
  CREATE TABLE lb_billing.subscriptions(id uuid PRIMARY KEY,user_id text,plan_id text,valid_until timestamptz,suspended boolean DEFAULT false,renewal_cancelled boolean DEFAULT false);
  INSERT INTO lb_billing.subscriptions VALUES('${sub}','admin','p',NULL,false,false);
- CREATE TABLE lb_billing.entries(id uuid PRIMARY KEY,request_id text UNIQUE,subscription_id uuid,kind text,amount_cents integer,method text,reason text,recorded_by text,valid_until timestamptz,effective_on date,voided_at timestamptz);
+ CREATE TABLE lb_billing.entries(id uuid PRIMARY KEY,request_id text UNIQUE,subscription_id uuid,kind text,amount_cents integer,method text,reason text,recorded_by text,valid_until timestamptz,effective_on date,voided_at timestamptz,created_at timestamptz DEFAULT now());
  CREATE TABLE lb_billing.audit_events(id uuid,subscription_id uuid,action text,reason text,actor_id text);`);
  await db.exec(await readFile(new URL('./billing-invoices-schema.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('./billing-calendar-schema.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('./billing-athlete-subject-schema.sql',import.meta.url),'utf8'));
  const pool:any={query:(q:string,p:any[])=>db.query(q,p),connect:async()=>({query:(q:string,p:any[])=>db.query(q,p),release(){}})};
- const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.user={id:isAdmin?'admin':'other'};req.billingAdmin=isAdmin;next();});app.use('/simple',simpleBilling(pool,(req:any,res,next)=>req.billingAdmin?next():void res.sendStatus(403)));app.use(billingInvoices(pool,(req:any,res,next)=>req.billingAdmin?next():void res.sendStatus(403)));
+ process.env.BILLING_ENABLED='true';process.env.BILLING_ADMIN_USER_IDS='admin';
+ const app=express();app.use(express.json());app.use((req:any,_res,next)=>{req.user={id:isAdmin?'admin':'other'};req.billingAdmin=isAdmin;next();});app.use('/billing',billingRouter(pool,(req:any,_res,next)=>{req.user={id:req.headers['x-test-user']||'admin'};next();}));app.use('/simple',simpleBilling(pool,(req:any,res,next)=>req.billingAdmin?next():void res.sendStatus(403)));app.use(billingInvoices(pool,(req:any,res,next)=>req.billingAdmin?next():void res.sendStatus(403)));
  const server=app.listen(0,'127.0.0.1');await new Promise<void>(r=>server.once('listening',r));try{await fn(`http://127.0.0.1:${(server.address() as any).port}`,db);}finally{await new Promise<void>(r=>server.close(()=>r()));await db.close();}
 }
 const post=async(url:string,body:any={})=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -102,4 +107,54 @@ test('issued calendar renewals preserve month boundaries and serialized date str
  await db.exec("UPDATE lb_billing.plans SET calendar_months=3;UPDATE lb_billing.subscriptions SET valid_until='2027-01-31T02:59:59.999Z';");
  const invoice=await (await post(`${url}/${sub}/issue`)).json();assert.equal(invoice.period_start.slice(0,10),'2027-01-31');assert.equal(invoice.period_end.slice(0,10),'2027-04-29');
  const list=await (await fetch(url)).json();assert.equal(list[0].period_start,'2027-01-31');assert.equal(list[0].period_end,'2027-04-29');
+}));
+
+test('roster targets include students without accounts exactly once and exclude archived students',async()=>fixture(async(_url,db)=>{
+ const adapter:any={query:(q:string,p:any[])=>db.query(q,p)};
+ let targets=await billingTargets(adapter);assert.equal(targets.filter((t:any)=>t.athlete_id==='offline-a').length,1);assert.ok(!targets.some((t:any)=>t.athlete_id==='archived'));
+ await db.query("INSERT INTO users(id,username,role,athlete_id) VALUES('new-login','Login novo','athlete','offline-a')");
+ targets=await billingTargets(adapter);assert.equal(targets.filter((t:any)=>t.athlete_id==='offline-a').length,1);assert.ok(!targets.some((t:any)=>t.id==='user:new-login'));
+}));
+test('offline receipt survives later login, is private to the matching athlete and remains the same contract',async()=>fixture(async(url,db)=>{
+ const body={athleteId:'offline-a',name:'Presencial',amountCents:18000,duration:'monthly',startOn:'2026-01-01',graceDays:0,paymentRequired:false,received:true,paidOn:'2026-01-01',method:'pix',confirmed:true,requestId:'offline-receipt-request-001'};
+ const first=await post(url+'/simple',body);assert.equal(first.status,201,await first.clone().text());
+ const sub=(await db.query("SELECT * FROM lb_billing.subscriptions WHERE athlete_id='offline-a'")).rows[0];assert.equal(sub.user_id,null);
+ assert.equal((await db.query('SELECT count(*)::int n FROM public.users')).rows[0].n,2);
+ const receipt=(await db.query('SELECT * FROM lb_billing.entries')).rows[0];assert.equal(receipt.subscription_id,sub.id);
+ const list=await (await fetch(url)).json();assert.equal(list[0].username,'Aluno sem login');
+ await db.exec("INSERT INTO users(id,username,role,athlete_id) VALUES('later-login','Email de acesso','athlete','offline-a'),('other-login','Outro acesso','athlete','offline-b');");
+ const owned=async(id:string)=>(await db.query(`SELECT s.id FROM lb_billing.subscriptions s WHERE ${billingOwn('s','$1')}`,[id])).rows;
+ assert.equal((await owned('later-login'))[0].id,sub.id);assert.equal((await owned('other-login')).length,0);
+ assert.equal(await hasSportsAccess({query:(q:string,p:any[])=>db.query(q,p)} as any,{user_id:'later-login',role:'athlete'} as any),true);
+ assert.equal((await post(url+'/simple',body)).status,200);
+ const next={...body,userId:'later-login',athleteId:undefined,startOn:'2026-02-01',paidOn:'2026-02-01',requestId:'offline-receipt-request-002'};
+ assert.equal((await post(url+'/simple',next)).status,201);
+ assert.equal((await db.query("SELECT count(*)::int n FROM lb_billing.subscriptions WHERE athlete_id='offline-a'")).rows[0].n,1);
+ assert.equal((await db.query('SELECT count(*)::int n FROM lb_billing.entries')).rows[0].n,2);
+ await db.query("UPDATE users SET athlete_id='offline-b' WHERE id='later-login'");assert.equal((await owned('later-login')).length,0);
+}));
+test('archived, nonexistent and mismatched athletes cannot receive a financial contract',async()=>fixture(async(url,db)=>{
+ const body={athleteId:'archived',name:'Mensal',amountCents:10000,duration:'monthly',startOn:'2026-01-01',graceDays:0,paymentRequired:false,received:false,requestId:'offline-invalid-target-001'};
+ for(const athleteId of ['archived','missing'])assert.equal((await post(url+'/simple',{...body,athleteId})).status,400);
+ assert.equal((await post(url+'/simple',{...body,athleteId:'offline-a',userId:'admin'})).status,400);
+ assert.equal((await db.query('SELECT count(*)::int n FROM lb_billing.invoices')).rows[0].n,0);
+}));
+
+test('billing overview, receipts and summary recognize later login without sharing another athlete history',async()=>fixture(async(url,db)=>{
+ const body={athleteId:'offline-a',name:'Sem login',amountCents:12000,duration:'monthly',startOn:'2026-01-01',graceDays:0,paymentRequired:false,received:true,paidOn:'2026-01-01',method:'cash',confirmed:true,requestId:'offline-visibility-request-001'};
+ assert.equal((await post(url+'/simple',body)).status,201);
+ const admin=await (await fetch(url+'/billing/overview')).json();assert.ok(admin.users.some((u:any)=>u.athlete_id==='offline-b'));assert.ok(admin.subscriptions.some((s:any)=>s.athlete_id==='offline-a'&&s.username==='Aluno sem login'));
+ await db.exec("INSERT INTO users(id,username,role,athlete_id) VALUES('later','Login','athlete','offline-a'),('unrelated','Outra pessoa','athlete','offline-b');");
+ const own=await (await fetch(url+'/billing/overview',{headers:{'x-test-user':'later'}})).json();assert.equal(own.subscriptions.length,1);assert.equal(own.subscriptions[0].athlete_id,'offline-a');assert.equal(own.users.length,0);
+ const entries=await (await fetch(url+'/billing/entries',{headers:{'x-test-user':'later'}})).json();assert.equal(entries.length,1);assert.equal(entries[0].amount_cents,12000);
+ const other=await (await fetch(url+'/billing/entries',{headers:{'x-test-user':'unrelated'}})).json();assert.deepEqual(other,[]);
+ assert.equal((await post(url+'/enroll',{userId:'later',name:'Duplicado',amountCents:10000,durationDays:30,graceDays:0})).status,409);
+ assert.equal((await post(url+'/billing/subscriptions',{userId:'later',planId:'p'})).status,400);
+ assert.equal((await db.query("SELECT count(*)::int n FROM lb_billing.subscriptions WHERE athlete_id='offline-a'")).rows[0].n,1);
+}));
+test('identity migration is repeatable and preserves a legacy contract and its receipt',async()=>fixture(async(_url,db)=>{
+ await db.exec("INSERT INTO users(id,username,role,athlete_id) VALUES('legacy','Aluno','athlete','offline-a');INSERT INTO lb_billing.subscriptions(id,user_id,plan_id) VALUES('88888888-8888-4888-8888-888888888888','legacy','p');INSERT INTO lb_billing.entries(id,request_id,subscription_id,kind,amount_cents,method,reason,recorded_by,valid_until,effective_on) VALUES('99999999-9999-4999-8999-999999999999','legacy-paid','88888888-8888-4888-8888-888888888888','payment',15000,'pix','Original','admin','2026-12-01','2026-11-01');");
+ const schema=await readFile(new URL('./billing-athlete-subject-schema.sql',import.meta.url),'utf8');await db.exec(schema);await db.exec(schema);
+ const sub=(await db.query("SELECT * FROM lb_billing.subscriptions WHERE user_id='legacy'")).rows[0];assert.equal(sub.athlete_id,'offline-a');assert.equal(sub.id,'88888888-8888-4888-8888-888888888888');
+ assert.equal((await db.query('SELECT amount_cents FROM lb_billing.entries')).rows[0].amount_cents,15000);
 }));

@@ -27,3 +27,11 @@ O formulário reúne aluno, plano cadastrado ou personalizado, duração mensal/
 As tentativas repetidas do mesmo pedido não duplicam lançamentos. Períodos pagos não podem se sobrepor. Novos períodos precisam resolver cobranças pendentes anteriores antes de substituir condições. Cobranças de periodização exigem um novo período com datas explícitas; não são renovadas silenciosamente por número de dias. O valor informado é integral pelo período; não há parcelamento neste formulário.
 
 Liberação por cortesia e exigência de período pago ficam em opções adicionais. Controles antigos preservam o comportamento anterior; os novos respeitam o controle financeiro global do serviço. Pagamento antecipado de um primeiro período futuro não libera acesso antes da data inicial quando a cobrança é exigida.
+
+## Alunos sem login
+
+Aplicar `server/billing-athlete-subject-schema.sql` antes da versão que seleciona alunos pelo cadastro. O contrato pode referenciar diretamente `athlete_id`, sem criar uma conta artificial em `public.users`. A migração associa contratos antigos ao atleta vinculado por id, mantendo os identificadores de contrato, cobranças e pagamentos. Não tenta fundir contratos antigos duplicados.
+
+A seleção mostra os atletas ativos do cadastro, independentemente de convite ou login; contas de treinador e contas antigas de aluno ainda não vinculadas continuam disponíveis. Alunos arquivados não recebem novos planos pela seleção.
+
+Quando o aluno aceitar o convite e sua conta for vinculada ao mesmo id de atleta, a leitura da assinatura, dos recebimentos e dos avisos reconhece o contrato existente. O histórico não é recriado nem transferido por nome. Trocar a vinculação da conta para outro atleta não concede leitura do contrato anterior. Os endpoints antigos também detectam contratos existentes para evitar duplicação após a criação do acesso.
