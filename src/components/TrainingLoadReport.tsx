@@ -64,26 +64,6 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
 
   const blocks: ReportBlock[] = [
     {
-      id: "metodologia",
-      section: "Fundamentação Metodológica",
-      content: (
-        <div className="space-y-4 bg-slate-50 border border-slate-200 p-5 rounded-2xl text-left">
-          <div className="flex items-center gap-2 text-emerald-650">
-            <Calendar className="w-4.5 h-4.5 text-emerald-600" />
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-750 font-sans">
-              Fundamentação Metodológica do ACWR e PSR
-            </h4>
-          </div>
-          <p className="text-xs text-slate-700 leading-relaxed font-semibold">
-            O cálculo do <strong>Acute:Chronic Workload Ratio (ACWR)</strong> é o principal biomarcador cinético utilizado por clubes profissionais de elite em todo o mundo para monitorar o estresse físico e de fadiga. A carga aguda (soma do produto volume x intensidade das sessões dos últimos 7 dias) representa a <strong>Fadiga</strong> do atleta. A carga crônica (média semanal das sessões dos últimos 28 dias) expressa o nível de <strong>Aptidão</strong> (fitness).
-          </p>
-          <p className="text-xs text-slate-700 leading-relaxed font-semibold font-sans">
-            O equilíbrio matemático entre Fadiga e Aptidão (Relação Aguda/Crônica) determina a prontidão mecânica do sistema motor. A literatura em medicina desportiva comprova que manter o ACWR dentro do "Sweet Spot" (0.8 a 1.3) protege o atleta e desenvolve resiliência mecânica sustentável.
-          </p>
-        </div>
-      )
-    },
-    {
       id: "load_chart_block",
       section: "Tendências de Carga e Prontidão",
       content: (
@@ -92,7 +72,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
           <div className="col-span-8 bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between">
             <div>
               <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-0.5 font-sans">Visão de Ciclagem e Recuperação</span>
-              <p className="text-[10px] font-bold text-slate-500 font-sans">Carga Externa vs. Prontidão Física (% de 100) nas Últimas Sessões</p>
+              <p className="text-[10px] font-bold text-slate-500 font-sans">Carga de treino (duração × PSE) e prontidão nas últimas sessões</p>
             </div>
 
             {/* Custom SVG line-and-bar load trend chart */}
@@ -288,9 +268,9 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
               <Gauge className="w-5 h-5 text-amber-500" />
             </div>
             <div>
-              <span className="text-[8px] font-black text-amber-500 block uppercase tracking-wider">Mapeamento de Causa e Efeito</span>
+              <span className="text-[8px] font-black text-amber-500 block uppercase tracking-wider">Interpretação pelo treinador</span>
               <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                Explicações Técnicas e Diagnóstico Clínico
+                Leitura da carga registrada
               </h3>
             </div>
           </div>
@@ -323,7 +303,7 @@ export const TrainingLoadReport: React.FC<TrainingLoadReportProps> = ({ athlete,
     },
     {
       id: "solucoes_acao",
-      section: "Soluções & Prescrições",
+      section: "Próximos passos",
       content: (
         <div className="space-y-4 text-left font-sans mt-6">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">

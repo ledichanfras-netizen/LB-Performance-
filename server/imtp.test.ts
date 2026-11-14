@@ -23,7 +23,9 @@ test('IMTP absence never creates a zero result or a false longitudinal decline',
   assert.match(html,/Não comparável/);
   assert.match(html,/Força em 100 ms/);
   assert.doesNotMatch(html.replace(/<[^>]*>/g,''),/-100%|4\.500|PERFIL DE FORÇA|QUADRANTE|Classificação|Latência Neural|Unidades Motoras/);
-  assert.match(html,/grid grid-cols-2 md:grid-cols-3/);
+  assert.match(html,/Força máxima/);
+  assert.match(html,/Força relativa/);
+  assert.match(html,/100 ms/);assert.match(html,/200 ms/);assert.match(html,/300 ms/);
   const complete=renderToStaticMarkup(React.createElement(ImtpReportPages,{athlete:{name:'Teste'} as any,data:{...current,force100:110},history:[{...past,force100:100}]}));
   assert.match(complete,/\+10,0% vs. anterior/);
 });

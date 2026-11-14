@@ -90,7 +90,7 @@ export const ReportFooter: FC<{
   technicalResponsibleName = "Prof. Leandro Barbosa",
   technicalResponsibleCred = "036202-G/PR"
 }) => (
-  <div className="mt-10 pt-6 border-t border-slate-100 flex justify-between items-center bg-white shrink-0 text-left">
+  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center bg-white shrink-0 text-left">
     <div className="flex items-center gap-4">
       <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg border border-slate-800 shrink-0 overflow-hidden">
         <img
@@ -131,7 +131,7 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
   onClose,
   technicalResponsibleName,
   technicalResponsibleCred,
-  hideTOC = false
+  hideTOC = true
 }) => {
   const reportRef = useRef<HTMLDivElement>(null);
   const measurerRef = useRef<HTMLDivElement>(null);
@@ -159,19 +159,21 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
   useLayoutEffect(() => {
     if (!measurerRef.current) return;
     
-    const heights: Record<string, number> = {};
-    const children = measurerRef.current.children;
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i] as HTMLElement;
-      const blockId = child.dataset.blockId;
-      if (blockId) {
-        // Measure exact height of each block
-        heights[blockId] = child.getBoundingClientRect().height;
+    let disposed=false;
+    const measure=()=>{
+      if(disposed||!measurerRef.current)return;
+      const heights:Record<string,number>={};
+      for(const node of Array.from(measurerRef.current.children)){
+        const child=node as HTMLElement;
+        if(child.dataset.blockId)heights[child.dataset.blockId]=child.getBoundingClientRect().height;
       }
-    }
-    
-    setMeasuredHeights(heights);
-    setIsMeasuring(false);
+      setMeasuredHeights(previous=>JSON.stringify(previous)===JSON.stringify(heights)?previous:heights);
+      setIsMeasuring(false);
+    };
+    measure();
+    const observer=new ResizeObserver(measure);observer.observe(measurerRef.current);
+    document.fonts?.ready.then(measure);
+    return()=>{disposed=true;observer.disconnect();};
   }, [blocks]);
 
   // Once heights are measured, distribute blocks across pages
@@ -198,14 +200,14 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
       const blockHeight = measuredHeights[block.id] || 150; // Fallback default height
       
       // space-y-6 adds 24px top margin to every block after the first on the page
-      const spacing = currentPage.length > 0 ? 24 : 0;
+      const spacing = currentPage.length > 0 ? 16 : 0;
       const projectedHeight = currentPageHeight + blockHeight + spacing;
 
       // Start a new page if:
       // 1. Force break is requested
       // 2. Or, adding this block exceeds the maximum content height limit
       const needsNewPage = 
-        block.forcePageBreak || 
+        (block.forcePageBreak && currentPage.length > 0) ||
         (projectedHeight > maxContentHeight && currentPage.length > 0);
 
       if (needsNewPage) {
@@ -291,18 +293,17 @@ export const DynamicReportEngine: FC<DynamicReportProps> = ({
   const totalPages = paginatedPages.length + (tocSections.length >= 2 ? 1 : 0);
 
   return (
-    <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar">
+    <div className="fixed inset-0 z-[1100] flex items-start justify-center bg-slate-900/95 backdrop-blur-xl overflow-y-auto p-0 md:p-4 no-scrollbar report-modal">
       {/* Hidden measurer container - matches exact width (170mm) of A4 text area for 100% accuracy */}
       <div 
-        ref={measurerRef}
-        className="absolute pointer-events-none opacity-0"
+        className="lb-a4-sheet absolute pointer-events-none opacity-0"
         style={{ width: "170mm", top: "-9999px", left: "-9999px" }}
       >
-        {blocks.map((block) => (
+        <div ref={measurerRef} className="lb-a4-content">{blocks.map((block) => (
           <div key={block.id} data-block-id={block.id} className="w-full break-inside-avoid mb-6">
             {block.content}
           </div>
-        ))}
+        ))}</div>
       </div>
 
       <div className="max-w-5xl w-full mx-auto md:my-10 h-full md:h-auto font-sans relative">

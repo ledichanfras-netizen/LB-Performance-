@@ -2552,3 +2552,115 @@ body.light-theme .billing-page :is([class*="text-green-"],[class*="text-emerald-
 body.light-theme .billing-page [class*="text-red-"] { color:#a32b36!important; }
 body.light-theme .billing-page button[class*="bg-green-"] { background:#087c53!important; color:#fff!important; }
 @media(max-width:600px){ .billing-page .billing-summary { grid-template-columns:1fr; } .billing-page .billing-summary>div { display:flex; align-items:center; justify-content:space-between; padding:16px; } .billing-page .billing-actions>button { flex:1 1 160px; } }
+
+/* The report canvas is A4 on every device: use paper columns, not phone breakpoints. */
+.lb-a4-content { display:flex; flex-direction:column; gap:12px; justify-content:space-between; }
+.lb-a4-content > * { flex-shrink:0; max-width:100%; margin-top:0!important; margin-bottom:0!important; }
+.lb-a4-content > :is(section,.grid,[class*="rounded-"]) { flex-grow:1; }
+.lb-a4-content > [class*="mb-"] { margin-bottom:0!important; }
+.lb-a4-content > :is(.space-y-4,.space-y-5,.space-y-6,.space-y-8):only-child { display:flex; flex-direction:column; min-height:inherit; gap:16px; justify-content:space-between; }
+.lb-a4-content > :is(.space-y-4,.space-y-5,.space-y-6,.space-y-8):only-child > :is(section,[class*="rounded-"]) { flex-grow:1; margin-top:0!important; }
+.lb-a4-content :is(p,li,td,th) { line-height:1.5; }
+.lb-a4-content :is(td,th) { font-size:10.5px; }
+.lb-a4-content :is([class*="text-[6"],[class*="text-[7"],[class*="text-[8"]) { font-size:9px; }
+.lb-a4-content .recharts-text { font-size:10px; }
+.lb-a4-content :is(.truncate,.whitespace-nowrap) { white-space:normal; text-overflow:clip; }
+.lb-a4-content [class*="h-[210mm]"] { height:auto; min-height:0; }
+.lb-report-guidance p,.lb-report-guidance li { font-size:13px; line-height:1.65; }
+.lb-report-guidance section { padding:22px; }
+.lb-a4-sheet [class~="sm:grid-cols-1"] { grid-template-columns:repeat(1,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-1"] { grid-column:span 1/span 1; }
+.lb-a4-sheet [class~="sm:grid-cols-2"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-2"] { grid-column:span 2/span 2; }
+.lb-a4-sheet [class~="sm:grid-cols-3"] { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-3"] { grid-column:span 3/span 3; }
+.lb-a4-sheet [class~="sm:grid-cols-4"] { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-4"] { grid-column:span 4/span 4; }
+.lb-a4-sheet [class~="sm:grid-cols-5"] { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-5"] { grid-column:span 5/span 5; }
+.lb-a4-sheet [class~="sm:grid-cols-6"] { grid-template-columns:repeat(6,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-6"] { grid-column:span 6/span 6; }
+.lb-a4-sheet [class~="sm:grid-cols-7"] { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-7"] { grid-column:span 7/span 7; }
+.lb-a4-sheet [class~="sm:grid-cols-8"] { grid-template-columns:repeat(8,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-8"] { grid-column:span 8/span 8; }
+.lb-a4-sheet [class~="sm:grid-cols-9"] { grid-template-columns:repeat(9,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-9"] { grid-column:span 9/span 9; }
+.lb-a4-sheet [class~="sm:grid-cols-10"] { grid-template-columns:repeat(10,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-10"] { grid-column:span 10/span 10; }
+.lb-a4-sheet [class~="sm:grid-cols-11"] { grid-template-columns:repeat(11,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-11"] { grid-column:span 11/span 11; }
+.lb-a4-sheet [class~="sm:grid-cols-12"] { grid-template-columns:repeat(12,minmax(0,1fr)); }
+.lb-a4-sheet [class~="sm:col-span-12"] { grid-column:span 12/span 12; }
+.lb-a4-sheet [class~="sm:flex-row"] {flex-direction:row;}
+.lb-a4-sheet [class~="sm:flex-col"] {flex-direction:column;}
+.lb-a4-sheet [class~="sm:items-center"] {align-items:center;}
+.lb-a4-sheet [class~="sm:items-start"] {align-items:flex-start;}
+.lb-a4-sheet [class~="sm:text-right"] {text-align:right;}
+.lb-a4-sheet [class~="sm:block"] {display:block;}
+.lb-a4-sheet [class~="sm:flex"] {display:flex;}
+.lb-a4-sheet [class~="sm:hidden"] {display:none;}
+.lb-a4-sheet [class~="md:grid-cols-1"] { grid-template-columns:repeat(1,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-1"] { grid-column:span 1/span 1; }
+.lb-a4-sheet [class~="md:grid-cols-2"] { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-2"] { grid-column:span 2/span 2; }
+.lb-a4-sheet [class~="md:grid-cols-3"] { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-3"] { grid-column:span 3/span 3; }
+.lb-a4-sheet [class~="md:grid-cols-4"] { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-4"] { grid-column:span 4/span 4; }
+.lb-a4-sheet [class~="md:grid-cols-5"] { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-5"] { grid-column:span 5/span 5; }
+.lb-a4-sheet [class~="md:grid-cols-6"] { grid-template-columns:repeat(6,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-6"] { grid-column:span 6/span 6; }
+.lb-a4-sheet [class~="md:grid-cols-7"] { grid-template-columns:repeat(7,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-7"] { grid-column:span 7/span 7; }
+.lb-a4-sheet [class~="md:grid-cols-8"] { grid-template-columns:repeat(8,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-8"] { grid-column:span 8/span 8; }
+.lb-a4-sheet [class~="md:grid-cols-9"] { grid-template-columns:repeat(9,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-9"] { grid-column:span 9/span 9; }
+.lb-a4-sheet [class~="md:grid-cols-10"] { grid-template-columns:repeat(10,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-10"] { grid-column:span 10/span 10; }
+.lb-a4-sheet [class~="md:grid-cols-11"] { grid-template-columns:repeat(11,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-11"] { grid-column:span 11/span 11; }
+.lb-a4-sheet [class~="md:grid-cols-12"] { grid-template-columns:repeat(12,minmax(0,1fr)); }
+.lb-a4-sheet [class~="md:col-span-12"] { grid-column:span 12/span 12; }
+.lb-a4-sheet [class~="md:flex-row"] {flex-direction:row;}
+.lb-a4-sheet [class~="md:flex-col"] {flex-direction:column;}
+.lb-a4-sheet [class~="md:items-center"] {align-items:center;}
+.lb-a4-sheet [class~="md:items-start"] {align-items:flex-start;}
+.lb-a4-sheet [class~="md:text-right"] {text-align:right;}
+.lb-a4-sheet [class~="md:block"] {display:block;}
+.lb-a4-sheet [class~="md:flex"] {display:flex;}
+.lb-a4-sheet [class~="md:hidden"] {display:none;}
+.lb-a4-content p[class*="text-["],.lb-a4-content li[class*="text-["] { font-size:11px; }
+.lb-a4-content > :is(.space-y-4,.space-y-5,.space-y-6,.space-y-8):only-child > * { margin-top:0!important; }
+
+/* Large report grids are paper layouts too, including body segmentation. */
+.lb-a4-sheet [class~="lg:grid-cols-1"] {grid-template-columns:repeat(1,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-1"] {grid-column:span 1/span 1;}
+.lb-a4-sheet [class~="lg:grid-cols-2"] {grid-template-columns:repeat(2,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-2"] {grid-column:span 2/span 2;}
+.lb-a4-sheet [class~="lg:grid-cols-3"] {grid-template-columns:repeat(3,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-3"] {grid-column:span 3/span 3;}
+.lb-a4-sheet [class~="lg:grid-cols-4"] {grid-template-columns:repeat(4,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-4"] {grid-column:span 4/span 4;}
+.lb-a4-sheet [class~="lg:grid-cols-5"] {grid-template-columns:repeat(5,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-5"] {grid-column:span 5/span 5;}
+.lb-a4-sheet [class~="lg:grid-cols-6"] {grid-template-columns:repeat(6,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-6"] {grid-column:span 6/span 6;}
+.lb-a4-sheet [class~="lg:grid-cols-7"] {grid-template-columns:repeat(7,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-7"] {grid-column:span 7/span 7;}
+.lb-a4-sheet [class~="lg:grid-cols-8"] {grid-template-columns:repeat(8,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-8"] {grid-column:span 8/span 8;}
+.lb-a4-sheet [class~="lg:grid-cols-9"] {grid-template-columns:repeat(9,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-9"] {grid-column:span 9/span 9;}
+.lb-a4-sheet [class~="lg:grid-cols-10"] {grid-template-columns:repeat(10,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-10"] {grid-column:span 10/span 10;}
+.lb-a4-sheet [class~="lg:grid-cols-11"] {grid-template-columns:repeat(11,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-11"] {grid-column:span 11/span 11;}
+.lb-a4-sheet [class~="lg:grid-cols-12"] {grid-template-columns:repeat(12,minmax(0,1fr));}
+.lb-a4-sheet [class~="lg:col-span-12"] {grid-column:span 12/span 12;}
+.lb-a4-sheet [class~="sm:flex-row"] {flex-direction:row;}
+.lb-a4-sheet [class~="md:flex-row"] {flex-direction:row;}
+.lb-a4-sheet [class~="lg:flex-row"] {flex-direction:row;}
+ .lb-a4-sheet [class~="md:text-2xl"] {font-size:24px;line-height:1.2;}

@@ -26,20 +26,7 @@ export const AIModelingReport: React.FC<AIModelingReportProps> = ({ athlete, mod
       section: 'Sumário Executivo',
       content: (
         <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-100/60">
-            <div className="text-left">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Modalidade</p>
-              <p className="text-sm font-black text-slate-900 uppercase italic truncate">{athlete.modality}</p>
-            </div>
-            <div className="border-l border-slate-200 pl-4 text-left">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Equipe/Clube</p>
-              <p className="text-sm font-black text-slate-900 uppercase italic truncate">{athlete.team || 'Elite Squad'}</p>
-            </div>
-            <div className="border-l border-slate-200 pl-4 text-left">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Status</p>
-              <p className="text-sm font-black text-emerald-500 uppercase italic truncate">HIGH PERFORMANCE</p>
-            </div>
-          </div>
+
 
           <div className="space-y-3 text-left">
             <div className="flex items-center gap-2">
