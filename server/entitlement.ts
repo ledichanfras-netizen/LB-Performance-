@@ -1,9 +1,10 @@
+import {billingOwn} from './billingIdentities';
 import type { Pool } from 'pg';
 import type { AccountScope } from './scope';
 export async function hasSportsAccess(db:Pick<Pool,'query'>,account:AccountScope & {platform_admin?:boolean}){
  if(account.platform_admin)return true;
  const own=await db.query(`SELECT NOT s.suspended AND (s.payment_required=false OR s.complimentary_until>=(now() AT TIME ZONE 'America/Sao_Paulo')::date OR (COALESCE(s.access_start,(now() AT TIME ZONE 'America/Sao_Paulo')::date)<=(now() AT TIME ZONE 'America/Sao_Paulo')::date AND s.valid_until + make_interval(days=>p.grace_days)>now())) AS allowed
- FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE s.user_id=$1`,[account.user_id]);
+ FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE ${billingOwn('s','$1')}`,[account.user_id]);
  if(own.rows.length)return own.rows[0].allowed===true;
  if(account.role!=='athlete')return false;
  const license=await db.query(`SELECT 1 FROM lb_accounts.memberships m JOIN public.users u ON u.id=m.user_id

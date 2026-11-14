@@ -1,16 +1,17 @@
+import {billingOwn} from './billingIdentities';
 import { Router, RequestHandler } from 'express';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 export async function renewalAlerts(db:Pick<Pool,'query'>,userId:string,admin:boolean){
  // An athlete without an individual contract uses the organization's coach license.
- const {rows}=await db.query(`SELECT s.id,s.user_id,s.valid_until,p.name AS plan_name,u.username,
+ const {rows}=await db.query(`SELECT s.id,s.user_id,s.valid_until,p.name AS plan_name,COALESCE(a.name,u.username,'Aluno') AS username,
  ((s.valid_until AT TIME ZONE 'America/Sao_Paulo')::date-(now() AT TIME ZONE 'America/Sao_Paulo')::date)::integer AS days_left,
- (s.user_id<>$2) AS inherited
- FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id JOIN public.users u ON u.id=s.user_id
+ (NOT ${billingOwn()}) AS inherited
+ FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id LEFT JOIN public.users u ON u.id=s.user_id LEFT JOIN public.athletes a ON a.id=COALESCE(s.athlete_id,u.athlete_id)
  WHERE NOT s.suspended AND NOT s.renewal_cancelled AND s.valid_until IS NOT NULL
  AND s.valid_until < now()+interval '8 days'
- AND ($1::boolean OR s.user_id=$2 OR (
- NOT EXISTS(SELECT 1 FROM lb_billing.subscriptions own WHERE own.user_id=$2)
+ AND ($1::boolean OR ${billingOwn()} OR (
+ NOT EXISTS(SELECT 1 FROM lb_billing.subscriptions own WHERE ${billingOwn('own')})
  AND p.audience='coach' AND s.id=(SELECT lic.id FROM lb_billing.subscriptions lic
  JOIN lb_billing.plans lp ON lp.id=lic.plan_id JOIN public.users cu ON cu.id=lic.user_id
  JOIN lb_accounts.memberships owner ON owner.user_id=lic.user_id

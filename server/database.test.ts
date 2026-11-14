@@ -368,7 +368,7 @@ test('commercial editing archives plans and voids payments with persisted audit'
 test('renewal alerts scope individual and organization contracts and stage expiration in Brazil',async()=>{
  const {renewalAlerts,renewalRouter}=await import('./renewalAlerts');const {default:express}=await import('express');const db=new PGlite();let server:any;
  try{
-  await db.exec("CREATE ROLE anon;CREATE ROLE authenticated;CREATE TABLE users(id text PRIMARY KEY,username text,role text);CREATE TABLE athletes(id text PRIMARY KEY);INSERT INTO users VALUES('coach','Treinador','coach'),('student','Aluno','athlete'),('foreign','Outro','coach');");
+  await db.exec("CREATE ROLE anon;CREATE ROLE authenticated;CREATE TABLE users(id text PRIMARY KEY,username text,role text,athlete_id text);CREATE TABLE athletes(id text PRIMARY KEY,name text);INSERT INTO users(id,username,role) VALUES('coach','Treinador','coach'),('student','Aluno','athlete'),('foreign','Outro','coach');");
   for(const f of ['accounts-schema.sql','billing-schema.sql','commercial-controls-schema.sql','renewal-alerts-schema.sql'])await db.exec(await readFile(new URL(f,import.meta.url),'utf8'));
   const org='11111111-1111-4111-8111-111111111111',plan='22222222-2222-4222-8222-222222222222',own='33333333-3333-4333-8333-333333333333',other='44444444-4444-4444-8444-444444444444';
   await db.query("INSERT INTO lb_accounts.organizations(id,name) VALUES($1,'LB')",[org]);await db.query('INSERT INTO lb_accounts.memberships(user_id,organization_id) VALUES($1,$3),($2,$3)',['coach','student',org]);

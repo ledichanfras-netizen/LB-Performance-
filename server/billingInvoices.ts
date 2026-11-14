@@ -1,3 +1,4 @@
+import {billingOwn,resolveBillingSubject} from './billingIdentities';
 import {billingPeriod,shiftBillingDate} from '../src/utils/billingPeriod';
 import {Router,RequestHandler} from 'express';
 import type {Pool} from 'pg';
@@ -7,22 +8,21 @@ export function billingInvoices(pool:Pool,admin:RequestHandler){
  const router=Router();
  router.get('/summary',async(req:any,res)=>{try{
   const totals=await pool.query(`SELECT
-   (SELECT COALESCE(sum(e.amount_cents),0)::bigint FROM lb_billing.entries e JOIN lb_billing.subscriptions s ON s.id=e.subscription_id WHERE ($1::boolean OR s.user_id=$2) AND e.voided_at IS NULL AND e.kind='payment' AND e.effective_on>=date_trunc('month',now() AT TIME ZONE 'America/Sao_Paulo')::date AND e.effective_on<(date_trunc('month',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 month')::date) AS received,
-   (SELECT COALESCE(sum(i.amount_cents),0)::bigint FROM lb_billing.invoices i JOIN lb_billing.subscriptions s ON s.id=i.subscription_id WHERE ($1::boolean OR s.user_id=$2) AND i.status='pending') AS pending,
-   (SELECT count(*)::integer FROM lb_billing.invoices i JOIN lb_billing.subscriptions s ON s.id=i.subscription_id WHERE ($1::boolean OR s.user_id=$2) AND i.status='pending' AND i.due_on<(now() AT TIME ZONE 'America/Sao_Paulo')::date) AS overdue`,[req.billingAdmin,req.user.id]);
+   (SELECT COALESCE(sum(e.amount_cents),0)::bigint FROM lb_billing.entries e JOIN lb_billing.subscriptions s ON s.id=e.subscription_id WHERE ($1::boolean OR ${billingOwn()}) AND e.voided_at IS NULL AND e.kind='payment' AND e.effective_on>=date_trunc('month',now() AT TIME ZONE 'America/Sao_Paulo')::date AND e.effective_on<(date_trunc('month',now() AT TIME ZONE 'America/Sao_Paulo')+interval '1 month')::date) AS received,
+   (SELECT COALESCE(sum(i.amount_cents),0)::bigint FROM lb_billing.invoices i JOIN lb_billing.subscriptions s ON s.id=i.subscription_id WHERE ($1::boolean OR ${billingOwn()}) AND i.status='pending') AS pending,
+   (SELECT count(*)::integer FROM lb_billing.invoices i JOIN lb_billing.subscriptions s ON s.id=i.subscription_id WHERE ($1::boolean OR ${billingOwn()}) AND i.status='pending' AND i.due_on<(now() AT TIME ZONE 'America/Sao_Paulo')::date) AS overdue`,[req.billingAdmin,req.user.id]);
   res.json(totals.rows[0]);
  }catch{res.status(503).json({error:'Resumo financeiro indisponível.'});}});
- router.get('/',async(req:any,res)=>{try{const r=await pool.query(`SELECT i.*,i.period_start::text AS period_start,i.period_end::text AS period_end,i.due_on::text AS due_on,i.paid_on::text AS paid_on,u.username FROM lb_billing.invoices i JOIN lb_billing.subscriptions s ON s.id=i.subscription_id JOIN public.users u ON u.id=s.user_id WHERE ($1::boolean OR s.user_id=$2) ORDER BY i.created_at DESC LIMIT 500`,[req.billingAdmin,req.user.id]);res.json(r.rows);}catch{res.status(503).json({error:'Cobranças indisponíveis. Verifique a atualização do módulo financeiro.'});}});
+ router.get('/',async(req:any,res)=>{try{const r=await pool.query(`SELECT i.*,i.period_start::text AS period_start,i.period_end::text AS period_end,i.due_on::text AS due_on,i.paid_on::text AS paid_on,COALESCE(a.name,u.username,'Aluno') AS username FROM lb_billing.invoices i JOIN lb_billing.subscriptions s ON s.id=i.subscription_id LEFT JOIN public.users u ON u.id=s.user_id LEFT JOIN public.athletes a ON a.id=COALESCE(s.athlete_id,u.athlete_id) WHERE ($1::boolean OR ${billingOwn()}) ORDER BY i.created_at DESC LIMIT 500`,[req.billingAdmin,req.user.id]);res.json(r.rows);}catch{res.status(503).json({error:'Cobranças indisponíveis. Verifique a atualização do módulo financeiro.'});}});
  router.post('/enroll',admin,async(req:any,res)=>{
   const b=req.body;
   if(typeof b.userId!=='string'||typeof b.name!=='string'||!b.name.trim()||b.name.length>100||!Number.isSafeInteger(b.amountCents)||b.amountCents<0||b.amountCents>2147483647||!Number.isInteger(b.durationDays)||b.durationDays<1||b.durationDays>366||!Number.isInteger(b.graceDays)||b.graceDays<0||b.graceDays>30)return res.status(400).json({error:'Informe conta, valor, duração e tolerância válidos.'});
   let c:any;try{c=await pool.connect();await c.query('BEGIN');
-   const target=(await c.query('SELECT id,role FROM public.users WHERE id=$1 FOR UPDATE',[b.userId])).rows[0];
-   if(!target||!['athlete','coach'].includes(target.role))throw Error('INVALID');
-   if((await c.query('SELECT id FROM lb_billing.subscriptions WHERE user_id=$1',[b.userId])).rows.length){await c.query('ROLLBACK');return res.status(409).json({error:'Esta conta já tem mensalidade. Use Editar / Liberar ou Novo período.'});}
+   const target=await resolveBillingSubject(c,b);
+   if(target.current){await c.query('ROLLBACK');return res.status(409).json({error:'Este aluno já tem mensalidade. Use Novo período.'});}
    const plan=randomUUID(),subscription=randomUUID();
    await c.query('INSERT INTO lb_billing.plans(id,name,audience,price_cents,duration_days,grace_days) VALUES($1,$2,$3,$4,$5,$6)',[plan,b.name.trim(),target.role,b.amountCents,b.durationDays,b.graceDays]);
-   await c.query('INSERT INTO lb_billing.subscriptions(id,user_id,plan_id) VALUES($1,$2,$3)',[subscription,b.userId,plan]);
+   await c.query('INSERT INTO lb_billing.subscriptions(id,user_id,plan_id,athlete_id) VALUES($1,$2,$3,$4)',[subscription,target.userId,plan,target.athleteId]);
    await c.query('COMMIT');res.status(201).json({id:subscription});
   }catch{if(c)await c.query('ROLLBACK').catch(()=>{});res.status(400).json({error:'Não foi possível cadastrar a mensalidade. Confira a conta selecionada.'});}finally{c?.release();}
  });

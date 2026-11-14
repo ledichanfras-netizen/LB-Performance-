@@ -1,3 +1,4 @@
+import {billingOwn,billingTargets,resolveBillingSubject} from './billingIdentities';
 import {billingPeriod} from '../src/utils/billingPeriod';
 import {simpleBilling} from './billingSimple';
 import {billingInvoices} from './billingInvoices';
@@ -42,17 +43,17 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
   router.use('/invoices',billingInvoices(pool,admin));
   router.use('/simple',simpleBilling(pool,admin));
   router.get('/overview', run(async (req: any, res: any) => {
-    const subscriptions = await pool.query(`SELECT s.*,s.complimentary_until::text AS complimentary_until, p.grace_days,p.name AS plan_name, p.price_cents, p.duration_days,p.calendar_months,p.by_periodization,COALESCE(a.name,u.username) AS username, u.role AS audience,
+    const subscriptions = await pool.query(`SELECT s.*,s.complimentary_until::text AS complimentary_until, p.grace_days,p.name AS plan_name, p.price_cents, p.duration_days,p.calendar_months,p.by_periodization,COALESCE(a.name,u.username,'Aluno') AS username,CASE WHEN s.athlete_id IS NOT NULL THEN 'athlete' ELSE u.role END AS audience,
       CASE WHEN s.suspended THEN 'suspended' WHEN s.valid_until IS NULL THEN 'pending'
       WHEN s.valid_until > now() THEN 'active' WHEN s.valid_until + make_interval(days => p.grace_days) > now() THEN 'grace' ELSE 'expired' END AS status
-      FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id JOIN users u ON u.id=s.user_id LEFT JOIN public.athletes a ON a.id=u.athlete_id
-      WHERE ($1::boolean OR s.user_id=$2) ORDER BY u.username`, [req.billingAdmin, req.user.id]);
+      FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id LEFT JOIN users u ON u.id=s.user_id LEFT JOIN public.athletes a ON a.id=COALESCE(s.athlete_id,u.athlete_id)
+      WHERE ($1::boolean OR ${billingOwn()}) ORDER BY username,s.id`, [req.billingAdmin, req.user.id]);
     const plans = await pool.query('SELECT * FROM lb_billing.plans ORDER BY name');
-    const users = req.billingAdmin ? (await pool.query('SELECT u.id, COALESCE(a.name,u.username) AS username,u.role FROM users u LEFT JOIN public.athletes a ON a.id=u.athlete_id ORDER BY username')).rows : [];
+    const users = req.billingAdmin ? await billingTargets(pool) : [];
     res.json({ admin: req.billingAdmin, enforcementEnabled: process.env.BILLING_ENFORCE==='true', subscriptions: subscriptions.rows, plans: plans.rows, users });
   }));
   router.get('/entries', run(async (req:any,res:any)=>{
-    const {rows}=await pool.query(`SELECT e.*,u.username FROM lb_billing.entries e JOIN lb_billing.subscriptions s ON s.id=e.subscription_id JOIN users u ON u.id=s.user_id WHERE ($1::boolean OR s.user_id=$2) ORDER BY e.created_at DESC LIMIT 200`,[req.billingAdmin,req.user.id]);res.json(rows);
+    const {rows}=await pool.query(`SELECT e.*,COALESCE(a.name,u.username,'Aluno') AS username FROM lb_billing.entries e JOIN lb_billing.subscriptions s ON s.id=e.subscription_id LEFT JOIN users u ON u.id=s.user_id LEFT JOIN public.athletes a ON a.id=COALESCE(s.athlete_id,u.athlete_id) WHERE ($1::boolean OR ${billingOwn()}) ORDER BY e.created_at DESC LIMIT 200`,[req.billingAdmin,req.user.id]);res.json(rows);
   }));
   router.post('/subscriptions/:id/action',admin,run(async(req:any,res:any)=>{
     const {action,reason}=req.body;
@@ -72,17 +73,19 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
   }));
   router.post('/subscriptions', admin, run(async (req: any, res: any) => {
     const { userId, planId } = req.body;
-    const result = await pool.query(`INSERT INTO lb_billing.subscriptions(id,user_id,plan_id)
-      SELECT $1,u.id,p.id FROM users u JOIN lb_billing.plans p ON p.id=$3 AND p.audience=u.role AND NOT p.archived WHERE u.id=$2
-      ON CONFLICT(user_id) DO NOTHING RETURNING *`, [randomUUID(), userId, planId]);
-    if (!result.rows[0]) throw Error('INVALID');
-    res.status(201).json(result.rows[0]);
+    const c=await pool.connect();try{
+      await c.query('BEGIN');const target=await resolveBillingSubject(c,{userId});
+      if(target.current)throw Error('INVALID');
+      const plan=(await c.query('SELECT id FROM lb_billing.plans WHERE id=$1 AND audience=$2 AND NOT archived',[planId,target.role])).rows[0];if(!plan)throw Error('INVALID');
+      const result=await c.query('INSERT INTO lb_billing.subscriptions(id,user_id,plan_id,athlete_id) VALUES($1,$2,$3,$4) RETURNING *',[randomUUID(),target.userId,planId,target.athleteId]);
+      await c.query('COMMIT');res.status(201).json(result.rows[0]);
+    }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
   }));
   router.post('/subscriptions/:id/plan', admin, run(async (req:any,res:any)=>{
     const {planId,reason}=req.body;
     if(typeof planId!=='string' || !/^[a-f0-9-]{36}$/i.test(planId) || typeof reason!=='string' || !reason.trim() || reason.length>500)throw Error('INVALID');
     const c=await pool.connect();try{await c.query('BEGIN');
-      const current=await c.query('SELECT s.*,u.role FROM lb_billing.subscriptions s JOIN public.users u ON u.id=s.user_id WHERE s.id=$1 FOR UPDATE OF s',[req.params.id]);
+      const current=await c.query(`SELECT s.*,CASE WHEN s.athlete_id IS NOT NULL THEN 'athlete' ELSE u.role END AS role FROM lb_billing.subscriptions s LEFT JOIN public.users u ON u.id=s.user_id WHERE s.id=$1 FOR UPDATE OF s`,[req.params.id]);
       const plan=await c.query('SELECT * FROM lb_billing.plans WHERE id=$1',[planId]);
       if(!current.rows[0] || !plan.rows[0] || current.rows[0].role!==plan.rows[0].audience || plan.rows[0].archived)throw Error('INVALID');
       await c.query('SELECT pg_advisory_xact_lock(hashtext(organization_id::text)) FROM lb_accounts.memberships WHERE user_id=$1',[current.rows[0].user_id]);
