@@ -1,3 +1,4 @@
+import {billingInvoices} from './billingInvoices';
 import { renewalRouter } from "./renewalAlerts";
 import { billingManagement } from "./billingManagement";
 import { Router, RequestHandler } from 'express';
@@ -36,8 +37,9 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
   };
   router.use('/renewals',renewalRouter(pool,admin));
   router.use('/manage',billingManagement(pool,admin));
+  router.use('/invoices',billingInvoices(pool,admin));
   router.get('/overview', run(async (req: any, res: any) => {
-    const subscriptions = await pool.query(`SELECT s.*, p.name AS plan_name, u.username,
+    const subscriptions = await pool.query(`SELECT s.*, p.name AS plan_name, p.price_cents, p.duration_days, u.username, u.role AS audience,
       CASE WHEN s.suspended THEN 'suspended' WHEN s.valid_until IS NULL THEN 'pending'
       WHEN s.valid_until > now() THEN 'active' WHEN s.valid_until + make_interval(days => p.grace_days) > now() THEN 'grace' ELSE 'expired' END AS status
       FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id JOIN users u ON u.id=s.user_id

@@ -302,7 +302,7 @@ export default function OptionsMenuModal({
           initial={{ opacity: 0, scale: 0.95, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          className="relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-[#0d121f] border border-slate-750/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden text-slate-100 z-10"
+          className="lb-management-modal relative w-full max-w-4xl max-h-[92vh] flex flex-col rounded-3xl bg-[#0d121f] border border-slate-750/70 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden text-slate-100 z-10"
         >
           {/* Top Bar / Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800/80 bg-slate-900/60">
