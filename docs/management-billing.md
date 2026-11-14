@@ -17,3 +17,13 @@ A aplicação deve receber a migração de cobranças antes da versão nova de i
 `node --import tsx --test --test-concurrency=1 server/billingInvoices.test.ts server/billing.test.ts server/database.test.ts`
 
 `npm run lint` e `npm run build`.
+
+## Cadastro simplificado por calendário
+
+Aplicar `server/billing-calendar-schema.sql` antes desta versão. Os novos campos são opcionais para os planos antigos. Não reescreve pagamentos, cobranças ou prazos já cadastrados.
+
+O formulário reúne aluno, plano cadastrado ou personalizado, duração mensal/trimestral/semestral/anual/por periodização, valor integral e início. As quatro durações regulares usam meses do calendário; periodização usa início e fim explícitos, sem depender de edições do treino. A prévia mostra o último dia incluído. A opção “Já recebi este pagamento” exige data, forma e confirmação e salva plano, cobrança, recebimento e auditoria atomicamente. Sem essa opção, salva cobrança pendente.
+
+As tentativas repetidas do mesmo pedido não duplicam lançamentos. Períodos pagos não podem se sobrepor. Novos períodos precisam resolver cobranças pendentes anteriores antes de substituir condições. Cobranças de periodização exigem um novo período com datas explícitas; não são renovadas silenciosamente por número de dias. O valor informado é integral pelo período; não há parcelamento neste formulário.
+
+Liberação por cortesia e exigência de período pago ficam em opções adicionais. Controles antigos preservam o comportamento anterior; os novos respeitam o controle financeiro global do serviço. Pagamento antecipado de um primeiro período futuro não libera acesso antes da data inicial quando a cobrança é exigida.

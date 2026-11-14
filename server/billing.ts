@@ -1,3 +1,5 @@
+import {billingPeriod} from '../src/utils/billingPeriod';
+import {simpleBilling} from './billingSimple';
 import {billingInvoices} from './billingInvoices';
 import { renewalRouter } from "./renewalAlerts";
 import { billingManagement } from "./billingManagement";
@@ -38,14 +40,15 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
   router.use('/renewals',renewalRouter(pool,admin));
   router.use('/manage',billingManagement(pool,admin));
   router.use('/invoices',billingInvoices(pool,admin));
+  router.use('/simple',simpleBilling(pool,admin));
   router.get('/overview', run(async (req: any, res: any) => {
-    const subscriptions = await pool.query(`SELECT s.*, p.name AS plan_name, p.price_cents, p.duration_days, u.username, u.role AS audience,
+    const subscriptions = await pool.query(`SELECT s.*,s.complimentary_until::text AS complimentary_until, p.grace_days,p.name AS plan_name, p.price_cents, p.duration_days,p.calendar_months,p.by_periodization,COALESCE(a.name,u.username) AS username, u.role AS audience,
       CASE WHEN s.suspended THEN 'suspended' WHEN s.valid_until IS NULL THEN 'pending'
       WHEN s.valid_until > now() THEN 'active' WHEN s.valid_until + make_interval(days => p.grace_days) > now() THEN 'grace' ELSE 'expired' END AS status
-      FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id JOIN users u ON u.id=s.user_id
+      FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id JOIN users u ON u.id=s.user_id LEFT JOIN public.athletes a ON a.id=u.athlete_id
       WHERE ($1::boolean OR s.user_id=$2) ORDER BY u.username`, [req.billingAdmin, req.user.id]);
     const plans = await pool.query('SELECT * FROM lb_billing.plans ORDER BY name');
-    const users = req.billingAdmin ? (await pool.query('SELECT id, username, role FROM users ORDER BY username')).rows : [];
+    const users = req.billingAdmin ? (await pool.query('SELECT u.id, COALESCE(a.name,u.username) AS username,u.role FROM users u LEFT JOIN public.athletes a ON a.id=u.athlete_id ORDER BY username')).rows : [];
     res.json({ admin: req.billingAdmin, enforcementEnabled: process.env.BILLING_ENFORCE==='true', subscriptions: subscriptions.rows, plans: plans.rows, users });
   }));
   router.get('/entries', run(async (req:any,res:any)=>{
@@ -98,7 +101,7 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const { rows } = await client.query('SELECT s.*,p.duration_days FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE s.id=$1 FOR UPDATE OF s', [req.params.id]);
+      const { rows } = await client.query('SELECT s.*,p.duration_days,p.calendar_months,p.by_periodization FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE s.id=$1 FOR UPDATE OF s', [req.params.id]);
       if (!rows[0]) throw Error('INVALID');
       const prior = await client.query('SELECT * FROM lb_billing.entries WHERE request_id=$1', [requestId]);
       if (prior.rows[0]) {
@@ -106,7 +109,14 @@ export function billingRouter(pool: Pool, authenticate: RequestHandler) {
         if (old.subscription_id !== req.params.id || old.amount_cents !== amountCents || old.method !== method || old.reason !== reason.trim()) throw Error('INVALID');
         await client.query('COMMIT'); return res.json({ duplicate: true, validUntil: rows[0].valid_until });
       }
-      const updated = await client.query(`UPDATE lb_billing.subscriptions SET valid_until=GREATEST(COALESCE(valid_until,now()),now()) + make_interval(days => $2), suspended=false, renewal_cancelled=false WHERE id=$1 RETURNING valid_until`, [req.params.id, rows[0].duration_days]);
+      if(rows[0].by_periodization)throw Error('INVALID');
+      let updated;
+      if(rows[0].calendar_months){
+        const dates=(await client.query("SELECT GREATEST((now() AT TIME ZONE 'America/Sao_Paulo')::date,COALESCE(($1::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date+1,(now() AT TIME ZONE 'America/Sao_Paulo')::date))::text AS start",[rows[0].valid_until])).rows[0];
+        const kind=({1:'monthly',3:'quarterly',6:'half_year',12:'yearly'} as const)[rows[0].calendar_months as 1|3|6|12];
+        const period=billingPeriod(dates.start,kind);
+        updated=await client.query("UPDATE lb_billing.subscriptions SET valid_until=(($2::date+1)::timestamp AT TIME ZONE 'America/Sao_Paulo')-interval '1 millisecond',suspended=false,renewal_cancelled=false WHERE id=$1 RETURNING valid_until",[req.params.id,period.end]);
+      }else updated = await client.query(`UPDATE lb_billing.subscriptions SET valid_until=GREATEST(COALESCE(valid_until,now()),now()) + make_interval(days => $2), suspended=false, renewal_cancelled=false WHERE id=$1 RETURNING valid_until`, [req.params.id, rows[0].duration_days]);
       await client.query('INSERT INTO lb_billing.entries(id,request_id,subscription_id,kind,amount_cents,method,reason,recorded_by,valid_until) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)', [randomUUID(),requestId,req.params.id,['courtesy','trial'].includes(method) ? 'grant' : 'payment',amountCents,method,reason.trim(),req.user.id,updated.rows[0].valid_until]);
       await client.query('COMMIT'); res.json({ validUntil: updated.rows[0].valid_until });
     } catch (e) { await client.query('ROLLBACK'); throw e; } finally { client.release(); }
