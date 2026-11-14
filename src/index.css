@@ -2518,3 +2518,37 @@ body.light-theme .lb-finish-dialog [class*="text-[#39FF14]"] { color:var(--sf-gr
 .lb-anamnesis-scroll { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; scroll-padding-bottom: 24px; }
 .lb-anamnesis-actions { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 @media (max-width: 639px) { .lb-anamnesis-panel { border-radius: 0; } }
+
+/* Management surfaces use the same readable palette throughout the light theme. */
+body.light-theme .lb-management-modal { background:#fff!important; color:#162c23!important; border-color:#cfdfd6!important; }
+body.light-theme .lb-management-modal :is([class*="bg-slate-"],[class*="bg-[#"],[class*="bg-gradient-"]) { background:#f6faf8!important; background-image:none!important; }
+body.light-theme .lb-management-modal :is([class*="border-slate-"],[class*="border-blue-"]) { border-color:#ccddd3!important; }
+body.light-theme .lb-management-modal :is(h2,h3,h4,[class*="text-white"],[class*="text-slate-1"],[class*="text-slate-2"]) { color:#162c23!important; }
+body.light-theme .lb-management-modal :is(p,li,[class*="text-slate-3"],[class*="text-slate-4"],[class*="text-slate-5"],[class*="text-slate-6"]) { color:#465e52!important; }
+body.light-theme .lb-management-modal :is([class*="text-blue-"],[class*="text-indigo-"],[class*="text-emerald-"],[class*="text-brand-primary"]) { color:#086b4a!important; }
+body.light-theme .lb-management-modal :is([class*="text-amber-"],[class*="text-yellow-"]) { color:#825008!important; }
+body.light-theme .lb-management-modal [class*="text-red-"] { color:#aa2531!important; }
+body.light-theme .lb-management-modal :is(button,label)[class*="bg-"]:is([class*="bg-blue-6"],[class*="bg-emerald-6"],[class*="bg-brand-primary"],[class*="bg-indigo-6"]) { background:#087d54!important; color:#fff!important; }
+body.light-theme .lb-management-modal :is(button,label)[class*="bg-"]:is([class*="bg-blue-6"],[class*="bg-emerald-6"],[class*="bg-brand-primary"],[class*="bg-indigo-6"]) * { color:inherit!important; }
+.lb-management-modal :is(button,a,input,select,textarea):focus-visible { outline:3px solid #18a775; outline-offset:3px; }
+.billing-page { max-width:1100px; margin:0 auto; }
+.billing-page .billing-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.billing-page .billing-summary>div { background:#142c22; border:1px solid #35604b; border-radius:20px; padding:20px; display:grid; gap:8px; }
+.billing-page .billing-summary strong { font-size:clamp(1.1rem,3vw,1.65rem); }
+.billing-page .billing-toolbar,.billing-page .billing-actions { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+.billing-page .billing-actions { justify-content:flex-start; }
+.billing-page .billing-primary,.billing-page .billing-secondary { min-height:48px; padding:12px 18px; border-radius:14px; font-weight:700; }
+.billing-page .billing-primary { background:#087c53!important; color:#fff!important; border:1px solid #087c53; }
+.billing-page .billing-secondary { border:1px solid #66917d; color:inherit; background:transparent; }
+.billing-page button:disabled { opacity:.5; cursor:wait; }
+.billing-page .billing-expanded { border-top:1px solid #60806c; padding-top:20px; display:grid; gap:20px; }
+.billing-page .billing-invoice { padding:20px 0; border-top:1px solid #60806c; display:grid; gap:8px; }
+.billing-page .billing-success { background:#e1f6eb; color:#086b45; border-radius:16px; padding:16px; }
+body.light-theme .billing-page { background:#f5f9f7!important; color:#172e23!important; }
+body.light-theme .billing-page :is(section,form,details)[class*="bg-slate-"] { background:#fff!important; border:1px solid #d2e2d9!important; border-radius:20px; }
+body.light-theme .billing-page .billing-summary>div { background:#edf8f1!important; border-color:#c6dece; color:#174b33; }
+body.light-theme .billing-page :is([class*="text-slate-"],[class*="text-white"]) { color:#243c30!important; }
+body.light-theme .billing-page :is([class*="text-green-"],[class*="text-emerald-"]) { color:#087348!important; }
+body.light-theme .billing-page [class*="text-red-"] { color:#a32b36!important; }
+body.light-theme .billing-page button[class*="bg-green-"] { background:#087c53!important; color:#fff!important; }
+@media(max-width:600px){ .billing-page .billing-summary { grid-template-columns:1fr; } .billing-page .billing-summary>div { display:flex; align-items:center; justify-content:space-between; padding:16px; } .billing-page .billing-actions>button { flex:1 1 160px; } }

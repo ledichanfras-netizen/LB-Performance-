@@ -9,6 +9,7 @@ export function billingManagement(pool:Pool,admin:RequestHandler){
   if(!table || !['edit','remove','date'].includes(action) || !/^[a-f0-9-]{36}$/i.test(id) || typeof b.reason!=='string' || !b.reason.trim() || b.reason.length>500)return res.status(400).json({error:'Informe o motivo da alteração.'});
   const c=await pool.connect();try{await c.query('BEGIN');
    const old=(await c.query(`SELECT * FROM lb_billing.${table} WHERE id=$1 FOR UPDATE`,[id])).rows[0];if(!old)throw Error('Registro não encontrado.');
+   if(entity==='entries'&&String(old.request_id||'').startsWith('invoice-'))throw Error('Lançamentos do provedor ou de cobranças emitidas preservam o comprovante original.');
    let after;
    if(action==='date'){
     if(!['entries','subscriptions'].includes(entity)||typeof b.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(b.date)||new Date(b.date+'T12:00:00Z').toISOString().slice(0,10)!==b.date)throw Error('Data inválida.');
