@@ -1,3 +1,4 @@
+import { parseBrazilianDate } from '../src/utils/billingPeriod';
 import { Router, RequestHandler } from 'express';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
@@ -12,10 +13,11 @@ export function billingManagement(pool:Pool,admin:RequestHandler){
    if(entity==='entries'&&String(old.request_id||'').startsWith('invoice-'))throw Error('Lançamentos do provedor ou de cobranças emitidas preservam o comprovante original.');
    let after;
    if(action==='date'){
-    if(!['entries','subscriptions'].includes(entity)||typeof b.date!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(b.date)||new Date(b.date+'T12:00:00Z').toISOString().slice(0,10)!==b.date)throw Error('Data inválida.');
+    const parsedDate=parseBrazilianDate(b.date);
+    if(!['entries','subscriptions'].includes(entity)||!parsedDate)throw Error('Data inválida.');
     if(entity==='entries'&&(old.voided_at||old.source!=='manual'))throw Error('Lançamentos do provedor ou cancelados não podem ter a data alterada.');
     const column=entity==='entries'?'effective_on':'registered_on';
-    after=(await c.query(`UPDATE lb_billing.${table} SET ${column}=$2::date WHERE id=$1 RETURNING *`,[id,b.date])).rows[0];
+    after=(await c.query(`UPDATE lb_billing.${table} SET ${column}=$2::date WHERE id=$1 RETURNING *`,[id,parsedDate])).rows[0];
    }else if(entity==='plans'){
     if(action==='remove'){
      // Archive rather than delete: existing contracts retain their plan reference.
@@ -37,8 +39,9 @@ export function billingManagement(pool:Pool,admin:RequestHandler){
    }else{
     if(action==='remove')after=(await c.query('UPDATE lb_billing.subscriptions SET suspended=true,renewal_cancelled=true WHERE id=$1 RETURNING *',[id])).rows[0];
     else{
-     if(typeof b.validUntil!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(b.validUntil)||!Number.isFinite(Date.parse(b.validUntil)))throw Error('Vencimento inválido.');
-     after=(await c.query("UPDATE lb_billing.subscriptions SET valid_until=(($2::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo') - interval '1 millisecond' WHERE id=$1 RETURNING *",[id,b.validUntil])).rows[0];
+     const parsedValidUntil=parseBrazilianDate(b.validUntil);
+     if(!parsedValidUntil)throw Error('Vencimento inválido.');
+     after=(await c.query("UPDATE lb_billing.subscriptions SET valid_until=(($2::date + interval '1 day') AT TIME ZONE 'America/Sao_Paulo') - interval '1 millisecond' WHERE id=$1 RETURNING *",[id,parsedValidUntil])).rows[0];
     }
    }
    await c.query('INSERT INTO lb_billing.management_audit(id,entity_type,entity_id,action,reason,actor_id,before_data,after_data) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',[randomUUID(),entity,id,action,b.reason.trim(),req.user.id,JSON.stringify(old),JSON.stringify(after)]);

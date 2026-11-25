@@ -35,7 +35,7 @@ export function billingInvoices(pool:Pool,admin:RequestHandler){
   let c:any;
   try{c=await pool.connect();await c.query('BEGIN');
    if(action==='issue'){
-    const sub=(await c.query('SELECT s.*,p.name,p.price_cents,p.duration_days,p.calendar_months,p.by_periodization FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE s.id=$1 FOR UPDATE OF s',[id])).rows[0];
+    const sub=(await c.query("SELECT s.*,NULLIF(to_jsonb(s)->>'registered_on','') AS registered_on_text,p.name,p.price_cents,p.duration_days,p.calendar_months,p.by_periodization FROM lb_billing.subscriptions s JOIN lb_billing.plans p ON p.id=s.plan_id WHERE s.id=$1 FOR UPDATE OF s",[id])).rows[0];
     if(!sub)throw Error('NOT_FOUND');
     if(b.amountCents!==undefined&&(!Number.isSafeInteger(b.amountCents)||b.amountCents<0||b.amountCents>2147483647))throw Error('PAYMENT');
     if(b.durationDays!==undefined&&(!Number.isInteger(b.durationDays)||b.durationDays<1||b.durationDays>366))throw Error('PAYMENT');
@@ -43,7 +43,7 @@ export function billingInvoices(pool:Pool,admin:RequestHandler){
     if(pending){await c.query('COMMIT');return res.json(pending);}
     if(sub.by_periodization)throw Error('PERIODIZATION');
     if(sub.calendar_months&&b.durationDays===undefined){
-     const dates=(await c.query("SELECT GREATEST((now() AT TIME ZONE 'America/Sao_Paulo')::date,COALESCE(($1::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date+1,(now() AT TIME ZONE 'America/Sao_Paulo')::date))::text AS start",[sub.valid_until])).rows[0];
+     const dates=(await c.query("SELECT COALESCE(($1::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date+1,$2::date,(now() AT TIME ZONE 'America/Sao_Paulo')::date)::text AS start",[sub.valid_until,sub.registered_on_text||null])).rows[0];
      const duration=({1:'monthly',3:'quarterly',6:'half_year',12:'yearly'} as const)[sub.calendar_months as 1|3|6|12];
      const p=billingPeriod(dates.start,duration);
      const row=(await c.query('INSERT INTO lb_billing.invoices(id,subscription_id,plan_name,amount_cents,period_start,period_end,due_on,created_by) VALUES($1,$2,$3,$4,$5::date,$6::date,$5::date,$7) RETURNING *',[randomUUID(),id,sub.name,b.amountCents??sub.price_cents,p.start,p.end,req.user.id])).rows[0];
@@ -51,7 +51,7 @@ export function billingInvoices(pool:Pool,admin:RequestHandler){
     }
     const inserted=await c.query(`INSERT INTO lb_billing.invoices(id,subscription_id,plan_name,amount_cents,period_start,period_end,due_on,created_by)
      SELECT $1,$2,$3,$4,start_on,start_on+$5::integer-1,start_on,$6 FROM
-     (SELECT GREATEST((now() AT TIME ZONE 'America/Sao_Paulo')::date,COALESCE(($7::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date+1,(now() AT TIME ZONE 'America/Sao_Paulo')::date)) AS start_on) dates RETURNING *`,[randomUUID(),id,sub.name,b.amountCents??sub.price_cents,b.durationDays??sub.duration_days,req.user.id,sub.valid_until]);
+     (SELECT COALESCE(($7::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date+1,$8::date,(now() AT TIME ZONE 'America/Sao_Paulo')::date) AS start_on) dates RETURNING *`,[randomUUID(),id,sub.name,b.amountCents??sub.price_cents,b.durationDays??sub.duration_days,req.user.id,sub.valid_until,sub.registered_on_text||null]);
     await c.query('COMMIT');return res.status(201).json(inserted.rows[0]);
    }
    const found=(await c.query('SELECT subscription_id FROM lb_billing.invoices WHERE id=$1',[id])).rows[0];if(!found)throw Error('NOT_FOUND');

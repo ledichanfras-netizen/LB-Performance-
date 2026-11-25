@@ -17,3 +17,26 @@ export function billingPeriod(start:string,duration:BillingDuration,end?:string)
  if(days>366)throw Error('O período deve ter até 366 dias.');
  return {start,end:finish,days,months:durationMonths[duration]||null};
 }
+export function formatBrazilianDate(v:string|null|undefined){
+ if(!v)return '';
+ const iso=v.length===10?v:new Date(v).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+ if(!validBillingDate(iso))return '';
+ const [y,m,d]=iso.split('-');
+ return `${d}/${m}/${y}`;
+}
+export function parseBrazilianDate(v:unknown):string|null{
+ if(typeof v!=='string')return null;
+ const trimmed=v.trim();
+ if(validBillingDate(trimmed))return trimmed;
+ const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(trimmed);
+ if(!m)return null;
+ const iso=`${m[3]}-${m[2]}-${m[1]}`;
+ return validBillingDate(iso)?iso:null;
+}
+export function maskBrazilianDate(raw:string){
+ const digits=raw.replace(/\D/g,'').slice(0,8);
+ if(digits.length<=2)return digits;
+ if(digits.length<=4)return `${digits.slice(0,2)}/${digits.slice(2)}`;
+ return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+}
+

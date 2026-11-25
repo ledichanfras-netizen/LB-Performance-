@@ -8,7 +8,7 @@ import express from 'express';
 import {PGlite} from '@electric-sql/pglite';
 import {readFile} from 'node:fs/promises';
 import {simpleBilling} from './billingSimple';
-import {billingPeriod} from '../src/utils/billingPeriod';
+import {billingPeriod,formatBrazilianDate,maskBrazilianDate,parseBrazilianDate} from '../src/utils/billingPeriod';
 import {billingInvoices} from './billingInvoices';
 const sub='11111111-1111-4111-8111-111111111111';
 async function fixture(fn:(url:string,db:PGlite)=>Promise<void>,isAdmin=true){
@@ -158,3 +158,64 @@ test('identity migration is repeatable and preserves a legacy contract and its r
  const sub=(await db.query("SELECT * FROM lb_billing.subscriptions WHERE user_id='legacy'")).rows[0];assert.equal(sub.athlete_id,'offline-a');assert.equal(sub.id,'88888888-8888-4888-8888-888888888888');
  assert.equal((await db.query('SELECT amount_cents FROM lb_billing.entries')).rows[0].amount_cents,15000);
 }));
+
+test('late payment via renew settles pending invoice and keeps registration-based expiration instead of shifting 1 month from payment',async()=>fixture(async(url,db)=>{
+ await db.exec(await readFile(new URL('./billing-dates-schema.sql',import.meta.url),'utf8'));
+ const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+ const registeredOn=shiftBillingDate(today,-10);
+ const expected=billingPeriod(registeredOn,'monthly').end;
+ const created=await post(url+'/simple',{athleteId:'offline-a',name:'Mensal',amountCents:15000,duration:'monthly',startOn:registeredOn,graceDays:0,paymentRequired:true,received:false,requestId:'late-payment-pending-001'});
+ assert.equal(created.status,201,await created.clone().text());
+ const subRow=(await db.query("SELECT id,registered_on::text AS registered_on FROM lb_billing.subscriptions WHERE athlete_id='offline-a'")).rows[0];
+ assert.equal(subRow.registered_on,registeredOn);
+ assert.equal((await post(`${url}/billing/subscriptions/${subRow.id}/renew`,{requestId:'late-renew-mismatch-001',amountCents:10000,method:'pix',paidOn:today,reason:'Valor errado'})).status,400);
+ const renewed=await post(`${url}/billing/subscriptions/${subRow.id}/renew`,{requestId:'late-renew-match-001',amountCents:15000,method:'pix',paidOn:today,reason:'Pagamento em atraso'});
+ assert.equal(renewed.status,200,await renewed.clone().text());
+ const subAfter=(await db.query("SELECT valid_until FROM lb_billing.subscriptions WHERE id=$1",[subRow.id])).rows[0];
+ assert.equal(new Date(subAfter.valid_until).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}),expected);
+ const inv=(await db.query("SELECT status,paid_on::text AS paid_on FROM lb_billing.invoices WHERE subscription_id=$1",[subRow.id])).rows[0];
+ assert.equal(inv.status,'paid');assert.equal(inv.paid_on,today);
+}));
+
+test('overdue renewal and invoice issuance anchor to registered_on or prior valid_until + 1 rather than today',async()=>fixture(async(url,db)=>{
+ await db.exec(await readFile(new URL('./billing-dates-schema.sql',import.meta.url),'utf8'));
+ const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+ const startOn=shiftBillingDate(today,-10);
+ const expectedEnd=billingPeriod(startOn,'monthly').end;
+ await db.query('UPDATE lb_billing.plans SET calendar_months=1 WHERE id=$1',['p']);
+ await db.query('UPDATE lb_billing.subscriptions SET registered_on=$2::date,valid_until=NULL WHERE id=$1',[sub,startOn]);
+ const issued=await post(`${url}/${sub}/issue`);assert.equal(issued.status,201,await issued.clone().text());
+ const inv=await issued.json();
+ assert.equal(inv.period_start.slice(0,10),startOn);assert.equal(inv.period_end.slice(0,10),expectedEnd);
+ assert.equal((await post(`${url}/${inv.id}/receive`,{paidOn:today,method:'pix',note:'Pago após início',confirmed:true})).status,200);
+ const subAfterFirst=(await db.query('SELECT valid_until FROM lb_billing.subscriptions WHERE id=$1',[sub])).rows[0];
+ assert.equal(new Date(subAfterFirst.valid_until).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}),expectedEnd);
+
+ // Also verify expired subscription renewal without pending invoice anchors to (valid_until + 1), not today
+ const expiredEnd=shiftBillingDate(today,-11);
+ const nextCycleStart=shiftBillingDate(expiredEnd,1);
+ const nextCycleEnd=billingPeriod(nextCycleStart,'monthly').end;
+ await db.query("UPDATE lb_billing.subscriptions SET valid_until=(($2::date+1)::timestamp AT TIME ZONE 'America/Sao_Paulo')-interval '1 millisecond' WHERE id=$1",[sub,expiredEnd]);
+ const directRenew=await post(`${url}/billing/subscriptions/${sub}/renew`,{requestId:'late-direct-renew-001',amountCents:10000,method:'pix',paidOn:today,reason:'Renovação em atraso'});
+ assert.equal(directRenew.status,200,await directRenew.clone().text());
+ const subAfterDirect=(await db.query('SELECT valid_until FROM lb_billing.subscriptions WHERE id=$1',[sub])).rows[0];
+ assert.equal(new Date(subAfterDirect.valid_until).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}),nextCycleEnd);
+ const entry=(await db.query("SELECT effective_on::text AS effective_on FROM lb_billing.entries WHERE request_id='late-direct-renew-001'")).rows[0];
+ assert.equal(entry.effective_on,today);
+}));
+
+test('Brazilian date helpers format, mask and parse DD/MM/YYYY and management endpoint accepts DD/MM/YYYY',async()=>fixture(async(url,db)=>{
+ assert.equal(formatBrazilianDate('2026-12-24'),'24/12/2026');
+ assert.equal(formatBrazilianDate('2026-12-14T02:59:59.999Z'),'13/12/2026');
+ assert.equal(parseBrazilianDate('24/12/2026'),'2026-12-24');
+ assert.equal(parseBrazilianDate('31/02/2026'),null);
+ assert.equal(maskBrazilianDate('24112026'),'24/11/2026');
+
+ await db.exec(await readFile(new URL('./billing-management-schema.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('./billing-dates-schema.sql',import.meta.url),'utf8'));
+ const res=await post(`${url}/billing/manage/subscriptions/${sub}/edit`,{validUntil:'24/12/2026',reason:'Ajuste em formato brasileiro'});
+ assert.equal(res.status,200,await res.clone().text());
+ const updated=(await db.query('SELECT valid_until FROM lb_billing.subscriptions WHERE id=$1',[sub])).rows[0];
+ assert.equal(new Date(updated.valid_until).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'}),'2026-12-24');
+}));
+

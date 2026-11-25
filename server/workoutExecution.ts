@@ -7,8 +7,12 @@ import {realizedTonnage} from '../src/utils/sessionMetrics';
 import {workoutFromRows} from './workoutHistory';
 import {exerciseMetadata} from './exerciseMetadata';
 const measurementKeys=['reps','weight','rpe','distance','timeSeconds','intensity','speedKmh','inclinePercent'] as const;
+const normalizeMeasurement=(value:unknown)=>{
+ if(value===undefined||value===null)return null;
+ return typeof value==='number'&&Number.isFinite(value)?Math.fround(value):value;
+};
 function results(w:any){
- return {date:w.date,status:w.status,rpe:w.rpe,durationMinutes:w.durationMinutes,feedback:w.feedback||'',exercises:[...w.exercises].sort((a,b)=>a.id.localeCompare(b.id)).map((e:any)=>({id:e.id,painLevel:e.painLevel??0,performedSets:[...(e.performedSets||[])].map((s:any)=>Object.fromEntries([['id',s.id],['isCompleted',s.isCompleted===true],...measurementKeys.map(k=>[k,s[k]??null])]))}))};
+ return {date:String(w.date||'').split('T')[0],status:w.status,rpe:w.rpe,durationMinutes:w.durationMinutes,feedback:w.feedback||'',exercises:[...w.exercises].sort((a,b)=>a.id.localeCompare(b.id)).map((e:any)=>({id:e.id,painLevel:e.painLevel??0,performedSets:[...(e.performedSets||[])].map((s:any)=>Object.fromEntries([['id',s.id],['isCompleted',s.isCompleted===true],...measurementKeys.map(k=>[k,normalizeMeasurement(s[k])])]))}))};
 }
 export async function saveWorkoutExecution(pool:any,account:any,athleteId:string,workoutId:string,body:any){
  sportsReadScope(account);

@@ -27,4 +27,17 @@ export async function readSavedRevisions(client: any, athletes: any[]) {
   const {rows} = await client.query('SELECT id,updated_at FROM athletes WHERE id = ANY($1::text[])', [athletes.map(a=>a.id)]);
   return Object.fromEntries(rows.map((row:any)=>[row.id,syncRevision(row.updated_at)]));
 }
+export async function readSavedWorkoutRevisions(client: any, athletes: any[]) {
+  const ids = athletes.map(a=>a.id).filter(Boolean);
+  if (!ids.length) return {};
+  const cols = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='workouts' AND column_name IN ('updated_at','archived_at')");
+  if (cols.rows.length < 2) return {};
+  const {rows} = await client.query('SELECT id,updated_at FROM workouts WHERE athlete_id = ANY($1::text[]) AND archived_at IS NULL', [ids]);
+  const revisions: Record<string, string> = {};
+  for (const row of rows) {
+    const rev = syncRevision(row.updated_at);
+    if (rev) revisions[String(row.id)] = rev;
+  }
+  return revisions;
+}
 export const archiveMissingWorkoutsSQL = 'UPDATE workouts SET archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE athlete_id = $1 AND archived_at IS NULL AND id NOT IN (SELECT jsonb_array_elements_text($2::jsonb))';

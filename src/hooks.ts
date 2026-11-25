@@ -1,4 +1,5 @@
 import {mergeDashboardAthletes,requireCompleteAthletes} from './utils/progressiveAthletes';
+import {applySaveReceiptToAthletes,hasStaleCachedWorkouts,resolveWorkoutExecutionBaseRevision} from './utils/saveReceipts';
 import {persistAnamnesisHistory} from './utils/anamnesisSave';
 import {ensureSessionServiceReady} from './utils/sessionServiceReady';
 import {workoutExecutionPayload} from './utils/workoutExecution';
@@ -169,6 +170,8 @@ export const useAthletes = (token?: string | null) => {
   const athletesRef = useRef<Athlete[]>(athletes);
   const saveRevisionRef = useRef(0);
   const pendingSavesRef = useRef(0);
+  const pendingSnapshotSaveRef = useRef<Promise<unknown>>(Promise.resolve());
+  const reconciledWorkoutRevisionsRef = useRef<Map<string, { fromRevision?: string; toRevision: string }>>(new Map());
 
   // Keep references updated on every render
   useEffect(() => {
@@ -196,14 +199,21 @@ export const useAthletes = (token?: string | null) => {
 
   const acceptSaveReceipt = async (res: Response, saved: Athlete[]) => {
     const receipt = await res.json();
-    if (receipt.matchesByAthlete) {
-      for (const a of saved) if (receipt.matchesByAthlete[a.id]) a.matches=receipt.matchesByAthlete[a.id];
-      setAthletes(prev=>prev.map(a=>receipt.matchesByAthlete[a.id]?{...a,matches:receipt.matchesByAthlete[a.id]}:a));
+    if (receipt.workoutRevisions) {
+      for (const a of saved) {
+        if (Array.isArray(a.workouts)) {
+          for (const w of a.workouts) {
+            const nextRev = receipt.workoutRevisions[w.id];
+            if (nextRev && w.updatedAt !== nextRev) {
+              reconciledWorkoutRevisionsRef.current.set(w.id, { fromRevision: w.updatedAt, toRevision: nextRev });
+            }
+          }
+        }
+      }
     }
-    if (receipt.syncRevisions) {
-      for (const a of saved) if (receipt.syncRevisions[a.id]) a.syncRevision=receipt.syncRevisions[a.id];
-      setAthletes(prev=>prev.map(a=>receipt.syncRevisions[a.id] ? {...a,syncRevision:receipt.syncRevisions[a.id]} : a));
-    }
+    const updatedSaved = applySaveReceiptToAthletes(saved, receipt);
+    for (let i = 0; i < saved.length; i++) Object.assign(saved[i], updatedSaved[i]);
+    setAthletes(prev => applySaveReceiptToAthletes(prev, receipt));
   };
 
   const api = {
@@ -294,30 +304,34 @@ export const useAthletes = (token?: string | null) => {
       try {
         if (token) {
           console.log('Sincronizando via API local (/api/salvar)...');
-          const res = await resilientFetch('/api/salvar', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(athletes)
-          });
-          if (!res.ok) {
-            if (res.status === 401) {
-              window.dispatchEvent(new Event('lb:session-invalid'));
-              throw new Error('Sessão expirada. Entre novamente para salvar.');
+          const task = (async () => {
+            const res = await resilientFetch('/api/salvar', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(athletes)
+            });
+            if (!res.ok) {
+              if (res.status === 401) {
+                window.dispatchEvent(new Event('lb:session-invalid'));
+                throw new Error('Sessão expirada. Entre novamente para salvar.');
+              }
+              const errText = await res.text();
+              let errorMsg = errText;
+              try {
+                const parsed = JSON.parse(errText);
+                errorMsg = parsed.error || parsed.detail || parsed.message || errText;
+              } catch (e) {}
+              const error = new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
+              (error as any).status = res.status;
+              throw error;
             }
-            const errText = await res.text();
-            let errorMsg = errText;
-            try {
-              const parsed = JSON.parse(errText);
-              errorMsg = parsed.error || parsed.detail || parsed.message || errText;
-            } catch (e) {}
-            const error = new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
-            (error as any).status = res.status;
-            throw error;
-          }
-          await acceptSaveReceipt(res, athletes);
+            await acceptSaveReceipt(res, athletes);
+          })();
+          pendingSnapshotSaveRef.current = task.catch(() => undefined);
+          await task;
           return;
         }
         await supabaseService.saveAthletes(athletes);
@@ -335,30 +349,34 @@ export const useAthletes = (token?: string | null) => {
       try {
         if (token) {
           console.log(`[Hooks] Sincronizando atleta via API local (/api/salvar)...`);
-          const res = await resilientFetch('/api/salvar', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify([athlete])
-          });
-          if (!res.ok) {
-            if (res.status === 401) {
-              window.dispatchEvent(new Event('lb:session-invalid'));
-              throw new Error('Sessão expirada. Entre novamente para salvar.');
+          const task = (async () => {
+            const res = await resilientFetch('/api/salvar', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify([athlete])
+            });
+            if (!res.ok) {
+              if (res.status === 401) {
+                window.dispatchEvent(new Event('lb:session-invalid'));
+                throw new Error('Sessão expirada. Entre novamente para salvar.');
+              }
+              const errText = await res.text();
+              let errorMsg = errText;
+              try {
+                const parsed = JSON.parse(errText);
+                errorMsg = parsed.error || parsed.detail || parsed.message || errText;
+              } catch (e) {}
+              const error = new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
+              (error as any).status = res.status;
+              throw error;
             }
-            const errText = await res.text();
-            let errorMsg = errText;
-            try {
-              const parsed = JSON.parse(errText);
-              errorMsg = parsed.error || parsed.detail || parsed.message || errText;
-            } catch (e) {}
-            const error = new Error(`Erro do servidor (/api/salvar): ${errorMsg}`);
-            (error as any).status = res.status;
-            throw error;
-          }
-          await acceptSaveReceipt(res, [athlete]);
+            await acceptSaveReceipt(res, [athlete]);
+          })();
+          pendingSnapshotSaveRef.current = task.catch(() => undefined);
+          await task;
           return;
         }
         console.log(`[Hooks] Salvando atleta ${athlete.id} no Supabase...`);
@@ -449,8 +467,15 @@ export const useAthletes = (token?: string | null) => {
           return athletesRef.current;
         })();
 
-        // Merge remote response safely with local cache/state
-        const mergedAthletes = mergeDashboardAthletes(localCachedAthletes, filtered);
+        // Merge remote response safely with local cache/state, invalidating stale workout caches
+        const summaryById = new Map(filtered.map(s => [s.id, s]));
+        const mergedAthletes = mergeDashboardAthletes(localCachedAthletes, filtered).map(athlete => {
+          const summary = summaryById.get(athlete.id);
+          if (summary && athlete.historyComplete !== false && hasStaleCachedWorkouts(athlete, summary)) {
+            return summary;
+          }
+          return athlete;
+        });
 
         // Detect if new workouts or wellness items arrived from another device during silent background sync
         if (isSilent && athletesRef.current.length > 0) {
@@ -947,11 +972,11 @@ export const useAthletes = (token?: string | null) => {
     const updatedWorkout: Workout = {
       ...workout,
       date: cleanDate,
-      updatedAt: executionOptions ? executionOptions.baseUpdatedAt : new Date().toISOString(),
+      updatedAt: executionOptions ? executionOptions.baseUpdatedAt : workout.updatedAt,
       exercises: (workout.exercises || []).map((ex, idx) => ({ ...ex, order_index: idx }))
     };
 
-    const updated = athletes.map(a => {
+    const computeUpdatedAthletes = () => athletesRef.current.map(a => {
       if (a.id === athleteId) {
         let finalWorkout = { ...updatedWorkout };
         if (workout.status === 'completed') {
@@ -967,22 +992,42 @@ export const useAthletes = (token?: string | null) => {
       }
       return a;
     });
-    setAthletes(updated);
+
     if(executionOptions&&token){
       saveRevisionRef.current+=1;pendingSavesRef.current+=1;setSyncing(true);
-      safeLocalStorage.setItem(cacheKey,JSON.stringify(updated));
       try{
         await ensureSessionServiceReady();
-        const res=await resilientFetch(`/api/athletes/${encodeURIComponent(athleteId)}/workouts/${encodeURIComponent(workout.id)}/execution`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(workoutExecutionPayload(updatedWorkout,executionOptions.baseUpdatedAt))});
+        await pendingSnapshotSaveRef.current.catch(()=>undefined);
+        const reconciled=reconciledWorkoutRevisionsRef.current.get(workout.id);
+        const currentWorkout=athletesRef.current.find(a=>a.id===athleteId)?.workouts?.find(w=>w.id===workout.id);
+        const baseUpdatedAt=resolveWorkoutExecutionBaseRevision(currentWorkout?.updatedAt,executionOptions.baseUpdatedAt,reconciled);
+        const payloadWorkout:Workout={...updatedWorkout,updatedAt:baseUpdatedAt};
+        const res=await resilientFetch(`/api/athletes/${encodeURIComponent(athleteId)}/workouts/${encodeURIComponent(workout.id)}/execution`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify(workoutExecutionPayload(payloadWorkout,baseUpdatedAt))});
         if(res.status===401)window.dispatchEvent(new Event('lb:session-invalid'));
         let receipt:any;try{receipt=await res.json();}catch{throw Error('O serviço não confirmou a sessão. O rascunho foi preservado; tente sincronizar novamente.');}
-        if(!res.ok)throw Error(receipt.error||'O servidor não confirmou a sessão.');
+        if(!res.ok){const err=Error(receipt.error||'O servidor não confirmou a sessão.');(err as any).status=res.status;(err as any).code=receipt.code;throw err;}
         if(receipt.confirmed!==true||receipt.workout?.id!==workout.id||!receipt.syncRevisions?.[athleteId])throw Error('Confirmação incompleta. O rascunho foi preservado.');
         setAthletes(prev=>prev.map(a=>a.id===athleteId?{...a,syncRevision:receipt.syncRevisions[athleteId],workouts:a.workouts.map(w=>w.id===workout.id?receipt.workout:w)}:a));
         setLastSyncedAt(new Date());
-      }catch(error:any){toast.error(`Registro ainda não salvo: ${error.message}`,{id:'sync-error'});return false;}
+        try{if(typeof BroadcastChannel!=='undefined'){const bc=new BroadcastChannel('lb_sports_data_sync');bc.postMessage('data_saved');bc.close();}}catch{}
+      }catch(error:any){
+        toast.error(`Registro ainda não salvo: ${error.message}`,{id:'sync-error'});
+        if(error?.status===409||error?.code==='SYNC_CONFLICT'){
+          api.loadAthletes(true,'full',athleteId).then(loadedList=>{
+            const loaded=loadedList.find(a=>a.id===athleteId);
+            if(loaded&&activeTokenRef.current===token){
+              setAthletes(prev=>prev.map(a=>a.id===athleteId?mergeAthletesWithLocalCache([a],[loaded],{authoritativeWorkouts:true})[0]:a));
+            }
+          }).catch(()=>undefined);
+        }
+        return false;
+      }
       finally{pendingSavesRef.current-=1;setSyncing(pendingSavesRef.current>0);}
-    }else if(!await save(updated, athleteId)) return false;
+    }else{
+      const updated=computeUpdatedAthletes();
+      setAthletes(updated);
+      if(!await save(updated, athleteId)) return false;
+    }
     toast.success("Treino atualizado!");
     return true;
   };

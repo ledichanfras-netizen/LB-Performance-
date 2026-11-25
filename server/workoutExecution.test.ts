@@ -6,6 +6,8 @@ import {PGlite} from '@electric-sql/pglite';
 import express from 'express';
 import {saveWorkoutExecution,workoutExecutionRouter} from './workoutExecution';
 import {workoutExecutionPayload} from '../src/utils/workoutExecution';
+import {readSavedWorkoutRevisions} from './workoutSync';
+import {applySaveReceiptToAthletes,hasStaleCachedWorkouts,resolveWorkoutExecutionBaseRevision} from '../src/utils/saveReceipts';
 const revision='2026-11-05T10:00:00.000Z';
 const coach={role:'coach',user_id:'c',organization_id:'org'};
 async function fixture(){
@@ -100,5 +102,45 @@ test('already-open clients can save decimal-string weights and retry after a los
   const retry=await saveWorkoutExecution(pool,coach,'a','w',workoutExecutionPayload(workout,revision));
   assert.equal(retry.confirmed,true);assert.equal(retry.workout.updatedAt,receipt.workout.updatedAt);
   assert.equal(queries.filter(q=>/^(UPDATE|INSERT|DELETE)/.test(q)).length,before);
+ }finally{await db.close();}
+});
+
+test('execution retries with PostgreSQL REAL float32 weights remain idempotent instead of raising 409',async()=>{
+ const db=new PGlite();
+ try{
+  await db.exec(`CREATE SCHEMA lb_accounts;CREATE TABLE lb_accounts.athlete_scopes(athlete_id text,organization_id text);CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
+  CREATE TABLE athletes(id text PRIMARY KEY,updated_at timestamptz);INSERT INTO athletes VALUES('a','${revision}');INSERT INTO lb_accounts.athlete_scopes VALUES('a','org');
+  CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,date varchar(255),status text,rpe real,duration_minutes integer,feedback text,total_load numeric,updated_at timestamptz,archived_at timestamptz);
+  INSERT INTO workouts VALUES('w','a','2026-11-06','planned',NULL,NULL,NULL,0,'${revision}',NULL);
+  CREATE TABLE prescribed_exercises(id text PRIMARY KEY,workout_id text,name text,sets integer,reps text,weight text,rest text,notes text,pain_level integer,order_index integer,reps_type text,prescription_meta jsonb);
+  INSERT INTO prescribed_exercises VALUES('e1','w','Terra',3,'6','20.3','60s','',0,0,'reps','{"lateralType":"bilateral"}'::jsonb);
+  CREATE TABLE performed_sets(id text PRIMARY KEY,exercise_id text,reps integer,weight real,rpe real,is_completed boolean);`);
+  const queries:string[]=[];const pool:any={connect:async()=>({query:async(q:string,p?:any[])=>{queries.push(q);return db.query(q,p);},release(){}})};
+  const workout:any={id:'w',date:'2026-11-05',status:'completed',rpe:5,durationMinutes:52,feedback:'Treino concluído',exercises:[{id:'e1',painLevel:0,performedSets:[{id:'s1',reps:6,weight:20.3,rpe:0,isCompleted:true}]}]};
+  const receipt=await saveWorkoutExecution(pool,coach,'a','w',workoutExecutionPayload(workout,revision));
+  assert.equal(receipt.confirmed,true);
+  const before=queries.filter(q=>/^(UPDATE|INSERT|DELETE)/.test(q)).length;
+  const retry=await saveWorkoutExecution(pool,coach,'a','w',workoutExecutionPayload(workout,revision));
+  assert.equal(retry.confirmed,true);
+  assert.equal(retry.workout.updatedAt,receipt.workout.updatedAt);
+  assert.equal(queries.filter(q=>/^(UPDATE|INSERT|DELETE)/.test(q)).length,before);
+ }finally{await db.close();}
+});
+
+test('workoutRevisions receipts align client workout.updatedAt with database timestamps and detect stale cached workouts',async()=>{
+ const db=new PGlite();
+ try{
+  await db.exec(`CREATE TABLE workouts(id text PRIMARY KEY,athlete_id text,updated_at timestamptz,archived_at timestamptz);
+  INSERT INTO workouts VALUES('w1','a','2026-11-18T19:00:00.000Z',NULL),('w_arch','a','2026-11-18T19:05:00.000Z','2026-11-18T19:06:00.000Z');`);
+  const workoutRevisions=await readSavedWorkoutRevisions(db,[{id:'a'}]);
+  assert.deepEqual(workoutRevisions,{w1:'2026-11-18T19:00:00.000Z'});
+  const clientAthletes:any=[{id:'a',syncRevision:'old-sync',workouts:[{id:'w1',status:'planned',updatedAt:'2026-11-18T18:59:59.123Z'}]}];
+  const updated=applySaveReceiptToAthletes(clientAthletes,{syncRevisions:{a:'2026-11-18T19:00:00.000Z'},workoutRevisions});
+  assert.equal(updated[0].syncRevision,'2026-11-18T19:00:00.000Z');
+  assert.equal(updated[0].workouts[0].updatedAt,'2026-11-18T19:00:00.000Z');
+  assert.equal(hasStaleCachedWorkouts(updated[0],{id:'a',syncRevision:'2026-11-18T19:00:00.000Z',workouts:[{id:'w1',status:'planned',updatedAt:'2026-11-18T19:00:00.000Z'}]} as any),false);
+  assert.equal(hasStaleCachedWorkouts({id:'a',syncRevision:'2026-11-18T19:00:00.000Z',workouts:[{id:'w1',status:'completed',updatedAt:'2026-11-18T18:59:59.123Z'}]} as any,{id:'a',syncRevision:'2026-11-18T19:00:00.000Z',workouts:[{id:'w1',status:'planned',updatedAt:'2026-11-18T19:00:00.000Z'}]} as any),true);
+  assert.equal(resolveWorkoutExecutionBaseRevision('2026-11-18T19:00:00.000Z','2026-11-18T18:59:59.123Z',{fromRevision:'2026-11-18T18:59:59.123Z',toRevision:'2026-11-18T19:00:00.000Z'}),'2026-11-18T19:00:00.000Z');
+  assert.equal(resolveWorkoutExecutionBaseRevision('2026-11-18T19:10:00.000Z','2026-11-18T18:59:59.123Z',{fromRevision:'2026-11-18T18:59:59.123Z',toRevision:'2026-11-18T19:00:00.000Z'}),'2026-11-18T18:59:59.123Z');
  }finally{await db.close();}
 });

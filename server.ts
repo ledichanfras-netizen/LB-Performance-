@@ -20,7 +20,7 @@ import { ensureAbalakovTable, saveAbalakovAssessments } from './server/abalakov'
 import { readFollowUpType, followUpType } from './src/utils/followUp';
 import { reassessmentRouter } from './server/reassessment';
 import { readReassessmentPlan } from './src/utils/reassessment';
-import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, syncRevision, archiveMissingWorkoutsSQL } from './server/workoutSync';
+import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, readSavedWorkoutRevisions, syncRevision, archiveMissingWorkoutsSQL } from './server/workoutSync';
 import { normalizeBirthDate } from './src/utils/birthDate';
 import { createSaveBatch } from './server/saveBatch';
 import { exerciseMetadata, restorePerformedMetrics } from "./server/exerciseMetadata";
@@ -1131,10 +1131,11 @@ const saveAthletesHandler = async (req:any, res:any) => {
     await writes.flush();
     if ((req as any).account) await attachSavedAthletes(client,(req as any).account,athletes);
     const syncRevisions = await readSavedRevisions(client, athletes);
+    const workoutRevisions = await readSavedWorkoutRevisions(client, athletes);
     await client.query('COMMIT');
     console.log('Dados salvos com sucesso!');
-    await setCachedAthletes(athletes.map((a:any)=>({...a,syncRevision:syncRevisions[a.id]}))).catch(e=>console.warn('[Cache]',e.message));
-    res.json({ message: 'Dados sincronizados com sucesso!', syncRevisions });
+    await setCachedAthletes(athletes.map((a:any)=>({...a,syncRevision:syncRevisions[a.id],workouts:Array.isArray(a.workouts)?a.workouts.map((w:any)=>workoutRevisions[w.id]?{...w,updatedAt:workoutRevisions[w.id]}:w):a.workouts}))).catch(e=>console.warn('[Cache]',e.message));
+    res.json({ message: 'Dados sincronizados com sucesso!', syncRevisions, workoutRevisions });
   } catch (error: any) {
     discardClient = true;
     console.error("[ScopedSave]",error.code || error.message);
