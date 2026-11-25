@@ -979,6 +979,16 @@ export const useAthletes = (token?: string | null) => {
     const computeUpdatedAthletes = () => athletesRef.current.map(a => {
       if (a.id === athleteId) {
         let finalWorkout = { ...updatedWorkout };
+        if (workout.status === 'missed') {
+          finalWorkout.rpe = undefined;
+          finalWorkout.durationMinutes = undefined;
+          finalWorkout.totalLoad = 0;
+          finalWorkout.monotony = null;
+          finalWorkout.strain = null;
+          finalWorkout.missedReason = typeof workout.missedReason === 'string' && workout.missedReason.trim() ? workout.missedReason.trim() : undefined;
+        } else {
+          finalWorkout.missedReason = undefined;
+        }
         if (workout.status === 'completed') {
           const athleteWeight = a.assessments?.bioimpedance?.[0]?.weight || (a as any).weight || 70;
           finalWorkout.totalLoad = calculateWorkoutLoad(finalWorkout, athleteWeight);

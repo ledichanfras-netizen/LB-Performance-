@@ -18,7 +18,7 @@ export function prescriptionSummary(ex: PrescribedExercise): string {
 }
 
 export function reconcileUnilateralSets(ex: PrescribedExercise, status: Workout['status']): PrescribedExercise {
-  if (!ex.sidePrescriptions || status === 'completed') return ex;
+  if (!ex.sidePrescriptions || status === 'completed' || status === 'missed') return ex;
   const previous=ex.performedSets || [];
   const used = new Set<string>();
   const sets: ExerciseSet[]=[];

@@ -25,7 +25,8 @@ export function validateSportsPayload(athletes:any[]){
   }
   for(const e of array(a.externalSessions,'sessões externas',1000)){date(e.date,'data da sessão');boundedNumber(e.durationMinutes,'duração',0,1440,true);boundedNumber(e.rpe,'PSE',0,10,true);boundedNumber(e.distanceKm,'distância',0,500);}
   for(const w of array(a.workouts,'treinos',1000)){
-   date(w.date,'data do treino');if(w.status!==undefined&&!['planned','in_progress','completed'].includes(w.status))invalid('estado do treino');
+   date(w.date,'data do treino');if(w.status!==undefined&&!['planned','in_progress','completed','missed'].includes(w.status))invalid('estado do treino');
+   if(w.missedReason!==undefined&&w.missedReason!==null&&(typeof w.missedReason!=='string'||w.missedReason.length>500))invalid('motivo de ausência');
    boundedNumber(w.durationMinutes,'duração do treino',0,1440,true);boundedNumber(w.rpe,'PSE do treino',0,10,true);
    for(const ex of array(w.exercises,'exercícios',300)){
     boundedNumber(ex.sets,'séries',1,500,true);boundedNumber(ex.painLevel,'dor',0,10,true);

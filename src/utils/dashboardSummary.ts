@@ -30,12 +30,13 @@ export function dashboardSummary(athlete: Athlete, today: string) {
     const values = sameDay.map(sessionLoad).filter((n): n is number => n !== null);
     return { time, load: values.length ? values.reduce((a,b) => a+b,0) : null };
   });
+  const missed = workouts.filter(w => w.status === 'missed');
   return {
     weekStart, weekEnd, todayWellness, todayWorkouts, latestSession, dailyLoads,
-    completedCount: completed.length, scheduledCount: workouts.length, externalCount: external.length,
+    completedCount: completed.length, missedCount: missed.length, scheduledCount: workouts.length, externalCount: external.length,
     sessionCount: sessions.length, load: loads.length ? loads.reduce((a,b) => a+b,0) : null,
     loadCoverage: loads.length,
     pendingRpe: sessions.filter(s => !validNumber(s.rpe) || s.rpe < 0 || s.rpe > 10).length,
-    previousPending: workouts.filter(w => w.status !== 'completed' && metricDay(w.date)! < day).length,
+    previousPending: workouts.filter(w => (w.status === 'planned' || w.status === 'in_progress') && metricDay(w.date)! < day).length,
   };
 }

@@ -337,7 +337,8 @@ export interface Workout {
   date: string;
   name: string;
   phase: string;
-  status: 'planned' | 'completed' | 'in_progress';
+  status: 'planned' | 'completed' | 'in_progress' | 'missed';
+  missedReason?: string;
   exercises: PrescribedExercise[];
   totalLoad?: number; 
   rpe?: number; 

@@ -20,6 +20,8 @@ import ImtpReportPages from "./components/ImtpReportPages";
 import { imtpValue } from "./utils/imtpAnalysis";
 import { normalizeBirthDate } from "./utils/birthDate";
 import OptionsMenuModal from "./components/OptionsMenuModal";
+import { WorkoutCyclesSummary } from "./components/WorkoutCyclesSummary";
+import { MarkMissedWorkoutModal } from "./components/MarkMissedWorkoutModal";
 import { orderedExercises } from "./utils/exerciseOrder";
 import SettingsPage from "./pages/Settings";
 import React, { FC, useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
@@ -188,6 +190,7 @@ import {
   Pencil,
   HeartPulse,
   Timer, Clock, Trophy, Camera, Upload, MessageCircle, Gift, Utensils,
+  CalendarX, RotateCcw, XCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -1020,9 +1023,7 @@ const EliteHubApp: FC<{
         }
 
         const hasWorkoutToday = (a.workouts || []).some(
-          (w) => w.date && w.date.startsWith(today) && w.status !== "completed"
-        ) || (a.workouts || []).some(
-          (w) => w.date && w.date.startsWith(today)
+          (w) => w.date && w.date.startsWith(today) && (w.status === "planned" || w.status === "in_progress")
         );
 
         const todayWellness = (a.wellness || []).find(
@@ -1151,9 +1152,14 @@ const EliteHubApp: FC<{
   const [healthResult, setHealthResult] = useState<any>(null);
   const [aiModelingLoading, setAiModelingLoading] = useState(false);
   const [trainingSubTab, setTrainingSubTab] = useState<"planned" | "external" | "nutrition">("planned");
-  const [workoutStatusFilter, setWorkoutStatusFilter] = useState<"pending" | "completed" | "all">("pending");
+  const [workoutStatusFilter, setWorkoutStatusFilter] = useState<"pending" | "completed" | "missed" | "all">("pending");
+  const [workoutCycleFilter, setWorkoutCycleFilter] = useState<string | null>(null);
   const [iaWorkoutsLoading, setIaWorkoutsLoading] = useState(false);
   const [iaInstructions, setIaInstructions] = useState("");
+
+  useEffect(() => {
+    setWorkoutCycleFilter(null);
+  }, [selectedId]);
 
   const [modalState, setModalState] = useState<{
     type:
@@ -1171,6 +1177,7 @@ const EliteHubApp: FC<{
       | "ai"
       | "confirm-delete"
       | "confirm-delete-workout"
+      | "mark-missed-workout"
       | "clone-workout"
       | "periodize-athlete"
       | null;
@@ -1223,6 +1230,7 @@ const EliteHubApp: FC<{
           ...workoutToClone,
           date: date.toISOString().split("T")[0],
           status: "planned",
+          missedReason: undefined,
           rpe: 0,
           totalLoad: 0,
           monotony: 0,
@@ -3096,8 +3104,9 @@ const EliteHubApp: FC<{
                           const workoutsToday = (selected.workouts || []).filter(
                             (w: any) => w.date && w.date.startsWith(today)
                           );
-                          const activeWorkoutToday = workoutsToday.find((w: any) => w.status !== "completed");
+                          const activeWorkoutToday = workoutsToday.find((w: any) => w.status === "planned" || w.status === "in_progress");
                           const completedWorkoutToday = workoutsToday.find((w: any) => w.status === "completed");
+                          const missedWorkoutToday = workoutsToday.find((w: any) => w.status === "missed");
 
                           if (activeWorkoutToday) {
                             return (
@@ -3143,6 +3152,29 @@ const EliteHubApp: FC<{
                                   </span>
                                   <span className="text-xs font-bold text-slate-400 mt-1.5 uppercase break-words leading-tight">
                                     {completedWorkoutToday.name}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          } else if (missedWorkoutToday) {
+                            return (
+                              <div
+                                onClick={() => {
+                                  setActiveTab("training");
+                                  setWorkoutStatusFilter("missed");
+                                }}
+                                className="flex items-center gap-5 bg-gradient-to-br from-amber-950/35 to-[#0b0f19]/60 border border-amber-500/35 p-6 rounded-[2rem] shadow-2xl transition-all cursor-pointer group hover:scale-[1.01]"
+                              >
+                                <div className="w-14 h-14 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/40 shrink-0 group-hover:scale-105 transition-transform">
+                                  <CalendarX className="w-7 h-7 text-amber-400" />
+                                </div>
+                                <div className="flex flex-col min-w-0 flex-grow">
+                                  <span className="text-[10px] font-black tracking-widest text-amber-400 uppercase">Treino Não Realizado</span>
+                                  <span className="text-lg font-black text-white uppercase italic tracking-tight leading-none mt-1">
+                                    {missedWorkoutToday.name}
+                                  </span>
+                                  <span className="text-xs font-medium text-amber-200/80 mt-1.5 break-words leading-tight">
+                                    {missedWorkoutToday.missedReason ? `Motivo: ${missedWorkoutToday.missedReason}` : "Registrado no histórico como não realizado."}
                                   </span>
                                 </div>
                               </div>
@@ -3607,7 +3639,34 @@ const EliteHubApp: FC<{
                           </button>
                         </div>
 
-                        {trainingSubTab === "planned" && (
+                        {trainingSubTab === "planned" && (() => {
+                          const allWorkouts = selected.workouts || [];
+                          const pendingCount = allWorkouts.filter((w) => w.status === "planned" || w.status === "in_progress").length;
+                          const completedCount = allWorkouts.filter((w) => w.status === "completed").length;
+                          const missedCount = allWorkouts.filter((w) => w.status === "missed").length;
+                          const filteredWorkouts = [...allWorkouts]
+                            .filter((w) => {
+                              const matchesStatus =
+                                workoutStatusFilter === "pending"
+                                  ? w.status === "planned" || w.status === "in_progress"
+                                  : workoutStatusFilter === "completed"
+                                  ? w.status === "completed"
+                                  : workoutStatusFilter === "missed"
+                                  ? w.status === "missed"
+                                  : true;
+                              const cycleLabel = (w.phase?.trim() || "Sem ciclo definido").toLocaleLowerCase("pt-BR");
+                              const matchesCycle =
+                                !workoutCycleFilter ||
+                                cycleLabel === workoutCycleFilter.toLocaleLowerCase("pt-BR");
+                              return matchesStatus && matchesCycle;
+                            })
+                            .sort((a, b) =>
+                              workoutStatusFilter === "completed" || workoutStatusFilter === "missed"
+                                ? getSafeDateTime(b.date) - getSafeDateTime(a.date)
+                                : getSafeDateTime(a.date) - getSafeDateTime(b.date),
+                            );
+
+                          return (
                           <>
                             <div className="coach-section-heading flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                               <div>
@@ -3616,36 +3675,46 @@ const EliteHubApp: FC<{
                                 </h3>
                               </div>
                               <div className="coach-action-bar flex flex-wrap items-center gap-2 w-full md:w-auto">
-                                <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-bold gap-1 w-full sm:w-auto">
+                                <div className="flex flex-wrap bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs font-bold gap-1 w-full sm:w-auto">
                                   <button
                                     onClick={() => setWorkoutStatusFilter("pending")}
-                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                                       workoutStatusFilter === "pending"
                                         ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
                                         : "text-slate-400 hover:text-slate-200"
                                     }`}
                                   >
-                                    Pendentes
+                                    Pendentes ({pendingCount})
                                   </button>
                                   <button
                                     onClick={() => setWorkoutStatusFilter("completed")}
-                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                                       workoutStatusFilter === "completed"
                                         ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
                                         : "text-slate-400 hover:text-slate-200"
                                     }`}
                                   >
-                                    Concluídos
+                                    Concluídos ({completedCount})
+                                  </button>
+                                  <button
+                                    onClick={() => setWorkoutStatusFilter("missed")}
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                                      workoutStatusFilter === "missed"
+                                        ? "bg-amber-500/15 text-amber-300 border border-amber-500/35"
+                                        : "text-slate-400 hover:text-slate-200"
+                                    }`}
+                                  >
+                                    Não realizados ({missedCount})
                                   </button>
                                   <button
                                     onClick={() => setWorkoutStatusFilter("all")}
-                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                                    className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                                       workoutStatusFilter === "all"
                                         ? "bg-brand-primary/10 text-brand-primary border border-brand-primary/20"
                                         : "text-slate-400 hover:text-slate-200"
                                     }`}
                                   >
-                                    Todos
+                                    Todos ({allWorkouts.length})
                                   </button>
                                 </div>
                                 {user.role === "coach" && (
@@ -3669,20 +3738,19 @@ const EliteHubApp: FC<{
                                 )}
                               </div>
                             </div>
+                            <WorkoutCyclesSummary
+                              workouts={allWorkouts}
+                              periodizationStart={selected.periodizationStart}
+                              periodizationEnd={selected.periodizationEnd}
+                              selectedPhase={workoutCycleFilter}
+                              onSelectPhase={setWorkoutCycleFilter}
+                              onShowMissed={() => {
+                                setWorkoutStatusFilter("missed");
+                                setWorkoutCycleFilter(null);
+                              }}
+                            />
                             <div className="coach-card-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                          {[...(selected.workouts || [])]
-                            .filter((w) => {
-                              if (workoutStatusFilter === "pending") return w.status !== "completed";
-                              if (workoutStatusFilter === "completed") return w.status === "completed";
-                              return true;
-                            })
-                            .sort(
-                              (a, b) =>
-                                workoutStatusFilter === "completed"
-                                  ? getSafeDateTime(b.date) - getSafeDateTime(a.date)
-                                  : getSafeDateTime(a.date) - getSafeDateTime(b.date),
-                            )
-                            .map((w, index) => (
+                          {filteredWorkouts.map((w, index) => (
                               <Card
                                 key={w.id}
                                 onClick={() => {
@@ -3691,11 +3759,18 @@ const EliteHubApp: FC<{
                                       type: "active-session",
                                       editingData: w,
                                     });
+                                  } else if (w.status === "missed") {
+                                    if (user.role === "coach") {
+                                      setModalState({
+                                        type: "mark-missed-workout",
+                                        editingData: w,
+                                      });
+                                    }
                                   } else {
                                     startWorkoutFlow(w);
                                   }
                                 }}
-                                className={`flex flex-col border-l-4 md:border-l-8 transition-all hover:scale-[1.02] hover:shadow-lg cursor-pointer relative group overflow-hidden ${w.status === "completed" ? "border-emerald-500 opacity-95 hover:opacity-100 duration-200" : "border-brand-primary"}`}
+                                className={`flex flex-col border-l-4 md:border-l-8 transition-all hover:scale-[1.02] hover:shadow-lg ${w.status === "missed" && user.role !== "coach" ? "cursor-default" : "cursor-pointer"} relative group overflow-hidden ${w.status === "completed" ? "border-emerald-500 opacity-95 hover:opacity-100 duration-200" : w.status === "missed" ? "border-amber-500/80 opacity-95 hover:opacity-100 duration-200" : "border-brand-primary"}`}
                               >
                                 <div className="flex flex-col mb-5 w-full">
                                   {/* Metadata Header Badges */}
@@ -3727,6 +3802,17 @@ const EliteHubApp: FC<{
                                         }
                                         return null;
                                       })()}
+                                      {w.status === "missed" && (
+                                        <span className="text-[9px] md:text-[10px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/35 px-2 py-0.5 rounded-lg uppercase tracking-wider flex items-center gap-1">
+                                          <XCircle className="w-3 h-3 text-amber-400" />
+                                          <span>Não realizado</span>
+                                        </span>
+                                      )}
+                                      {w.status === "in_progress" && (
+                                        <span className="text-[9px] md:text-[10px] font-black bg-sky-500/15 text-sky-300 border border-sky-500/35 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                                          Em andamento
+                                        </span>
+                                      )}
                                       {w.isPostedToFeed && (
                                         <span className="text-[9px] md:text-[10px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-lg uppercase tracking-wider flex items-center gap-1 shadow-sm shadow-emerald-500/10">
                                           <CheckCircle2 className="w-3 h-3 text-emerald-400" />
@@ -3746,6 +3832,21 @@ const EliteHubApp: FC<{
                                     </h5>
                                     {user.role === "coach" && (
                                       <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                        {(w.status === "planned" || w.status === "in_progress") && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setModalState({
+                                                type: "mark-missed-workout",
+                                                editingData: w,
+                                              });
+                                            }}
+                                            className="p-2 text-amber-300 hover:text-amber-200 transition-colors bg-slate-900 hover:bg-amber-500/15 rounded-lg border border-slate-800 hover:border-amber-500/35 shadow-sm cursor-pointer"
+                                            title="Marcar como Não Realizado"
+                                          >
+                                            <CalendarX className="w-4 h-4" />
+                                          </button>
+                                        )}
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -3995,6 +4096,50 @@ const EliteHubApp: FC<{
                                       </Button>
                                     </div>
                                   </div>
+                                ) : w.status === "missed" ? (
+                                  <div className="mt-auto pt-4 border-t border-slate-800 flex flex-col gap-3">
+                                    <div className="rounded-2xl bg-amber-500/10 border border-amber-500/25 p-3 text-left">
+                                      <p className="text-[10px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                                        <CalendarX className="w-3.5 h-3.5 shrink-0" />
+                                        <span>Treino não realizado</span>
+                                      </p>
+                                      <p className="text-xs text-slate-300 mt-1 break-words">
+                                        {w.missedReason ? `Motivo: ${w.missedReason}` : "Registrado no histórico do ciclo sem motivo informado."}
+                                      </p>
+                                    </div>
+                                    {user.role === "coach" && (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setModalState({
+                                              type: "clone-workout",
+                                              editingData: w,
+                                            });
+                                          }}
+                                          variant="secondary"
+                                          className="py-2.5 text-[10px] font-black tracking-widest uppercase cursor-pointer"
+                                        >
+                                          Reagendar Cópia
+                                        </Button>
+                                        <Button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void updateWorkout(selected.id, {
+                                              ...w,
+                                              status: "planned",
+                                              missedReason: undefined,
+                                            });
+                                          }}
+                                          variant="secondary"
+                                          className="py-2.5 text-[10px] font-black tracking-widest uppercase cursor-pointer inline-flex items-center justify-center gap-1.5"
+                                        >
+                                          <RotateCcw className="w-3.5 h-3.5" />
+                                          <span>Restaurar Pendente</span>
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
                                 ) : (
                                   <Button
                                     onClick={(e) => {
@@ -4009,20 +4154,18 @@ const EliteHubApp: FC<{
                                 )}
                               </Card>
                             ))}
-                          {(selected.workouts || []).filter((w) => {
-                            if (workoutStatusFilter === "pending") return w.status !== "completed";
-                            if (workoutStatusFilter === "completed") return w.status === "completed";
-                            return true;
-                          }).length === 0 && (
+                          {filteredWorkouts.length === 0 && (
                             <div className="col-span-full py-24 text-center text-slate-400 font-black uppercase text-[10px] md:text-[11px] tracking-[0.3em] border-2 border-dashed border-slate-200 rounded-3xl">
                               {workoutStatusFilter === "pending" && "Nenhum treino planejado pendente para este período"}
                               {workoutStatusFilter === "completed" && "Nenhum treino concluído encontrado para este período"}
+                              {workoutStatusFilter === "missed" && "Nenhum treino não realizado registrado neste histórico"}
                               {workoutStatusFilter === "all" && "Nenhum treino cadastrado neste período"}
                             </div>
                           )}
                         </div>
                           </>
-                        )}
+                          );
+                        })()}
 
                         {trainingSubTab === "external" && (
                           <div className="animate-in fade-in duration-500">
@@ -4670,11 +4813,26 @@ const EliteHubApp: FC<{
                   <h3 className="text-xl font-black text-white uppercase italic mb-2">
                     Excluir Treino?
                   </h3>
-                  <p className="text-sm text-slate-400 font-medium leading-relaxed mb-8">
+                  <p className="text-sm text-slate-400 font-medium leading-relaxed mb-6">
                     Deseja realmente excluir o treino{" "}
                     <strong className="text-white">"{modalState.editingData?.name}"</strong>? Esta ação
                     não pode ser desfeita.
                   </p>
+                  {(modalState.editingData?.status === "planned" || modalState.editingData?.status === "in_progress") && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setModalState({
+                          type: "mark-missed-workout",
+                          editingData: modalState.editingData,
+                        })
+                      }
+                      className="w-full mb-4 px-4 py-3 rounded-xl bg-amber-500/15 border border-amber-500/35 hover:bg-amber-500/25 text-amber-300 text-xs font-black uppercase tracking-wider inline-flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <CalendarX className="w-4 h-4" />
+                      <span>Em vez de excluir, marcar como Não Realizado</span>
+                    </button>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       onClick={() => setModalState({ type: null })}
@@ -4697,6 +4855,43 @@ const EliteHubApp: FC<{
                     </Button>
                   </div>
                 </Card>
+              </div>
+            )}
+
+            {modalState.type === "mark-missed-workout" && modalState.editingData && selected && (
+              <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+                <MarkMissedWorkoutModal
+                  workout={modalState.editingData}
+                  loading={modalState.loading}
+                  onCancel={() => setModalState({ type: null })}
+                  onConfirm={async (reason, rescheduleCopy) => {
+                    const targetWorkout = modalState.editingData as Workout;
+                    setModalState((prev) => ({ ...prev, loading: true }));
+                    const updatedWorkout: Workout = {
+                      ...targetWorkout,
+                      status: "missed",
+                      missedReason: reason || undefined,
+                      rpe: undefined,
+                      durationMinutes: undefined,
+                      totalLoad: 0,
+                      monotony: null,
+                      strain: null,
+                    };
+                    const ok = await updateWorkout(selected.id, updatedWorkout);
+                    if (!ok) {
+                      setModalState((prev) => ({ ...prev, loading: false }));
+                      return;
+                    }
+                    if (rescheduleCopy) {
+                      setModalState({
+                        type: "clone-workout",
+                        editingData: updatedWorkout,
+                      });
+                    } else {
+                      setModalState({ type: null });
+                    }
+                  }}
+                />
               </div>
             )}
 
@@ -5126,7 +5321,7 @@ const DashboardView: FC<{
     return (athlete.wellness || []).some((w) => w.date && w.date.startsWith(today));
   }, [athlete.wellness, today]);
   const workoutToday = (athlete.workouts || []).find(
-    (w) => w.date && w.date.startsWith(today) && w.status !== "completed",
+    (w) => w.date && w.date.startsWith(today) && (w.status === "planned" || w.status === "in_progress"),
   );
 
   const acwrData = useMemo(() => {

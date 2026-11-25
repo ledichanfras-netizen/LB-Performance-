@@ -60,20 +60,31 @@ function safeNum(val: any, fallback: number = 0): number {
   return fallback;
 }
 
-const aiGenClient = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
+let aiGenClientInstance: GoogleGenAI | null = null;
+function getAiGenClient(): GoogleGenAI {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY não configurada no servidor.');
   }
-});
+  if (!aiGenClientInstance) {
+    aiGenClientInstance = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiGenClientInstance;
+}
 
 // Helper function to call generateContent with automatic retries, exponential backoff, and robust model fallback
 async function generateContentWithRetry(params: any, retries = 2, delayMs = 1000) {
   // Fallback chain of robust, production-grade models that are actively supported
   const models = ['gemini-3.5-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
   let lastError: any = null;
+  const aiGenClient = getAiGenClient();
 
   for (const model of models) {
     let attempt = 1;
@@ -482,6 +493,7 @@ async function ensureColumns() {
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS periodization_end TEXT').catch(() => {});
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS training_days JSONB').catch(() => {});
     await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS injuries JSONB').catch(() => {});
+    await client.query('ALTER TABLE workouts ADD COLUMN IF NOT EXISTS missed_reason TEXT').catch(() => {});
 
   } catch (e: any) {
     console.error("Erro na auto-migração:", e.message);
@@ -986,12 +998,14 @@ const saveAthletesHandler = async (req:any, res:any) => {
       await writes.query(archiveMissingWorkoutsSQL, [athlete.id,JSON.stringify(incomingWorkoutIds)]);
 
       for (const wk of (athlete.workouts || [])) {
-        wk.totalLoad=realizedTonnage(wk.exercises||[]);
+        const isMissed = wk.status === 'missed';
+        const missedReason = isMissed && typeof wk.missedReason === 'string' && wk.missedReason.trim() ? wk.missedReason.trim() : null;
+        wk.totalLoad = isMissed ? 0 : realizedTonnage(wk.exercises || []);
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
         const cleanDate = wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
         await writes.query(
-          'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, updated_at = CURRENT_TIMESTAMP',
-          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, wk.rpe ?? null, realizedTonnage(wk.exercises || []), wk.durationMinutes ?? null, wk.monotony ?? null, wk.strain ?? null, wk.feedback ?? null, wk.trainerNotes ?? null]
+          'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, missed_reason, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, missed_reason = $14, updated_at = CURRENT_TIMESTAMP',
+          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, isMissed ? null : (wk.rpe ?? null), wk.totalLoad, isMissed ? null : (wk.durationMinutes ?? null), isMissed ? null : (wk.monotony ?? null), isMissed ? null : (wk.strain ?? null), wk.feedback ?? null, wk.trainerNotes ?? null, missedReason]
         );
 
         // Deep sync for exercises: delete orphans
@@ -2152,6 +2166,7 @@ async function runSetup(retries = 1) {
     await client.query(`ALTER TABLE workouts ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await client.query(`ALTER TABLE workouts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
     await client.query(`ALTER TABLE workouts ADD COLUMN IF NOT EXISTS trainer_notes TEXT;`);
+    await client.query(`ALTER TABLE workouts ADD COLUMN IF NOT EXISTS missed_reason TEXT;`);
 
     await client.query(`CREATE TABLE IF NOT EXISTS prescribed_exercises (
         id TEXT PRIMARY KEY,

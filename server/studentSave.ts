@@ -40,7 +40,7 @@ export async function saveStudentData(pool:Pool,account:AccountScope,payload:any
  const workouts=athlete.workouts || [];if(!Array.isArray(workouts) || workouts.length>1000)throw new ScopeDenied();
  for(const w of workouts){
   if(typeof w.id!=='string')throw new ScopeDenied();
-  const existing=await c.query('SELECT id FROM public.workouts WHERE id=$1 AND athlete_id=$2 FOR UPDATE',[w.id,account.athlete_id]);if(!existing.rows.length)throw new ScopeDenied();
+  const existing=await c.query('SELECT id,status FROM public.workouts WHERE id=$1 AND athlete_id=$2 FOR UPDATE',[w.id,account.athlete_id]);if(!existing.rows.length||existing.rows[0].status==='missed')throw new ScopeDenied();
   const allowed:Record<string,string>={status:'status',rpe:'rpe',duration_minutes:'durationMinutes',feedback:'feedback'};
   const columns:string[]=[],values:any[]=[];
   for(const [column,key] of Object.entries(allowed))if(Object.hasOwn(w,key)){

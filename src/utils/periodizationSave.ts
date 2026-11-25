@@ -15,7 +15,7 @@ export async function persistPeriodization(
   for (let attempt=0;attempt<3;attempt++) {
     const latest = (await io.load()).find(a=>a.id===athleteId);
     if (!latest) throw new Error('Aluno indisponível. A periodização foi preservada; confira a sincronização.');
-    const preserved = (latest.workouts || []).filter(w=>!generatedIds.has(w.id) && (!replacePending || w.status==='completed' || w.status==='in_progress'));
+    const preserved = (latest.workouts || []).filter(w=>!generatedIds.has(w.id) && (!replacePending || w.status==='completed' || w.status==='in_progress' || w.status==='missed'));
     const candidate = {...latest,...cycle,workouts:[...generated,...preserved].sort((a,b)=>a.date.localeCompare(b.date))};
     io.draft?.(candidate);
     try {

@@ -4,7 +4,7 @@ import { detectSpecialMethod, parsePerSetWeights, parseRepetitions, parseWeightV
 
 /** Pending execution rows follow the latest prescription; recorded results stay intact. */
 export function reconcilePrescriptionSets(exercise: PrescribedExercise, status: Workout['status'] = 'planned'): PrescribedExercise {
-  if (status === 'completed') return exercise;
+  if (status === 'completed' || status === 'missed') return exercise;
   if (exercise.sidePrescriptions) return reconcileUnilateralSets(exercise, status);
   const previous = exercise.performedSets || [];
   if(exercise.aerobic){

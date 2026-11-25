@@ -30,6 +30,7 @@ export function workoutFromRows(wk:any,exercises:any[],sets:any[]){
  return normalizeWorkoutNumbers({...wk,
   date:wk.date?(typeof wk.date==='string'?wk.date.split('T')[0]:new Date(wk.date).toISOString().split('T')[0]):wk.date,
   durationMinutes:wk.duration_minutes,totalLoad:wk.total_load,trainerNotes:wk.trainer_notes,
+  ...(wk.missed_reason ?? wk.missedReason ? { missedReason: wk.missed_reason ?? wk.missedReason } : {}),
   updatedAt:wk.updated_at?new Date(wk.updated_at).toISOString():wk.updatedAt,
   createdAt:wk.created_at?new Date(wk.created_at).toISOString():wk.createdAt,
   exercises:exercises.map(ex=>{

@@ -1406,6 +1406,17 @@ export const sanitizeAthleteData = (a: Athlete): Athlete => {
     // Tonnage and session internal load have different units.
     const totalLoad = rawTotalLoad >= 0 ? rawTotalLoad : realizedTonnage(w.exercises||[]);
     
+    if (w.status === 'missed') {
+      return {
+        ...w,
+        rpe: undefined,
+        durationMinutes: undefined,
+        monotony: null,
+        strain: null,
+        totalLoad: 0
+      };
+    }
+
     return {
       ...w,
       ...(w.rpe!==undefined&&w.rpe!==null?{rpe}:{}),
@@ -2208,7 +2219,7 @@ export function mergeArrayById<T extends { id: string; date?: string; updatedAt?
         const localTime = (item.updatedAt || (item as any).updated_at) ? getSafeDateTime(item.updatedAt || (item as any).updated_at) : 0;
         const remoteTime = (existing.updatedAt || (existing as any).updated_at) ? getSafeDateTime(existing.updatedAt || (existing as any).updated_at) : 0;
 
-        if (localTime > remoteTime || (!localTime && !remoteTime && item.status === 'completed' && existing.status !== 'completed')) {
+        if (localTime > remoteTime || (!localTime && !remoteTime && (item.status === 'completed' || item.status === 'missed') && existing.status !== 'completed' && existing.status !== 'missed')) {
           // Local item is newer (e.g. edited offline or pending immediate sync)
           mergedMap.set(item.id, { ...existing, ...item });
         } else {

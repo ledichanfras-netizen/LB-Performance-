@@ -32,6 +32,7 @@ export async function saveWorkoutExecution(pool:any,account:any,athleteId:string
   const athlete=await c.query('SELECT updated_at FROM public.athletes WHERE id=$1 FOR UPDATE',[athleteId]);
   const found=await c.query('SELECT * FROM public.workouts WHERE id=$1 AND athlete_id=$2 AND archived_at IS NULL FOR UPDATE',[workoutId,athleteId]);
   const stored=found.rows[0];if(!stored)throw new ScopeDenied();
+  if(stored.status==='missed')throw new SportsValidationError('Este treino foi marcado como não realizado. Restaure para pendente antes de registrar a execução.');
   const exercises=(await c.query('SELECT * FROM public.prescribed_exercises WHERE workout_id=$1 ORDER BY order_index,id',[workoutId])).rows;
   if(exercises.length!==ids.size||exercises.some((e:any)=>!ids.has(e.id)))throw new SyncConflict();
   const actualSets=exercises.length?(await c.query('SELECT s.* FROM public.performed_sets s JOIN public.prescribed_exercises e ON e.id=s.exercise_id WHERE e.workout_id=$1',[workoutId])).rows:[];

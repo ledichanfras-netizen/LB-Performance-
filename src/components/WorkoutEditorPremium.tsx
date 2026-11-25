@@ -952,7 +952,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
 
     const newExercises = [...current];
     newExercises[targetIndex] = {
-      ...reconcilePrescriptionSets({ ...updatedEx, performedSets: edited.status === 'completed' ? updatedEx.performedSets : undefined }, edited.status),
+      ...reconcilePrescriptionSets({ ...updatedEx, performedSets: edited.status === 'completed' || edited.status === 'missed' ? updatedEx.performedSets : undefined }, edited.status),
       order_index: targetIndex,
     };
 
@@ -3770,7 +3770,7 @@ export const WorkoutEditorPremium: FC<WorkoutEditorPremiumProps> = ({
                         </div>
 
                         {/* Numeric Prescriptions */}
-                        <div className={`lb-exercise-unilateral md:col-span-12 ${ex.aerobic ? "hidden" : ""}`}><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
+                        <div className={`lb-exercise-unilateral md:col-span-12 ${ex.aerobic ? "hidden" : ""}`}><UnilateralPrescriptionEditor exercise={ex} disabled={edited.status === "completed" || edited.status === "missed"} onChange={patch => updateExFields(ex.id, patch)} /></div>
                         {aerobicCandidate(ex) && <div className="md:col-span-12"><AerobicEditor exercise={ex} onChange={values=>updateExFields(ex.id,values)} /></div>}
                         <div className={`lb-exercise-dose md:col-span-8 grid grid-cols-2 sm:grid-cols-5 gap-3 ${ex.aerobic ? "hidden" : ""}`} data-side-prescription={!!ex.sidePrescriptions}>
                           <div>
