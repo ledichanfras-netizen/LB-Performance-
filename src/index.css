@@ -257,6 +257,7 @@ body.light-theme .cartao-de-vidro:hover {
 body.light-theme .bg-slate-900,
 body.light-theme .bg-slate-900\/90,
 body.light-theme .bg-slate-900\/80,
+body.light-theme .bg-slate-900\/75,
 body.light-theme .bg-slate-900\/60,
 body.light-theme .bg-slate-900\/50,
 body.light-theme .bg-slate-900\/40,
@@ -2664,3 +2665,132 @@ body.light-theme .billing-page button[class*="bg-green-"] { background:#087c53!i
 .lb-a4-sheet [class~="md:flex-row"] {flex-direction:row;}
 .lb-a4-sheet [class~="lg:flex-row"] {flex-direction:row;}
  .lb-a4-sheet [class~="md:text-2xl"] {font-size:24px;line-height:1.2;}
+
+/* Workout Cycles Adherence & History Card (Dark & Light High-Contrast Tokens) */
+.lb-cycles-card {
+  --cyc-bg: #0d1526;
+  --cyc-border: #243247;
+  --cyc-inner-bg: #080f1d;
+  --cyc-inner-border: #223047;
+  --cyc-item-bg: #0b1324;
+  --cyc-item-hover-bg: #101b32;
+  --cyc-item-hover-border: #3b5275;
+  --cyc-selected-bg: rgba(16, 185, 129, 0.14);
+  --cyc-selected-border: #34d399;
+  --cyc-divider: #1e293b;
+  --cyc-title: #f8fafc;
+  --cyc-text: #e2e8f0;
+  --cyc-muted: #94a3b8;
+  --cyc-accent: #34d399;
+  --cyc-icon-bg: rgba(16, 185, 129, 0.14);
+  --cyc-icon-border: rgba(52, 211, 153, 0.35);
+  --cyc-em-bg: rgba(16, 185, 129, 0.14);
+  --cyc-em-border: rgba(52, 211, 153, 0.35);
+  --cyc-em-text: #6ee7b7;
+  --cyc-am-bg: rgba(245, 158, 11, 0.16);
+  --cyc-am-hover-bg: rgba(245, 158, 11, 0.25);
+  --cyc-am-border: rgba(251, 191, 36, 0.42);
+  --cyc-am-text: #fcd34d;
+  --cyc-neu-bg: #162033;
+  --cyc-neu-border: #2d3d56;
+  --cyc-neu-text: #cbd5e1;
+  --cyc-strong-bg: #1e293b;
+  --cyc-strong-border: #475569;
+  --cyc-strong-text: #ffffff;
+  --cyc-reason: #fde68a;
+  background-color: var(--cyc-bg);
+  border: 1px solid var(--cyc-border);
+  color: var(--cyc-text);
+  box-shadow: 0 16px 34px -14px rgba(2, 6, 23, 0.7);
+}
+
+body.light-theme .lb-cycles-card {
+  --cyc-bg: #ffffff;
+  --cyc-border: #cbd5e1;
+  --cyc-inner-bg: #f8fafc;
+  --cyc-inner-border: #cbd5e1;
+  --cyc-item-bg: #f8fafc;
+  --cyc-item-hover-bg: #f1f5f9;
+  --cyc-item-hover-border: #94a3b8;
+  --cyc-selected-bg: #ecfdf5;
+  --cyc-selected-border: #059669;
+  --cyc-divider: #e2e8f0;
+  --cyc-title: #0f172a;
+  --cyc-text: #1e293b;
+  --cyc-muted: #475569;
+  --cyc-accent: #047857;
+  --cyc-icon-bg: #ecfdf5;
+  --cyc-icon-border: #a7f3d0;
+  --cyc-em-bg: #ecfdf5;
+  --cyc-em-border: #6ee7b7;
+  --cyc-em-text: #065f46;
+  --cyc-am-bg: #fffbeb;
+  --cyc-am-hover-bg: #fef3c7;
+  --cyc-am-border: #f59e0b;
+  --cyc-am-text: #92400e;
+  --cyc-neu-bg: #f1f5f9;
+  --cyc-neu-border: #cbd5e1;
+  --cyc-neu-text: #334155;
+  --cyc-strong-bg: #0f172a;
+  --cyc-strong-border: #0f172a;
+  --cyc-strong-text: #ffffff;
+  --cyc-reason: #92400e;
+  box-shadow: 0 8px 24px -8px rgba(15, 23, 42, 0.08);
+}
+
+.lb-cycles-icon {
+  background-color: var(--cyc-icon-bg);
+  border: 1px solid var(--cyc-icon-border);
+  color: var(--cyc-accent);
+}
+.lb-cycles-title { color: var(--cyc-title); }
+.lb-cycles-text { color: var(--cyc-text); }
+.lb-cycles-muted { color: var(--cyc-muted); }
+.lb-cycles-accent { color: var(--cyc-accent); }
+.lb-cycles-chip-emerald {
+  background-color: var(--cyc-em-bg);
+  border: 1px solid var(--cyc-em-border);
+  color: var(--cyc-em-text);
+}
+.lb-cycles-chip-amber {
+  background-color: var(--cyc-am-bg);
+  border: 1px solid var(--cyc-am-border);
+  color: var(--cyc-am-text);
+}
+.lb-cycles-chip-amber:hover { background-color: var(--cyc-am-hover-bg); }
+.lb-cycles-chip-neutral {
+  background-color: var(--cyc-neu-bg);
+  border: 1px solid var(--cyc-neu-border);
+  color: var(--cyc-neu-text);
+}
+.lb-cycles-chip-strong {
+  background-color: var(--cyc-strong-bg);
+  border: 1px solid var(--cyc-strong-border);
+  color: var(--cyc-strong-text);
+}
+.lb-cycles-active-bar {
+  background-color: var(--cyc-inner-bg);
+  border: 1px solid var(--cyc-inner-border);
+}
+.lb-cycles-item {
+  background-color: var(--cyc-item-bg);
+  border: 1px solid var(--cyc-inner-border);
+}
+.lb-cycles-item:hover {
+  background-color: var(--cyc-item-hover-bg);
+  border-color: var(--cyc-item-hover-border);
+}
+.lb-cycles-item.is-selected {
+  background-color: var(--cyc-selected-bg);
+  border: 1.5px solid var(--cyc-selected-border);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.14);
+}
+.lb-cycles-divider { border-top: 1px solid var(--cyc-divider); }
+.lb-cycles-stat-emerald { color: var(--cyc-em-text); }
+.lb-cycles-stat-amber { color: var(--cyc-am-text); }
+.lb-cycles-stat-muted { color: var(--cyc-muted); }
+.lb-cycles-stat-secondary { color: var(--cyc-neu-text); }
+.lb-cycles-reason { color: var(--cyc-reason); }
+.lb-cycles-expand { color: var(--cyc-neu-text); }
+.lb-cycles-expand:hover { color: var(--cyc-title); }
+
