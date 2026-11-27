@@ -77,6 +77,7 @@ export const workouts = pgTable('workouts', {
   strain: real('strain'),
   feedback: text('feedback'),
   trainerNotes: text('trainer_notes'),
+  missedReason: text('missed_reason'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });

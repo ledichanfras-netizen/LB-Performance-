@@ -11,6 +11,10 @@ import { validateSportsPayload } from './sportsValidation';
 import { saveWorkoutExecution } from './workoutExecution';
 import { saveStudentData } from './studentSave';
 import { readWorkoutHistoryPage, workoutFromRows } from './workoutHistory';
+import { ensureSportsSchema } from './ensureSchema';
+import { validateScopedSave } from './saveScope';
+import { lockAthleteSnapshots, archiveMissingWorkoutsSQL } from './workoutSync';
+import { createSaveBatch } from './saveBatch';
 
 const revision = '2026-11-25T10:00:00.000Z';
 const coach = { user_id: 'c1', role: 'coach', organization_id: 'org' };
@@ -247,6 +251,110 @@ test('validateSportsPayload, history read, execution guard and student save enfo
         },
       ])
     );
+  } finally {
+    await db.close();
+  }
+});
+
+test('ensureSportsSchema migrates legacy workouts table without missed_reason/archived_at and drops status check constraint before scoped save', async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`
+      CREATE SCHEMA lb_accounts;
+      CREATE TABLE lb_accounts.athlete_scopes(athlete_id text, organization_id text);
+      CREATE TABLE lb_accounts.athlete_archives(athlete_id text);
+      CREATE TABLE users(id text PRIMARY KEY);
+      CREATE TABLE athletes(id text PRIMARY KEY, name text NOT NULL, dob text NOT NULL, updated_at timestamptz DEFAULT CURRENT_TIMESTAMP, injury_history text);
+      CREATE TABLE workouts(
+        id text PRIMARY KEY,
+        athlete_id text REFERENCES athletes(id) ON DELETE CASCADE,
+        date text NOT NULL,
+        name varchar(255),
+        phase varchar(100),
+        status varchar(50) CHECK (status IN ('planned', 'in_progress', 'completed')),
+        rpe integer,
+        total_load real,
+        duration_minutes integer,
+        monotony real,
+        strain real,
+        feedback text
+      );
+      CREATE TABLE prescribed_exercises(id text PRIMARY KEY, workout_id text, name text, muscle_group text, sets integer, reps text, weight text);
+      CREATE TABLE performed_sets(id text PRIMARY KEY, exercise_id text, reps integer, weight real, rpe integer);
+      CREATE TABLE wellness(id text PRIMARY KEY, athlete_id text, sleep integer);
+      CREATE TABLE external_sessions(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE bioimpedance(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE vo2max(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE isometric_strength(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE cmj(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE drop_jump(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE speed(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE imtp(id text PRIMARY KEY, athlete_id text);
+      CREATE TABLE general_strength(id text PRIMARY KEY, athlete_id text);
+      INSERT INTO athletes(id, name, dob, updated_at) VALUES('a1', 'Atleta', '2000-01-01', '${revision}');
+      INSERT INTO lb_accounts.athlete_scopes VALUES('a1', 'org');
+      INSERT INTO workouts(id, athlete_id, date, name, phase, status) VALUES('w1', 'a1', '2026-11-25', 'Sessão 1', 'Preparação Específica', 'planned');
+    `);
+
+    const clientAdapter: any = {
+      query: (sql: string, params?: any[]) => db.query(sql, params),
+      release() {},
+    };
+    const poolAdapter: any = {
+      query: (sql: string, params?: any[]) => db.query(sql, params),
+      connect: async () => clientAdapter,
+    };
+
+    await ensureSportsSchema(poolAdapter);
+
+    const workoutCols = await db.query(
+      "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='workouts'"
+    );
+    const colNames = new Set(workoutCols.rows.map((r: any) => r.column_name));
+    assert.ok(colNames.has('missed_reason'));
+    assert.ok(colNames.has('archived_at'));
+    assert.ok(colNames.has('trainer_notes'));
+
+    const payload = [
+      {
+        id: 'a1',
+        name: 'Atleta',
+        dob: '2000-01-01',
+        gender: 'M',
+        modality: 'Tênis',
+        syncRevision: revision,
+        wellness: [],
+        externalSessions: [],
+        assessments: {},
+        workouts: [
+          {
+            id: 'w1',
+            date: '2026-11-25',
+            name: 'Sessão 1',
+            phase: 'Preparação Específica',
+            status: 'missed',
+            missedReason: 'Viagem / Competição',
+            totalLoad: 0,
+            exercises: [],
+          },
+        ],
+      },
+    ];
+
+    await validateScopedSave(clientAdapter, coach as any, payload);
+    await lockAthleteSnapshots(clientAdapter, payload);
+    const writes = createSaveBatch({ query: (sql: string) => db.exec(sql) });
+    await writes.query(archiveMissingWorkoutsSQL, ['a1', JSON.stringify(['w1'])]);
+    await writes.query(
+      'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, missed_reason, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, missed_reason = $14, updated_at = CURRENT_TIMESTAMP',
+      ['w1', 'a1', '2026-11-25', 'Sessão 1', 'Preparação Específica', 'missed', null, 0, null, null, null, null, null, 'Viagem / Competição']
+    );
+    await writes.flush();
+
+    const saved = await db.query("SELECT status, missed_reason, total_load FROM workouts WHERE id='w1'");
+    assert.equal(saved.rows[0].status, 'missed');
+    assert.equal(saved.rows[0].missed_reason, 'Viagem / Competição');
+    assert.equal(saved.rows[0].total_load, 0);
   } finally {
     await db.close();
   }

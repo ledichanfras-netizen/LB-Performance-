@@ -24,6 +24,7 @@ import { SyncConflict, lockAthleteSnapshots, readSavedRevisions, readSavedWorkou
 import { normalizeBirthDate } from './src/utils/birthDate';
 import { createSaveBatch } from './server/saveBatch';
 import { exerciseMetadata, restorePerformedMetrics } from "./server/exerciseMetadata";
+import { ensureSportsSchema, ensureSportsSchemaOnce, resetSportsSchemaCache } from './server/ensureSchema';
 import express from 'express';
 import { billingRouter } from './server/billing';
 import { resolveSupervisedAccount } from './server/supervisor';
@@ -438,67 +439,11 @@ const serializeBackupAthleteFields = (athlete: any) => {
 // Auto-migration helper to ensure columns exist
 async function ensureColumns() {
   if (!process.env.SQL_HOST && !process.env.DATABASE_URL) return;
-  const client = await pool.connect();
   try {
     console.log("Verificando integridade das tabelas...");
-    
-    // Bioimpedance
-    const bioCols = [
-      'basal_metabolism', 'metabolic_age', 'bone_mass', 'physique_rating',
-      'fat_arm_r', 'fat_arm_l', 'fat_leg_r', 'fat_leg_l', 'fat_trunk',
-      'muscle_arm_r', 'muscle_arm_l', 'muscle_leg_r', 'muscle_leg_l', 'muscle_trunk'
-    ];
-    for (const col of bioCols) {
-      await client.query(`ALTER TABLE bioimpedance ADD COLUMN IF NOT EXISTS ${col} REAL`).catch(() => {});
-    }
-
-    // VO2max
-    await client.query('ALTER TABLE vo2max ADD COLUMN IF NOT EXISTS max_ventilation REAL').catch(() => {});
-
-    // Prescribed Exercises
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS rest VARCHAR(50)').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS notes TEXT').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS pain_level INTEGER').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS reps_type VARCHAR(50)').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS video_url TEXT').catch(() => {});
-    await client.query('ALTER TABLE prescribed_exercises ADD COLUMN IF NOT EXISTS image_url TEXT').catch(() => {});
-    
-    // Users
-    await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT DEFAULT \'free\'').catch(() => {});
-
-    // Wellness
-    await client.query('ALTER TABLE wellness ALTER COLUMN sleep TYPE REAL USING sleep::real').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS readiness_score INTEGER').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS travel_fatigue INTEGER').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS sleep_quality INTEGER').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS menstrual_phase TEXT').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS menstrual_symptoms JSONB').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS hrv REAL').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS sleep_hours_formatted TEXT').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS sleep_start_time TEXT').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS wake_up_time TEXT').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS calculated_sleep_hours REAL').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS is_match_day BOOLEAN').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS emotional_readiness INTEGER').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS psychological_readiness INTEGER').catch(() => {});
-    await client.query('ALTER TABLE wellness ADD COLUMN IF NOT EXISTS psychology_notes TEXT').catch(() => {});
-
-    // Athletes
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS reassessment_plan JSONB');
-    await client.query('ALTER TABLE athletes DROP CONSTRAINT IF EXISTS athletes_competitive_level_check').catch(() => {});
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS photo_url TEXT').catch(() => {});
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS is_tournament_mode BOOLEAN DEFAULT FALSE').catch(() => {});
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS periodization_start TEXT').catch(() => {});
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS periodization_end TEXT').catch(() => {});
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS training_days JSONB').catch(() => {});
-    await client.query('ALTER TABLE athletes ADD COLUMN IF NOT EXISTS injuries JSONB').catch(() => {});
-    await client.query('ALTER TABLE workouts ADD COLUMN IF NOT EXISTS missed_reason TEXT').catch(() => {});
-
+    await ensureSportsSchema(pool);
   } catch (e: any) {
     console.error("Erro na auto-migração:", e.message);
-  } finally {
-    client.release();
   }
 }
 
@@ -582,6 +527,7 @@ apiRouter.get('/ler', authMiddleware, async (req, res) => {
   try {
     sportsReadScope((req as any).account);
     if (!isDbConnected || (!process.env.SQL_HOST && !process.env.DATABASE_URL)) return res.status(503).json({error:'Dados temporariamente indisponíveis. Seu histórico não foi substituído.'});
+    await ensureSportsSchemaOnce(pool).catch((e: any) => console.warn('[Schema] pre-read:', e?.message || e));
 
     console.log(`[SERVIÇO] Buscando atletas no banco local... ${isAthlete ? `(Atleta: ${athleteId})` : '(Todos)'}`);
     
@@ -902,6 +848,7 @@ const saveAthletesHandler = async (req:any, res:any) => {
   }
 
   if ((!process.env.SQL_HOST && !process.env.DATABASE_URL) || !isDbConnected) return res.status(503).json({error:'Banco indisponível. O registro ainda não foi salvo.'});
+  await ensureSportsSchemaOnce(pool).catch((e: any) => console.warn('[Schema] pre-save:', e?.message || e));
 
   console.log(`Recebida solicitação de salvamento para ${athletes.length} atletas.`);
   const client = await pool.connect().catch(()=>null);
@@ -929,7 +876,7 @@ const saveAthletesHandler = async (req:any, res:any) => {
           athlete.position || '',
           serializeBackupAthleteFields(athlete),
           athlete.goal || 'Performance',
-          athlete.weeklyFrequency || athlete.weekly_frequency || (athlete.trainingDays?.length || 3),
+          Math.round(safeNum(athlete.weeklyFrequency ?? athlete.weekly_frequency, athlete.trainingDays?.length || 3)),
           athlete.isTournamentMode ?? false,
           athlete.periodizationStart ?? null,
           athlete.periodizationEnd ?? null,
@@ -1001,11 +948,13 @@ const saveAthletesHandler = async (req:any, res:any) => {
         const isMissed = wk.status === 'missed';
         const missedReason = isMissed && typeof wk.missedReason === 'string' && wk.missedReason.trim() ? wk.missedReason.trim() : null;
         wk.totalLoad = isMissed ? 0 : realizedTonnage(wk.exercises || []);
+        const safeMonotony = !isMissed && typeof wk.monotony === 'number' && Number.isFinite(wk.monotony) ? wk.monotony : null;
+        const safeStrain = !isMissed && typeof wk.strain === 'number' && Number.isFinite(wk.strain) ? wk.strain : null;
         if (!wk.id) wk.id = `wk-${Date.now()}-${Math.random()}`;
         const cleanDate = wk.date ? (typeof wk.date === 'string' ? wk.date.split('T')[0] : new Date(wk.date).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0];
         await writes.query(
           'INSERT INTO workouts (id, athlete_id, date, name, phase, status, rpe, total_load, duration_minutes, monotony, strain, feedback, trainer_notes, missed_reason, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET date = $3, name = $4, phase = $5, status = $6, rpe = $7, total_load = $8, duration_minutes = $9, monotony = $10, strain = $11, feedback = $12, trainer_notes = $13, missed_reason = $14, updated_at = CURRENT_TIMESTAMP',
-          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, isMissed ? null : (wk.rpe ?? null), wk.totalLoad, isMissed ? null : (wk.durationMinutes ?? null), isMissed ? null : (wk.monotony ?? null), isMissed ? null : (wk.strain ?? null), wk.feedback ?? null, wk.trainerNotes ?? null, missedReason]
+          [wk.id, athlete.id, cleanDate, wk.name ?? null, wk.phase ?? null, wk.status ?? null, isMissed ? null : (wk.rpe ?? null), wk.totalLoad, isMissed ? null : (wk.durationMinutes ?? null), safeMonotony, safeStrain, wk.feedback ?? null, wk.trainerNotes ?? null, missedReason]
         );
 
         // Deep sync for exercises: delete orphans
@@ -1152,7 +1101,10 @@ const saveAthletesHandler = async (req:any, res:any) => {
     res.json({ message: 'Dados sincronizados com sucesso!', syncRevisions, workoutRevisions });
   } catch (error: any) {
     discardClient = true;
-    console.error("[ScopedSave]",error.code || error.message);
+    console.error("[ScopedSave]", error?.code || 'ERR', error?.message || error);
+    if (error?.code === '42703' || error?.code === '42P01') {
+      resetSportsSchemaCache();
+    }
     if (client && error.message !== 'Query read timeout') {
       try {
         await client.query('ROLLBACK');
@@ -1818,21 +1770,23 @@ apiRouter.all('*', (req, res) => {
 app.use('/api', apiRouter);
 
 async function runSetup(retries = 1) {
-  if (!process.env.DATABASE_URL) {
-    console.warn("DATABASE_URL não configurada. O banco de dados não estará disponível.");
+  if (!process.env.DATABASE_URL && !process.env.SQL_HOST) {
+    console.warn("DATABASE_URL/SQL_HOST não configuradas. O banco de dados não estará disponível.");
     return;
   }
 
-  try {
-    const url = new URL(process.env.DATABASE_URL);
-    if (url.host === 'db.zycnwaqswrunzptyeaso.supabase.co') {
-      console.error("\n--- ERRO CRÍTICO DE CONFIGURAÇÃO ---");
-      console.error("O host 'db.zycnwaqswrunzptyeaso.supabase.co' é conhecido por falhar.");
-      console.error("Verifique se você não deveria estar usando 'db.nkxsqhkxgwpjdcmcetav.supabase.co' ou seu ID de projeto atual.");
-      console.error("------------------------------------\n");
+  if (process.env.DATABASE_URL) {
+    try {
+      const url = new URL(process.env.DATABASE_URL);
+      if (url.host === 'db.zycnwaqswrunzptyeaso.supabase.co') {
+        console.error("\n--- ERRO CRÍTICO DE CONFIGURAÇÃO ---");
+        console.error("O host 'db.zycnwaqswrunzptyeaso.supabase.co' é conhecido por falhar.");
+        console.error("Verifique se você não deveria estar usando 'db.nkxsqhkxgwpjdcmcetav.supabase.co' ou seu ID de projeto atual.");
+        console.error("------------------------------------\n");
+      }
+    } catch (e) {
+      // Ignore URL parsing errors here, they will be caught by pool.connect()
     }
-  } catch (e) {
-    // Ignore URL parsing errors here, they will be caught by pool.connect()
   }
   
   let client;
@@ -1939,7 +1893,7 @@ async function runSetup(retries = 1) {
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS average_force REAL;`);
     await client.query(`ALTER TABLE cmj ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
 
-    await ensureAbalakovTable(client);
+    await ensureAbalakovTable(client).catch((e: any) => console.warn("Erro ao configurar abalakov:", e?.message || e));
 
     await client.query(`CREATE TABLE IF NOT EXISTS vo2max (
         id TEXT PRIMARY KEY, 
@@ -2223,7 +2177,8 @@ async function runSetup(retries = 1) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );`);
     
-    await client.query(externalSessionDetailsSQL);
+    await client.query(externalSessionDetailsSQL).catch((e: any) => console.warn("Erro ao configurar external_sessions:", e?.message || e));
+    await ensureSportsSchema(client);
 
     // Administrative accounts are provisioned explicitly; never reset passwords on startup.
 
@@ -2264,7 +2219,9 @@ async function runSetup(retries = 1) {
 
 async function startServer() {
   // Configuração do banco em segundo plano para não travar o início do servidor
-  runSetup().catch(e => console.error("Falha na configuração inicial do banco de dados:", e));
+  runSetup()
+    .then(() => ensureSportsSchemaOnce(pool))
+    .catch(e => console.error("Falha na configuração inicial do banco de dados:", e));
   
   const distPath = path.join(__dirname, 'dist');
   const indexPath = path.join(distPath, 'index.html');
